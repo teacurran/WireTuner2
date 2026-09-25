@@ -310,7 +310,12 @@ and SMIL timelines, cached per asset and time for the session, stored as a blob 
 with `SetSvgAnimationPosterFrame` -- the asset and both registers in one change), *On the web*
 (`SetSvgAnimationWeb`), *Duration*, *Scripts*, the file line, btn:[Reveal] (the original when this
 Mac has it) and btn:[Save a Copy…].  The section shows for a placed animation selected on the canvas
-(the scene draws them since WEB-026).  Not built: btn:[Replace…] and btn:[Edit With…].
+(the scene draws them since WEB-026).  btn:[Replace…] and btn:[Edit With…] are `WTApp/Web/SvgAnimationFileActions.swift` over `ReplaceSvgAnimationFile`
+(`WTModel/SvgAnimationReplaceFile.swift`, a new file): the file converted as an import converts it, its poster rendered,
+the file's asset reused when the document holds the same bytes, and the transform scaled by the old natural size over the
+new so the animation keeps its size; *Edit With…* opens the stored file in the system's SVG editor and each settled save
+replaces it the same way.  Deviation: there is no Done or Cancel for an SVG edit session; it watches until the app quits
+and the next launch removes its file.
 
 NOTE: As built by WEB-026 (`WTModel/ImageCommands.swift` `ImageNodes.poster`, `DocumentScene.swift`;
 `WTRender`: `ImageItem.showsPlayGlyph`, `ImageDrawing.playGlyph`, `LayerScene`).  `NodeKind.svgAnimation`

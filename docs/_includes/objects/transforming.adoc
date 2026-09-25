@@ -345,7 +345,11 @@ centre, a typed centre being kept for *Apply*.  *Contents* and *Fills* are shown
 the Scale tab); the three persist in the preferences' `UserDefaults` (`TransformOptions` still
 ignores *Fills* and *Contents*, as noted above).  menu:Modify[Transform > Rotate… … Move…] and a
 double-click on a transformation tool open the panel on that tab.  The 60 fps preview measurement
-is not done.  *Mirror*: a drag sets the centre; the release makes one copy per matrix of every
+is `TransformPreviewPerformanceTests` (100 selected rectangles, 120 drag events, one event and its
+overlay a frame, held to 1/60 s in the perf run): Rotate, Scale, Skew, Reflect, Mirror and 3D Rotation
+and the Pointer's transform handles each commit one change.  Measuring found the handles (40 ms) and 3D
+Rotation (21 ms) re-deriving the selection's geometry every event; the Pointer's handle bounds and 3D
+Rotation's bounds and keylines are now kept until the document or the selection changes (about 1 ms).  *Mirror*: a drag sets the centre; the release makes one copy per matrix of every
 selected object in one change "Mirror" (a `TransformObjects` with one copy each): *Horizontal*
 flips top to bottom, *Vertical* left to right, *Horizontal & Vertical* makes the three reflections,
 *Multiple* one copy per axis -- reflected across axes 180°/N apart, or with *Rotate* turned in

@@ -90,6 +90,7 @@ struct HalftonesPanelBody: View {
                 set: { model.setFrequency(HalftonesPanelModel.frequency(atSlider: $0)) })
     }
 
+    /// The dial's value snapped to 15° steps (what a Shift-drag of the dial writes).
     static func dial(_ model: HalftonesPanelModel) -> Binding<Double> {
         Binding(get: { model.angle ?? 0 }, set: { model.setAngle(($0 / 15).rounded() * 15) })
     }
@@ -103,7 +104,7 @@ struct HalftonesPanelBody: View {
                 }
                 .accessibilityIdentifier("halftones.screen")
                 CommitField(title: "Angle", value: model.angle, identifier: "halftones.angle", commit: model.setAngle)
-                Slider(value: Self.dial(model), in: 0...360, step: 15).accessibilityIdentifier("halftones.dial")
+                PointerDial(angle: model.angle, identifier: "halftones.dial", commit: model.setAngle).frame(width: 44, height: 44)
                 CommitField(title: "Frequency (lpi)", value: model.frequency, identifier: "halftones.frequency", commit: model.setFrequency)
                 Slider(value: Self.slider(model), in: 0...1).accessibilityIdentifier("halftones.slider")
                 Button("Use Document Settings", action: model.useDocumentSettings).accessibilityIdentifier("halftones.useDocument")

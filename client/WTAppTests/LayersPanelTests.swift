@@ -141,7 +141,7 @@ import WTRender
 
         // The options menu and the row menu.
         #expect(model.optionItems.map(\.title) == ["New", "Duplicate", "Remove", "", "Merge Selected Layers", "Merge Foreground Layers",
-                                                   "Move Objects to Current Layer", "", "All On", "All Off"])
+                                                   "Move Objects to Current Layer", "", "All On", "All Off", "", "Show Frame Numbers"])
         let before = LayerOrder(document.state).layers.count
         _ = await model.newLayer().value
         #expect(LayerOrder(document.state).layers.count == before + 1 && state.selected.count == 1)

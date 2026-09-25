@@ -172,6 +172,14 @@ Nothing beyond storing and relaying changes and blobs.
   the APP-007 mixed-value support.
 * Undo: one change per menu choice, labelled "Assign Image Profile" or "Change Image Intent".
 
+NOTE: As built by CMS-013 (`WTApp/Images/ImageColorSection.swift`; `WTModel/ImageColorCommands.swift`, a new file).  The
+Object panel's image rows: *Type* ("RGB, embedded profile: sRGB IEC61966-2.1"), *Source profile* (Embedded when every
+selected image carries a profile, Document default, the bundled and assigned profiles of the images' model and the installed
+ones, *Other…*) and *Intent* (Document and the four intents), *Mixed* where the images differ.  `SetImageSourceProfile`
+writes `source_profile` (unset for Document default) and turns `use_embedded` off only where it is on; choosing Embedded
+writes `use_embedded` alone, so a concurrent assignment is retained under it; `SetImageIntent` writes `intent`; each is one
+change over the images.  *Other…* and an installed profile load through the shared profile blobs (`ProfileBlobGlue`).
+
 === Build tasks
 
 [[CMS-012]]

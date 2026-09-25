@@ -336,6 +336,10 @@ the window's furniture layer draws `LinkOverlay` read from its scene, the web fe
 the layer and no tile.  While it is on, the canvas's tooltip is the URL under the pointer (`LinkOverlay.url(at:)`, a
 tolerance of 3 view points).  Tests: `ModelGlueFeaturesTests`.
 
+NOTE: As built by WEB-003's remainder (`WTApp/Web/LinkUseSearch.swift`).  menu:Edit[Find and Replace > Graphics]'s Select
+tab has the *Link* criterion: a link typed or picked from the ones the document uses finds every object and text block using
+it within *Search in* (the page scope by bounds, as the other criteria).
+
 === Build tasks
 
 [[WEB-001]]

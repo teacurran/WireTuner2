@@ -128,7 +128,7 @@ final class ToolManager {
     // MARK: Pointer events
 
     func mouseDown(_ event: CanvasEvent) {
-        if handlesApply, let layer = handleLayers.first(where: { $0.press(event, context: context) }) {
+        if handlesApply, let layer = handleLayers.first(where: { $0.applies(to: activeToolID) && $0.press(event, context: context) }) {
             handleDrag = layer
             publishInfo(event)
             context.host.setNeedsOverlayDisplay()
@@ -289,7 +289,7 @@ final class ToolManager {
 
     func drawOverlay(in ctx: CGContext, viewport: Viewport) {
         if handlesApply {
-            for layer in handleLayers { layer.draw(in: ctx, viewport: viewport, context: context) }
+            for layer in handleLayers where layer.applies(to: activeToolID) { layer.draw(in: ctx, viewport: viewport, context: context) }
         }
         activeTool.drawOverlay(in: ctx, viewport: viewport)
     }

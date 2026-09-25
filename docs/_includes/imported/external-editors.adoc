@@ -175,6 +175,14 @@ Nothing beyond storing and relaying changes and blobs.
 * Undo: one change per returned save and per optimize, labelled "Edit _name_ in _app_" /
   "Optimize _name_".
 
+NOTE: As built by IMG-019 (`WTApp/Images/ExternalEditing.swift`; `WTModel/ExternalEditCommands.swift`, a new file).
+menu:Edit[Edit With] lists the applications Launch Services has for images; the Object panel's btn:[Edit With…] and
+kbd:[Option]-double-click use *Default image editor*, else the system's, after the confirmation while it is on.  The session
+copies the pixels to `Application Support/WireTuner/EditSessions/<document>/`, watches the file and its folder (an atomic
+rename is seen), and each save settled for 300 ms is decoded, stored and written with `ReplaceEditedImage` -- one resolution
+from the kept placed width, so the height follows new proportions; btn:[Done] in the *Editing* panel removes the file,
+btn:[Cancel] writes the original pixels and resolution back.  Leftover files go at the next launch.
+
 === Build tasks
 
 [[IMG-019]]

@@ -18,7 +18,7 @@ import WTRender
 final class SymbolLibraryModel {
     /// One row of the flattened outline.
     struct Row: Identifiable, Equatable {
-        enum Kind: Equatable { case symbol, folder }
+        enum Kind: Equatable { case symbol, folder, master }
         let id: OpID
         let kind: Kind
         let name: String
@@ -27,9 +27,13 @@ final class SymbolLibraryModel {
         let depth: Int
         /// The folder the row is listed in; nil at the top level.
         let folder: OpID?
+        /// *Kind* (LIB-011; `SymbolLibraryKind`).
+        var usage: SymbolLibraryKind = .graphic
+        /// *Date*: the newest change to the symbol this Mac has seen.
+        var changed: SymbolChangeLog.Entry?
     }
 
-    enum Sort: String, CaseIterable { case name, count }
+    enum Sort: String, CaseIterable { case name, count, kind, date }
 
     static let removeSheet = "library.remove-sheet"
     static let noDocument = "No document is open"
@@ -44,6 +48,8 @@ final class SymbolLibraryModel {
     var ascending = true
     /// *Preview* in the options menu.
     var showsPreview = true
+    /// The *Show* submenu: the kinds listed.
+    var shown = Set(SymbolLibraryKind.allCases)
     /// The symbols the Remove sheet is asking about.
     private(set) var pendingRemoval: [OpID] = []
     var renaming: OpID?
@@ -77,15 +83,20 @@ final class SymbolLibraryModel {
             let described = entries.map { entry -> (Row, [SymbolLibraryEntry]) in
                 switch entry {
                 case .symbol(let id):
-                    return (Row(id: id, kind: .symbol, name: Self.name(of: id, in: state), count: counts[id] ?? 0, depth: depth, folder: folder), [])
+                    return (Row(id: id, kind: .symbol, name: Self.name(of: id, in: state), count: counts[id] ?? 0, depth: depth, folder: folder,
+                                usage: SymbolLibraryKind(state.props(id).symbol.usage), changed: document.flatMap { SymbolChangeLog.shared.entry(id, in: $0) }), [])
                 case .folder(let id, let name, let children):
                     return (Row(id: id, kind: .folder, name: name, count: children.count, depth: depth, folder: folder), children)
                 }
             }
-            let sorted = described.sorted { a, b in
+            let sorted = described.filter { $0.0.kind != .symbol || shown.contains($0.0.usage) }.sorted { a, b in
                 let key: Bool
                 if sort == .count, a.0.count != b.0.count {
                     key = a.0.count < b.0.count
+                } else if sort == .kind, a.0.usage != b.0.usage {
+                    key = a.0.usage < b.0.usage
+                } else if sort == .date, a.0.changed?.date != b.0.changed?.date {
+                    key = (a.0.changed?.date ?? .distantPast) < (b.0.changed?.date ?? .distantPast)
                 } else {
                     key = a.0.name.localizedStandardCompare(b.0.name) == .orderedAscending
                 }
@@ -97,6 +108,12 @@ final class SymbolLibraryModel {
             }
         }
         visit(Symbols.library(in: state), depth: 0, folder: nil)
+        if shown.contains(.masterPage), let pages = document?.pageList {
+            for master in pages.masters {
+                result.append(Row(id: master.id, kind: .master, name: master.name.isEmpty ? "Master" : master.name,
+                                  count: pages.pages.filter { $0.master == master.id }.count, depth: 0, folder: nil, usage: .masterPage))
+            }
+        }
         return result
     }
 
@@ -178,7 +195,7 @@ final class SymbolLibraryModel {
     /// btn:[Remove]: asks first when a symbol has instances.
     @discardableResult
     func remove() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        let ids = selectedRows.map(\.id)
+        let ids = selectedRows.filter { $0.kind != .master }.map(\.id)
         guard !ids.isEmpty else { return nil }
         let counts = Symbols.instanceIndex(in: state)
         let symbols = ids.flatMap { id -> [OpID] in
@@ -253,6 +270,7 @@ final class SymbolLibraryModel {
 
     /// Double-click: rename in place.
     func beginRename(_ id: OpID) {
+        guard rows.first(where: { $0.id == id })?.kind != .master else { return }
         renaming = id
         renameText = rows.first { $0.id == id }?.name ?? ""
     }
@@ -300,6 +318,12 @@ final class SymbolLibraryModel {
         ]
         for folder in self.rows where folder.kind == .folder && !selected.contains(folder.id) {
             items.append(PanelMenuItem(title: "Move to \u{201C}\(folder.name)\u{201D}", isEnabled: !rows.isEmpty) { [weak self] in self?.move(to: folder.id) })
+        }
+        for kind in SymbolLibraryKind.allCases {
+            items.append(PanelMenuItem(title: (shown.contains(kind) ? "Hide " : "Show ") + kind.plural) { [weak self] in
+                guard let self else { return }
+                if self.shown.contains(kind) { self.shown.remove(kind) } else { self.shown.insert(kind) }
+            })
         }
         items.append(PanelMenuItem(title: showsPreview ? "Hide Preview" : "Show Preview") { [weak self] in self?.showsPreview.toggle() })
         return items

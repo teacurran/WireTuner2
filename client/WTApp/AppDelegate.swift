@@ -248,6 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.printing.attach(window)
             self?.editMenu.attach(window)
             self?.attachWindowGlue(window)
+            self?.attachEditorExtras(window)
             self?.attachModelGlue(window)
             self?.attachTypeAndDrawingFeatures(window)
         }
@@ -338,6 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installPrinting()
         installEditing()
         installWindowGlue()
+        installEditorExtras()
         installModelGlue()
         installTypeAndDrawingFeatures()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
@@ -484,6 +486,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activeSelection.editing = window?.objectEditing
         activeSelection.presence = window?.presence
         activeSelection.preferences = preferences
+        activeSelection.activeToolID = window?.toolManager.activeToolID
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
     }

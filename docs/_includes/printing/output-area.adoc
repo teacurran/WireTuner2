@@ -152,6 +152,10 @@ page range does not apply -- and `PrintRequest.Source.outputArea(pageOutlines:)`
 meets, which `PrintSheetRenderer` strokes (0.25 pt, black) inside the clip when *Print page boundaries* is on; marks, bleed,
 scaling and tiling treat the area as the page.
 
+NOTE: As built by PRINT-012's client half (`WTApp/Print/OutputAreaEditor.swift`).  While the Output Area tool is active and the
+document has an area, the Object panel shows X, Y, W and H of the area in the document's unit (arithmetic and units in the
+fields) in place of the selection; X and Y write "Move output area", W and H "Resize output area".
+
 === Build tasks
 
 [[PRINT-011]]

@@ -198,6 +198,12 @@ outline: alpha × (d / radius)^p with p = 0.15 + 0.85 × softness / 100, rather 
 blur, so that a radius larger than half the shape leaves it translucent as the guide says.  The
 fast modes skip masks and feathers.  The merge test is WTModel's.
 
+NOTE: As built by FX-014 (`WTApp/Inspector/Effects/RasterEffectForms.swift`; `WTModel/MaskGradientCommands.swift`, a new
+file).  The Transparency form: *Basic* (slider and field), *Feather* (Radius, Softness) and *Gradient Mask*: choosing it
+seeds a black-to-white linear ramp (`ChooseGradientMask`); the mask's type, and its stops -- each an element, so concurrent
+edits keep everyone's -- added, moved, regrayed and removed (`AddMaskStop`, `EditMaskStop`, `RemoveMaskStop`).  Deviation: the
+mask is edited in a gray ramp with a row per stop, not by hosting the gradient editor, and has no on-canvas handles.
+
 === Build tasks
 
 [[FX-013]]

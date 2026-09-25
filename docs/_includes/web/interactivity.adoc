@@ -173,7 +173,9 @@ link to a page left out raises `missingPage`.
 NOTE: As built: the Navigation panel's *On click* pop-up (WEB-021's panel half, in
 `WTApp/Web/NavigationPanel.swift`): *Nothing*, *Open link* and *Go to <page>* for each page, *(deleted
 page)* for a dangling target; choosing a page writes `go_to_page`, *Nothing* or *Open link* clears it
-and leaves `url`.  The link badge overlay and the Link tool (WEB-022) are not built.
+and leaves `url`.  The link badge is `WTApp/Web/LinkBadges.swift`: while menu:View[Show Links] is on, every drawn object
+with a live page link shows a 12 × 12 pt badge at its bounds' lower right, drawn with the links overlay, and hovering it
+names the page ("Go to Page 2").  The Link tool (WEB-022) is not built.
 
 === Build tasks
 

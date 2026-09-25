@@ -564,6 +564,15 @@ Tests: `EnvelopeUITests`.
 NOTE: *Fractalize* (menu:Extensions[Distort > Fractalize] and the Extension Operations toolbar) now runs WTModel's
 `Fractalize` (`WTApp/Effects/PathAlterFeatures.swift`); the app's own kernel described under FX-030 above is removed.
 
+NOTE: As built by FX-034 (`WTApp/Effects/EmbossFeatures.swift`; `WTModel/EmbossCommand.swift`, a new file).  Emboss applies
+to closed paths, rectangles, ellipses and polygons whose top fill is basic, gradient or pattern.  `EmbossKernel` builds the
+facets in pasteboard space: Emboss and Deboss the crescents of the outline against itself moved along the light (Soft edge
+steps them `depth/2` times, blending toward the object's colour), Chisel the band inside an inset split across the light,
+Ridge two such bands with swapped lighting, Quilt the outline's and an inset's crescents; *Contrast* colours are a tint and a
+shade in process CMYK, *Colors* the two boxes.  `EmbossObjects` groups each object with its facets in the object's place
+("Emboss").  btn:[Apply] previews (undone by Cancel or the next Apply), btn:[OK] keeps it; the settings are preferences, so
+kbd:[Cmd]-click on the toolbar button embosses with them.
+
 === Build tasks
 
 [[FX-030]]

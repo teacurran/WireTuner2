@@ -13,6 +13,14 @@ struct ObjectPanelBody: View {
     @State private var attributes = AttributesState()
 
     var body: some View {
+        if let replacement = registry.replacement(for: selection) {
+            replacement.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            selectionBody
+        }
+    }
+
+    private var selectionBody: some View {
         VStack(alignment: .leading, spacing: 10) {
             SelectionSummaryBody(selection: selection)
             if let line = selection?.editingLine {
@@ -31,6 +39,7 @@ struct ObjectPanelBody: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: InspectorRowRequest.shared.pending, initial: true) { InspectorRowRequest.shared.apply(to: attributes) }
     }
 
     /// The lower half: the selected stack row's editor (identified by the row, so a remote insert

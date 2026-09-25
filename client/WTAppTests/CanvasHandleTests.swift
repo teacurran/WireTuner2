@@ -74,7 +74,7 @@ import WTRender
 
     @Test func theBendCentreDragsAsOneUndoStep() async throws {
         let fixture = await Self.bent()
-        #expect(fixture.manager.handleLayers.count == 2 && CanvasHandleLayers.standard().count == 5)
+        #expect(fixture.manager.handleLayers.count == 2 && CanvasHandleLayers.standard().count == 7)
         let layer = try #require(fixture.manager.handleLayers[0] as? EffectCenterHandles)
         #expect(layer.handles(fixture.manager.context).isEmpty, "no effect focused: no handle")
         fixture.focusTop(.effects)

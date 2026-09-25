@@ -186,6 +186,10 @@ struct SvgAnimationSectionView: View {
                 Button("Reveal", action: Self.reveal(model)).disabled(model.originalURL == nil)
                 Button("Save a Copy…", action: Self.saveCopy(model)).disabled(model.file == nil)
             }
+            HStack {
+                Button("Replace…", action: SvgAnimationFileActions.replacing(model)).accessibilityIdentifier("svgAnimation.replace")
+                Button("Edit With…", action: SvgAnimationFileActions.editing(model)).disabled(model.file == nil).accessibilityIdentifier("svgAnimation.editWith")
+            }
         }
     }
 }

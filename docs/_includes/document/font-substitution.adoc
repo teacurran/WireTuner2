@@ -280,9 +280,10 @@ when the row names none -- rather than the `(missing, substitute, style)` messag
 preference store holds strings and the rows are keyed by face; the document's rows are the local
 store's `view` value `font_substitutions` (a JSON list of the same strings; a memory document keeps
 them for the session); the sheet shows once the window is open rather than before its first
-render (the scene draws no text yet, so nothing reflows under it); the substitution badge in the
-Text panel and in presence is not built (there is no Text panel yet, and presence carries no such
-field); and the UI tests of *Done when* are unit tests hosted in the app (`MissingFontsTests`:
+render (the scene draws no text yet, so nothing reflows under it); the substitution badge is in the
+Object panel's Character section ("[Futura PT] drawn in Helvetica Neue" with a warning sign,
+`WTApp/Fonts/SubstitutionBadge.swift`, from the document's `FontManager`) but not in presence, which
+carries no such field (a proto change); and the UI tests of *Done when* are unit tests hosted in the app (`MissingFontsTests`:
 substitute, replace, remember, cancel, reopening without the sheet, embedded fonts, and the team
 library through a fake), with a remembered substitution checked through the document's
 `FontManager` since text is not drawn yet.

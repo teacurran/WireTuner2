@@ -36,6 +36,11 @@ final class SmartGuideLink {
         engines[document] = engine
     }
 
+    /// A gesture engine for `document` starting at `start` (the size badges build theirs here).
+    func engine(_ document: String, start: Point) -> SmartGuideEngine? {
+        engines[document]?(start)
+    }
+
     func unregister(_ document: String) {
         engines[document] = nil
         sessions[document] = nil

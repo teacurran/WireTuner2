@@ -175,6 +175,7 @@ struct TextSectionView: View {
                 ForEach(Self.families(including: section.family), id: \.self) { Text($0).tag($0) }
             }
             .accessibilityIdentifier("object.text.family")
+            FontSubstitutionBadge(family: section.family, substitute: model.substitute(for: section))
             Picker("Style", selection: Self.style(section, model)) {
                 if section.style == nil { Text(Self.mixed).tag(Self.mixed) }
                 ForEach(Self.styles(of: section.family, including: section.style), id: \.self) { Text($0).tag($0) }

@@ -63,6 +63,8 @@ final class ActiveSelection {
     var presence: (any PresenceProviding)?
     /// The app's preferences (the Object panel's stroke width presets).
     var preferences: PreferenceStore?
+    /// The front window's active tool (the Object panel's Output Area editor).
+    var activeToolID: ToolID?
 
     init(model: SelectionModel? = nil, document: DocumentHandle? = nil, editing: ObjectEditing? = nil, presence: (any PresenceProviding)? = nil) {
         self.model = model

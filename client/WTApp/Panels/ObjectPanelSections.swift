@@ -253,7 +253,11 @@ struct RectangleSectionView: View {
     }
 
     var body: some View {
+        let effectCorners = model.rectangleCornersEffect
         Form {
+            if effectCorners {
+                Text(ObjectPanelModel.cornersEffectNote).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("object.rect.corners-effect")
+            }
             MeasureField(title: "Radius", value: section.radius, unit: model.unit, identifier: "object.rect.radius", commit: Self.radius(model))
             Toggle("Uniform", isOn: Self.uniform(section, model)).accessibilityIdentifier("object.rect.uniform")
             if !section.uniform.isOn {
@@ -265,6 +269,7 @@ struct RectangleSectionView: View {
                              commit: Self.radius(model, corners: [.bottomLeft]))
             }
         }
+        .disabled(effectCorners)
         .padding(.horizontal)
     }
 }

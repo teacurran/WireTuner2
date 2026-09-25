@@ -477,6 +477,19 @@ sentence ("already matches" when there is nothing to do), then performs `Restore
 ordinary change labelled "Restore '<name>'".  btn:[Compare] shows the version against the document
 now in compare mode (*Older* / *Now*), read-only.
 
+NOTE: As built by COLLAB-022, in part (`WTApp/History/`).  menu:Window[History] and menu:File[Show History] open the
+panel: `ListHistory` rows newest first -- named versions in bold, sessions "Priya · 14:02–15:40 · 312 changes" (a merged
+branch's under its name), expandable to their changes, the outbox's labels under *Not yet synced* -- with a search field
+(the server's `query`), *Hide comments* (a change whose objects are all comment threads is hidden), and on each row btn:[View]
+(the read-only window), btn:[Restore] (`RestoreVersionModel`'s summary confirmation, one change) and btn:[Compare] (with the
+document now); two rows compare with each other (*Older* / *Newer*); named versions rename (`UpdateVersion`) and delete
+(`DeleteVersion`) from their context menu; rows older than `retained_from_seq` are summarized and only named versions among
+them act.  The version window is a document window over the state in memory, not synced and not reopened at launch, whose
+every command is made inert; its bar offers Restore, Restore as Copy (`RestoreAsCopy`, the copy opened), Compare with Current
+and Inspect.  menu:File[Name This Version…] opens the Save Version sheet; kbd:[Cmd+S] stays *Save Version…* as saving.adoc
+names it.  Deviations: a collaborator's new version shows on the next remote change or refresh (no version event exists);
+the object history popover is not built.
+
 === Build tasks
 
 [[COLLAB-020]]

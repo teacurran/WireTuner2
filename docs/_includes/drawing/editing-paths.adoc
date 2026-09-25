@@ -348,8 +348,15 @@ Split, per Simplify OK, per Reverse.
 
 NOTE: As built by DRAW-025 and DRAW-026.  A drag on selected points (Pointer with kbd:[Option], or
 Subselect) moves them with one `MovePoints` per path on mouse-up, previewed in the overlay, rather
-than a write per drag event; arrow keys nudge them (moving.adoc).  Handle drags, kbd:[Option]-click
-type toggling, kbd:[Option]-drag handle extension and *Smoother editing* are not delivered.
+than a write per drag event; arrow keys nudge them (moving.adoc).  Handles, kbd:[Option] gestures and
+*Smoother editing* are `WTApp/Tools/PointHandleEditing.swift`: a handle layer under the Pointer and
+Subselect tools drags the selected points' handles and their neighbours' near handles (drawn by the
+layer) with `SetHandles` on every drag event inside one undo group -- linked per point type, one handle
+alone with kbd:[Option] -- so a drag is one undo step; kbd:[Option]-click on a selected point toggles
+curve and corner (`SetPointKind`); kbd:[Option]-drag from a selected point with a retracted handle
+draws that handle out (the outgoing one when both are) instead of moving the point; with *Smoother
+editing* off a point drag previews only the segments meeting the moved points.  The 500-point drag's
+preview is timed per event (`PointHandleTests`, held to 8 ms in the perf run).
 menu:Edit[Clear] on selected segments deletes one segment per contour (`DeleteSegment`); a Pen click on
 a selected path's segment inserts a point (`InsertPointOnSegment`, split by length on a straight
 segment); menu:Extensions[Distort > Add Points] is `AddPoints` (no toolbar button yet).

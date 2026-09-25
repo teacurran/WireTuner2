@@ -97,13 +97,15 @@ final class LinkOverlayFeatures {
     func draw(in ctx: CGContext, window: DocumentWindowController) {
         guard isShown(window) else { return }
         overlay(window).draw(in: ctx, viewport: window.canvas.viewport)
+        LinkBadges.draw(window.documentHandle, in: ctx, viewport: window.canvas.viewport)
     }
 
     /// The tooltip: the URL under the pointer while the overlay is on.
     func hover(_ point: Point?, window: DocumentWindowController) {
         guard isShown(window) else { return }
         let tolerance = 3 / max(window.canvas.viewport.zoom, 0.0001)
-        let url = point.flatMap { overlay(window).url(at: $0, tolerance: tolerance) }
+        let url = point.flatMap { LinkBadges.page(at: $0, document: window.documentHandle, viewport: window.canvas.viewport)
+            ?? overlay(window).url(at: $0, tolerance: tolerance) }
         if window.canvas.toolTip != url { window.canvas.toolTip = url }
     }
 

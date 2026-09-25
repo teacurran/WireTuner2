@@ -429,8 +429,9 @@ Layers panel's context menu gains *Hold…* and *Exclude from Animation* (`SetLa
 current layer.  menu:Extensions[Animate > Release to Layers…] opens a sheet with *Animate*, *Trail
 by*, *Reverse direction*, *Use existing layers* and *Send to back*, remembered in the preferences'
 defaults, and releases the selection as one change.  *Export Animated SVG…* (menu:File) writes the
-document's animation with `AnimatedSVGExporter` into a chosen folder.  Not built: *Show frame
-numbers* and the layer highlight during playback (the Layers panel is another task's).
+document's animation with `AnimatedSVGExporter` into a chosen folder.  The Layers panel's options menu has
+*Show Frame Numbers* (each frame layer's 1-based number beside its name when the frames are layers) and the row of the frame
+layer the Animation panel shows is highlighted (`WTApp/Web/LayerFrames.swift`).
 
 === Build tasks
 

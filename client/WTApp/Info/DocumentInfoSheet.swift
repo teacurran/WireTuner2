@@ -179,10 +179,8 @@ struct DocumentInfoSheet: View {
                     Section(section.title) {
                         ForEach(section.fields, id: \.rawValue) { field in InfoTextField(field: field, model: model) }
                         if section.title == "Description" {
-                            TextField("Add keyword", text: $keyword)
-                                .onSubmit(Self.addKeyword(model, $keyword))
-                                .accessibilityIdentifier("documentInfo.keyword")
-                            FlowTokens(tokens: model.keywords, remove: model.removeKeyword)
+                            KeywordTokenField(keywords: model.keywords, add: model.addKeywords, remove: model.removeKeyword)
+                                .accessibilityIdentifier("documentInfo.keywords")
                         }
                         if section.title == "Rights" {
                             Picker("Copyright status", selection: Self.status(model)) {

@@ -185,8 +185,12 @@ temporary tool does not).  An automatic point needs no handle write on its neigh
 handles are computed on read.  Without a session, a click on a selected open path's end (or kbd:[Option]
 on any path's end) resumes the session there, and a click on a selected path's segment inserts a point
 (DRAW-026).  Auto-join: a click on another open path's end performs one `JoinPaths` ("Join") and ends
-the session, without placing a point there.  Closing by dragging one end onto the other with the
-Pointer and the context menu's Path > Closed/Open are not delivered.
+the session, without placing a point there.  Closing by dragging one end onto the other and the
+context menu's Path > Close / Open are `WTApp/Tools/PathClosing.swift`: a Pointer (kbd:[Option]) or
+Subselect drag of exactly one end point of an open contour of three or more points that lands within
+the pick distance of the other end deletes the dragged point and closes the contour in one change
+("Close Path"); menu:Modify[Close Path] (titled *Open Path* when every selected contour is closed)
+fans `SetClosed` over the selected paths as the Object panel's *Closed* does.
 
 === Build tasks
 

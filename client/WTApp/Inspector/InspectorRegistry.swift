@@ -46,6 +46,8 @@ final class InspectorRegistry {
 
     private(set) var sections: [InspectorSection] = []
     private var rowEditors: [AppearanceList: RowEditor] = [:]
+    /// Views that take the whole panel's place while they apply (the Output Area tool's editor).
+    private(set) var replacements: [(id: String, make: @MainActor (ActiveSelection?) -> AnyView?)] = []
 
     init() {}
 
@@ -53,6 +55,17 @@ final class InspectorRegistry {
         sections.removeAll { $0.id == section.id }
         sections.append(section)
         sections.sort { ($0.order, $0.id) < ($1.order, $1.id) }
+    }
+
+    /// Registers a view shown in place of the selection whenever `make` returns one.
+    func registerReplacement(id: String, _ make: @escaping @MainActor (ActiveSelection?) -> AnyView?) {
+        replacements.removeAll { $0.id == id }
+        replacements.append((id, make))
+    }
+
+    /// The first replacement that applies to `selection`.
+    func replacement(for selection: ActiveSelection?) -> AnyView? {
+        replacements.lazy.compactMap { $0.make(selection) }.first
     }
 
     func registerRowEditor(for list: AppearanceList, _ editor: @escaping RowEditor) {

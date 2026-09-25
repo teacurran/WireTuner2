@@ -236,8 +236,10 @@ takes every spelling of the word); `DocumentInfoValues` applies the read-time tr
 sheet (menu:File[Document Info…], kbd:[Cmd+Option+I]) lays out the four sections with a counter per text field; a field
 keeps its draft while focused and commits on Return or losing focus; creators and supplemental categories are typed
 comma-separated; keywords are tokens with a remove button and a field that adds on Return; the creator is prefilled with
-the signed-in name.  Deviations: the keyword field is SwiftUI rather than a hosted `NSTokenField`, the library search over
-keywords is not built (the library cache holds no keywords), and *Date created* is not prefilled.
+the signed-in name.  The keyword field is a hosted `NSTokenField` (`WTApp/Info/KeywordTokenField.swift`: the tokens against the
+document's keywords make one add and one removal each); each open document's keywords are kept in the library cache
+(`LibraryDocument.keywords`, `WTApp/Info/KeywordIndex.swift`) and the offline search matches them as the server's search does.
+Deviation: *Date created* is not prefilled (the client knows no creation date to fill it from).
 
 === Build tasks
 

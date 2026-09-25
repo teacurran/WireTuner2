@@ -24,11 +24,14 @@ final class FindReplaceState {
         case color, replaceStrokeWidth, remove, rotate, scale, simplify, blendSteps
         // The object attributes of the Select tab (OBJ-022's query; `ObjectAttributeSearch`).
         case name, objectType, sameAs, pathShape, strokeWidth, size, halftone, overprint
+        /// Objects and blocks using a link (WEB-003; `LinkUseSearch`).
+        case link
         var id: String { rawValue }
         var title: String {
             switch self {
             case .font: "Font"
             case .textEffect: "Text effect"
+            case .link: "Link"
             default: graphicAttribute?.title ?? objectAttribute!.title
             }
         }
@@ -52,6 +55,8 @@ final class FindReplaceState {
     var from = FontCriteria()
     var to = FontReplacement()
     var effect = EffectCriteria.any
+    /// The link the *Link* criterion finds.
+    var link = ""
     /// The object attributes' settings and the candidates cache.
     let objects = ObjectAttributeSearch()
     /// The Replace tab's object attributes' settings.
@@ -90,6 +95,11 @@ final class FindReplaceState {
         switch attribute {
         case .font: found = search.find(in: scope) { from.matches($0) }
         case .textEffect: found = search.find(in: scope) { effect.matches($0) }
+        case .link:
+            let objectsFound = LinkUseSearch.find(link, document: document, selection: model.selection, scope: scope)
+            model.set(TypeAttributeSearch.selection(after: objectsFound, current: model.selection, scope: scope, adjust: adjustSelection))
+            result = objectsFound.count == 1 ? "1 object found" : "\(objectsFound.count) objects found"
+            return objectsFound
         default:
             objects.attribute = attribute.objectAttribute!
             guard let objectsFound = objects.find(document: document, selection: model.selection, scope: scope) else {
@@ -226,6 +236,8 @@ struct FindReplacePanelBody: View {
                     }
                 } else if state.attribute == .font {
                     Self.fontCriteria("Font", $state.from)
+                } else if state.attribute == .link {
+                    LinkUseSearchField(document: selection?.document, link: $state.link)
                 } else if let object = state.attribute.objectAttribute {
                     ObjectAttributeFields(search: state.objects, attribute: object)
                 } else {

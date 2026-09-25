@@ -37,6 +37,8 @@ struct SymbolLibraryPanelBody: View {
                 Button("Name", action: Self.sorting(.name, model)).buttonStyle(.plain).accessibilityIdentifier("library.sort.name")
                 Spacer()
                 Button("Count", action: Self.sorting(.count, model)).buttonStyle(.plain).accessibilityIdentifier("library.sort.count")
+                Button("Kind", action: Self.sorting(.kind, model)).buttonStyle(.plain).accessibilityIdentifier("library.sort.kind")
+                Button("Date", action: Self.sorting(.date, model)).buttonStyle(.plain).accessibilityIdentifier("library.sort.date")
             }
             .font(.caption.bold())
             ScrollView {
@@ -46,6 +48,7 @@ struct SymbolLibraryPanelBody: View {
                     }
                 }
             }
+            .symbolLibraryListDrop(model: model)
             .accessibilityIdentifier("library.list")
             HStack {
                 Button(action: ColorAction.run(model.newSymbol)) { Image(systemName: "plus.square") }.help("New symbol")
@@ -71,7 +74,7 @@ struct SymbolLibraryRowView: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: row.kind == .folder ? "folder" : "star.square")
+            Image(systemName: row.kind == .folder ? "folder" : row.kind == .master ? "doc.richtext" : "star.square")
             if model.renaming == row.id {
                 TextField("Name", text: $model.renameText)
                     .onSubmit(ColorAction.run(model.commitRename))
@@ -83,7 +86,14 @@ struct SymbolLibraryRowView: View {
             }
             Spacer()
             Text("\(row.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            if row.kind != .folder {
+                Text(row.usage.title).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("library.kind.\(row.name)")
+            }
+            if let changed = row.changed {
+                Text(changed.date, style: .time).font(.caption).foregroundStyle(.secondary).help(SymbolChangeLog.tooltip(changed))
+            }
         }
+        .symbolLibraryDrags(row, model: model)
         .padding(.leading, Double(row.depth) * 14)
         .background(model.selected.contains(row.id) ? SwiftUI.Color.accentColor.opacity(0.2) : SwiftUI.Color.clear)
         .accessibilityIdentifier("library.row.\(row.name)")
@@ -176,6 +186,7 @@ extension AppDelegate {
     func installSymbolLibrary() {
         let model = SymbolLibraryModel(selection: activeSelection)
         SymbolLibraryFeatures.connectSheets(model, presenter: SheetPresenter())
+        ReplaceArtworkSheet.connect(presenter: SheetPresenter())
         let layout = layout
         SymbolLibraryFeatures.install(commands: commands, panels: panels, model: model) { layout.showPanel("library") }
     }

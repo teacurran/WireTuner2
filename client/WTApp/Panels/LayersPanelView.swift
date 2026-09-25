@@ -151,10 +151,13 @@ struct LayerRow: View {
                     .onTapGesture(count: 2, perform: Self.rename(model, layer))
                     .onTapGesture(perform: Self.click(model, layer))
             }
+            let frame = LayerFrames.marks(layer.id, document: model.document, state: model.state)
+            LayerFrameNumber(number: frame.number)
             if model.activeLayer == layer.id { Image(systemName: "pencil").accessibilityIdentifier("layers.active") }
         }
         .frame(height: LayersPanelBody.rowHeight)
-        .listRowBackground(model.state.selected.contains(layer.id) ? SwiftUI.Color.accentColor.opacity(0.18) : SwiftUI.Color.clear)
+        .listRowBackground(LayerFrames.background(playing: LayerFrames.marks(layer.id, document: model.document, state: model.state).playing,
+                                                  selected: model.state.selected.contains(layer.id)))
         .help(LayersPanelModel.tooltip(layer))
         .contextMenu { LayerContextMenu(model: model, layer: layer) }
         .accessibilityIdentifier("layers.row.\(layer.id)")

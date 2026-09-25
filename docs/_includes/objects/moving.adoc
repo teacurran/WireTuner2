@@ -330,8 +330,14 @@ NOTE: As built by OBJ-039, in part (`WTApp/Edit/SmartGuides.swift`, three lines 
 `Document/DocumentSetupWindow.swift`).  During a Pointer move with *Smart guides* on and kbd:[Control] up, the window's
 `SmartGuideEngine` (built at the first drag event from the objects in view, the selection left out, and the pages) answers
 the moved bounds; its match goes into `SnapSources.smartGuides`, so the move snaps to it, and the Pointer's overlay draws
-the edge and centre lines and the spacing gaps in the *Smart guide color*.  The session ends with the gesture.  Not built:
-size badges on transform-handle drags, the kbd:[Option]-hover measurements, and smart guides for the drawing tools.
+the edge and centre lines and the spacing gaps in the *Smart guide color*.  The session ends with the gesture.  Size badges
+and measurements are `WTApp/Edit/Measurements.swift`: a scale drag of a transform handle (without kbd:[Shift], smart guides on,
+kbd:[Control] up) asks the gesture's engine for a width or height match -- the selection's size plus what its painting adds,
+since the engine knows painted sizes -- and snaps the factor so the size lands on it, with "W 50 pt" beside the pointer; with
+kbd:[Option] down and no button pressed the Pointer draws dimension lines from the selection's bounds to the hovered object on
+each facing side (both matching edges where they overlap) or to the four edges of the page under the pointer, in the document's
+unit, cleared by kbd:[Option] up or a press (*Show measurements while holding Option*).  Nothing is written.  Smart guides for the
+drawing tools remain the DRAW epic's.
 
 === Build tasks
 

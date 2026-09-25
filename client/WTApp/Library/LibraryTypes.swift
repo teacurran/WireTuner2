@@ -45,6 +45,8 @@ struct LibraryDocument: Codable, Equatable, Hashable, Sendable, Identifiable {
     var isPendingUpload: Bool
     /// Listed under *Shared with me*.
     var isSharedWithMe: Bool
+    /// The Document Info keywords as last seen on this Mac, for the offline search (IO-011).
+    var keywords: [String]? = nil
 
     init(
         id: String, spaceID: String, folderID: String? = nil, name: String, role: Role? = .owner, updatedAt: Date? = nil,

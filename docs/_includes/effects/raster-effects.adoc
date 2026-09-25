@@ -465,6 +465,14 @@ drops raster effects and lists the objects ("raster effects left out (DXF holds 
 resolution* output (at most 0.2% of pixels beyond 24/255 at 2×); printing from Preview goes through
 the same Core Graphics PDF renderer and was not separately recorded.
 
+NOTE: As built by FX-008 (`WTApp/Inspector/Effects/RasterEffectForms.swift`, `WTApp/Effects/RasterEffectSettings.swift`;
+`WTModel/EffectPresets.swift`, a new file).  btn:[Add Effect] has the *Bevel and Emboss*, *Blur*, *Shadow and Glow*,
+*Sharpen* and *Transparency* submenus, each item adding its effect in its style (`AddEffectPreset`; a glow starts in the
+object's fill colour).  The forms carry every option of the tables above with their ranges; angles have a dial beside the
+field.  menu:File[Document Settings > Raster Effects…] writes the resolution and *Optimal CMYK rendering*
+(`ChangeRasterEffectSettings`); the Object panel's options menu has *Raster Effect Settings…* (`SetObjectRasterResolution`, 0
+for the document's).  *Raster effect preview* reaches each canvas (`MetalTileCanvas.setRasterPreview`).
+
 === Build tasks
 
 [[FX-007]]

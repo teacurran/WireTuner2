@@ -20,6 +20,7 @@ import Testing
         // Choosing a tool ends Repeat.
         var sample = delegate.toolbars.extensions.descriptor(for: "emboss")!
         sample.run = { _ in [:] }
+        sample.validate = { .enabled }
         delegate.toolbars.extensions.replace(sample)
         #expect(delegate.menuTarget?.perform(ExtensionRegistry.commandID(for: "emboss")) == true)
         delegate.toolPalette.choose("pen")

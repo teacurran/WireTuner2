@@ -132,6 +132,9 @@ final class Rotation3DTool: Tool, PointerTracking {
     private(set) var current: CanvasEvent?
     /// The last pointer position (the Expert X/Y projection point's default).
     private(set) var lastPointer: Point?
+    /// The selection's bounds and keylines, worked out again only when the document or the
+    /// selection changed (the preview redraws every drag event; OBJ-035's frame budget).
+    private var geometry: (changes: Int, selection: Selection, box: Rect?, outlines: [DistortContour])?
 
     init(settings: @escaping @MainActor () -> Rotation3DSettings = { Rotation3DSettings() }) {
         self.settings = settings
@@ -153,15 +156,22 @@ final class Rotation3DTool: Tool, PointerTracking {
         lastPointer = e.pasteboardPoint
     }
 
+    private func selectionGeometry(_ context: ToolContext) -> (box: Rect?, outlines: [DistortContour]) {
+        let selection = context.selection.selection, changes = context.document.changeCount
+        if let geometry, geometry.changes == changes, geometry.selection == selection { return (geometry.box, geometry.outlines) }
+        let state = context.document.state
+        let ids = selection.ids.map(\.opID)
+        let bounds = ids.compactMap { Objects.bounds(of: $0, in: state) }
+        let box = bounds.first.map { first in bounds.dropFirst().reduce(first) { $0.union($1) } }
+        let outlines = Keylines.contours(ids, document: context.document)
+        geometry = (changes, selection, box, outlines)
+        return (box, outlines)
+    }
+
     /// A place over the selection (pasteboard): the press, the bounds' centre, the paths' point
     /// centroid, the lower-left corner, or the typed X/Y (the last pointer position when unset).
     func place(_ place: Rotation3DSettings.Place) -> Point? {
-        guard let context else { return nil }
-        let state = context.document.state
-        let ids = context.selection.selection.ids.map(\.opID)
-        let bounds = ids.compactMap { Objects.bounds(of: $0, in: state) }
-        guard let first = bounds.first else { return nil }
-        let box = bounds.dropFirst().reduce(first) { $0.union($1) }
+        guard let context, let box = selectionGeometry(context).box else { return nil }
         switch place {
         case .click: return press ?? box.center
         case .center: return box.center
@@ -246,7 +256,7 @@ final class Rotation3DTool: Tool, PointerTracking {
         guard let context, let rotation, let origin = place(settings().rotateFrom) else { return }
         let current = settings()
         let eye = (current.expert ? place(current.projectFrom) : nil) ?? origin
-        let outlines = Keylines.contours(context.selection.selection.ids.map(\.opID), document: context.document)
+        let outlines = selectionGeometry(context).outlines
         Keylines.add(outlines.map { DistortKernels.mapped($0) { rotation.project($0, origin: origin, eye: eye, distance: current.distance) } }, to: ctx, viewport: viewport)
         ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
         ctx.setLineWidth(1)

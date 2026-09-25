@@ -68,6 +68,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         didSet { TransformCenterLink.shared.touch() }
     }
     private var handleSelection: [SelectionID] = []
+    private var boundsCache: (changes: Int, selection: Selection, bounds: Rect?)?
     /// The zone under the pointer (the cursor).
     private(set) var hoverZone: TransformHandles.Zone?
     private var hoverCopies = false
@@ -167,8 +168,18 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
 
     /// The handles for the current selection, while shown (nil when the selection went away).
     var handles: TransformHandles? {
-        guard handlesShown, let context, let bounds = TransformHandles.bounds(of: context.selection.selection, document: context.document) else { return nil }
+        guard handlesShown, let context, let bounds = selectionBounds(context) else { return nil }
         return TransformHandles(bounds: bounds, center: handleCenter)
+    }
+
+    /// The selection's bounds, worked out again only when the document or the selection changed
+    /// (a handle drag reads them several times per frame; OBJ-033's preview budget).
+    private func selectionBounds(_ context: ToolContext) -> Rect? {
+        let selection = context.selection.selection, changes = context.document.changeCount
+        if let cache = boundsCache, cache.changes == changes, cache.selection == selection { return cache.bounds }
+        let bounds = TransformHandles.bounds(of: selection, document: context.document)
+        boundsCache = (changes, selection, bounds)
+        return bounds
     }
 
     /// Shows the handles around the selection (a double-click on it).
@@ -225,6 +236,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             hoverName = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: alwaysSubselects)
                 .map { context.document.state.displayName(of: $0.id.opID) }
         }
+        if let context { MeasurementLink.shared.hover(e, context: context) }
         guard handlesShown, let context else { return }
         let zone = handles?.zone(at: e.viewPoint, viewport: context.viewport)
         let copies = e.modifiers.contains(.option)
@@ -242,6 +254,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         gesture = .marquee
         selectedOnPress = false
         guard let context else { return }
+        Self.endMeasurements(context)
         followSelection()
         if e.modifiers.isSuperset(of: [.control, .option]) {
             cycleSelection(at: e, context: context)
@@ -261,6 +274,12 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             // The object, or the member of it already selected by an Option-click.
             let hit = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: false)
             let member = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: true)
+            // kbd:[Option]-double-clicking an image edits it externally (IMG-019).
+            if e.modifiers.contains(.option), let member, context.document.object(for: member.id)?.kind == .image,
+               ExternalEditing.shared.editFromPanel() != nil {
+                cancel()
+                return
+            }
             // Double-clicking text switches to the Text tool with the insertion point there
             // (text-blocks.adoc, "Double-click behaviors").
             // kbd:[Option]-double-click on text opens the Text Editor (TYPE-011).
@@ -329,6 +348,8 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         case .move, .movePoints:
             if let delta = moveDelta {
                 commitMove(delta, copy: e.modifiers.contains(.option) && context.optionDragCopies() && gesture == .move)
+            } else if gesture == .movePoints, !selectedOnPress, let toggle = PointEditing.toggleCommand(at: start, context: context) {
+                context.commandSink.perform(toggle)
             } else if !selectedOnPress {
                 context.selection.click(at: start.viewPoint, viewport: context.viewport, modifiers: e.modifiers, subselect: subselect)
             }
@@ -376,8 +397,9 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     /// The matrix of the handle drag so far (about the origin).
     func handleMatrix(_ zone: TransformHandles.Zone, handles: TransformHandles, end: CanvasEvent) -> WTGeometry.AffineTransform? {
         guard let start, let context else { return nil }
-        return handles.matrix(zone, from: start.pasteboardPoint, to: end.pasteboardPoint, constrained: end.modifiers.contains(.shift),
-                              constraint: context.drawing().constraint)
+        let matrix = handles.matrix(zone, from: start.pasteboardPoint, to: end.pasteboardPoint, constrained: end.modifiers.contains(.shift),
+                                    constraint: context.drawing().constraint)
+        return Self.trackSizeGuides(context, zone: zone, handles: handles, matrix: matrix, start: start.pasteboardPoint, end: end)
     }
 
     /// The command the handle drag performs on release.
@@ -392,6 +414,9 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     func moveCommand(_ delta: Vector, copy: Bool) -> (any WTModel.Command)? {
         guard let context else { return nil }
         if gesture == .movePoints {
+            let tolerance = context.selection.pickDistance() / max(context.viewport.zoom, 1e-9)
+            if let close = PathClosing.dragClose(delta, selection: context.selection.selection, document: context.document, tolerance: tolerance) { return close }
+            if let start, let extend = PointEditing.extendCommand(from: start, delta: delta, context: context) { return extend }
             return ObjectEditing.moveCommand(delta, selection: context.selection.selection, document: context.document)
         }
         let nodes = context.selection.selection.ids.map(\.opID)
@@ -452,7 +477,10 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             hoverCopies = e.modifiers.contains(.option)
             context?.host.toolCursorDidChange()
         }
-        guard let current else { return }
+        guard let current else {
+            if let context { MeasurementLink.shared.modifiersChanged(e.modifiers, context: context) }
+            return
+        }
         self.current = current.with(modifiers: e.modifiers, timestamp: e.timestamp)
         updateCopyCursor()
     }
@@ -492,6 +520,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
                         path.contours[c].points[p].anchor = point.anchor + local
                     }
                 }
+                return PointEditing.preview(path, moved: Set(points.map(\.point)), smoother: PointEditing.smoother()).applying(transform)
             } else {
                 transform = transform.concatenating(.translation(delta))
             }
@@ -526,7 +555,10 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             shown.draw(in: ctx, viewport: viewport, color: NSColor.controlAccentColor.cgColor)
         }
         let preview = movePreview + handlePreview
-        if let context { SmartGuideLink.shared.draw(context.document.id, in: ctx, viewport: viewport) }
+        if let context {
+            SmartGuideLink.shared.draw(context.document.id, in: ctx, viewport: viewport)
+            Self.drawMeasurements(context, in: ctx, viewport: viewport)
+        }
         guard !preview.isEmpty else { return }
         let path = CGMutablePath()
         for outline in preview { SelectionOverlay.add(outline, transform: viewport.pasteboardToView, to: path) }
@@ -541,7 +573,10 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     }
 
     private func resetGesture() {
-        if let context { SmartGuideLink.shared.end(context.document.id) }
+        if let context {
+            SmartGuideLink.shared.end(context.document.id)
+            Self.endMeasurements(context)
+        }
         start = nil
         current = nil
         gesture = .marquee

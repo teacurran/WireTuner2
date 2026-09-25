@@ -17,6 +17,15 @@ protocol CanvasHandleLayer: AnyObject {
     func cancel(context: ToolContext)
     /// Draws the handles in view points.
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext)
+    /// The tools the layer works with, of those the handles show with; nil: all of them.
+    var tools: Set<ToolID>? { get }
+}
+
+extension CanvasHandleLayer {
+    var tools: Set<ToolID>? { nil }
+
+    /// Whether the layer works with `tool`.
+    func applies(to tool: ToolID) -> Bool { tools?.contains(tool) ?? true }
 }
 
 /// The layers every canvas has, and the tools they work with.
@@ -27,7 +36,7 @@ enum CanvasHandleLayers {
 
     /// A fresh set for one canvas.
     static func standard() -> [any CanvasHandleLayer] {
-        [EffectCenterHandles(), GradientHandles(), TextPathHandle(), LensCenterHandles(), EnvelopeOutlineHandles()]
+        [EffectCenterHandles(), GradientHandles(), TextPathHandle(), LensCenterHandles(), EnvelopeOutlineHandles(), PointHandleLayer(), CornerWidgetLayer()]
     }
 
     /// A round handle of `size` view points at `point`: filled, or outlined when `hollow`.

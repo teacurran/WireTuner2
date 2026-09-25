@@ -369,6 +369,14 @@ final class LibraryModel {
         save()
     }
 
+    /// The document's Document Info keywords as last seen here, which the offline search matches
+    /// (file-info.adoc, *Keywords*; IO-011).
+    func recordKeywords(_ id: String, _ keywords: [String]) {
+        guard var document = cache.documents[id], (document.keywords ?? []) != keywords else { return }
+        document.keywords = keywords
+        store(document)
+    }
+
     func rename(_ id: String, to name: String) async {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, var document = cache.documents[id] else { return }
@@ -511,7 +519,7 @@ final class LibraryModel {
         return cache.documents.values
             .filter { document in
                 !document.isTrashed && (shared ? document.isSharedWithMe : !document.isSharedWithMe && document.spaceID == spaceID)
-                    && document.name.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+                    && ([document.name] + (document.keywords ?? [])).contains { $0.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
             }
             .sorted(by: LibraryCacheFile.byName)
     }

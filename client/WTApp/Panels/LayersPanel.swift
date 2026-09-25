@@ -25,6 +25,8 @@ final class LayersPanelState {
     private(set) var revision = 0
     /// *Clicking a layer name moves selected objects* (Panels).
     @ObservationIgnored var clickMoves: @MainActor () -> Bool = { true }
+    /// *Show frame numbers* (WEB-017; `LayerFrames`).
+    var showsFrameNumbers = false
 
     init() {}
 
@@ -367,7 +369,8 @@ extension LayersPanelModel {
             ("New", { newLayer() }), ("Duplicate", { duplicate() }), ("Remove", { remove() }), ("", {}),
             ("Merge Selected Layers", { mergeSelected() }), ("Merge Foreground Layers", { mergeForeground() }),
             ("Move Objects to Current Layer", { moveObjectsToCurrent() }), ("", {}),
-            ("All On", { setAll(visible: true) }), ("All Off", { setAll(visible: false) }),
+            ("All On", { setAll(visible: true) }), ("All Off", { setAll(visible: false) }), ("", {}),
+            (LayerFrames.toggleTitle(state), { state.showsFrameNumbers.toggle() }),
         ]
         return entries.enumerated().map { LayerMenuItem(id: $0.offset, title: $0.element.0, run: $0.element.1) }
     }

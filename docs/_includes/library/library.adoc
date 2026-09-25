@@ -727,8 +727,15 @@ with click, kbd:[Shift]-click and kbd:[Cmd]-click selection, a preview of the se
 Symbol*, *New Folder*, *Duplicate*, *Remove* (with the Release / Delete Instances sheet when a symbol
 has instances), *Swap*, *Place* (at the view's centre), *Replace Artwork*, *Move to* a folder or the top
 level, *Preview*.  menu:Modify[Symbol] has *Convert to Symbol* (kbd:[F8]), *Copy to Symbol*, *Release
-Instance* and *Show in Library*.  *Not built yet*: the drag gestures (from and to the canvas, onto a
-symbol), the *Kind* and *Date* columns, master pages, *Edit*, *Import…*, *Export…* and *Show*.
+Instance* and *Show in Library*.  The rest of the panel is `WTApp/Library/Symbols/SymbolLibraryExtras.swift`:
+the *Kind* column (graphic, brush tip, hose element from `SymbolProps.usage`, master page) and the *Date* column (the newest
+change this Mac has seen touching the symbol's subtree, its author in the tooltip -- the change log since the document
+opened, not the whole history), both sortable; the *Show* items of the options menu; master pages listed with the pages
+using them (not renamed or removed from the Library); a symbol dragged onto the canvas places an instance at the drop point
+(through the objects pasteboard type the canvas takes); canvas objects dropped on the list make a symbol, on a symbol row
+the Replace sheet asks before `ReplaceSymbolArtwork`; rows dropped on a folder move into it and an kbd:[Option]-drag
+duplicates.  A drag from the canvas starts only once it leaves the window, so it reaches a floating Library panel, not a
+docked one.  *Not built yet*: *Edit* (LIB-012), *Import…* and *Export…* (LIB-013) and opening a master page (DOC-011).
 
 NOTE: As built by LIB-025 (`WTModel/SymbolOverrides.swift`, `SymbolCommands.swift`).  `OverrideText(instance, master:, edit:)`
 "Override text" with `.insert(_:at:)` / `.delete(_:)` in live offsets: the first edit of a block without a live `TEXT` override

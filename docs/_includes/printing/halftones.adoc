@@ -149,9 +149,9 @@ NOTE: As built by PRINT-010 (`WTApp/Print/HalftonesPanel.swift`; `WTModel/Object
 `SetObjectHalftone(nodes, halftone:)` writes `CommonProps.halftone` whole on each unlocked object ("Change halftone of N
 objects"), nil unsetting it (btn:[Use document settings]); the panel changes one part of each object's own screen and
 writes it whole, one change for the selection, and shows `Mixed` where the objects differ.  `ObjectHalftones.effective`
-resolves an object's screen through its enclosing groups (own, else the nearest group's).  Deviations: the angle dial is
-a slider stepping 15° (the custom `NSControl` is not built) beside the typed field, and the frequency slider is
-logarithmic from 1 to 600 lpi as specified; the screener still reads top-level objects' own screens
+resolves an object's screen through its enclosing groups (own, else the nearest group's).  The angle dial is a custom
+`NSControl` (`WTApp/Extras/PointerDial.swift`: the pointer follows the mouse around the centre, kbd:[Shift] snaps to 15°, one
+change on release) beside the typed field, and the frequency slider is logarithmic from 1 to 600 lpi as specified; deviation: the screener still reads top-level objects' own screens
 (`Halftones.objectScreens`), so feeding it the group resolution needs member-level spans in `ScreenAssignment`.  The
 *Ignore object screens* checkbox is in the print pane.  Merge tests: `OutputAreaTests` (WTModel).
 

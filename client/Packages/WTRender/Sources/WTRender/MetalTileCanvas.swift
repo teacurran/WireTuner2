@@ -268,6 +268,18 @@ public final class MetalTileCanvas {
         requestMissingTiles()
     }
 
+    /// Applies the *Raster effect preview* preference (FX-008): every tile is re-rendered.
+    public func setRasterPreview(_ preview: RasterPreview) {
+        fallbackRenderer.rasterPreview = preview
+        if let fallbackCanvas {
+            fallbackCanvas.setRenderer(fallbackRenderer)
+            return
+        }
+        renderer?.rasterPreview = preview
+        dropTiles { _ in true }
+        requestMissingTiles()
+    }
+
     /// Drops the tiles under a changed pasteboard rectangle, at every zoom step and angle.
     public func invalidate(pasteboardRect rect: Rect) {
         invalidate(pasteboardRects: [rect])

@@ -392,8 +392,7 @@ struct EffectEditorView: View {
             case .combine?: combine
             case .none: EmptyView()
             case let kind?:
-                Text("\(AttributeNames.effectKind(kind)) options arrive with the raster effect editors.")
-                    .font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("effect.raster")
+                RasterEffectForm(model: model, kind: kind)
             }
             if let notice = model.notice {
                 Text(notice).font(.caption).foregroundStyle(.orange).accessibilityIdentifier("effect.notice")

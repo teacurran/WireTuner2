@@ -154,10 +154,15 @@ struct AttributesListView: View {
             Button("Add Fill", action: Self.adding(model.add(.fills, above: selectedItem), model: model, state: state))
                 .accessibilityIdentifier("attributes.add-fill")
             Menu("Add Effect") {
-                ForEach(Self.effectGroups.indices, id: \.self) { group in
-                    if group > 0 { Divider() }
-                    ForEach(Self.effectGroups[group], id: \.0) { kind, name in
-                        Button(name, action: Self.adding(model.addEffect(kind, above: selectedItem), model: model, state: state))
+                ForEach(EffectMenu.vector, id: \.0) { kind, name in
+                    Button(name, action: Self.adding(model.addEffect(kind, above: selectedItem), model: model, state: state))
+                }
+                Divider()
+                ForEach(EffectPresetMenu.groups, id: \.title) { group in
+                    Menu(group.title) {
+                        ForEach(group.presets, id: \.self) { preset in
+                            Button(preset.title, action: Self.adding(model.addEffectPreset(preset, above: selectedItem), model: model, state: state))
+                        }
                     }
                 }
             }
