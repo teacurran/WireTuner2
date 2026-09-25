@@ -101,6 +101,27 @@ import WTGeometry
         #expect(GlyphContours.pointCount([bump, Self.box(0, 0, 1, 1)]) == 3 + 4)
     }
 
+    @Test func offGridJudgesOnlyOnCurveAndRealControlPoints() {
+        // A line 10 units long has its interpolated controls at 3⅓ and 6⅔: not points of the font.
+        let triangle = Contour(polygon: [Point(x: 0, y: 0), Point(x: 10, y: 0), Point(x: 10, y: 5)], closed: true)
+        #expect(triangle.segments[0].p1.x != triangle.segments[0].p1.x.rounded())
+        #expect(!GlyphContours.isOffGrid([triangle]))
+        // An off-grid end still counts, and so does a curve's real control point.
+        let shifted = Contour(polygon: [Point(x: 0, y: 0), Point(x: 10.5, y: 0), Point(x: 10, y: 5)], closed: true)
+        #expect(GlyphContours.isOffGrid([shifted]))
+        let curve = Contour(segments: [CubicBezier(Point(x: 0, y: 0), Point(x: 0, y: 50.5), Point(x: 100, y: 50), Point(x: 100, y: 0))], closed: true)
+        #expect(GlyphContours.isOffGrid([curve]))
+        // Rounding keeps a diagonal line straight (only its ends round) and clears the problem.
+        let diagonal = Contour(polygon: [Point(x: 0.4, y: 0.2), Point(x: 10.3, y: 4.6), Point(x: 0.2, y: 9.9)], closed: true)
+        #expect(GlyphContours.isOffGrid([diagonal]))
+        let rounded = GlyphContours.rounded([diagonal])
+        #expect(!GlyphContours.isOffGrid(rounded) && rounded[0].segments.allSatisfy { $0.isLinear() })
+        #expect(rounded[0].segments[0].p0 == Point(x: 0, y: 0) && rounded[0].segments[0].p3 == Point(x: 10, y: 5))
+        #expect(GlyphContours.rounded(rounded) == rounded)
+        let roundedCurve = GlyphContours.rounded([curve])
+        #expect(!GlyphContours.isOffGrid(roundedCurve) && roundedCurve[0].segments[0].p1 == Point(x: 0, y: 51))
+    }
+
     @Test func quadraticConversionStaysWithinHalfAUnit() {
         let circle = Self.circle(500, 500, 400)
         let quadratic = GlyphContours.quadratic(circle)

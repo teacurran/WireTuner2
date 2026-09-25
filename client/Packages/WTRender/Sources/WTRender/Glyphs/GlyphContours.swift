@@ -112,11 +112,14 @@ public enum GlyphContours {
     }
 
     /// Every point rounded to whole units; segments that collapse to a point are dropped, and
-    /// contours with nothing left go.
+    /// contours with nothing left go.  A straight segment has no control points of its own, so
+    /// only its ends round and it stays straight (rounding its interpolated controls could bend
+    /// a diagonal line into a curve).
     public static func rounded(_ contours: [Contour]) -> [Contour] {
         func round(_ point: Point) -> Point { Point(x: point.x.rounded(), y: point.y.rounded()) }
         func round(_ segment: CubicBezier) -> CubicBezier {
-            CubicBezier(p0: round(segment.p0), p1: round(segment.p1), p2: round(segment.p2), p3: round(segment.p3))
+            if segment.isLinear() { return Line(start: round(segment.p0), end: round(segment.p3)).elevated() }
+            return CubicBezier(p0: round(segment.p0), p1: round(segment.p1), p2: round(segment.p2), p3: round(segment.p3))
         }
         func collapsed(_ segment: CubicBezier) -> Bool {
             segment.p0 == segment.p1 && segment.p1 == segment.p2 && segment.p2 == segment.p3
@@ -127,11 +130,16 @@ public enum GlyphContours {
         }
     }
 
-    /// Whether any point of `contours` is off the unit grid.
+    /// Whether any point of `contours` is off the unit grid: on-curve points and real control
+    /// points.  A straight segment is written as a line with no control points (`pointCount`, the
+    /// CFF writer), so its interpolated controls at a third and two thirds of its length are not
+    /// judged; otherwise a line whose length is not a multiple of three units would stay flagged
+    /// after *Round to Units*.
     public static func isOffGrid(_ contours: [Contour]) -> Bool {
-        contours.contains { contour in
+        func off(_ point: Point) -> Bool { point.x != point.x.rounded() || point.y != point.y.rounded() }
+        return contours.contains { contour in
             contour.segments.contains { segment in
-                [segment.p0, segment.p1, segment.p2, segment.p3].contains { $0.x != $0.x.rounded() || $0.y != $0.y.rounded() }
+                off(segment.p0) || off(segment.p3) || (!segment.isLinear() && (off(segment.p1) || off(segment.p2)))
             }
         }
     }

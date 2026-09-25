@@ -9,6 +9,7 @@ on:
       - "tools/sonar/**"
       - ".github/workflows/client.yml"
       - 'crdt-conformance/**'
+      - "tools/help/**"
   pull_request:
     paths:
       - "client/**"
@@ -16,6 +17,7 @@ on:
       - "tools/sonar/**"
       - ".github/workflows/client.yml"
       - 'crdt-conformance/**'
+      - "tools/help/**"
 
 permissions:
   contents: read
@@ -58,6 +60,11 @@ jobs:
         run: |
           cd client && xcodegen generate
           git diff --exit-code --stat -- WireTuner.xcodeproj/project.pbxproj
+
+      - name: Help catalog matches the guide
+        # client/WTApp/Help/HelpCatalog.swift is generated from docs/guide (BASIC-007); a guide
+        # edit without the regenerated Swift fails here.  Fix with `make help-catalog`.
+        run: make help-catalog-check
 
       - name: Package tests (with coverage)
         run: |

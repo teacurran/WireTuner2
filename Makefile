@@ -1,4 +1,4 @@
-.PHONY: docs docs-guide docs-spec docs-check docs-clean
+.PHONY: docs docs-guide docs-spec docs-check docs-clean help-catalog help-catalog-check
 
 # Full render through Maven (the CI path; same plugin pair as dissipate-server).
 docs:
@@ -11,14 +11,24 @@ docs-spec:
 	cd docs && mvn -q org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@render-spec \
 		org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@render-arch
 
-# Fast local check with the Ruby asciidoctor CLI: renders both books and fails on any warning.
-docs-check:
+# Fast local check with the Ruby asciidoctor CLI: renders both books and fails on any warning,
+# after checking the Help panel's catalog still matches the guide.
+docs-check: help-catalog-check
 	rm -rf docs/target/check docs/docs
 	asciidoctor --failure-level WARN -B docs -D $(CURDIR)/docs/target/check/guide docs/guide/*.adoc
 	asciidoctor --failure-level WARN -B docs -a spec -D $(CURDIR)/docs/target/check/spec docs/guide/*.adoc docs/spec/*.adoc
 
 docs-clean:
 	rm -rf docs/target
+
+# The Help panel's catalog, client/WTApp/Help/HelpCatalog.swift, generated from docs/guide
+# (BASIC-007; docs/spec/building.adoc, "Help catalog").  The check fails when a guide edit was
+# committed without the regenerated Swift; CI runs it in the client workflow.
+help-catalog:
+	tools/help/help-catalog.py
+
+help-catalog-check:
+	tools/help/help-catalog.py --check
 
 .PHONY: proto-lint proto-gen proto-plugins
 

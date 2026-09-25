@@ -1,0 +1,81 @@
+# crdt-conformance/vectors/type/tab-stops-sequence-registers.textproto (TYPE-023, TYPE-024; schema: crdt-conformance/schema/vector.proto)
+name: "type/tab-stops-sequence-registers"
+description: "Tabs and indents, Merge semantics, Tabs: ParagraphProps.tabs is a SEQUENCE of TabStop elements whose kind, position and leader are separate registers (here on TextProps.tail_paragraph).  The paragraph has stop A (2:7, left at 36) and stop B (3:7, decimal at 72 with a dot leader).  Replica 1 moves A to 48 and makes it right-aligned, and adds a stop at 100; replica 2 moves A to 54 and deletes B; replica 3 changes B's leader to a hyphen and adds a stop at 100 at the same sequence position.  The two moves of A are one position register the greater OpId wins (replica 2) while replica 1's kind stands; the delete wins over the leader edit (B is a tombstone and the leader write is retained on it); both added stops exist, ordered at the tied position by element id."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 130 } segments { field: 8 } segments { field: 9 } } positions: ["\x80", "\x81"]
+      values { text { tail_paragraph { tabs { kind: TAB_KIND_LEFT position: 36 } tabs { kind: TAB_KIND_DECIMAL position: 72 leader: "." } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 4 base_server_seq: 1 label: "Move Tab"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+      values { text { tail_paragraph { tabs { id { counter: 2 replica: 7 } kind: TAB_KIND_RIGHT position: 48 } } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 130 } segments { field: 8 } segments { field: 9 } } positions: ["\x82"]
+      values { text { tail_paragraph { tabs { kind: TAB_KIND_LEFT position: 100 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 4 base_server_seq: 1 label: "Move Tab"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+      values { text { tail_paragraph { tabs { id { counter: 2 replica: 7 } position: 54 } } } } } }
+    ops { element_delete { node { counter: 1 replica: 7 } elements { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 3 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 4 base_server_seq: 1 label: "Edit Tab"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 3 replica: 7 } } segments { field: 4 } }
+      values { text { tail_paragraph { tabs { id { counter: 3 replica: 7 } leader: "-" } } } } } }
+    ops { element_insert { node { counter: 1 replica: 7 } sequence { segments { field: 130 } segments { field: 8 } segments { field: 9 } } positions: ["\x82"]
+      values { text { tail_paragraph { tabs { kind: TAB_KIND_CENTER position: 100 } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "43afe1e745113a7fc98e42a703d8f5ef19d93e68f4acdf36437d372dcbd58ea1"
+  snapshot_hash: "c1e83752430217f4b4c997111652e33f16d5492bea1d0209bfa5bf5f14e94180"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "2a8e45c8eefcd82a566e9168fba9d0b9cf6949faeaf11c752cebb72f591de39b"
+    sequence { path { segments { field: 130 } segments { field: 8 } segments { field: 9 } }
+      elements { counter: 2 replica: 7 } elements { counter: 5 replica: 1 } elements { counter: 5 replica: 3 } deleted { counter: 3 replica: 7 } }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 2 replica: 7 } } segments { field: 2 } }
+      value { text { tail_paragraph { tabs { kind: TAB_KIND_RIGHT } } } }
+      op { counter: 4 replica: 1 }
+      losing { counter: 2 replica: 7 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 2 replica: 7 } } segments { field: 3 } }
+      value { text { tail_paragraph { tabs { position: 54 } } } }
+      op { counter: 4 replica: 2 }
+      losing { counter: 2 replica: 7 }
+      losing { counter: 4 replica: 1 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 3 replica: 7 } } segments { field: 4 } }
+      value { text { tail_paragraph { tabs { leader: "-" } } } }
+      op { counter: 4 replica: 3 }
+      losing { counter: 3 replica: 7 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 9 } segments { element { counter: 5 replica: 3 } } segments { field: 2 } }
+      value { text { tail_paragraph { tabs { kind: TAB_KIND_CENTER } } } }
+      op { counter: 5 replica: 3 }
+    }
+  }
+}

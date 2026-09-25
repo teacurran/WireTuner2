@@ -50,8 +50,23 @@ contract they work under.
 |Both engines' tests plus `make conformance`
 
 |docs
-|`make docs-check`
+|`make docs-check` (which runs `make help-catalog-check` first)
 |===
+
+[[help-catalog]]
+=== Help catalog
+
+The app's Help panel (BASIC-007) searches and shows the user guide from a generated Swift file,
+`client/WTApp/Help/HelpCatalog.swift`: per guide page its slug, title, group, summary, section
+headings and most frequent words, read from `docs/guide` and the guide half of each included
+page (everything before its `ifdef::spec[]`).  `tools/help/help-catalog.py` writes it
+deterministically, so the committed file is compared byte for byte:
+
+* `make help-catalog` regenerates it; run it after editing a guide page and commit the Swift
+  beside the page.
+* `make help-catalog-check` fails when the committed file differs from what the guide gives.
+  `make docs-check` runs it, and the client workflow runs it before the package tests, as the
+  proto workflow fails on generated-Swift drift.
 
 == Reporting a task
 

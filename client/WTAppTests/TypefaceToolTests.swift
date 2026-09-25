@@ -149,7 +149,6 @@ import WTRender
         defer { fixture.close() }
         let b = fixture.glyph("B")
         let handle = try #require(GlyphCanvas.handle(for: b, of: fixture.document))
-        // Lengths in thirds of a unit: GlyphContours.isOffGrid also reads a line's interpolated controls.
         await Self.shape([(0.4, 0), (299.6, 0.3), (300.2, -300.4)], on: handle)
         let selection = ActiveSelection(model: SelectionModel(), document: fixture.document)
         let model = FindProblemsModel(selection: selection)

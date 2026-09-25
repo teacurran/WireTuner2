@@ -1,0 +1,91 @@
+# crdt-conformance/vectors/type/hyphenation-and-rule-struct.textproto (TYPE-026; schema: crdt-conformance/schema/vector.proto)
+name: "type/hyphenation-and-rule-struct"
+description: "Paragraphs, Merge semantics: ParagraphProps.hyphenation and .rule are STRUCT, one register per setting, and rule.stroke is STRUCT like any stroke (here on TextProps.tail_paragraph).  The paragraph hyphenates in en-US under a paragraph-mode rule.  Replica 1 limits consecutive hyphens to 2 and gives the rule a 2 pt stroke; replica 2 sets the language to de, rounds the rule stroke's caps and centres the rule; replica 3 sets the language to fr-CA, turns hyphenation off (a write of the default, so no value) and moves the rule 4 pt.  Different settings merge -- the stroke keeps replica 1's width and replica 2's cap -- and the language is one register the greater OpId wins (replica 3), the others retained as losers."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Type"
+    ops { create { parent { counter: 4 } position: "\x80" props { text { common { name: "T" }
+      tail_paragraph { hyphenation { enabled: true language: "en-US" } rule { mode: RULE_MODE_PARAGRAPH } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Paragraph"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 3 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 6 } segments { field: 2 } }
+      values { text { tail_paragraph { hyphenation { consecutive: 2 } rule { stroke { width: 2 } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Paragraph"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 2 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 1 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 6 } segments { field: 3 } }
+      values { text { tail_paragraph { hyphenation { language: "de" } rule { mode: RULE_MODE_CENTERED stroke { cap: LINE_CAP_ROUND } } } } } } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 2 base_server_seq: 1 label: "Paragraph"
+    ops { set { node { counter: 1 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 1 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 2 } }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 4 } }
+      values { text { tail_paragraph { hyphenation { language: "fr-CA" } rule { position: 4 } } } } } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 1, 2] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "ca953138ccd14115ff5d1a64a2322a3c7857ec632bc5962790587db17ef46454"
+  snapshot_hash: "fd83057877a57ee5a5b67440f90e828342e7b0676f359c7aaa48a81b958cc84f"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "52fef8382c864cc5d3ec7c8362f648625bc040b16c69523fee86c8137f0a28cf"
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 1 } }
+      op { counter: 2 replica: 3 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 2 } }
+      value { text { tail_paragraph { hyphenation { language: "fr-CA" } } } }
+      op { counter: 2 replica: 3 }
+      losing { counter: 1 replica: 7 }
+      losing { counter: 2 replica: 2 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 10 } segments { field: 3 } }
+      value { text { tail_paragraph { hyphenation { consecutive: 2 } } } }
+      op { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 1 } }
+      value { text { tail_paragraph { rule { mode: RULE_MODE_CENTERED } } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 4 } }
+      value { text { tail_paragraph { rule { position: 4 } } } }
+      op { counter: 2 replica: 3 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 6 } segments { field: 2 } }
+      value { text { tail_paragraph { rule { stroke { width: 2 } } } } }
+      op { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 130 } segments { field: 8 } segments { field: 11 } segments { field: 6 } segments { field: 3 } }
+      value { text { tail_paragraph { rule { stroke { cap: LINE_CAP_ROUND } } } } }
+      op { counter: 2 replica: 2 }
+    }
+  }
+}
