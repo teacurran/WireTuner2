@@ -12,8 +12,10 @@
 ///
 /// Color management settings (docs/_includes/cms/color-management.adoc, CMS-001; the per-image
 /// message is image-color.adoc's).  `ColorSettings` is SettingsProps.color on the settings node
-/// 0:1; `ImageColorSettings` is ImageProps.color (image.proto).  Every ProfileRef field is
-/// ATOMIC: name, hash, bundled id and space describe the same bytes and are meaningless apart.
+/// 0:1; `ImageColorSettings` is ImageProps.color (image.proto); `ProfileAssetProps` is the
+/// NodeProps kind of a custom profile under `assets` (color-profiles.adoc, CMS-010).  Every
+/// ProfileRef field is ATOMIC: name, hash, bundled id and space describe the same bytes and are
+/// meaningless apart.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -222,6 +224,37 @@ public nonisolated struct Wiretuner_Doc_V1_ProfileRef: Sendable {
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
+}
+
+/// NodeProps.kind case `profile_asset` (CMS block, docs/_includes/cms/color-profiles.adoc, CMS-010):
+/// one custom ICC profile the document carries, a child of the `assets` node (0:9).  Created when
+/// a non-bundled profile is first chosen or extracted from an image; a client that finds a live
+/// node for the same sha256 reuses it, and the Profiles… list presents nodes with equal hashes as
+/// one.  Referencing fields hold the ProfileRef itself, not a reference to this node, so a
+/// dangling or deleted asset never affects rendering.
+public nonisolated struct Wiretuner_Doc_V1_ProfileAssetProps: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The profile this asset holds.  ATOMIC and written once at creation.
+  public var profile: Wiretuner_Doc_V1_ProfileRef {
+    get {_profile ?? Wiretuner_Doc_V1_ProfileRef()}
+    set {_profile = newValue}
+  }
+  /// Returns true if `profile` has been explicitly set.
+  public var hasProfile: Bool {self._profile != nil}
+  /// Clears the value of `profile`. Subsequent reads from it will return its default value.
+  public mutating func clearProfile() {self._profile = nil}
+
+  /// Size of the ICC data in bytes, for the Profiles… list without fetching the blob.
+  public var size: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _profile: Wiretuner_Doc_V1_ProfileRef? = nil
 }
 
 /// Document color settings (SettingsProps.color).  STRUCT: each setting is an independent choice
@@ -438,6 +471,45 @@ nonisolated extension Wiretuner_Doc_V1_ProfileRef: SwiftProtobuf.Message, SwiftP
     if lhs.sha256 != rhs.sha256 {return false}
     if lhs.bundledID != rhs.bundledID {return false}
     if lhs.space != rhs.space {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_ProfileAssetProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ProfileAssetProps"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}profile\0\u{1}size\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._profile) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.size) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._profile {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    if self.size != 0 {
+      try visitor.visitSingularUInt64Field(value: self.size, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_ProfileAssetProps, rhs: Wiretuner_Doc_V1_ProfileAssetProps) -> Bool {
+    if lhs._profile != rhs._profile {return false}
+    if lhs.size != rhs.size {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

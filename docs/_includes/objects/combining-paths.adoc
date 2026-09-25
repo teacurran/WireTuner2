@@ -200,6 +200,20 @@ NOTE: As built by OBJ-024's menu items (`WTApp/Edit/EditFeatures.swift`).  menu:
 (kbd:[Cmd+Shift+J]) wraps the Split it finds: selected points split there as before, otherwise the selected composite paths
 come apart (`SplitObjects`).
 
+NOTE: As built by OBJ-025 (`WTModel/CombineCommand.swift`).  `CombineCommand(_ operation:, _ nodes:, keepOriginals:)` with
+`.union`, `.divide`, `.intersect`, `.punch` and `.crop`, labelled "Union 3 paths" etc.; `inputs(_:_:in:)` / `canPerform` are the menu
+validation (at least two unlocked paths, rectangles, ellipses or polygons, all closed except for Divide), `keepsOriginals(consumePreference:shift:)`
+the preference and kbd:[Shift] rule, `title(_:keepOriginals:)` the item title.  Inputs are flattened to pasteboard space through their
+transform chains; results are normalized regions (non-crossing contours, non-zero rule, *Even/odd fill* off) with the identity
+transform in their parent's space, created at the frontmost input's slot.  Union and Intersect take the backmost input's stack; Divide
+makes a fresh group of one path per region, each with the stack of the frontmost input covering it, the pieces of front inputs stacked
+above those of back ones; Punch and Crop give each target its own result with its own stack (a target cut away entirely gives none).
+An empty intersection creates nothing and still consumes the inputs.  Deviation: the reference corpus of the Done-when is regenerated
+in WTModel's tests (200 two-operand cases of squares and ellipses at overlapping, touching, nested, coincident and missing offsets and
+rotations), because GEO-002's corpus lives in WTGeometry's test target; each case checks node counts, contour counts, attributes and
+areas against `Boolean` directly.  Transparency is OBJ-026's.  The menu:Modify[Combine] items and the Path Operations toolbar are
+WTApp's (not built).
+
 === Build tasks
 
 [[OBJ-024]]

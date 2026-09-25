@@ -352,6 +352,9 @@ public struct GroupItem: Hashable, Sendable {
     /// Hit testing treats the group as one object even under Subselect: a symbol instance
     /// (LIB-010) or a barcode (DATA-018), whose contents are never selected on the canvas.
     public var atomic: Bool = false
+    /// Drawn but never hit, by a click or a marquee: master content on a child page (DOC-011),
+    /// which belongs to the master's canvas.
+    public var inert: Bool = false
 
     public init(
         children: [DisplayItem],

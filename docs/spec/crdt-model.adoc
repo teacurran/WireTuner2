@@ -94,6 +94,7 @@ adds its case there:
 |220--239 |FONT |`glyph` 220
 |240--259 |DATA |`barcode` 240, `script` 241
 |260--279 |BASIC |`custom_view` 260
+|280--299 |CMS |`profile_asset` 280
 |===
 
 Artwork lives under layers: a top-level object's parent is its layer, and its

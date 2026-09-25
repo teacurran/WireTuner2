@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
+    public static let version = "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -248,6 +248,7 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.PolygonProps": wiretuner_doc_v1_PolygonProps,
         "wiretuner.doc.v1.PrintSettings": wiretuner_doc_v1_PrintSettings,
         "wiretuner.doc.v1.Profile": wiretuner_doc_v1_Profile,
+        "wiretuner.doc.v1.ProfileAssetProps": wiretuner_doc_v1_ProfileAssetProps,
         "wiretuner.doc.v1.ProfileRef": wiretuner_doc_v1_ProfileRef,
         "wiretuner.doc.v1.ProofSettings": wiretuner_doc_v1_ProofSettings,
         "wiretuner.doc.v1.RaggedEffect": wiretuner_doc_v1_RaggedEffect,
@@ -8615,6 +8616,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.CustomViewProps"
         },
+        "280": {
+          "element_message": null,
+          "local_only": false,
+          "name": "profile_asset",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileAssetProps"
+        },
         "3": {
           "element_message": null,
           "local_only": false,
@@ -10833,6 +10845,32 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ProfileAssetProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
           "type_name": null
         }
       }
@@ -14229,7 +14267,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
+  "version": "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
 }
 """#
 
@@ -18554,6 +18592,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.CustomViewProps",
                 elementMessage: nil, oneof: "kind"
             ),
+            280: FieldPolicy(
+                fieldNumber: 280, name: "profile_asset", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileAssetProps",
+                elementMessage: nil, oneof: "kind"
+            ),
         ]
     )
 
@@ -19639,6 +19682,22 @@ public enum WTMergeTable {
             5: FieldPolicy(
                 fieldNumber: 5, name: "twist", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ProfileAssetProps = MessagePolicy(
+        name: "wiretuner.doc.v1.ProfileAssetProps",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "profile", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ProfileRef",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "size", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "uint64", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]

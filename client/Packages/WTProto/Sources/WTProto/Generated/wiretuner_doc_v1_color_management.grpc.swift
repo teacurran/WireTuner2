@@ -2,8 +2,10 @@
 ///
 /// Color management settings (docs/_includes/cms/color-management.adoc, CMS-001; the per-image
 /// message is image-color.adoc's).  `ColorSettings` is SettingsProps.color on the settings node
-/// 0:1; `ImageColorSettings` is ImageProps.color (image.proto).  Every ProfileRef field is
-/// ATOMIC: name, hash, bundled id and space describe the same bytes and are meaningless apart.
+/// 0:1; `ImageColorSettings` is ImageProps.color (image.proto); `ProfileAssetProps` is the
+/// NodeProps kind of a custom profile under `assets` (color-profiles.adoc, CMS-010).  Every
+/// ProfileRef field is ATOMIC: name, hash, bundled id and space describe the same bytes and are
+/// meaningless apart.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

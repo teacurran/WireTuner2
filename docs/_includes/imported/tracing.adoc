@@ -284,6 +284,19 @@ outer edge, centerline, uniform, resolution, wand tolerance) persist in the pref
 A placeholder image is refused with a message.  Not built: *Trace layers* choices and the wand
 options popover.
 
+NOTE: As built by IMG-029 (`WTRender/Trace/TraceSegmenter.swift`, `CoreMLClassMapper.swift`).  The segmenter is
+`WTRender.Trace.Segmenter` (the trace kernel's home).  `Trace.runPhoto(_:options:subjects:classMap:transform:progress:isCancelled:)`
+and the async `tracePhoto(_:image:options:segmenter:mapper:...)` answer a `PhotoResult`: regions largest first, each named and with
+its paths (`flattened` is the classic `Result`).  Regions: subject instances first (named after the class most of each covers, else
+"Subject"), then the 4-connected areas of one class of the class map ("Region N" when unlabelled; one "Background" without a map);
+regions under max(*Noise tolerance*², 16) px merge into their largest neighbour, and a class area of the class a neighbouring subject
+is named after joins it; then every pixel within 2 px of a region edge joins the region around it whose mean colour is nearest its own
+(the edge snap).  Each region is traced by `Trace.run` on its bounding box with the pixels outside it transparent; one region traces
+exactly as *Classic*.  The model is `CoreMLClassMapper.bundled(in:)`, nil when the build carries no `PhotoSegmentation.mlmodelc` --
+none is bundled yet, so the *Photo* tracer runs its subject-and-background fallback.  Fixtures (portrait, street, still life, a logo)
+are drawn in code with injected instances and class maps.  Not built: the *Tracer* option in the sheet and preferences and a
+sub-group per region on placement (WTApp); the 4 MP budget is a `PerfBudget` of the perf run.
+
 === Build tasks
 
 [[IMG-021]]

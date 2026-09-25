@@ -26,7 +26,8 @@
 ///   220-239   FONT    220 glyph
 ///   240-259   DATA    240 barcode, 241 script
 ///   260-279   BASIC   260 custom_view (BASIC-014)
-///   280-      free; a new epic takes the next block of 20 and adds a row here.
+///   280-299   CMS     280 profile_asset (CMS-010)
+///   300-      free; a new epic takes the next block of 20 and adds a row here.
 
 // DO NOT EDIT.
 // swift-format-ignore-file

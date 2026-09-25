@@ -226,10 +226,14 @@ public struct HitTester: Sendable {
         hitTest(viewPoint: viewPoint, guides: true)
     }
 
-    /// Whether top-level item `top` may be hit (LIB-005): never on a locked layer or the Guides
+    /// Whether top-level item `top` may be hit (LIB-005): never an inert group (DOC-011's master
+    /// content on a child page), never on a locked layer or the Guides
     /// layer (guides only when `guides`), and with *Edit current layer only* only on the
     /// active layer.  A list without layers applies no layer rule.
     func isPickable(_ top: Int, guides: Bool = false) -> Bool {
+        if case .group(let group) = displayList.items[top], group.inert {
+            return false
+        }
         guard !displayList.layers.isEmpty else {
             return !guides
         }

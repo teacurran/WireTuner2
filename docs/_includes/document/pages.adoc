@@ -320,6 +320,11 @@ last two minutes -- "Page 3 was removed by Tom; your 4 objects are on the pasteb
 page* (`SetDeleted(page, false)`).  The *Done when* UI tests are unit tests hosted in the app
 (`PageToolTests`, `StatusBarTests`, `PageSheetTests`, `PageNoticeTests`).
 
+NOTE: As built by DOC-006's remainder, model half (`WTModel/ZeroPages.swift`).  `ZeroPages.removedOnBothSides(base:local:remote:merged:)`
+detects the zero-pages case for the reconcile measurement -- the merged state has no live page while the base had some and each
+side's changes deleted pages -- and `ZeroPages.reviewMessage` is the entry's text; the next command touching pages already writes
+the page (`AddPages`).  Not built: the review row itself in `Divergence` and the review sheet (WTSync, WTApp).
+
 === Build tasks
 
 [[DOC-006]]

@@ -127,8 +127,9 @@ public struct SwapSymbol: Command {
 /// menu:Modify[Symbol > Release Instance] and the Overrides section's btn:[Detach]
 /// (library.adoc, "Release versus remote symbol edit"): per instance, one group in the instance's
 /// place holding deep copies of the artwork as resolved -- hidden parts left out, fill and stroke
-/// overrides written into the copies' basic fills and strokes -- transformed by the instance's
-/// placement, then the instance deleted.  An instance of a missing symbol is left alone.
+/// overrides written into the copies' basic fills and strokes, image overrides into the copies'
+/// pixel sources, text blocks holding the override's text (or the master's) -- transformed by the
+/// instance's placement, then the instance deleted.  An instance of a missing symbol is left alone.
 public struct ReleaseInstances: Command {
     public var instances: [OpID]
     public let label: String
@@ -148,11 +149,19 @@ public struct ReleaseInstances: Command {
             group.group.kind = .group
             let position = try Arranging.keys(next: instance, above: true, count: 1, in: state)[0]
             let created = builder.append(Ops.create(parent: parent, position: position, props: group))
-            let trees = state.liveChildren(symbol).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
+            var trees = state.liveChildren(symbol).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
             let keys = try PathEditing.keys(between: nil, and: nil, count: trees.count)
-            for (var tree, key) in zip(trees, keys) {
-                tree.transform = tree.transform.concatenating(placement)
-                try NodeCopier.create(tree, parent: created, position: key, schema: state.schema, builder: &builder)
+            var mapping: [OpID: OpID] = [:]
+            for index in trees.indices {
+                trees[index].transform = trees[index].transform.concatenating(placement)
+                try NodeCopier.create(trees[index], parent: created, position: keys[index], schema: state.schema, builder: &builder, mapping: &mapping)
+            }
+            NodeCopier.rewriteReferences(in: trees, mapping: mapping, builder: &builder)
+            // Text blocks get their text as the instance shows it: a text override's, else the
+            // master's (LIB-025).
+            for (master, copy) in mapping.sorted(by: { $0.key < $1.key }) where state.nodeKind(master) == .text {
+                let text = Symbols.resolvedText(master, instance: instance, overrides: overrides, in: state)
+                TextCopying.copy(text.string, runs: text.runs, into: copy, field: TextFields.text, builder: &builder)
             }
             builder.append(Ops.setDeleted(instance))
         }
@@ -301,10 +310,18 @@ enum SymbolEditing {
     }
 
     /// The subtree of master node `node` as the instance resolves it: nil when hidden; basic fill
-    /// and stroke colours replaced by the node's overrides; its children likewise.
+    /// and stroke colours and an image's source replaced by the node's overrides; its children
+    /// likewise.
     static func resolved(_ node: OpID, state: EngineState, _ overrides: [OverrideKey: Wiretuner_Doc_V1_Override]) -> NodeTree? {
         if overrides[OverrideKey(master: node, property: .hidden)]?.hidden == true { return nil }
         var tree = NodeTree(props: state.props(node), children: state.liveChildren(node).compactMap { resolved($0, state: state, overrides) }, source: node)
+        // An image override swaps the pixel source for the asset's blob (LIB-025); a dangling one
+        // reads as the master's image.
+        if let image = overrides[OverrideKey(master: node, property: .image)], image.hasImage, case .image? = tree.props.kind,
+           case .asset(let asset)? = state.props(OpID(image.image.id)).kind, state.isLive(OpID(image.image.id)), asset.sha256.count == 32 {
+            tree.props.image.pixels.blobSha256 = asset.sha256
+            if !asset.mediaType.isEmpty { tree.props.image.pixels.format = asset.mediaType }
+        }
         let fill = overrides[OverrideKey(master: node, property: .fill)]?.fill
         let stroke = overrides[OverrideKey(master: node, property: .stroke)]?.stroke
         if fill != nil || stroke != nil, let kind = tree.kind, var appearance = NodeValues.appearance(tree.props) {

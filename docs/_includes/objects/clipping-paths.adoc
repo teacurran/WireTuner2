@@ -190,6 +190,18 @@ menu:Edit[Cut Contents] (kbd:[Cmd+Shift+X]) writes `CutContents.payload` to the 
 Object panel's group section shows *Clip path* (its name, or *No clip path*) with *Choose Clip Path…*, a menu of the group's
 children that can clip (`ChooseClipPath`), and the *Contents* row.  The contents handle is not built.
 
+NOTE: As built by OBJ-028, model and render halves (`WTModel/ClipRendering.swift`, a hook in `DocumentScene.swift`).  A clip
+group with a usable clip path and live contents draws three slots: the clip path's fills (with the effects attached to them), the
+contents in a `GroupItem` clipped to the clip path's outline through its transform chain, then its strokes, their effects and its
+object-level effects unclipped (`ClipRendering.split`); a missing part is an empty group.  The contents sit at `[1, k]` under the
+group and the clip path at `[2]`, with `[0]` an alias of it (`SceneObject.aliasItemPaths`), so a subselect click on its fill or
+stroke names it.  A dangling clip path, or no live contents, draws the plain group.  Hit testing is REND-003's: a group's clip
+rejects hits outside it, so contents outside the clip region are never picked, and the clip stroke hits the clip group (or the clip
+path under Subselect).  `ContentsHandle.position(of:in:state:)` is the handle (the centre of the contents' drawn bounds) and
+`hits(_:handle:tolerance:)` its pick; `MoveContents(group, by:)` "Move contents" moves every content node, leaving the clip path.
+Reference renders: `clipGroupSlots` in WTRender's corpus (goldens and Metal parity).  Not built: the handle overlay and drag in the
+Pointer tool (WTApp); the Object panel rows are OBJ-027's.
+
 === Build tasks
 
 [[OBJ-027]]

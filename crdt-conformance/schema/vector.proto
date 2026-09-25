@@ -25,6 +25,7 @@ import "wiretuner/doc/v1/barcode.proto";
 import "wiretuner/doc/v1/blend.proto";
 import "wiretuner/doc/v1/chart.proto";
 import "wiretuner/doc/v1/color.proto";
+import "wiretuner/doc/v1/color_management.proto";
 import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/connector.proto";
@@ -251,6 +252,7 @@ message NodeProps {
     wiretuner.doc.v1.BarcodeProps barcode = 240;
     wiretuner.doc.v1.ScriptProps script = 241;
     wiretuner.doc.v1.CustomViewProps custom_view = 260;
+    wiretuner.doc.v1.ProfileAssetProps profile_asset = 280;
     // Test kind; its merge table is in test-kinds.textproto.
     TestProps test = 1000;
   }

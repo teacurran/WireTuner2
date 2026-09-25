@@ -121,9 +121,10 @@ enum ReferenceCorpus {
     ])
 
     /// REND-002's cases, the ATTR cases, the FX cases, the type cases, the derived-drawing cases,
-    /// the page furniture (DOC-009, DOC-016) and groups' *Transform as unit* (OBJ-017).
+    /// the page furniture (DOC-009, DOC-016), groups' *Transform as unit* (OBJ-017), clip groups
+    /// (OBJ-028) and master content on child pages (DOC-011).
     static let cases: [ReferenceCase] = baseCases + AttributeCorpus.cases + EffectCorpus.cases + TextCorpus.cases + FeatureCorpus.cases
-        + PageCorpus.cases + GroupCorpus.cases
+        + PageCorpus.cases + GroupCorpus.cases + ClipMasterCorpus.cases
 
     static let baseCases: [ReferenceCase] = [
         ReferenceCase(name: "fillRules", list: list([

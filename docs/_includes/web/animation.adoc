@@ -396,8 +396,10 @@ Group members keep their appearance through the group's transform; a blend's ste
 piece each (`ReleaseBlendSteps`, the per-step split of FX-024's baking) and its key objects move to
 the blend's slot; a text block gives one outlined piece per glyph with ink, and needs the window's
 text layout (`textLayout`, as the scene builder does) -- without one it is a single piece.  The
-first layer holding each piece receives the original (a `MoveNode`), later ones copies.  *Not built:*
-objects attached to a path.
+first layer holding each piece receives the original (a `MoveNode`), later ones copies.  Objects attached
+to a path (text on a path, TYPE-041) release their characters as laid out along the path, and the path is
+detached: it moves out beside the text, keeping its place on the page, and stays when the text is
+deleted (`WTModel/WebReleaseAttached.swift`).
 
 NOTE: As built by WEB-018, in part (`WTInterchange/Animation/AnimatedSVG.swift`).
 `AnimatedSVGExporter().documents(scene:options:pageHrefs:)` and `export(scene:options:to:)` write the

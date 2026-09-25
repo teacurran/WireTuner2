@@ -199,6 +199,7 @@ public struct ReleaseToLayers: Command {
                 containers.append(node)
             case .text? where single && textLayout != nil:
                 pieces += characters(node, scene: scene()).map(ReleasePiece.baked)
+                try detachPaths(of: node, state: state, builder: &builder)
                 containers.append(node)
             default:
                 pieces.append(.node(node, transform: nil))

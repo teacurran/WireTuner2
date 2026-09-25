@@ -183,6 +183,13 @@ on mouse-up like the other shape tools.  The Polygon Tool sheet lists the tool's
 delivered.  The concurrent `radius`/`rotation` conformance vector is left to the CRDT track (the case is
 a WTModel merge test).
 
+NOTE: As built by DRAW-010's remainder (`WTModel/PolygonHandles.swift`).  `PolygonHandles.positions(of:in:)` gives the diamond (vertex
+0) and, on a star, the circle (valley 0) in pasteboard space for the overlay; `hit(_:on:tolerance:in:)` picks one (the valley first);
+`drag(_:of:to:keepAngle:in:)` is the `SetPolygonFields` of a drag event -- polar coordinates about the local centre: the diamond
+writes `radius` and `rotation`, the circle `inner_radius`, `auto_inner` off and `valley_offset`, and kbd:[Shift] (`keepAngle`) the
+radius only.  The conformance vector `registers/polygon-radius-rotation-concurrent` holds the concurrent `radius` and `rotation`
+writes in both engines.  Not built: drawing the handles and routing Subselect drags to them (WTApp).
+
 === Build tasks
 
 [[DRAW-010]]

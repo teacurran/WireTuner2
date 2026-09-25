@@ -1,0 +1,57 @@
+# crdt-conformance/vectors/registers/library-update-vs-local-edit.textproto (COLLAB-015; schema: crdt-conformance/schema/vector.proto)
+name: "registers/library-update-vs-local-edit"
+description: "Update from Library writes only the registers that differ plus CommonProps.library (the new source_server_seq), so a concurrent local edit merges register by register: both write the swatch's name and the greater OpId (the local rename, 2:2) wins with the update's retained; the local colour edit and the update's provenance touch registers the other side did not write, so both stand."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Add swatch \"Brand\" from Marketing library"
+      ops { create { parent { counter: 5 } position: "\x80" props { swatch { common { name: "Brand" library { library_document_id: "lib-1" source_node { counter: 9 replica: 3 } source_server_seq: 10 } } value { rgb { r: 0.8 g: 0.1 b: 0.1 } } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Update from Library"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 70 } segments { field: 1 } segments { field: 1 } }
+        paths { segments { field: 70 } segments { field: 1 } segments { field: 20 } }
+        values { swatch { common { name: "Brand red" library { library_document_id: "lib-1" source_node { counter: 9 replica: 3 } source_server_seq: 12 } } } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Rename and recolour the swatch"
+      ops { set { node { counter: 1 replica: 7 }
+        paths { segments { field: 70 } segments { field: 1 } segments { field: 1 } }
+        paths { segments { field: 70 } segments { field: 2 } }
+        values { swatch { common { name: "Local" } value { rgb { r: 0.2 g: 0.1 b: 0.1 } } } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "3801bb419c6564971f22c1db5434bcbd4265d13426dd4dc8361df34c6912d5a2"
+  snapshot_hash: "be7d749ebe240912f70c89fee748930cccdee1ad1be018d0a57daf6a42e1ff55"
+  node {
+    id { counter: 1 replica: 7 }
+    node_hash: "95ac31aea930109cc788d917dce10f45ab5eb2fe6de69048841ff42c066d37b2"
+    register {
+      path { segments { field: 70 } segments { field: 1 } segments { field: 1 } }
+      value { swatch { common { name: "Local" } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 } losing { counter: 2 replica: 1 }
+    }
+    register {
+      path { segments { field: 70 } segments { field: 1 } segments { field: 20 } }
+      value { swatch { common { library { library_document_id: "lib-1" source_node { counter: 9 replica: 3 } source_server_seq: 12 } } } }
+      op { counter: 2 replica: 1 }
+      losing { counter: 1 replica: 7 }
+    }
+    register {
+      path { segments { field: 70 } segments { field: 2 } }
+      value { swatch { value { rgb { r: 0.2 g: 0.1 b: 0.1 } } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 1 replica: 7 }
+    }
+  }
+}

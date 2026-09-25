@@ -211,6 +211,17 @@ uploaded), but the untitled document opened at launch has no library record unti
 template gallery offers only the built-in template until DOC-019.  Documents move between
 folders by dragging onto a folder tile; there is no Trash view yet (`LIST_SCOPE_TRASH`).
 
+NOTE: As built by DOC-019, model half (`WTModel/DocumentCreation.swift`).  `DocumentCreation.newDocument(from:replica:now:)` makes a
+new document's core holding one change, `CreateDocument`: "Created" for the built-in template (one Letter page centred on the
+pasteboard, `builtInPage`, then `DocumentTemplate`'s defaults) or "Created from <template>" for `.document(state, name:)` (the
+template's state re-issued by `PackageReissue` with fresh node ids, every chunk in the one change); not an undo step, and nothing on
+a document that already has content.  `DocumentCreation.newDocumentID` makes the UUIDv7.  Deviation: the built-in page is centred on
+the pasteboard (as the app's first page always was, workspace.adoc), not at its origin.  The conformance vector
+`changes/new-document-built-in` pins one built-in change and its hash; the change's fractional positions carry random jitter, so the
+WTModel test compares the vector's change with a fresh one up to positions (regenerate it with `WT_RECORD_VECTORS=1` when the
+template changes).  Not built: the local store creation and the deferred `DocumentService.Create` (WTSync), and the app's use of
+`newDocument` (WTApp).
+
 === Build tasks
 
 [[DOC-019]]

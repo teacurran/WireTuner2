@@ -321,6 +321,16 @@ scene only: print and export still draw them (they are view state, and another M
 anyway).  Changing the set invalidates just those nodes -- no change, nothing in the outbox or the undo
 list.  A hidden node deleted by anyone, or missing when the document reopens, leaves the set.
 
+NOTE: As built by OBJ-042 (`WTModel/SelectSimilar.swift`).  `SelectSimilar.run(_:selection:page:adding:classifier:in:bounds:)`
+answers the new selection and the status bar's count (`Outcome.selection`, `.found`, `.status`: "3 objects selected"), or nil
+when the command is disabled (no object or several selected, or a page that is gone).  *Fill* and *Stroke* compare the fills or
+strokes alone of OBJ-022's `Look` (element ids cleared, so a swatch reference equals the same reference and never an equal literal
+colour); *Fill and Stroke* compares both.  Candidates are the page's (the document's on an unpaged document) from
+`AttributeQuery.candidates`, which leaves out hidden, locked and Guides layers; locked objects and members of locked groups are left
+out too.  The sample is always in the result, and kbd:[Shift] (`adding`) keeps the earlier selection first.  *Shape* is the slot
+IMG-030 fills: `SelectSimilar.items(classifier:)` offers it only when a `ShapeClassifying` is installed.  Nothing is written.  The
+menu items and the status-bar message are WTApp's (not built).
+
 === Build tasks
 
 [[OBJ-005]]

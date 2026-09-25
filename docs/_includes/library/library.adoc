@@ -730,6 +730,20 @@ level, *Preview*.  menu:Modify[Symbol] has *Convert to Symbol* (kbd:[F8]), *Copy
 Instance* and *Show in Library*.  *Not built yet*: the drag gestures (from and to the canvas, onto a
 symbol), the *Kind* and *Date* columns, master pages, *Edit*, *Import…*, *Export…* and *Show*.
 
+NOTE: As built by LIB-025 (`WTModel/SymbolOverrides.swift`, `SymbolCommands.swift`).  `OverrideText(instance, master:, edit:)`
+"Override text" with `.insert(_:at:)` / `.delete(_:)` in live offsets: the first edit of a block without a live `TEXT` override
+inserts the element, copies the master's characters and marks into it as fresh inserts and applies the edit, in one change; later
+edits go to the element's text (Fugue), typing coalescing per word.  `Symbols.resolvedArtwork(of:in:)` is public: the symbol's
+children as node trees with hidden subtrees left out, basic fills and strokes recoloured and image sources swapped (the asset's
+hash and media type into the pixel source), and every text block's text (`ResolvedText`, the override's where there is one);
+`ResolvedArtworkCache` keeps it per instance (`builds` counts resolutions) and `invalidate(by:state:)` drops only the instances a
+change reaches -- the instance itself, or anything under its symbol or a symbol nested in it (a folder change drops everything).
+*Release Instance* now bakes image overrides and gives text blocks the override's text or the master's -- it copied no characters
+before, since `NodeCopier` copies no TEXT field.  Swap sets overrides aside by the read-time rule (they read as nothing under the
+new symbol and return on a swap back).  Merge tests: reset vs. edit, duplicate creation, master node deleted vs. edit, swap vs.
+edit.  Not built: text overrides are resolved but not yet drawn by instances (the builder lays out the master's words), and the
+Text tool's hit test inside an instance (WTApp).
+
 === Build tasks
 
 [[LIB-008]]

@@ -26,7 +26,8 @@
 //   220-239   FONT    220 glyph
 //   240-259   DATA    240 barcode, 241 script
 //   260-279   BASIC   260 custom_view (BASIC-014)
-//   280-      free; a new epic takes the next block of 20 and adds a row here.
+//   280-299   CMS     280 profile_asset (CMS-010)
+//   300-      free; a new epic takes the next block of 20 and adds a row here.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -37,6 +38,7 @@ import "wiretuner/doc/v1/barcode.proto";
 import "wiretuner/doc/v1/blend.proto";
 import "wiretuner/doc/v1/chart.proto";
 import "wiretuner/doc/v1/color.proto";
+import "wiretuner/doc/v1/color_management.proto";
 import "wiretuner/doc/v1/comments.proto";
 import "wiretuner/doc/v1/common.proto";
 import "wiretuner/doc/v1/connector.proto";
@@ -198,5 +200,8 @@ message NodeProps {
     ScriptProps script = 241;
     // A named view, a child of the settings node 0:1 (BASIC block, view.proto).
     CustomViewProps custom_view = 260;
+    // A custom ICC profile the document carries, under `assets` (0:9) (CMS block,
+    // color_management.proto).
+    ProfileAssetProps profile_asset = 280;
   }
 }

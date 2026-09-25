@@ -184,6 +184,18 @@ Stores profile blobs through `BlobService` like any other blob.  Nothing else.
   or ICC stream for each `ColorSpace` value, and a CSS Color 4 serializer that pairs every
   wide-gamut value with its sRGB fallback (gamut-mapped by COLOR-024).
 
+NOTE: As built by CMS-010 (`proto/wiretuner/doc/v1/color_management.proto`, `node.proto`; `WTModel/ProfileAssets.swift`).
+`ProfileAssetProps` is the `profile_asset` kind, 280, in a new CMS block 280--299.  `ChangeColorSettings` creates the asset for each
+custom (non-bundled) profile its draft names in the same change (`profileSizes` gives the ICC size), and `AddProfileAssets` "Add
+profile" does so for profiles extracted from an image; a live asset of the hash is reused.  `ProfileAssets.list` is the *Profiles…*
+list, de-duplicated by hash, with whether anything references each profile; `referencedHashes` scans every live node's props for
+`ProfileRef` fields (schema-driven, at any depth).  The reference scan is `ProfileReferenceScan` (per Mac: when each asset was first
+seen unreferenced; `observe(_:now:)` answers the assets unreferenced for the window, the deleted-node retention) and
+`RemoveUnreferencedProfiles` "Remove unused profiles" marks them deleted if still unreferenced (not an undo step).
+`ProfileAssets.exportData(_:blob:in:)` answers the blob only when it hashes to the asset's sha256.  Conformance vector
+`registers/profile-asset-concurrent-creation`.  Not built: the *Profiles…* sheet and the profile menus' *In this document* section
+(WTApp), the scan's timer and the image-import call (WTSync, WTApp).
+
 === Build tasks
 
 [[CMS-010]]

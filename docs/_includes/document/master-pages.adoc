@@ -247,6 +247,18 @@ children (DOC-011): the master page tab (the pop-up's btn:[Edit] is disabled wit
 presence on masters, and the live notices for a stale release and a deleted master (their review
 entries are DOC-013's); the Library panel's master list and drag-to-apply are the LIB epic's.
 
+NOTE: As built by DOC-011 (`WTModel/MasterRendering.swift`, hooks in `DocumentScene.swift`; `GroupItem.inert` and the
+`HitTester` rule in WTRender).  The pasteboard's builder keeps one builder per master that has child pages, drawing the master's
+canvas (`canvasNode` = the master, what the master page tab draws), updated with every change it applies.  On each layer, before
+the layer's own objects, each child page draws one *inert* group of its master's objects on that layer translated by the page's
+origin, in page order; inert groups are drawn but never hit by a click or a marquee, so hits over master content on a child return
+the child's objects or nothing.  `outputDisplayList` (print and export) clips each group to the page's bleed rectangle; the screen
+does not.  Dirty rects: master content is recorded in the change summary under each child page's id -- the rectangles of the edited
+master objects, translated by the page origin, when only master objects changed, the whole master content when the page's master,
+origin or bleed changed -- so a remote edit to a master object repaints just those tiles of every child.  The master page tab, its
+presence and the stale-release and deleted-master notices (DOC-012) can now be built on it.  Reference render
+`masterContentOnAChild` (goldens and Metal parity).
+
 === Build tasks
 
 [[DOC-010]]

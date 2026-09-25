@@ -4635,6 +4635,9 @@ public enum WTValidators {
         if case .customView(let v)? = m.kind {
             out += validate(v, path: "\(path)custom_view.")
         }
+        if case .profileAsset(let v)? = m.kind {
+            out += validate(v, path: "\(path)profile_asset.")
+        }
         return out
     }
 
@@ -5368,6 +5371,16 @@ public enum WTValidators {
             if !(v >= 1 && v <= 100) {
                 out.append(ValidationViolation(fieldPath: "\(path)steps", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 100"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ProfileAssetProps`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ProfileAssetProps, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasProfile {
+            let v = m.profile
+            out += validate(v, path: "\(path)profile.")
         }
         return out
     }

@@ -36,7 +36,8 @@
 ///   220-239   FONT    220 glyph
 ///   240-259   DATA    240 barcode, 241 script
 ///   260-279   BASIC   260 custom_view (BASIC-014)
-///   280-      free; a new epic takes the next block of 20 and adds a row here.
+///   280-299   CMS     280 profile_asset (CMS-010)
+///   300-      free; a new epic takes the next block of 20 and adds a row here.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -548,6 +549,16 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     set {kind = .customView(newValue)}
   }
 
+  /// A custom ICC profile the document carries, under `assets` (0:9) (CMS block,
+  /// color_management.proto).
+  public var profileAsset: Wiretuner_Doc_V1_ProfileAssetProps {
+    get {
+      if case .profileAsset(let v)? = kind {return v}
+      return Wiretuner_Doc_V1_ProfileAssetProps()
+    }
+    set {kind = .profileAsset(newValue)}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   /// The node's kind and its properties.  Unset for the well-known collection nodes 0:2-0:12.
@@ -620,6 +631,9 @@ public nonisolated struct Wiretuner_Doc_V1_NodeProps: Sendable {
     case script(Wiretuner_Doc_V1_ScriptProps)
     /// A named view, a child of the settings node 0:1 (BASIC block, view.proto).
     case customView(Wiretuner_Doc_V1_CustomViewProps)
+    /// A custom ICC profile the document carries, under `assets` (0:9) (CMS block,
+    /// color_management.proto).
+    case profileAsset(Wiretuner_Doc_V1_ProfileAssetProps)
 
   }
 
@@ -734,7 +748,7 @@ nonisolated extension Wiretuner_Doc_V1_Node: SwiftProtobuf.Message, SwiftProtobu
 
 nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{3}hose_set\0\u{2}\u{18}group\0\u{2}\u{14}swatch\0\u{3}gradient_swatch\0\u{2}\u{9}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{3}hose_set\0\u{2}\u{18}group\0\u{2}\u{14}swatch\0\u{3}gradient_swatch\0\u{2}\u{9}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0\u{4}\u{14}profile_asset\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1184,6 +1198,19 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
           self.kind = .customView(v)
         }
       }()
+      case 280: try {
+        var v: Wiretuner_Doc_V1_ProfileAssetProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .profileAsset(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .profileAsset(v)
+        }
+      }()
       default: break
       }
     }
@@ -1330,6 +1357,10 @@ nonisolated extension Wiretuner_Doc_V1_NodeProps: SwiftProtobuf.Message, SwiftPr
     case .customView?: try {
       guard case .customView(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 260)
+    }()
+    case .profileAsset?: try {
+      guard case .profileAsset(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 280)
     }()
     case nil: break
     }

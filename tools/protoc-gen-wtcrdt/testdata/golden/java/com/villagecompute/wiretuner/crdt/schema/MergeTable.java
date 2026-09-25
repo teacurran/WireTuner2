@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636";
+  public static final String VERSION = "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -203,6 +203,7 @@ public final class MergeTable {
           Map.entry("wiretuner.doc.v1.PolygonProps", table_wiretuner_doc_v1_PolygonProps()),
           Map.entry("wiretuner.doc.v1.PrintSettings", table_wiretuner_doc_v1_PrintSettings()),
           Map.entry("wiretuner.doc.v1.Profile", table_wiretuner_doc_v1_Profile()),
+          Map.entry("wiretuner.doc.v1.ProfileAssetProps", table_wiretuner_doc_v1_ProfileAssetProps()),
           Map.entry("wiretuner.doc.v1.ProfileRef", table_wiretuner_doc_v1_ProfileRef()),
           Map.entry("wiretuner.doc.v1.ProofSettings", table_wiretuner_doc_v1_ProofSettings()),
           Map.entry("wiretuner.doc.v1.RaggedEffect", table_wiretuner_doc_v1_RaggedEffect()),
@@ -1868,7 +1869,8 @@ public final class MergeTable {
             Map.entry(220, new FieldPolicy(220, "glyph", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.GlyphProps", null, "kind")),
             Map.entry(240, new FieldPolicy(240, "barcode", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.BarcodeProps", null, "kind")),
             Map.entry(241, new FieldPolicy(241, "script", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ScriptProps", null, "kind")),
-            Map.entry(260, new FieldPolicy(260, "custom_view", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CustomViewProps", null, "kind"))
+            Map.entry(260, new FieldPolicy(260, "custom_view", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CustomViewProps", null, "kind")),
+            Map.entry(280, new FieldPolicy(280, "profile_asset", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileAssetProps", null, "kind"))
         ));
   }
 
@@ -2243,6 +2245,15 @@ public final class MergeTable {
             Map.entry(3, new FieldPolicy(3, "angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
             Map.entry(4, new FieldPolicy(4, "steps", Policy.ATOMIC, RefFallback.UNSET, false, "uint32", false, null, null, null)),
             Map.entry(5, new FieldPolicy(5, "twist", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null))
+        ));
+  }
+
+  private static MessagePolicy table_wiretuner_doc_v1_ProfileAssetProps() {
+    return new MessagePolicy(
+        "wiretuner.doc.v1.ProfileAssetProps",
+        Map.ofEntries(
+            Map.entry(1, new FieldPolicy(1, "profile", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ProfileRef", null, null)),
+            Map.entry(2, new FieldPolicy(2, "size", Policy.ATOMIC, RefFallback.UNSET, false, "uint64", false, null, null, null))
         ));
   }
 

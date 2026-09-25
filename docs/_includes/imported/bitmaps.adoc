@@ -377,6 +377,13 @@ resolution is below* (its pixel width over its placed width in inches) gets an a
 ppi.  kbd:[Option]-drag resizing in printer-resolution steps is not built (the Pointer tool is
 another task's).
 
+NOTE: As built by IMG-004's remainder (`WTModel/ImageResolution.swift`).  The steps of kbd:[Option]-drag resizing are a pure function:
+`ImageResolution.snapped(_:ppi:printer:)` (or `snapped(_:for:in:)` with the node's dpi and the document's printer resolution) answers
+the step nearest a proposed scale of the image's natural size.  Deviation, making the rule exact: the steps are s₀ -- the largest
+scale not above 100% at which the effective resolution is a whole-number fraction of the printer resolution -- divided or multiplied
+by whole numbers, so a 300 ppi image on a 600 dpi document snaps to 100%, 50%, 33.3%, 25% ... and 200%, 300% ....
+`effectivePPI(of:in:)` is the effective resolution through the transform chain.  Not built: the Pointer tool's use of it (WTApp).
+
 NOTE: As built by IMG-027 (`WTRender/Images/SubjectMask.swift`, `VisionSubjectSegmenter.swift`).
 The Vision request sits behind the `SubjectSegmenter` protocol; `VisionSubjectSegmenter` runs
 `VNGenerateForegroundInstanceMaskRequest` on the image reduced to at most 4 MP

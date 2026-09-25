@@ -1,0 +1,51 @@
+# crdt-conformance/vectors/registers/polygon-radius-rotation-concurrent.textproto (DRAW-010; schema: crdt-conformance/schema/vector.proto)
+name: "registers/polygon-radius-rotation-concurrent"
+description: "A polygon's radius and rotation are separate ATOMIC registers: replica 1 drags the diamond handle (radius 70 and rotation 0.5 in one SetFields) while replica 2 drags it with Shift held (radius 30 only).  radius is last-writer-wins -- replica 2's greater OpId -- with replica 1's value retained, and rotation keeps replica 1's write: both engines converge on radius 30, rotation 0.5."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Star"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+      ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { polygon { sides: 5 star: true radius: 50 auto_inner: true rotation: -1.5707963267948966 } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change polygon"
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 23 } segments { field: 4 } }
+        paths { segments { field: 23 } segments { field: 8 } }
+        values { polygon { radius: 70 rotation: 0.5 } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change polygon"
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 23 } segments { field: 4 } }
+        values { polygon { radius: 30 } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e1201939cb714bb78705e019272e6cc6c2dca3359eec85a6d7bedd958739293c"
+  snapshot_hash: "fbf6bffd3e7842d0ef1819d0d3789a51e6a4c21847c32db2908f449004853375"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "bb7415680b0cb6ab4ea9b14430d1cd1a9ad52133dc42eadc023ac9bd88f892d1"
+    register {
+      path { segments { field: 23 } segments { field: 4 } }
+      value { polygon { radius: 30 } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 2 replica: 7 } losing { counter: 3 replica: 1 }
+    }
+    register {
+      path { segments { field: 23 } segments { field: 8 } }
+      value { polygon { rotation: 0.5 } }
+      op { counter: 3 replica: 1 }
+      losing { counter: 2 replica: 7 }
+    }
+  }
+}

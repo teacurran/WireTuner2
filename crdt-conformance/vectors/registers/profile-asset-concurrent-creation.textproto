@@ -1,0 +1,49 @@
+# crdt-conformance/vectors/registers/profile-asset-concurrent-creation.textproto (CMS-010; schema: crdt-conformance/schema/vector.proto)
+name: "registers/profile-asset-concurrent-creation"
+description: "Two Macs choose the same installed profile at once: each creates a profile_asset node for its hash under assets (0:9) and writes the working CMYK profile.  Both nodes survive (the Profiles list presents equal hashes as one); the ATOMIC cmyk_profile register takes the greater OpId's value, the same ProfileRef either way."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Settings"
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 50 } segments { field: 3 } }
+        values { settings { color { intent: RENDERING_INTENT_PERCEPTUAL } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 2 base_server_seq: 1 label: "Change Color Settings"
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 50 } segments { field: 2 } }
+        values { settings { color { cmyk_profile { name: "Press Proof" sha256: "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20" space: PROFILE_SPACE_CMYK } } } } } }
+      ops { create { parent { counter: 9 } position: "\x80" props { profile_asset { profile { name: "Press Proof" sha256: "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20" space: PROFILE_SPACE_CMYK } size: 560 } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 2 base_server_seq: 1 label: "Change Color Settings"
+      ops { set { node { counter: 1 }
+        paths { segments { field: 2 } segments { field: 50 } segments { field: 2 } }
+        values { settings { color { cmyk_profile { name: "Press Proof" sha256: "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20" space: PROFILE_SPACE_CMYK } } } } } }
+      ops { create { parent { counter: 9 } position: "\x80" props { profile_asset { profile { name: "Press Proof" sha256: "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20" space: PROFILE_SPACE_CMYK } size: 560 } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "25475111e57daa8a8bc30847d8b785368155a76f7f95a84cafec9dd5fb5d4113"
+  snapshot_hash: "f6941abe25b7458083e4afbae616664a36a5ceb9ae398b5421b6e5684bcdc7c4"
+  node { id { counter: 9 } tree { parent { } children { counter: 3 replica: 1 } children { counter: 3 replica: 2 } } }
+  node { id { counter: 3 replica: 1 } tree { parent { counter: 9 } position: "\x80" } }
+  node { id { counter: 3 replica: 2 } tree { parent { counter: 9 } position: "\x80" } }
+  node {
+    id { counter: 1 }
+    register {
+      path { segments { field: 2 } segments { field: 50 } segments { field: 2 } }
+      value { settings { color { cmyk_profile { name: "Press Proof" sha256: "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20" space: PROFILE_SPACE_CMYK } } } }
+      op { counter: 2 replica: 2 }
+      losing { counter: 2 replica: 1 }
+    }
+  }
+}

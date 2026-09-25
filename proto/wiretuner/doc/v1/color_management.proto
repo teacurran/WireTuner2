@@ -2,8 +2,10 @@
 //
 // Color management settings (docs/_includes/cms/color-management.adoc, CMS-001; the per-image
 // message is image-color.adoc's).  `ColorSettings` is SettingsProps.color on the settings node
-// 0:1; `ImageColorSettings` is ImageProps.color (image.proto).  Every ProfileRef field is
-// ATOMIC: name, hash, bundled id and space describe the same bytes and are meaningless apart.
+// 0:1; `ImageColorSettings` is ImageProps.color (image.proto); `ProfileAssetProps` is the
+// NodeProps kind of a custom profile under `assets` (color-profiles.adoc, CMS-010).  Every
+// ProfileRef field is ATOMIC: name, hash, bundled id and space describe the same bytes and are
+// meaningless apart.
 syntax = "proto3";
 
 package wiretuner.doc.v1;
@@ -46,6 +48,19 @@ message ProfileRef {
   // Color space class, so a reader can choose a fallback of the right class without the ICC
   // data.
   ProfileSpace space = 4 [(buf.validate.field).enum.defined_only = true];
+}
+
+// NodeProps.kind case `profile_asset` (CMS block, docs/_includes/cms/color-profiles.adoc, CMS-010):
+// one custom ICC profile the document carries, a child of the `assets` node (0:9).  Created when
+// a non-bundled profile is first chosen or extracted from an image; a client that finds a live
+// node for the same sha256 reuses it, and the Profiles… list presents nodes with equal hashes as
+// one.  Referencing fields hold the ProfileRef itself, not a reference to this node, so a
+// dangling or deleted asset never affects rendering.
+message ProfileAssetProps {
+  // The profile this asset holds.  ATOMIC and written once at creation.
+  ProfileRef profile = 1 [(wt.crdt.field).merge = MERGE_ATOMIC];
+  // Size of the ICC data in bytes, for the Profiles… list without fetching the blob.
+  uint64 size = 2;
 }
 
 // An ICC rendering intent.

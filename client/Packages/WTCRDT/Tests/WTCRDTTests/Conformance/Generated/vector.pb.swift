@@ -938,6 +938,14 @@ nonisolated struct Wiretuner_Conformance_V1_NodeProps: Sendable {
     set {kind = .customView(newValue)}
   }
 
+  var profileAsset: WTProto.Wiretuner_Doc_V1_ProfileAssetProps {
+    get {
+      if case .profileAsset(let v)? = kind {return v}
+      return WTProto.Wiretuner_Doc_V1_ProfileAssetProps()
+    }
+    set {kind = .profileAsset(newValue)}
+  }
+
   /// Test kind; its merge table is in test-kinds.textproto.
   var test: Wiretuner_Conformance_V1_TestProps {
     get {
@@ -984,6 +992,7 @@ nonisolated struct Wiretuner_Conformance_V1_NodeProps: Sendable {
     case barcode(WTProto.Wiretuner_Doc_V1_BarcodeProps)
     case script(WTProto.Wiretuner_Doc_V1_ScriptProps)
     case customView(WTProto.Wiretuner_Doc_V1_CustomViewProps)
+    case profileAsset(WTProto.Wiretuner_Doc_V1_ProfileAssetProps)
     /// Test kind; its merge table is in test-kinds.textproto.
     case test(Wiretuner_Conformance_V1_TestProps)
 
@@ -3005,7 +3014,7 @@ nonisolated extension Wiretuner_Conformance_V1_SetRemove: SwiftProtobuf.Message,
 
 nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   static let protoMessageName: String = _protobuf_package + ".NodeProps"
-  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{3}hose_set\0\u{2}\u{18}group\0\u{2}\u{14}swatch\0\u{3}gradient_swatch\0\u{2}\u{9}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0\u{2}d\u{b}test\0")
+  static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}document\0\u{1}settings\0\u{1}page\0\u{3}master_page\0\u{1}asset\0\u{2}\u{f}path\0\u{1}rect\0\u{1}ellipse\0\u{1}polygon\0\u{1}chart\0\u{1}connector\0\u{3}hose_set\0\u{2}\u{18}group\0\u{2}\u{14}swatch\0\u{3}gradient_swatch\0\u{2}\u{9}brush\0\u{2}\u{14}blend\0\u{1}extrude\0\u{1}envelope\0\u{1}perspective\0\u{2}\u{1b}text\0\u{2}\u{14}layer\0\u{1}symbol\0\u{3}symbol_folder\0\u{1}instance\0\u{1}style\0\u{2}\u{10}image\0\u{3}placed_file\0\u{4}\u{13}svg_animation\0\u{4}\u{14}comment_thread\0\u{2}\u{a}glyph\0\u{2}\u{14}barcode\0\u{1}script\0\u{4}\u{13}custom_view\0\u{4}\u{14}profile_asset\0\u{2}P\u{b}test\0")
 
   mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -3455,6 +3464,19 @@ nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message,
           self.kind = .customView(v)
         }
       }()
+      case 280: try {
+        var v: WTProto.Wiretuner_Doc_V1_ProfileAssetProps?
+        var hadOneofValue = false
+        if let current = self.kind {
+          hadOneofValue = true
+          if case .profileAsset(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.kind = .profileAsset(v)
+        }
+      }()
       case 1000: try {
         var v: Wiretuner_Conformance_V1_TestProps?
         var hadOneofValue = false
@@ -3614,6 +3636,10 @@ nonisolated extension Wiretuner_Conformance_V1_NodeProps: SwiftProtobuf.Message,
     case .customView?: try {
       guard case .customView(let v)? = self.kind else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 260)
+    }()
+    case .profileAsset?: try {
+      guard case .profileAsset(let v)? = self.kind else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 280)
     }()
     case .test?: try {
       guard case .test(let v)? = self.kind else { preconditionFailure() }

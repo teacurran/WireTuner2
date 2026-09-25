@@ -44,6 +44,9 @@ public struct SceneObject: Hashable, Sendable {
     /// Whether the object cannot be edited from the canvas: it, an enclosing group or its layer
     /// is locked (arranging.adoc, "Locking"; layers.adoc, "Locking and unlocking layers").
     public var isEffectivelyLocked = false
+    /// Further item paths that stand for the object (a clip path's fill part, drawn below the
+    /// clipped contents: `ClipRendering`).
+    public var aliasItemPaths: [[Int]] = []
 
     /// The point a hit on element `element` of the leaf at `leafPath` (a full index path) names.
     public func point(leafPath: [Int], element: Int) -> PointRef? {
@@ -77,6 +80,9 @@ public struct DocumentScene: Hashable, Sendable {
         self.topLevel = topLevel
         self.layers = layers
         byItemPath = Dictionary(uniqueKeysWithValues: objects.map { ($0.value.itemPath, $0.key) })
+        for (id, object) in objects {
+            for alias in object.aliasItemPaths { byItemPath[alias] = id }
+        }
     }
 
     /// The object whose item sits at `itemPath` (a top-level index, then group children).
@@ -157,6 +163,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// connector itself is touched: a connector rerouted because an object it joins changed
     /// re-checks its ends against the document and is routed again without reading its registers.
     private var connectors: [OpID: StoredConnector] = [:]
+    /// Master content on child pages (DOC-011, `MasterRendering`), and the nodes the change being
+    /// applied touched, for the masters' own builders (nil: rebuild them).
+    private var masters = MasterRendering()
+    private var masterTouched: Set<OpID>?
 
     private struct StoredConnector: Sendable {
         var spec: ConnectorSpec
@@ -213,6 +223,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     public mutating func rebuild(_ state: EngineState) -> DocumentScene {
         cache = [:]
         connectors = [:]
+        masters.reset()
         swatchIndex = SwatchIndex(state)
         scene = build(state)
         return scene
@@ -282,7 +293,9 @@ public struct DocumentDisplayListBuilder: Sendable {
             connectors[node] = nil
         }
         for node in dependents { cache[OpID(node)] = nil }
+        masterTouched = seeds
         scene = build(state)
+        masterTouched = nil
         var summary = ChangeSummary(origin: origin, isStructural: before.displayList.nodeIDs != scene.displayList.nodeIDs
             || before.objects.mapValues(\.itemPath) != scene.objects.mapValues(\.itemPath))
         var affected = Set(seeds.map(NodeID.init)).union(dependents).union(dependencies.dependents(of: seeds.map(NodeID.init)))
@@ -312,6 +325,9 @@ public struct DocumentDisplayListBuilder: Sendable {
             } else {
                 summary.touch(id, fields: fields)
             }
+        }
+        for (page, change) in masters.dirty {
+            summary.record(NodeID(page), old: change.old.map { NodeBounds(canvas: canvas, rect: $0) }, new: change.new.map { NodeBounds(canvas: canvas, rect: $0) })
         }
         return (scene, summary)
     }
@@ -376,8 +392,9 @@ public struct DocumentDisplayListBuilder: Sendable {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
             let context = sceneContext(state)
+            if masters.isEmpty { prepareMasters(state) }
             let contents = SceneContext.$current.withValue(context) {
-                layerContents(state, order: order, includeHidden: includeHidden, objects: &scratch).contents
+                layerContents(state, order: order, includeHidden: includeHidden, output: true, objects: &scratch).contents
             }
             return LayerScene.build(canvas: canvas, layers: contents, purpose: .output(includeHidden: includeHidden), background: [])
         }
@@ -386,9 +403,16 @@ public struct DocumentDisplayListBuilder: Sendable {
     // MARK: Building
 
     private mutating func build(_ state: EngineState) -> DocumentScene {
+        prepareMasters(state, touched: masterTouched)
         begin(state)
         defer { end() }
         return ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) }
+    }
+
+    private mutating func prepareMasters(_ state: EngineState, touched: Set<OpID>? = nil) {
+        var prepared = masters
+        prepared.prepare(state, touched: touched, host: self)
+        masters = prepared
     }
 
     private mutating func begin(_ state: EngineState) {
@@ -441,7 +465,7 @@ public struct DocumentDisplayListBuilder: Sendable {
 
     /// Every layer's content in `order`, placing the objects of the visible ones (and of hidden
     /// ones with `includeHidden`) and recording them in `objects`.
-    private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool,
+    private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool, output: Bool = false,
                                         objects: inout [NodeID: SceneObject]) -> (contents: [LayerContent], topLevel: [NodeID]) {
         var contents: [LayerContent] = []
         var topLevel: [NodeID] = []
@@ -456,6 +480,11 @@ public struct DocumentDisplayListBuilder: Sendable {
             if layer.visible || includeHidden {
                 let layerTransform = layerTransform(layer.id, state: state)
                 let context = Placing(layer: layer.id, locked: layer.locked)
+                for item in masters.items(on: layer.id, output: output) {
+                    items.append((item, nil))
+                    bounds.append(item.bounds)
+                    next += 1
+                }
                 for child in order.objects(on: layer.id, in: state) where belongs(child, state: state) {
                     guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
                                            objects: &objects) else { continue }
@@ -537,12 +566,21 @@ public struct DocumentDisplayListBuilder: Sendable {
             var children: [DisplayItem] = []
             var placedIDs: [OpID] = []
             let inner = Placing(layer: context.layer, locked: locked)
+            let clip = built.kind == .group && built.wrapper == nil ? ClipRendering.clipPath(of: node, in: state) : nil
+            var clipItem: DisplayItem?
             for child in built.wrapper.map({ Wrappers.drawOrder(node, $0, in: state) }) ?? state.liveChildren(node) {
-                if let placed = place(child, state: state, parentTransform: transform, itemPath: itemPath + [children.count], parent: node,
+                let path = clip.map { ClipRendering.itemPath(itemPath, child: child, clip: $0, contentIndex: children.count) } ?? itemPath + [children.count]
+                if let placed = place(child, state: state, parentTransform: transform, itemPath: path, parent: node,
                                       context: inner, objects: &objects) {
-                    children.append(placed)
+                    if child == clip { clipItem = placed } else { children.append(placed) }
                     placedIDs.append(child)
                 }
+            }
+            if let clip {
+                let object = objects[NodeID(clip)]
+                objects[NodeID(clip)]?.aliasItemPaths = [itemPath + [ClipRendering.below]]
+                children = ClipRendering.children(clipItem: clipItem, contents: children, clipShape: object?.path ?? Objects.localPath(clip, in: state),
+                                                  clipTransform: object?.transform ?? Objects.transform(of: clip, in: state).concatenating(transform))
             }
             guard !children.isEmpty else { return nil }
             let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, transform: transform, in: state) { self.cache[$0]?.path } }

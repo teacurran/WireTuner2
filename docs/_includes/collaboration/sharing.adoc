@@ -650,6 +650,20 @@ After a removal the window closes once the person has decided (at once when noth
 after `deleteStore()`.  `AccessBarModel` reads any `AccessOffering`, which `AccessController`
 conforms to, so the app tests drive it both with a fake and end to end over `FakeSyncServer`.
 
+NOTE: As built by COLLAB-015 (`WTModel/LibraryCatalog.swift`).  `LibraryCatalog` holds the cached libraries (`LibrarySource`: document
+id, name, head seq and merged state, which WTSync hands in through `LibraryStoreOpening`) and lists each one's swatches (the
+protected defaults left out), graphic styles and symbols as `sections(_:)` for the *Team libraries* sections.  `CopyFromLibrary(item,
+from:)` "Add swatch "Brand red" from Marketing library": the item under `swatches`, `styles` or `symbols` with fresh ids and
+`CommonProps.library` set, and first everything it references in the library's collections (a tint's base, a style's swatches, a
+symbol's swatches, styles, brushes, assets and nested symbols), each with its own provenance, reusing a live copy from the same
+library (or an asset of the same hash); every reference inside the copies is rewritten to the local nodes, wherever the schema puts an
+`OpId`.  `UpdateFromLibrary(nodes, from:)` "Update from Library": the registers that differ outside sequences (one `SetFields`, found
+by recreating the library's node in a scratch state), a style's attribute stack replaced when it differs, a symbol's artwork deleted
+and copied again, and `source_server_seq` moved to the library's head.  `DetachFromLibrary` writes `library` unset.
+`LibraryBadge.of(_:in:catalog:)` is the badge (library name, or "From a library you can't access"; *update available* when the head
+is past the copied seq).  Conformance vector `registers/library-update-vs-local-edit`.  Not built: the panels' sections and badge,
+the menu items and opening the cached stores (WTApp, WTSync).
+
 === Build tasks
 
 [[COLLAB-010]]

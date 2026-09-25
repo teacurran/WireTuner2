@@ -526,6 +526,19 @@ window controller, canvas and commands; AppKit gesture events cannot be synthesi
 `magnify(with:)`, `rotate(with:)`, `smartMagnify(with:)` and `pressureChange(with:)` overrides are
 thin forwards to tested methods.
 
+NOTE: As built by BASIC-015, model half (`WTModel/NamedViews.swift`).  `NamedViews.list` reads the live `custom_view` children of
+`settings` in menu order (a view under any other parent is ignored; a magnification outside 6%--25,600% is clamped, 0 reads 100%;
+an empty name reads "View n").  Commands: `CreateCustomView(name:target:)` "New View" (after the settings node's last child),
+`RedefineCustomView` "Redefine View" (the one ATOMIC `target`), `RenameCustomView` "Rename View", `DeleteCustomView` "Delete
+View", `MoveCustomView(_:to:)` "Reorder Views" (a `MoveNode` between the neighbours at the new place).  Previous is
+`NamedViewRecall`, the local pair of `ViewState.previous_view`/`previous_view_2` (it reads and writes the proto): `recalled(_:)`,
+`canGoBack(in:)` (two live views) and `previous(in:)` (the view and the swapped pair); a deleted view drops out.  The Zoom tool's
+kbd:[Shift]-drag target is `NamedViews.target(fitting:viewSize:mode:)`.  The kind is read by its raw number (260), not a `NodeKind`
+case.  Deviation: the Done-when's merge cases are WTModel two-replica tests rather than simulator scenarios (redefine vs. rename,
+redefine vs. redefine, delete vs. redefine with *Restore* bringing the edit back, concurrent creates, undo skipping a newer
+redefine); the review sheet's *Restore* row is the generic edit-vs-delete one.  Not built: the New View and Edit Views sheets, the
+Custom submenu and magnification pop-up, recall animation and the Zoom tool gesture (WTApp).
+
 === Build tasks
 
 [[BASIC-012]]

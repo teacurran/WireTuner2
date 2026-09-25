@@ -159,12 +159,17 @@ public struct ColorSettings: Hashable, Sendable {
 
 /// *Color Settings…* OK (color-management.adoc, "Undo"): writes the registers of `SettingsProps
 /// .color` where `draft` differs from the document, and nothing else, in one change labelled
-/// "Change Color Settings" -- so an undo restores only this user's registers.
+/// "Change Color Settings" -- so an undo restores only this user's registers.  A custom profile
+/// the draft names gets its asset node in the same change (CMS-010, `ProfileAssets`).
 public struct ChangeColorSettings: Command {
     public var draft: Wiretuner_Doc_V1_ColorSettings
+    /// The ICC data size of each custom profile the draft chooses, by hash, for its asset node
+    /// (CMS-010: a custom profile chosen here gets a `profile_asset` node unless one exists).
+    public var profileSizes: [Data: UInt64]
 
-    public init(_ draft: Wiretuner_Doc_V1_ColorSettings) {
+    public init(_ draft: Wiretuner_Doc_V1_ColorSettings, profileSizes: [Data: UInt64] = [:]) {
         self.draft = draft
+        self.profileSizes = profileSizes
     }
 
     public var label: String { "Change Color Settings" }
@@ -183,5 +188,9 @@ public struct ChangeColorSettings: Command {
         }
         guard !paths.isEmpty else { return }
         builder.append(Ops.set(WellKnown.settings, paths, values: values))
+        var pending = ProfileAssets.Pending()
+        for profile in ProfileAssets.profiles(in: values, schema: state.schema) {
+            try ProfileAssets.ensure(profile, size: profileSizes[profile.sha256] ?? 0, state: state, pending: &pending, builder: &builder)
+        }
     }
 }

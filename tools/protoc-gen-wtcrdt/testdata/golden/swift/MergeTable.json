@@ -8293,6 +8293,17 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.CustomViewProps"
         },
+        "280": {
+          "element_message": null,
+          "local_only": false,
+          "name": "profile_asset",
+          "on_dangling": "UNSET",
+          "oneof": "kind",
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileAssetProps"
+        },
         "3": {
           "element_message": null,
           "local_only": false,
@@ -10511,6 +10522,32 @@
           "policy": "ATOMIC",
           "repeated": false,
           "type": "double",
+          "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ProfileAssetProps": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "profile",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ProfileRef"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "size",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "uint64",
           "type_name": null
         }
       }
@@ -13907,5 +13944,5 @@
       "kind_field": 1
     }
   },
-  "version": "3d708bbc463dca0c537f3038e4115c9e850a9659566848c5624008b8fcf68636"
+  "version": "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
 }
