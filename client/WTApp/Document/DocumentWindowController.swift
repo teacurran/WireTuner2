@@ -387,6 +387,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let colorDrop = CanvasColorDrop(document: document, selection: selection)
         colorDrop.defaultSpace = { preferences[PreferenceCatalog.Colors.defaultColorSpace] == "srgb" ? .sRGB : .displayP3 }
         canvas.colorDrop = colorDrop
+        canvas.styleDrop = StyleCanvasDrop(document: document, selection: selection)
         if let importFiles = environment.importFiles {
             canvas.onFileDrop = { [weak self] urls, point in self.map { importFiles($0, urls, point) } ?? false }
         }

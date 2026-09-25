@@ -328,6 +328,7 @@ Contour gradient centred at the drop point reaching the farthest corner; the fir
 `ApplyGradient` on the object under the pointer -- a group's member.  *Deviation*: the gradient rules
 apply to swatch drags only; any other colour drag keeps COLOR-011's modifiers, where kbd:[Option] alone
 colours the member solid.
+
 NOTE: As built by ATTR-029 (`WTModel/GradientSwatches.swift`, the `ramp` register in
 `GradientCommands.swift`).  A gradient swatch is a `gradient_swatch` node (case 71, COLOR block)
 under 0:5 beside the colour swatches, which `SwatchList` does not list; `GradientSwatches.list`
@@ -341,11 +342,16 @@ a typed name another gradient swatch holds is refused.  `RenameGradientSwatch` a
 `GradientSwatches.gradient` gives the renderer's `Gradient` with stop colours resolved through a
 `ColorResolver`, so a Swatches-panel chip follows a recoloured stop swatch.  *Deviation*: "the
 later application wins in full" needs the `GradientFill.ramp` register and the `GradientStop.ramp`
-tag (see Merge semantics); a SEQUENCE alone keeps both applications' stops.  The Swatches panel's
-gradient chips, the ramp drag onto the panel and the click that applies one (WTApp) are not built:
-the panel lists `GradientSwatches.list` after the colours, draws each chip by filling a rectangle
-with `GradientSwatches.gradient`, and runs `AddGradientSwatch(node:row:in:)` on a ramp drop and
-`ApplyGradientSwatch` on a click with objects selected.
+tag (see Merge semantics); a SEQUENCE alone keeps both applications' stops.
+
+NOTE: The Swatches panel half (WTApp, `Color/GradientSwatchRows.swift`) lists
+`GradientSwatches.list` after the colours, each chip a rectangle filled with
+`GradientSwatches.gradient`; a click with objects selected runs `ApplyGradientSwatch`.  The ramp is
+dragged by the handle beside it in the gradient form, carrying
+`com.villagecompute.wiretuner.gradient-ramp` (document, object and fill row); dropped on the panel's
+Add arrow or below the list it runs `AddGradientSwatch(node:row:in:)`.  *Deviation*: the drag starts
+from the handle, not from the bar itself, whose presses belong to the stop gestures; a ramp from
+another document is refused (its stops' swatch references would not resolve).
 
 === Build tasks
 

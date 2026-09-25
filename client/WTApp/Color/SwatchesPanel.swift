@@ -255,6 +255,8 @@ final class SwatchesPanelModel {
     /// A drop read from the drag pasteboard.
     @discardableResult
     func drop(from pasteboard: NSPasteboard, on target: OpID?) -> Bool {
+        // A gradient's ramp dropped anywhere but on a swatch keeps it as a gradient swatch (ATTR-029).
+        if target == nil, GradientRampDrag.read(from: pasteboard) != nil { return dropRamp(from: pasteboard) }
         guard let payload = ColorDrag.read(from: pasteboard, defaultSpace: workspace.defaultSpace) else { return false }
         drop(payload, on: target)
         return true
@@ -441,7 +443,7 @@ struct SwatchesPanelBody: View {
             Spacer()
             Image(systemName: "arrow.down.to.line")
                 .help("Add")
-                .onDrop(of: ColorDrag.dropTypes, isTargeted: nil, perform: Self.dropping(on: nil, model))
+                .onDrop(of: Self.addDropTypes, isTargeted: nil, perform: Self.dropping(on: nil, model))
                 .accessibilityIdentifier("swatches.add")
         }
     }
@@ -463,8 +465,9 @@ struct SwatchesPanelBody: View {
                 }
             }
             .onMove(perform: Self.moving(model))
+            GradientSwatchRows(model: model)
             SwiftUI.Color.clear.frame(height: 24)
-                .onDrop(of: ColorDrag.dropTypes, isTargeted: nil, perform: Self.dropping(on: nil, model))
+                .onDrop(of: Self.addDropTypes, isTargeted: nil, perform: Self.dropping(on: nil, model))
                 .accessibilityIdentifier("swatches.below")
         }
         .onDeleteCommand(perform: ColorAction.run(model.remove))

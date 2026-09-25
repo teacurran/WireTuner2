@@ -220,11 +220,28 @@ places the first object.  Back and forth runs `0, 1, …, n−1, n−2, …, 1, 
 is `k × angle`, the first object unrotated; random scale is uniform in 1% ... `scale_percent`.
 kbd:[Left]/kbd:[Right] multiply the spacing by 0.8 and 1.25, kbd:[Up]/kbd:[Down] the scale by 0.8
 and 1.25.  `HosePreview` gives the overlay's and the *Contents* pop-up's display items (paths,
-shapes and groups; text, images and instances are left out of the preview only).  The tool and
-the sheet (DRAW-039, DRAW-040) are not built: the tool feeds `HoseSprayer` its drag samples, draws
-`HosePreview.items` in the overlay, runs `ImportHoseSet` first for a library hose and
-`SprayHose.strokes` on mouse-up inside one undo group; the sheet lists `HoseSets.list` then
-`HoseLibrary.entries`, and maps its buttons to the commands above.
+shapes and groups; text, images and instances are left out of the preview only).
+
+NOTE: As built by DRAW-039 and DRAW-040 (`WTApp/Tools/HoseTool.swift`, `HoseModel.swift`,
+`HoseSheet.swift`, `HoseFeatures.swift`).  `GraphicHoseTool` replaces the catalog stub: the press
+reads the chosen hose (`GraphicHoseModel.source`: a document set, or a library hose -- its document
+copy when there is one, else the bundle opened in a scratch state) and starts a `HoseSprayer` with a
+random seed; drag samples go to `drag(to:time:)` in pasteboard space with the events' timestamps; the
+arrow keys call `tighten`/`loosen`/`shrink`/`enlarge` while a stroke is in progress; the overlay draws
+`HosePreview.items` at 60% opacity.  On mouse-up, inside one undo group: a library hose the document has
+no copy of is copied in first (`ImportHoseSet`, labelled with the stroke's "Spray N objects" so the undo
+step reads as the spray), then `SprayHose.strokes` runs against the document's set (the layer is the
+window's active layer) and the created roots are selected.  An empty set, no hose or no document shows
+the reason in the HUD and sprays nothing.  The sheet (the tool's options, a double-click in the Tools
+panel) has *Hose* and *Options* views; the *Sets* menu lists `HoseSets.list`, a divider,
+`HoseLibrary.entries`, then the management items; *New…*, *Duplicate…* and *Rename…* open a name prompt
+with *In this document* / *In my library*.  Document sets use the document commands; a library hose is
+edited by the same commands (`AddHoseObject`, `RemoveHoseObject`, `SetHoseOptions`) applied to its
+scratch copy and written back with `HoseLibrary.replace`, so Paste In, Remove and the options work in
+both locations.  btn:[Paste In] reads the window's clipboard (the native objects payload).  A dropped
+`.wthose` goes through `HoseLibrary.importBundle`.  The library is prepared (`prepare`, installing the
+defaults on the first launch) and watched at launch; a test launch uses a temporary folder.  Tests:
+`GraphicHoseTests` (WTApp).
 
 === Build tasks
 

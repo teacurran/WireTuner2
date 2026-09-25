@@ -421,6 +421,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installEyedropper()
         installProfileBlobs()
         installSymbolLibrary()
+        installStyles()
+        installGraphicHose()
         installArrowheadEditor()
         colors.colorControl = { effects.colorControlMenuItem() }
         self.effects = effects

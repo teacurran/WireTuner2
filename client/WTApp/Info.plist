@@ -130,6 +130,26 @@
 			<key>UTTypeIdentifier</key>
 			<string>com.villagecompute.wiretuner.objects</string>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Graphic Style</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.graphic-style</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Gradient Ramp</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.gradient-ramp</string>
+		</dict>
 	</array>
 	<key>WTAPIURL</key>
 	<string>$(WT_API_URL)</string>

@@ -64,7 +64,7 @@ Undo levels are under *Sync and collaboration* (below).
 |Path operations consume original paths |On |Union, Punch and the others remove the source paths. xref:combining-paths.adoc[Combining paths]
 |Join non-touching paths |Off |Join connects open paths whose ends are within the snap distance. xref:combining-paths.adoc[Combining paths]
 |Default line weights |0.5 1 2 4 8 12 16 24 |The stroke width presets in the Object panel, in points, space separated. xref:stroke-attributes.adoc[Stroke attributes]
-|Auto-apply new styles to selection |Off |A style created from the selection is applied to it. xref:styles.adoc[Styles]
+|Auto-apply new styles to selection |On |A style created from the selection is applied to it. xref:styles.adoc[Styles]
 |Confirm before opening an external editor |On |Asks before opening a bitmap in another application. xref:external-editors.adoc[External editors]
 |Default image editor |System default |The application menu:Edit With[] opens by default (local; see below). xref:external-editors.adoc[External editors]
 |Auto-join paths |On |Drawing from an open path's end point with the Pen continues that path. xref:pen-bezigon.adoc[Pen and Bezigon]
@@ -436,6 +436,22 @@ Clear button beside Choose….  The "UI tests" write one control per category th
 bindings and read the store.  Snap sounds: `SnapSoundPlayer` plays through
 `SnappingContext.didSnap`, which GEO-005's resolver calls, so no drag plays one until then; the
 system setting is read from `com.apple.sound.uiaudio.enabled` in the global domain (absent is on).
+
+NOTE: As built by BASIC-023, the `WTSync` half (`WTSync/PreferenceSync.swift`).  `PreferenceSync` keeps
+the `preferences_outbox` table in an app-level SQLite store (`Application Support/WireTuner/
+Preferences.sqlite`); `enqueue` stamps each synced entry with `updated_at_ms` and the device, `push`
+sends a partial `SetPreferences` and removes what it sent (an entry re-queued meanwhile stays),
+`refresh` runs `GetPreferences` (sign-in, reconnect, sync turned on), drops queued entries the server
+already has newer, and pushes the rest; every answer is delivered on `updates()` as the full map with
+still-queued newer entries on top, for `PreferenceStore` to apply wholesale.  With *Sync preferences
+with my account* off nothing is queued, sent or delivered, and turning it off clears the queue.
+`PreferenceSync.reconcilePreferences(_:team:)` reads the `sync.*` ids (the share as a percentage) and
+applies a team floor with `ReconcilePreferences.floored(by:)`.  `GRPCPreferencesTransport` is the
+`AccountService` client.  The simulator scenario is
+`AccountAndPublishScenarioTests.twoDevicesChangeOneKeyWhileOneIsOffline` (`SimAccountService`).  Not
+built: the team floor has no carrier -- `Welcome` has no floor field and the `team` table no policy
+column (proto and server work); the app glue (a `SyncedPreferenceBackend` over `PreferenceSync`, the
+30-second retry after connectivity returns, the floor shown in the window) is WTApp's.
 
 === Build tasks
 

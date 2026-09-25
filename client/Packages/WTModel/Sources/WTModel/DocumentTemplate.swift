@@ -3,9 +3,10 @@ import WTCRDT
 
 /// The opening change of every new document (swatches.adoc, "Default colors": the document
 /// template of creating-opening.adoc): the protected default swatches White, Black and
-/// Registration (`CreateDefaultSwatches`) and the Normal Text paragraph style
-/// (`CreateNormalTextStyle`, text-styles.adoc).  It is part of the document, not something the
-/// user did, so it is not an undo step; on a document that already has them it appends nothing.
+/// Registration (`CreateDefaultSwatches`), the Normal graphic style (`CreateNormalGraphicStyle`,
+/// styles.adoc) and the Normal Text paragraph style (`CreateNormalTextStyle`, text-styles.adoc).
+/// It is part of the document, not something the user did, so it is not an undo step; on a
+/// document that already has them it appends nothing.
 public struct DocumentTemplate: Command {
     public init() {}
 
@@ -14,6 +15,7 @@ public struct DocumentTemplate: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         try CreateDefaultSwatches().execute(&builder, state: state)
+        try CreateNormalGraphicStyle().execute(&builder, state: state)
         try CreateNormalTextStyle().execute(&builder, state: state)
     }
 

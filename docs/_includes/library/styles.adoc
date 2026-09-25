@@ -569,22 +569,47 @@ build refines the text above:
   from one node, in that node's order.  The halftone screen is not part of the drawn look.
 * *Index.*  `GraphicStyleIndex` is the style-to-objects index kept change by change: `refresh` re-reads
   each touched node with its subtree and, for a touched style, the objects whose reference names it.
-* *Normal in new documents.*  `DocumentTemplate` does not yet run `CreateNormalGraphicStyle` (proposed
-  to the template's owner).
+* *Normal in new documents.*  `DocumentTemplate` runs `CreateNormalGraphicStyle` (added by LIB-020), so
+  every new document has Normal beside Normal Text.
 
 The merge tests are `StyleMergeTests`; the commands, index and scene are covered by `StyleCommandTests`
 and `StyleSceneTests`.
 ====
 
-NOTE: LIB-020 (the Styles panel) is WTApp work and is not built.  The package half is ready for it: the
-panel lists `GraphicStyleFields.styles(in:_:)` (and the TYPE epic's text styles), previews each through
-`StyleStacks`/`GraphicStyleResolver.resolved`, clicks `ApplyGraphicStyle` with a selection or
-`SelectGraphicStyleAsDefaults` without, drops `CreateGraphicStyle(.selection)` on an empty area and
-`RedefineGraphicStyle(.object/.style)` on a style, renames with `RenameGraphicStyle`, shows the plus
-sign from `GraphicStyleDefaults.isModified` and `overrides(of:)`, fills the Parent pop-up from
-`SetGraphicStyleParent.candidates(for:in:)` and the Remove Unused sheet from
-`RemoveUnusedGraphicStyles.unused(in:)`, and keeps a `GraphicStyleIndex` refreshed from each applied
-change for highlighting and counts.
+[NOTE]
+====
+As built by LIB-020 (`WTApp/Styles/`: `StylesPanelModel.swift`, `StylesPanel.swift`,
+`GraphicStyleTracker.swift`, `StyleDrag.swift`, `StylesFeatures.swift`).  A `GraphicStyleTracker` per
+document keeps a `GraphicStyleResolver` and a `GraphicStyleIndex` current from every applied change
+(`refresh` with the change's touched nodes; a reload re-reads the index), and the panel re-reads on its
+revision, so a remote redefinition redraws the previews and counts without closing an open rename field.
+The list is `GraphicStyleFields.styles(in:_:)`, then the TYPE epic's paragraph and character styles (a
+click applies one to every selected text block, whole: `ApplyParagraphStyle` / `ApplyCharacterStyle`).
+A style's preview draws the sample rounded rectangle through `WTRender` with
+`GraphicStyleResolver.resolved`'s look, the categories no style of its chain supplies taken from the
+document defaults, cached per look and view size.  A click runs `ApplyGraphicStyle` on the selected
+objects or, with nothing selected, `SelectGraphicStyleAsDefaults`.  Highlight: the styles the selected
+objects use, or with nothing selected the style the defaults mirror; the plus sign: a selected object's
+`GraphicStyleDefaults.overrides(of:)`, or `isModified` beside the mirrored style.  The count is the
+index's objects per style.  Drops on the empty area make a style (`CreateGraphicStyle(.selection)` from
+the window's first selected object with `applyTo` when *Auto-apply new styles to selection* is on; a
+dragged style makes a child of it, `.style`); on a style they open the Redefine sheet
+(`RedefineGraphicStyle(.object)` / `.style`).  The options menu's *New* takes the selected object, else
+the defaults when they differ from the style they mirror, else a child of that style; *Redefine…* asks
+for the style (the one clicked last, else the mirrored one) and redefines it from the selected object or
+the defaults.  The Style Behavior sheet writes what changed as one change ("Style behavior":
+`SetGraphicStyleBehavior` and `SetGraphicStyleParent` in one batch), its *Parent* pop-up from
+`SetGraphicStyleParent.candidates(for:in:)` without the style itself; the Remove Unused sheet lists
+`RemoveUnusedGraphicStyles.unused(in:)`.  A style's preview drags as
+`com.villagecompute.wiretuner.graphic-style` (document id and style id); the canvas takes it
+(`StyleCanvasDrop`: `ApplyGraphicStyle` on the object under the pointer), and the panel takes it and
+objects dragged out of the same document's window (`ObjectDragging`'s payload, whose `sourceDocument`
+must match).  *Deviations*: the panel is SwiftUI (a list, and a grid for *Previews Only*) in the panel
+framework like the Swatches panel, not an `NSCollectionView`; previews draw fills and strokes (live
+effects are left out of the small preview); *Import…* and *Export…* are listed disabled until LIB-022; a
+style dragged to another document is refused (cross-document copying is LIB-022's).  Tests:
+`StylesPanelTests` (WTApp).
+====
 
 === Build tasks
 

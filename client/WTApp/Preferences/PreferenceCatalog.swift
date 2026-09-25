@@ -53,7 +53,7 @@ enum PreferenceCatalog {
         static let pathOperationsConsume = PreferenceKey<Bool>("object.path_ops_consume", "Path operations consume original paths", category: c, default: true, control: .toggle, help: "combining-paths")
         static let joinNonTouching = PreferenceKey<Bool>("object.join_non_touching", "Join non-touching paths", category: c, default: false, control: .toggle, help: "combining-paths")
         static let defaultLineWeights = PreferenceKey<[String]>("object.default_line_weights", "Default line weights", category: c, default: ["0.5", "1", "2", "4", "8", "12", "16", "24"], control: .list, help: "stroke-attributes")
-        static let autoApplyStyles = PreferenceKey<Bool>("object.auto_apply_styles", "Auto-apply new styles to selection", category: c, default: false, control: .toggle, help: "styles")
+        static let autoApplyStyles = PreferenceKey<Bool>("object.auto_apply_styles", "Auto-apply new styles to selection", category: c, default: true, control: .toggle, help: "styles")
         static let confirmExternalEditor = PreferenceKey<Bool>("object.confirm_external_editor", "Confirm before opening an external editor", category: c, default: true, control: .toggle, help: "external-editors")
         static let externalEditor = PreferenceKey<String>("object.external_editors", "Default image editor", category: c, scope: .local, default: "", control: .chooser(placeholder: "System default"), help: "external-editors")
         static let autoJoinPaths = PreferenceKey<Bool>("object.auto_join_paths", "Auto-join paths", category: c, default: true, control: .toggle, help: "pen-bezigon")

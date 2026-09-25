@@ -91,6 +91,9 @@ final class CanvasView: NSView, CanvasHost {
     /// Objects dragged in from a document window (OBJ-013): pasted at the drop point; nil
     /// refuses them.
     var objectDrop: ObjectDragging?
+    /// Graphic styles dragged from the Styles panel (styles.adoc, "Applying styles"): the object
+    /// under the pointer takes the style; nil refuses them.
+    var styleDrop: StyleCanvasDrop?
     /// A drag that left the window (OBJ-013): the Pointer's move becomes a dragging session when
     /// this answers true.
     var onDragOut: (@MainActor (NSEvent) -> Bool)?
@@ -142,7 +145,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
-        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType])
+        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType, StyleDrag.type])
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -169,6 +172,7 @@ final class CanvasView: NSView, CanvasHost {
     override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
         if !FileDrop.urls(from: sender.draggingPasteboard).isEmpty { return onFileDrop != nil ? .copy : [] }
         if ObjectDragging.carriesObjects(sender.draggingPasteboard) { return objectDrop != nil ? .copy : [] }
+        if StyleCanvasDrop.carriesStyle(sender.draggingPasteboard) { return styleDrop != nil ? .copy : [] }
         guard let colorDrop else { return [] }
         let over = colorDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers())
         overlay.setNeedsDisplay()
@@ -188,6 +192,9 @@ final class CanvasView: NSView, CanvasHost {
         }
         if ObjectDragging.carriesObjects(sender.draggingPasteboard) {
             return objectDrop?.drop(sender.draggingPasteboard, at: viewport.toPasteboard(dropPoint(sender))) != nil
+        }
+        if StyleCanvasDrop.carriesStyle(sender.draggingPasteboard) {
+            return styleDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport) != nil
         }
         defer { overlay.setNeedsDisplay() }
         return colorDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers()) != nil

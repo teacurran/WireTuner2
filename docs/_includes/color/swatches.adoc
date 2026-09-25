@@ -32,7 +32,10 @@ Eyedropper here to add it as a named color.
 are upright.  A small badge names the space of every color that is not CMYK -- *RGB* (sRGB),
 *P3* (Display P3), *Lab* or *OKLab* -- and CMYK colors carry none
 (xref:spot-process.adoc[Spot and process colors]).  Tints are listed under their base color,
-indented, with the percentage before the name (`40% Grape`).
+indented, with the percentage before the name (`40% Grape`).  Gradient swatches follow the
+colors, each with a chip of its gradient: drag a gradient's ramp here (by the handle beside the
+ramp in the Object panel) to keep it, and click one with objects selected to give their fills
+that gradient (xref:gradients.adoc[Gradients]).
 
 |Options menu (the panel's action button)
 |Duplicate, Remove, Replace…, Make Spot, Make Process, Convert to (sRGB, Display P3, CMYK),

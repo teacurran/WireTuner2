@@ -316,8 +316,11 @@ struct GradientEditorView: View {
             if model.target == nil {
                 Text("The ramp edits one object at a time.").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("fill.gradient.one")
             } else {
-                GradientRamp(model: model) { stop = $0 }
-                    .frame(height: GradientRampController.height)
+                HStack(spacing: 4) {
+                    GradientRamp(model: model) { stop = $0 }
+                        .frame(height: GradientRampController.height)
+                    GradientRampHandle(model: model)
+                }
                 if let stop, let shown = model.stops.first(where: { $0.id == stop }) {
                     AttributeColorControl(title: "Stop color", color: shown.color, identifier: "fill.gradient.stop-color", document: model.context.document,
                                           commit: Self.recolor(stop, model: model))
