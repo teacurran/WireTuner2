@@ -380,7 +380,8 @@ prefix, so the book's screenshots are refreshed with
 |Fails the test if the app opened a socket while the block ran (the on-device ML and scripting
 tasks use it).  The app audits itself: a DEBUG build launched with `-WTSocketAudit` (which
 `launch()` always passes) runs `SocketMonitor`, which `fstat`s every descriptor of the process
-every 5 ms and tells sockets apart by descriptor and inode, and the canvas's accessibility value
+every 5 ms and tells sockets apart by descriptor and kernel socket id (`proc_pidfdinfo`'s
+`soi_so`; `fstat` gives every socket inode 0), and the canvas's accessibility value
 gains `net=<n> unix=<n>`, the distinct internet and Unix-domain sockets seen since launch.  The
 audit compares the counts before and after the block (after a 250 ms settle) and fails on any
 new internet socket, and on a new Unix-domain socket when asked (`includeUnixDomain`; system
@@ -420,6 +421,15 @@ UI tests need macOS Automation Mode (`sudo automationmodetool
 enable-automationmode-without-authentication`); without it `xcodebuild` fails the UI test runner
 at start-up ("Timed out while enabling automation mode"), and `make client-test` skips the UI
 tests.
+
+*Unit-test host.*  A unit-test launch (`XCTestConfigurationFilePath` set) turns off AppKit's
+window order-in/out animations before any window exists (`NSAutomaticWindowAnimationsEnabled`
+= NO in the volatile argument domain, so nothing reaches the app's preferences;
+`LaunchEnvironment.applyProcessDefaults`).  AppKit runs each of those animations
+(`_NSWindowTransformAnimation`) `.nonblockingThreaded` on a Dispatch worker thread, and the
+windows that tests show and close in quick succession left some of them parked there for good:
+across the suite they took all 64 workers, after which no global queue ran at all and
+`SocketMonitorTests` failed intermittently.  UI tests and real launches keep the animations.
 
 [[launch-smoke]]
 *Launch smoke test.*  Unit tests are hosted in the app, whose `main()` skips the delegate for

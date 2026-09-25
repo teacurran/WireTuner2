@@ -10,7 +10,8 @@ import Foundation
 /// The app audits itself because the XCUITest runner is sandboxed (Xcode signs it with
 /// `com.apple.security.app-sandbox`) and cannot inspect another process with `lsof` or
 /// `proc_pidinfo`.  Sampling in-process is cheap -- one `fstat` per descriptor -- so it runs
-/// every 5 ms, and a socket is told apart from a later one on the same descriptor by its inode.
+/// every 5 ms.  A socket is told apart from a later one on the same descriptor by its kernel
+/// socket id (`proc_pidfdinfo`'s `soi_so`): `fstat` reports inode 0 for every socket.
 final class SocketMonitor: @unchecked Sendable {
     static let launchArgument = "-WTSocketAudit"
     static let interval: TimeInterval = 0.005
@@ -21,10 +22,10 @@ final class SocketMonitor: @unchecked Sendable {
         case other
     }
 
-    /// One socket: its descriptor and inode (reused descriptors get new inodes).
+    /// One socket: its descriptor and kernel socket id (a reused descriptor gets a new id).
     struct Identity: Hashable, Sendable {
         let descriptor: Int32
-        let inode: UInt64
+        let socket: UInt64
         let family: Family
     }
 
@@ -59,9 +60,20 @@ final class SocketMonitor: @unchecked Sendable {
         for descriptor in 0..<getdtablesize() {
             var info = stat()
             guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFSOCK else { continue }
-            result.insert(Identity(descriptor: descriptor, inode: info.st_ino, family: family(of: descriptor)))
+            result.insert(identity(of: descriptor))
         }
         return result
+    }
+
+    /// The socket on `descriptor`: its kernel id and family from `proc_pidfdinfo`, or (should
+    /// that fail) id 0 and the family `getsockname` reports.
+    static func identity(of descriptor: Int32) -> Identity {
+        var info = socket_fdinfo()
+        let size = Int32(MemoryLayout<socket_fdinfo>.size)
+        guard proc_pidfdinfo(getpid(), descriptor, PROC_PIDFDSOCKETINFO, &info, size) == size else {
+            return Identity(descriptor: descriptor, socket: 0, family: family(of: descriptor))
+        }
+        return Identity(descriptor: descriptor, socket: info.psi.soi_so, family: family(addressFamily: info.psi.soi_family))
     }
 
     static func family(of descriptor: Int32) -> Family {

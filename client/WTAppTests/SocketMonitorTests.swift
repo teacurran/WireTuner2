@@ -43,7 +43,9 @@ import Testing
         monitor.start()
         let before = monitor.counts
         let fd = socket(AF_INET6, SOCK_DGRAM, 0)
+        let socketError = errno
         defer { close(fd) }
+        try #require(fd >= 0, "socket() failed: \(String(cString: strerror(socketError)))")
         // The counts are the whole test process's sockets, which other suites open and close in
         // parallel: wait for the internet count itself, not for any change.
         for _ in 0..<300 where monitor.counts.internet <= before.internet { try await Task.sleep(for: .milliseconds(10)) }
@@ -65,5 +67,28 @@ import Testing
         delegate.socketCountsDidChange()
         #expect(AppDelegate(layoutStore: nil, defaults: suite.defaults).socketMonitor == nil)
         #expect(CanvasView.accessibilityStatus(changes: 1, selected: 2, diagnostics: "net=0 unix=1") == "changes=1 selected=2 net=0 unix=1")
+    }
+
+    /// `fstat` gives every socket inode 0, so a socket on a descriptor an earlier one used is
+    /// told apart by its kernel socket id.
+    @Test func aSocketOnAReusedDescriptorCountsAgain() {
+        let monitor = SocketMonitor()
+        monitor.sample()
+        let before = monitor.counts
+        let first = socket(AF_INET, SOCK_DGRAM, 0)
+        #expect(first >= 0)
+        let firstIdentity = SocketMonitor.identity(of: first)
+        monitor.sample()
+        close(first)
+        let second = socket(AF_INET, SOCK_DGRAM, 0)
+        #expect(second >= 0)
+        defer { close(second) }
+        let secondIdentity = SocketMonitor.identity(of: second)
+        monitor.sample()
+        #expect(firstIdentity.socket != 0 && secondIdentity.socket != 0)
+        #expect(firstIdentity != secondIdentity, "a new socket is a new identity, on the same descriptor or not")
+        #expect(secondIdentity.family == .internet)
+        #expect(monitor.counts.internet >= before.internet + 2)
+        #expect(SocketMonitor.identity(of: -1) == SocketMonitor.Identity(descriptor: -1, socket: 0, family: .other), "no socket info: id 0")
     }
 }

@@ -14,8 +14,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Unit tests host inside the app and build their own delegates, so a unit-test launch runs
     /// without one (it would otherwise open a window of its own); UI tests get the real launch.
     static func main() {
+        let environment = LaunchEnvironment()
+        environment.applyProcessDefaults()
         let app = NSApplication.shared
-        if !LaunchEnvironment().isUnitTesting {
+        if !environment.isUnitTesting {
             let delegate = AppDelegate()
             running = delegate
             app.delegate = delegate

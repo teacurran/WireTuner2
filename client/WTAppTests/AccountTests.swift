@@ -93,6 +93,24 @@ func makeJWT(_ claims: [String: Any]) -> String {
         #expect(!live.isTesting && live.tokenStore() is KeychainTokenStore)
         #expect(LaunchEnvironment().isUnitTesting, "this process is a unit-test host")
     }
+
+    /// A unit-test host orders windows without AppKit's threaded window animations, which
+    /// otherwise strand Dispatch workers until the global queues stop running; other launches
+    /// keep them, and nothing is written to the preferences.
+    @Test @MainActor func aUnitTestLaunchTurnsOffWindowAnimations() {
+        let key = LaunchEnvironment.windowAnimationsKey
+        #expect(UserDefaults.standard.object(forKey: key) as? Bool == false, "this host launched without them")
+        #expect(UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "")?[key] == nil)
+        let suite = TestDefaults()
+        defer { suite.remove() }
+        let arguments = suite.defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        LaunchEnvironment(arguments: [LaunchEnvironment.uiTestingArgument], environment: [:]).applyProcessDefaults(to: suite.defaults)
+        LaunchEnvironment(arguments: [], environment: [:]).applyProcessDefaults(to: suite.defaults)
+        #expect(NSDictionary(dictionary: suite.defaults.volatileDomain(forName: UserDefaults.argumentDomain)) == NSDictionary(dictionary: arguments))
+        LaunchEnvironment(arguments: [], environment: ["XCTestConfigurationFilePath": "/x"]).applyProcessDefaults(to: suite.defaults)
+        #expect(suite.defaults.volatileDomain(forName: UserDefaults.argumentDomain)[key] as? Bool == false)
+        #expect(suite.defaults.bool(forKey: key) == false)
+    }
 }
 
 @Suite struct AuthServiceTests {

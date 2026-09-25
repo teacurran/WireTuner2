@@ -28,6 +28,23 @@ struct LaunchEnvironment: Equatable, Sendable {
 
     var isTesting: Bool { isUITesting || isUnitTesting }
 
+    /// AppKit's switch for the animation it runs when a window is ordered in or out.
+    static let windowAnimationsKey = "NSAutomaticWindowAnimationsEnabled"
+
+    /// Process-wide defaults for this launch, set before any window exists.  A unit-test host
+    /// turns off window order-in/out animations: AppKit runs each one (`_NSWindowTransformAnimation`)
+    /// `.nonblockingThreaded`, parked on a Dispatch worker thread, and the windows that tests show
+    /// and close in quick succession strand some of them there for good.  Across the suite they
+    /// took all 64 workers, after which no global queue ran at all (the socket monitor's timer
+    /// never fired).  The setting goes in the volatile argument domain, so nothing is written to
+    /// the app's preferences; UI tests and real launches keep the animations.
+    func applyProcessDefaults(to defaults: UserDefaults = .standard) {
+        guard isUnitTesting else { return }
+        var arguments = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        arguments[Self.windowAnimationsKey] = false
+        defaults.setVolatileDomain(arguments, forName: UserDefaults.argumentDomain)
+    }
+
     /// The token store for this launch.
     func tokenStore() -> TokenStore {
         isTesting ? InMemoryTokenStore() : KeychainTokenStore()
