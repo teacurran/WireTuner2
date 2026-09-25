@@ -11,7 +11,11 @@
 // Foundation's detector guesses among the legacy encodings (Windows-1252 first, then Mac Roman,
 // Shift-JIS, Latin-1); the guess is reported for the import summary.  Markdown is plain text.
 
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 import CoreGraphics
 import Foundation
 import WTRender
@@ -91,7 +95,7 @@ public enum TextImporter {
         guard let format = TextFileFormat(pathExtension: url.pathExtension) else { throw TextImportError.unreadable(.plain) }
         if format == .rtfd {
             let wrapper = try FileWrapper(url: url, options: .immediate)
-            guard let attributed = NSAttributedString(rtfdFileWrapper: wrapper, documentAttributes: nil) else { throw TextImportError.unreadable(.rtfd) }
+            guard let attributed = PlatformText.rtfd(wrapper, url: url) else { throw TextImportError.unreadable(.rtfd) }
             let rtf = wrapper.fileWrappers?["TXT.rtf"]?.regularFileContents
             return rich(attributed, rtf: rtf, format: .rtfd)
         }
@@ -241,20 +245,19 @@ public enum TextImporter {
     /// The character attributes of one attributed run.
     static func characterAttributes(_ attrs: [NSAttributedString.Key: Any]) -> ExportTextAttributes {
         var result = ExportTextAttributes()
-        if let font = attrs[.font] as? NSFont {
-            result.fontFamily = font.familyName ?? font.fontName
-            result.size = Double(font.pointSize)
-            let traits = font.fontDescriptor.symbolicTraits
-            result.bold = traits.contains(.bold)
-            result.italic = traits.contains(.italic)
-            result.fontFace = font.fontDescriptor.object(forKey: .face) as? String
+        if let font = PlatformText.font(attrs) {
+            result.fontFamily = font.family
+            result.size = font.size
+            result.bold = font.bold
+            result.italic = font.italic
+            result.fontFace = font.face
         }
-        if let color = (attrs[.foregroundColor] as? NSColor)?.usingColorSpace(.sRGB) {
-            result.color = Color(red: Double(color.redComponent), green: Double(color.greenComponent), blue: Double(color.blueComponent))
+        if let color = PlatformText.sRGBForeground(attrs) {
+            result.color = Color(red: color.red, green: color.green, blue: color.blue)
         }
         result.underline = ((attrs[.underlineStyle] as? Int) ?? 0) != 0
         result.strikethrough = ((attrs[.strikethroughStyle] as? Int) ?? 0) != 0
-        let superscript = (attrs[.superscript] as? Int) ?? 0
+        let superscript = (attrs[PlatformText.superscriptKey] as? Int) ?? 0
         result.script = superscript > 0 ? .superscript : superscript < 0 ? .subscript : .none
         result.baselineShift = (attrs[.baselineOffset] as? Double) ?? Double((attrs[.baselineOffset] as? CGFloat) ?? 0)
         if let kern = attrs[.kern] as? Double, result.size > 0 {
@@ -305,11 +308,8 @@ public enum TextImporter {
     /// and its size in points.
     static func picture(_ attachment: NSTextAttachment) -> (image: CGImage?, data: Data, uti: String, size: CGSize)? {
         let data = attachment.fileWrapper?.regularFileContents ?? attachment.contents
-        let image = attachment.image ?? data.flatMap { NSImage(data: $0) }
-        guard let image else { return nil }
-        var rect = CGRect(origin: .zero, size: image.size)
-        let cgImage = image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
-        let size = attachment.bounds.size == .zero ? image.size : attachment.bounds.size
+        guard let (cgImage, imageSize) = PlatformText.image(attachment, data: data) else { return nil }
+        let size = attachment.bounds.size == .zero ? imageSize : attachment.bounds.size
         if let data, let source = CGImageSourceCreateWithData(data as CFData, nil), let uti = CGImageSourceGetType(source) {
             return (cgImage, data, uti as String, size)
         }

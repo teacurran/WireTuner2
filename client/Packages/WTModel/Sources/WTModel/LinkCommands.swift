@@ -399,8 +399,13 @@ public enum LinkSearch {
     /// A security-scoped bookmark of the file at `path`, falling back to a plain one.
     @Sendable public static func securityScopedBookmark(_ path: String) -> Data? {
         let url = URL(fileURLWithPath: path)
+        #if os(macOS)
         return (try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil))
             ?? (try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil))
+        #else
+        // iOS has no `.withSecurityScope`: a bookmark carries the URL's scope implicitly.
+        return try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        #endif
     }
 }
 

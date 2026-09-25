@@ -4,7 +4,11 @@
 // SVG as editable paths through their importers, TIFF and PNG as a bitmap object, RTF and plain
 // text as a text block.  The native format is the app's own paste path (`ClipboardPayload`).
 
+#if canImport(AppKit)
 import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import WTGeometry
 import WTRender
@@ -100,14 +104,9 @@ public enum ClipboardReader {
     /// A run's font name, size and colour from its RTF attributes; plain text's where one is
     /// missing.
     static func style(_ attributes: [NSAttributedString.Key: Any]) -> (font: String, size: Double, color: Color) {
-        let font = attributes[.font] as? NSFont
-        let color = (attributes[.foregroundColor] as? NSColor)?.usingColorSpace(.sRGB)
-        return (font?.fontName ?? plainFont, font.map { Double($0.pointSize) } ?? plainSize, color.map(rgb) ?? Color.black)
-    }
-
-    /// An sRGB `NSColor` as a display-list colour.
-    static func rgb(_ color: NSColor) -> Color {
-        Color(red: Double(color.redComponent), green: Double(color.greenComponent), blue: Double(color.blueComponent), alpha: Double(color.alphaComponent))
+        let font = PlatformText.font(attributes)
+        let color = PlatformText.sRGBForeground(attributes)
+        return (font?.name ?? plainFont, font?.size ?? plainSize, color.map { Color(red: $0.red, green: $0.green, blue: $0.blue, alpha: $0.alpha) } ?? Color.black)
     }
 
     /// Lines of styled runs set as one text block, baselines stacked downwards (y down, as every

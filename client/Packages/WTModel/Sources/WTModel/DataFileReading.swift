@@ -371,13 +371,23 @@ public enum DataFileReader {
 public enum DataFileBookmarks {
     /// A bookmark of `url` (chosen in an open panel).
     public static func make(_ url: URL) throws -> Data {
-        try url.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess], includingResourceValuesForKeys: nil, relativeTo: nil)
+        try url.bookmarkData(options: creationOptions, includingResourceValuesForKeys: nil, relativeTo: nil)
     }
+
+    // iOS has no `.withSecurityScope` options: a bookmark of a document-picker URL carries its
+    // security scope implicitly, and `startAccessingSecurityScopedResource` below is the same.
+    #if os(macOS)
+    static let creationOptions: URL.BookmarkCreationOptions = [.withSecurityScope, .securityScopeAllowOnlyReadAccess]
+    static let resolutionOptions: URL.BookmarkResolutionOptions = [.withSecurityScope, .withoutUI]
+    #else
+    static let creationOptions: URL.BookmarkCreationOptions = []
+    static let resolutionOptions: URL.BookmarkResolutionOptions = [.withoutUI]
+    #endif
 
     /// The file a bookmark names, and whether the bookmark should be made again (stale).
     public static func resolve(_ bookmark: Data) throws -> (url: URL, stale: Bool) {
         var stale = false
-        guard let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale) else {
+        guard let url = try? URL(resolvingBookmarkData: bookmark, options: resolutionOptions, relativeTo: nil, bookmarkDataIsStale: &stale) else {
             throw DataFileError.bookmarkUnresolved
         }
         return (url, stale)

@@ -6,7 +6,7 @@ import PackageDescription
 
 let package = Package(
     name: "WTProto",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "WTProto", targets: ["WTProto"]),
     ],

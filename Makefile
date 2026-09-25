@@ -50,6 +50,16 @@ client-build:
 		-derivedDataPath build/DerivedData \
 		DEVELOPMENT_TEAM="$(DEVELOPMENT_TEAM)" CODE_SIGN_IDENTITY="$(or $(CODE_SIGN_IDENTITY),-)" build
 
+.PHONY: client-ios
+# Every shared package built for generic iOS (decisions.adoc D-073; client.adoc, "iOS readiness").
+IOS_PACKAGES = WTGeometry WTProto WTCRDT WTRender WTText WTInterchange WTModel WTSync WTTestSupport
+client-ios:
+	set -e; for package in $(IOS_PACKAGES); do \
+		echo "==> $$package (iOS)"; \
+		(cd client/Packages/$$package && xcodebuild -quiet -scheme $$package -destination 'generic/platform=iOS' \
+			-derivedDataPath $(CURDIR)/client/build/DerivedDataIOS build); \
+	done
+
 .PHONY: server-test up down
 
 server-test:

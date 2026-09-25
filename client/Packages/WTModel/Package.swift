@@ -11,7 +11,7 @@ import PackageDescription
 
 let package = Package(
     name: "WTModel",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "WTModel", targets: ["WTModel"]),
     ],

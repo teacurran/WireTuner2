@@ -4,7 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "WTCRDT",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
         .library(name: "WTCRDT", targets: ["WTCRDT"]),
         .library(name: "WTCRDTSchema", targets: ["WTCRDTSchema"]),

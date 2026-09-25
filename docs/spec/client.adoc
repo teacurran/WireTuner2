@@ -543,6 +543,40 @@ it, and every panel's help button opens its page by slug.
 * Full keyboard access to panels; VoiceOver describes the selection and the canvas objects by
   name and kind.
 
+== iOS readiness
+
+The shared packages (every row of the table in "Packages" except `WTApp`) declare
+`.iOS(.v18)` beside `.macOS(.v15)` and build for generic iOS in CI (the `ios` job of
+`client.yml`, `make client-ios`; xref:decisions.adoc#D-073[D-073]).  iOS 18 is the release paired
+with macOS 15: both SDKs of that year carry the same Foundation, Core Graphics, Core Text, Metal,
+ColorSync (iOS 16 and later), Vision and JavaScriptCore surface, so the packages use no API an
+availability check would have to fence on either platform; a lower iOS would need those checks
+throughout.  Package tests run on macOS only; the iOS build compiles the libraries.
+
+Platform branches (`#if canImport(AppKit)` / `#if canImport(UIKit)`, `#if os(macOS)` for
+Foundation-only differences) keep the Mac behaviour unchanged.  What differs on iOS:
+
+* *Rich text reading* (`TextImporter`, `ClipboardReader`): fonts, colours and attachment images
+  come from UIKit's `UIFont`, `UIColor` and `UIImage` through `PlatformText`, the one file that
+  names either platform's text types.  An RTFD package is read through `NSAttributedString`'s URL
+  reader (UIKit has no file-wrapper initialiser), and superscript by its raw attribute name
+  (UIKit has no constant for it).  The pasteboard itself belongs to the app on both platforms.
+* *Security-scoped bookmarks* (`DataFileBookmarks`, `LinkSearch.securityScopedBookmark`): iOS has
+  no `.withSecurityScope` options; a bookmark of a document-picker URL carries its scope
+  implicitly, and access is still bracketed by `startAccessingSecurityScopedResource`.
+* *Hardware identity* (`HardwareIdentity.platformUUID`): apps on iOS cannot read the IOKit
+  registry, so it returns "" there, and the iOS app passes its own `hardwareUUID` (for example
+  `identifierForVendor`, read on the main actor) to `LocalStore.Options`; otherwise a store restored
+  onto another device keeps its replica id.
+* *Installed colour profiles* (`ProfileRegistry`): `ColorSyncIterateInstalledProfiles` exists, but
+  iOS has no user or local ColorSync folders, so only the system's profiles are listed.
+* *Install for Testing* (`TestFontInstaller`): the `.user` scope needs the font-provider
+  entitlement on iOS; an iOS app passes `.process` (or `.persistent` with the entitlement).
+* *Script time limit* (`ScriptRuntime`): JavaScriptCore's `JSContextGroupSetExecutionTimeLimit` is
+  looked up with `dlsym`; the symbol is private on both platforms, and an iOS App Store build must
+  confirm it may keep the lookup before scripting ships there.  When the lookup finds nothing, a
+  running script cannot be interrupted from outside.
+
 == Build tasks
 
 APP-001 through APP-011, REND-001 through REND-007, GEO-001 through GEO-005, TXT-001 and

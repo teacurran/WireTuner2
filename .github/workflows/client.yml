@@ -110,6 +110,28 @@ jobs:
             client/build/coverage/WireTuner.xcresult
             client/build/xcodebuild-test.log
 
+  # The shared packages build for iPhone and iPad (decisions.adoc D-073; client.adoc, "iOS
+  # readiness"): `make client-ios` builds every package for generic iOS.  No tests run here --
+  # the package tests run on macOS in the test job.
+  ios:
+    name: Packages build for iOS
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # As in the test job; the image's Xcode carries the iOS SDK.
+        run: |
+          xcode="$(printf '%s\n' /Applications/Xcode_26*.app /Applications/Xcode_16*.app | grep -v '[*]' | sort -V | tail -1)"
+          test -n "$xcode" || { printf '%s\n' /Applications/Xcode*; exit 1; }
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Build every package for generic iOS
+        run: make client-ios
+
   # Timing budgets (docs/spec/testing.adoc, "Client budgets"): the test job above runs debug
   # builds and checks no budget; this job runs `make client-perf` -- the packages that hold a
   # PerfBudget in release with WT_PERF=1, then the app's budget suites -- and publishes
