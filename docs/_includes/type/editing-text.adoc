@@ -399,6 +399,55 @@ NOTE: menu:Text[Convert Case] is built (`WTApp/Text/Styles/TextMenuFeatures.swif
 blocks (one change; a caret converts nothing), and *Settings…* opens the sheet with *Small caps size*
 and the exceptions list, whose btn:[OK] is one `SetTextCaseSettings`.
 
+NOTE: As built by TYPE-011 (`WTApp/Text/Editor/`).  The Text Editor is an `NSTextView` window per block
+(`TextEditorController`, one per document and block, brought forward when opened again) whose edits
+are refused by the view and performed through a `TextEditingSession` on the block, so they are the
+Text tool's commands (typing coalesces the same way); every document change reloads the storage and
+puts the selection back from the session's anchors, so a remote insert before the caret leaves it
+on its character; a remote delete of the block closes the window.  *12 point black* (on by default)
+and the real family, size and fill otherwise change only the storage's attributes; *Show
+invisibles* is the layout manager's invisibles and control characters; *Wrap to window* switches
+the text container's width tracking.  U+FFFC shows as an 8 pt hollow box.  Routes:
+menu:Text[Editor…] (kbd:[Cmd+Shift+E]) on the Text tool's block or the one selected block,
+kbd:[Option]-double-click with the Pointer, kbd:[Option]-click on a block with the Text tool,
+kbd:[Option]-click on empty page (an empty auto-expanding block is made and opened), and any click
+into a block with *Always use Text Editor* (`ToolContext.openTextEditor`).  A linked chain's head
+holds the flow, so it edits as one story; text on a path is an ordinary text node.
+Collaborators' carets and selections in the block are drawn over the editor's text (TYPE-016).
+
+NOTE: As built by TYPE-013 (`WTApp/Text/Find/`; `WTModel/TextReplace.swift`, a new file).  `TextFinder`
+searches the text nodes of visible, unlocked layers in stacking order (a chain's head owns its
+text) on the merged string, *Match case* comparing scalars as typed and otherwise by single-scalar
+lowercase, *Whole word* bounded by non-word scalars (letters, digits, marks and apostrophes are
+word scalars); the search string stops at 255 characters.  `ReplaceText` is the documented op
+pattern -- per match a `TextDelete` of its characters and a `TextInsert` of the replacement with
+`left_origin` the character before the match and `right_origin` the match's first character, the
+replacement carrying the first matched character's formatting -- one change, "Replace all 'x'
+with 'y' (N)" for Replace All.  The window (menu:Edit[Find and Replace > Text…], kbd:[Cmd+F]) is one
+floating panel acting on the front window; the current match is shown as the Text tool's
+selection; *Search in* *Selection* is the Text tool's range, else the selected blocks.  Finding
+200,000 characters takes well under the 100 ms budget in release; the test holds a debug build to
+one second.  Deviation: *Replace & Find* and *Replace* both replace and then show the next match.
+
+NOTE: As built by TYPE-014 (`WTApp/Text/Spelling/`; `WTModel/SpellingPasses.swift`, a new file).  The
+checker walks words (runs of letters, digits, marks and apostrophes, a trailing apostrophe left out)
+paragraph by paragraph, the paragraph's hyphenation language before the *Spelling language*
+preference, and reports *Not in dictionary* (`NSSpellChecker` with a document tag, behind a
+`SpellingService` protocol), *Duplicate word* (the repeat and the space before it; Change deletes
+them) and *Capitalize the start of the sentence*; the ignore filters leave out words with digits,
+tokens that are URLs, e-mail addresses or paths, and all-capital words.  menu:Text[Spelling…]
+(kbd:[Cmd+;]) opens the Spelling window: btn:[Change] is one "Correct spelling" change
+(`ReplaceText`), btn:[Ignore] lasts for the document, btn:[Learn] and btn:[Unlearn] use the user
+dictionary (in lowercase with *Add words to dictionary* > *All lowercase*) and write nothing.  With
+*Check spelling while typing* the Text tool's block has its words underlined in red (canvas overlay,
+cached per revision).  Not built: the kbd:[Control]-click suggestions on the canvas.
+
+NOTE: TYPE-016, continued: the Text Editor draws collaborators' carets (name beside) and selections
+(tinted) in their colour, resolved through anchors like the canvas's.  When a remote change deletes
+the block being edited, the window's banner says "<name> deleted the text you were editing." with
+btn:[Restore], one undoable change "Restore text" (`deleted = false`; `WTApp/Text/RemovedTextNotice.swift`).
+Carets on text on a path still follow the block's ordinary layout.
+
 === Build tasks
 
 [[TYPE-010]]
@@ -426,9 +475,9 @@ TYPE-007's; kbd:[Delete], kbd:[Fn+Delete], kbd:[Option+Delete], kbd:[Option+Fn+D
 kbd:[Cmd+Delete].  The selection is published as presence's `TextCaret` (the character the caret
 is before, zero for the end, and the other end of a range).  A caret is an anchor before a
 character, so a remote delete of that character leaves it where the character was -- after the
-nearest surviving predecessor -- and typing continues there.  Not built yet: the text ruler and
-menu:View[Text Rulers] with *Show text handles when ruler is off* (the block's selection handles
-show while it is edited).
+nearest surviving predecessor -- and typing continues there.  The text ruler and menu:View[Text Rulers] came with TYPE-023;
+*Show text handles when ruler is off* is not built (the block's selection handles show while it is
+edited).
 
 [[TYPE-011]]
 ==== TYPE-011 Text Editor window

@@ -77,7 +77,7 @@ extension DocumentWindowController {
 
     /// The rulers count from the active page's zero point in the document's units.
     func updateRulers() {
-        let reference = (units: documentHandle.unitConverter, zero: documentHandle.activePage.zeroPoint)
+        let reference = GlyphCanvasUnits.rulerReference(of: documentHandle) ?? (units: documentHandle.unitConverter, zero: documentHandle.activePage.zeroPoint)
         rulerHost.horizontalRuler.frameOfReference = reference
         rulerHost.verticalRuler.frameOfReference = reference
     }

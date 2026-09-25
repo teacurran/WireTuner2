@@ -12,6 +12,8 @@ struct TextToolSettings: Equatable, Sendable {
     var autoExpand = true
     /// *Text tool reverts to Pointer*.
     var revertsToPointer = true
+    /// *Always use Text Editor*: a click into a block opens the Text Editor (TYPE-011).
+    var alwaysUseEditor = false
 
     /// The fixed-size block a click makes with auto-expanding off.
     static let defaultSize = Size(width: 144, height: 72)
@@ -24,6 +26,7 @@ struct TextToolSettings: Equatable, Sendable {
     @MainActor init(preferences: PreferenceStore) {
         autoExpand = preferences[PreferenceCatalog.Text.autoExpand]
         revertsToPointer = preferences[PreferenceCatalog.Text.toolRevertsToPointer]
+        alwaysUseEditor = preferences[PreferenceCatalog.Text.alwaysUseEditor]
     }
 }
 
@@ -180,6 +183,14 @@ final class TextTool: Tool, TextInputHandling {
 
     func mouseDown(_ e: CanvasEvent) {
         guard let context else { return }
+        if session == nil, let open = context.openTextEditor, e.modifiers.contains(.option) || context.text().alwaysUseEditor {
+            // kbd:[Option]-click (or any click with *Always use Text Editor*) opens the Text Editor.
+            let node = textBlock(at: e, context: context)
+            if node != nil || e.modifiers.contains(.option) {
+                open(node, e.pasteboardPoint)
+                return
+            }
+        }
         start = e
         current = e
         gesture = nil
@@ -268,6 +279,8 @@ final class TextTool: Tool, TextInputHandling {
             session.insert("\u{2028}")
             return true
         }
+        // Kerning, baseline shift and size nudges (TYPE-019).
+        if let nudge = TypeNudge(event: e), let editing = context.objectEditing, TypeNudger.nudger(for: editing).nudge(nudge) { return true }
         if context.host.interpretKeys(e) { return true }
         // Without an input method, kbd:[Esc] drops a composition.
         if e.keyCode == CanvasEventTranslator.escapeKeyCode, session.marked != nil {

@@ -435,9 +435,15 @@ not saved in the window session, and close when their glyph is removed or the ki
 typeface.  kbd:[Cmd+Option+Left] / kbd:[Cmd+Option+Right] replace the tab with the neighbouring
 glyph; the glyph strip is the glyph bar's previous/next buttons.  The canvas scrolls over an em
 beyond the glyph (`GlyphCanvas.scrollBounds`), and snapping includes the metric lines.  Not built:
-the hidden page controls of a single-page document, the font-unit rulers and the Object and
-Transform panels' font-y presentation, the 10-unit grid, paste conversion into a glyph (FONT-004),
-and XCUITest UI tests -- the flows are covered by unit tests that drive the windows.
+the hidden page controls of a single-page document, the Transform panel's font-y presentation, the
+10-unit grid, paste conversion into a glyph (FONT-004), and XCUITest UI tests -- the flows are covered by unit tests that drive the windows.
+
+NOTE: As built by FONT-004, in part (`WTApp/Typeface/GlyphCanvasUnits.swift`, one line each in
+`Document/DocumentSetupWindow.swift` and `Panels/ObjectPanelSections.swift`).  On a glyph tab the rulers
+count in font units (one per stored point) from the glyph's origin, y upward, and the Object panel's
+*Y* shows font y: typing y = 700 stores −700; arrow-key nudges move by the nudge distance, one unit
+per point.  Not built: the Transform panel's font y, the 10-unit grid default and text converted to
+paths when pasted into a glyph.
 
 === Build tasks
 

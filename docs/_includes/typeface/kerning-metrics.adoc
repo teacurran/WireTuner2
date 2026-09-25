@@ -314,8 +314,23 @@ two glyphs' classes), btn:[Remove Pair], btn:[Remove All Kerning] and the list o
 compiled preview is `FontGeneration.snapshot` → `FontCompiler.quickCompile` →
 `CTFontCreateWithGraphicsFont`, on demand rather than debounced.  Not built: drags on the setting
 (width, LSB, kern), text history and presets, editing values in the table, the Features pop-up
-(there is no feature compile), the Spacing Overview, and FONT-021's Kerning Classes editor and Auto
-Kern.
+(there is no feature compile), and the Spacing Overview.  The Kerning Classes editor and Auto Kern came with FONT-021.
+
+NOTE: As built by FONT-021 (`WTApp/Typeface/KerningClassesSheet.swift`, `TypefaceTools.swift`;
+`WTModel/AutoKern.swift`, a new file).  menu:Font[Kerning Classes…] (kbd:[Cmd+Option+K]) opens the
+editor: the left and right classes, btn:[+] with a name and *Members* (glyph names or characters), the
+selected class's members (a click removes one; adding a glyph of another class moves it and says so),
+the matrix (a cell selected shows its pair set and takes a typed value, `SetClassKern`), btn:[Guess
+Classes] (`KerningGuesses`: each base letter with the glyphs whose codepoint decomposes to it) with
+btn:[Apply] (a left and a right class per group, one change), and *Exceptions* with the class value
+and btn:[Remove].  menu:Font[Add to Left Class] and *Add to Right Class* add the targeted glyphs to
+the first glyph's class on that side, or make one named after it.  menu:Font[Auto Kern…]: the edge
+profiles of the flattened outlines at 32 heights from descender to ascender, the gap the narrowest
+over heights both glyphs ink, kern = separation − gap, rounded, under *Minimum kern* left out; the
+separation defaults to the `n`-`n` gap; over classes the first member of each stands for it and the
+cells are written, over selected glyphs the pairs (`ApplyAutoKern`), one change.  Deviations: Guess
+Classes groups by name only (no edge-profile comparison); the gap is the narrowest, not weighted to
+the x-height band; no drag from the grid into the lists and no progress sheet.
 
 === Build tasks
 

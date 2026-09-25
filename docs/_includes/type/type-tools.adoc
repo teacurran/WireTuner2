@@ -214,6 +214,15 @@ Pointer tool that distinguish corner, side and center handles by hit region (REN
 report the value to the Object panel live.  Undo grouping: one step per drag, nudge or menu
 command; repeated nudges within 1 s coalesce into one step ("Kern").
 
+NOTE: As built by TYPE-019 (`WTApp/Text/TypeNudges.swift`).  The Text tool reads the keys before the
+input method: kbd:[Cmd+Option+←/→] (kbd:[Shift] ×10), kbd:[Control+Option+↑/↓] (kbd:[Shift] ×10)
+and kbd:[Cmd+Shift+,/.].  Nudges of one kind on one selection add up and are written once a second
+passes without another (or when another kind or selection comes, or on `flush`): one change and one
+undo step, "Kern", "Baseline Shift" or "Size".  Kerning at an insertion point is a span-1 `kerning`
+mark on the character before it (none at the start of the text); over a selection each run's value
+moves by the nudges.  Deviation: at an insertion point baseline shift and size change the pending
+format of what is typed next, which writes nothing.
+
 === Build tasks
 
 [[TYPE-017]]

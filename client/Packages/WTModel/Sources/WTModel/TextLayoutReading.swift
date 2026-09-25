@@ -124,7 +124,7 @@ public enum TextLayoutReading {
     public static func layout(_ text: TextNode, engine: TextLayoutEngine, colors: ColorResolver? = nil, state: EngineState? = nil) -> TextLayout {
         guard let state else { return engine.layout(content(text, colors: colors), in: [container(text)]) }
         return engine.layout(content(text, colors: colors, context: TextReadingContext(text.id, in: state)),
-                             in: [container(text, appearance: TextBlockAppearance.appearance(text.id, in: state), state: state)])
+                             in: [TextWrapping.wrapped(container(text, appearance: TextBlockAppearance.appearance(text.id, in: state), state: state), text: text.id, in: state)])
     }
 
     /// What text on a path draws besides its glyphs, in pasteboard space through the node's own
@@ -144,7 +144,7 @@ public enum TextLayoutReading {
     /// inline graphic children.
     public static func sources(_ node: OpID, in state: EngineState) -> [OpID] {
         let styles = state.store.children(TextStyleFields.collection).filter { state.store.kind($0) == TextStyleFields.kind }
-        return styles + [WellKnown.settings] + state.store.children(node)
+        return styles + [WellKnown.settings] + state.store.children(node) + TextWrapping.wrappingObjects(for: node, in: state)
     }
 
     /// The display item drawing text node `node` of `state`: a group of the laid-out block's items

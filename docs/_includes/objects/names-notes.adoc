@@ -258,6 +258,15 @@ under the Pointer.  `AppendNote` appends a line to notes (the keep-both tagging 
 field is a growing `TextField` (two to six lines) rather than an `NSTextView`; menu:Object[Name…]
 and *Note…* stay placeholders.
 
+NOTE: As built by OBJ-040's UI (`WTApp/Panels/DescriptionSection.swift`; `WTModel/ObjectDescriptions.swift`,
+a new file).  `SetAlt` (input stops at 512 characters) and `SetDecorative` write `CommonProps.alt` and
+`decorative` of any object; `accessibleDescription(of:)`, `isReadable` and `readableNodes` (a group with
+alt text is one figure, one without reads as its readable members) follow the Client section.  The
+Object panel's common section (the root row), after *Note*: *Alt text* applying each burst of typing after 200 ms, greyed but
+kept while *Decorative* is on, "Read as its text" for text blocks; *Decorative* with the mixed state.
+VoiceOver hears the selection's readable objects as the canvas's accessibility help.  The schema fields
+exist (PROTO-003); their conformance vectors are proposed, not added.
+
 === Build tasks
 
 [[OBJ-021]]

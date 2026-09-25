@@ -302,6 +302,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.text = { TextToolSettings(preferences: preferences) }
         context.selectTool = { [weak self] id in self?.toolManager?.select(id) }
         context.editText = { [weak self] node, point in self?.editText(node, at: point) }
+        context.openTextEditor = { [weak self] node, point in if let self { TextEditorFeatures.shared.open(node, at: point, in: self) } }
         context.textCaretChanged = { [weak self] caret in self?.collaboration.publisher?.caret(caret) }
         context.modifyPage = { [weak self] page in self?.presentModifyPageSheet(page: page) }
         context.confirm = { [weak self] message, detail in self?.confirm(message, detail) ?? false }

@@ -411,6 +411,20 @@ creates the override, replaces its stack, sets transform, pictograph and repeati
 built: *Ungroup* for charts, the pictograph paste, and the full eight-case merge suite (duplicate
 cells and delete-column versus cell edit are tested).
 
+NOTE: As built by DRAW-033 (`WTApp/Charts/`).  The Chart tool drags a rectangle (kbd:[Shift] square),
+makes the chart ("Chart") and opens the Chart sheet; a double-click on the tool, menu:Object[Chart >
+Edit Data…] and *Chart Type…* open it for the selected chart.  *Data*: the grid read live from the
+chart (so a remote cell arrives while the entry field keeps its draft) with an empty row and column to
+type into; kbd:[Return] commits the draft (rows and columns inserted first when the cell lies past the
+table, then `SetChartCell`) and moves down; btn:[Undo] reverts the sheet's last commit; btn:[Import…]
+and btn:[Paste] lay tab-delimited text into the grid from the active cell as one `ImportChartData`;
+btn:[Cut] and btn:[Copy] work on the selected cells; btn:[Transpose] and btn:[Switch XY] write their
+flags; column widths are view state.  *Type*: the six types, the options, gridlines, axis display and
+the X and Y Axis sheets, held as a draft; btn:[Apply] writes the registers that changed, btn:[OK]
+applies and closes, btn:[Cancel] drops the draft.  Deviations: the grid is a SwiftUI grid of buttons
+with arrow buttons rather than an `NSTableView` with keyboard navigation, and the column triangles are
+`resize(column:to:)` without a drag handle.
+
 === Build tasks
 
 [[DRAW-031]]

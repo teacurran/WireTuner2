@@ -263,6 +263,13 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             let member = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: true)
             // Double-clicking text switches to the Text tool with the insertion point there
             // (text-blocks.adoc, "Double-click behaviors").
+            // kbd:[Option]-double-click on text opens the Text Editor (TYPE-011).
+            if let member, e.modifiers.contains(.option), let open = context.openTextEditor, let object = context.document.object(for: member.id),
+               object.kind == .text, !object.isEffectivelyLocked {
+                cancel()
+                open(object.id, e.pasteboardPoint)
+                return
+            }
             if let member, let editText = context.editText, let object = context.document.object(for: member.id), object.kind == .text,
                !object.isEffectivelyLocked, !e.modifiers.contains(.option) {
                 cancel()

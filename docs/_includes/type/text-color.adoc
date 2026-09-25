@@ -130,6 +130,14 @@ NOTE: The Object panel's colour rows are built (`WTApp/Text/Styles/TextColorSect
 `textColor`): the glyph *Fill* well and *None*, the glyph *Stroke* on or off, and the block's
 *Background* and *Border* rows added or removed, each one change.
 
+NOTE: As built by TYPE-030, in part (`WTApp/Text/TextColorDrop.swift`, one hook in
+`Document/CanvasView.swift`).  A colour dropped on a text block goes to the characters when the Text
+tool has a selection in that block (a `fill` mark), else to the block's stroke over its border or its
+fill inside (`SetTextBlockAppearance` of the top row, or `AddTextBlockAppearance` with the colour when
+the block has none), one change; drops elsewhere stay the canvas colour drop's.  Not built: the
+*Swatches apply color to* preference's effect on the Swatches panel's selectors and highlight (the
+Swatches panel is the COLOR epic's, being changed in parallel).
+
 === Build tasks
 
 [[TYPE-029]]

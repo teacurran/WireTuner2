@@ -191,8 +191,21 @@ NOTE: As built by the Select tab's object attributes (`WTApp/Edit/AttributeSelec
 The Select tab offers *Name*, *Object type*, *Same as selection*, *Path shape*, *Stroke width*, *Size*, *Halftone* and
 *Overprint* beside the type attributes; btn:[Find] runs `AttributeQuery` over the scope's candidates, which
 `ObjectAttributeSearch` keeps per document and revision (walked again only after a change), and *Same as selection* and
-*Path shape* leave out their sample.  The colour and style wells, *Paste In* and the Replace tab's object attributes
-(OBJ-023) are not built.
+*Path shape* leave out their sample.  The Replace tab's object attributes came with OBJ-023.
+
+NOTE: As built by OBJ-023 (`WTApp/FindReplace/GraphicReplace.swift`; `WTModel/GraphicReplace.swift`, a new
+file).  The Replace tab offers *Color* (From and To wells: the document's swatches, or a colour
+dropped from the Swatches panel or Color Mixer), *Stroke width* (Min, Max; the new width or `*2`,
+`+1`, `/3`), *Remove* (*Invisible objects*, *Custom halftones*), *Rotate* and *Scale* about each
+object's own bounds centre, *Simplify* (paths over a point count) and *Blend steps*.
+`ReplaceGraphics` maps each candidate of the scope to the owning feature's commands
+(`SetAppearanceColor`, a `fill` mark on text runs, `SetStrokeWidth`, `SetObjectHalftone`, `DeleteNodes`,
+`TransformObjects`, `SimplifyPaths`, `EditBlend.steps`) in one change "Replace <attribute> in N
+objects"; `chunks(limit:)` splits one past 10,000 ops into parts labelled `(2/3)`, performed in one
+undo group.  menu:Edit[Find and Replace > Graphics…] (kbd:[Cmd+Option+F]) brings the panel forward.
+Not built: *Font* beyond TYPE-022's, *Include tints*, gradient stops, *Overprinting* and *Contents*
+removal, *Path shape* replacement, *Resample at*, the Select tab's *Style* well and *Paste In* wells,
+and the Main toolbar button.
 
 === Build tasks
 

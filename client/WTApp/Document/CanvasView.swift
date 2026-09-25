@@ -88,6 +88,10 @@ final class CanvasView: NSView, CanvasHost {
     /// Colours dragged over the canvas (applying-color.adoc, "Applying color to unselected
     /// objects"); nil refuses them.
     var colorDrop: CanvasColorDrop?
+    /// A colour dropped on text (TYPE-030): answers whether it took the drop, before `colorDrop`.
+    var textColorDrop: (@MainActor (NSPasteboard, Point) -> Bool)?
+    /// More overlay drawing after the tool's (the spelling underlines, TYPE-014), in view points.
+    var overlayExtras: [@MainActor (CGContext, Viewport) -> Void] = []
     /// Objects dragged in from a document window (OBJ-013): pasted at the drop point; nil
     /// refuses them.
     var objectDrop: ObjectDragging?
@@ -197,6 +201,7 @@ final class CanvasView: NSView, CanvasHost {
             return styleDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport) != nil
         }
         defer { overlay.setNeedsDisplay() }
+        if let textColorDrop, textColorDrop(sender.draggingPasteboard, dropPoint(sender)) { return true }
         return colorDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers()) != nil
     }
 
@@ -405,6 +410,7 @@ final class CanvasView: NSView, CanvasHost {
         }
         colorDrop?.drawHighlight(in: ctx, viewport: viewport)
         toolManager?.drawOverlay(in: ctx, viewport: viewport)
+        for extra in overlayExtras { extra(ctx, viewport) }
     }
 
     override func resetCursorRects() {

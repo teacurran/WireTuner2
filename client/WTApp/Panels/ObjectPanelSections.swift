@@ -82,7 +82,7 @@ extension ObjectPanelModel {
         let bounds = objects.map { Objects.bounds(of: $0.id, in: state) }
         let props = objects.map { PanelProps.common(state.props($0.id)) }
         return CommonSection(
-            nodes: objects.map(\.id), x: shared(bounds.map { $0?.minX }) ?? nil, y: shared(bounds.map { $0?.minY }) ?? nil,
+            nodes: objects.map(\.id), x: shared(bounds.map { $0?.minX }) ?? nil, y: shared(bounds.map { $0.map { GlyphCanvasUnits.shown(y: $0.minY, in: document) } }) ?? nil,
             width: shared(bounds.map { $0?.width }) ?? nil, height: shared(bounds.map { $0?.height }) ?? nil,
             name: shared(props.map(\.name)), note: shared(props.map(\.note)), locked: MixedState(props.map(\.locked))
         )
@@ -118,8 +118,9 @@ extension ObjectPanelModel {
 
     /// Typing X or Y: each object moves so its box starts there -- one `transform` write each,
     /// labelled "Move" (or "Move N objects").
-    func setPosition(x: Double? = nil, y: Double? = nil) -> (any WTModel.Command)? {
+    func setPosition(x: Double? = nil, y typed: Double? = nil) -> (any WTModel.Command)? {
         let state = document.state
+        let y = typed.map { GlyphCanvasUnits.stored(y: $0, in: document) }
         let moves = objects.compactMap { entry -> (any WTModel.Command)? in
             guard let bounds = Objects.bounds(of: entry.id, in: state) else { return nil }
             let delta = Vector(dx: x.map { $0 - bounds.minX } ?? 0, dy: y.map { $0 - bounds.minY } ?? 0)
@@ -229,6 +230,7 @@ struct CommonSectionView: View {
             Toggle("Keep proportions", isOn: $proportional).accessibilityIdentifier("object.proportional")
             IdleTextField(title: "Name", value: section.name, limit: 256, identifier: "object.name", commit: Self.name(model))
             IdleTextField(title: "Note", value: section.note, limit: 8_192, multiline: true, identifier: "object.note", commit: Self.note(model))
+            if let description = model.description { DescriptionFieldsView(section: description, model: model) }
             Toggle("Locked", isOn: Self.locked(section, model))
                 .accessibilityIdentifier("object.locked")
                 .accessibilityValue(PathSectionView.accessibilityValue(section.locked))

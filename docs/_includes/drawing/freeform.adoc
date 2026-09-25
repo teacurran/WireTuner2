@@ -215,6 +215,14 @@ edited* -- WTSync's divergence raises *edit vs delete* for deleted nodes, not fo
 elements.  The manual protocol for a tablet and for Sidecar is in xref:testing.adoc#tablet-input[Testing];
 it has not been run (no tablet or Sidecar iPad on the build machine).
 
+NOTE: As built by DRAW-019 (`WTApp/Tools/CalligraphicPen.swift`).  Each sample's width is `base ·
+|sin(θ_stroke − θ_nib)|`, at least 0.5 pt, θ measured counter-clockwise on the page from each
+sample's neighbours; the centreline is fitted as the Variable Stroke Pen's and offset by half the
+width, ends cut flat, fitted within 0.03 pt with corners at the ends.  *Fixed* width ignores the
+bracket keys; *Variable* follows pen pressure (through the pressure curve) or the keys.  The sheet is
+the generic tool sheet over `tools.calligraphic.*` preferences; deviation: the angle is a stepper
+(0–359°), not a dial.  One change "Calligraphic Stroke" (the overlap cleanup in its undo group).
+
 === Build tasks
 
 [[DRAW-016]]

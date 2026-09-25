@@ -239,6 +239,8 @@ struct ToolContext {
     /// The Pointer's double-click on text: the Text tool takes over with the insertion point at
     /// the point (text-blocks.adoc, "Double-click behaviors"); nil outside a window.
     var editText: (@MainActor (OpID, Point) -> Void)?
+    /// Opens the Text Editor window on a block, or on a new empty block at the point (TYPE-011).
+    var openTextEditor: (@MainActor (OpID?, Point) -> Void)?
     /// The Text tool's preferences.
     var text: @MainActor () -> TextToolSettings = { TextToolSettings() }
     /// The Text tool's insertion point moved: the block, the character it is before (zero: the

@@ -249,6 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.editMenu.attach(window)
             self?.attachWindowGlue(window)
             self?.attachModelGlue(window)
+            self?.attachTypeAndDrawingFeatures(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -338,6 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installEditing()
         installWindowGlue()
         installModelGlue()
+        installTypeAndDrawingFeatures()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))

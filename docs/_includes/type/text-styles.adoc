@@ -255,6 +255,21 @@ selection shares (disagreeing fields unset), based on the current paragraph styl
 current paragraph style from the selection, renames and removes it.  *None* in *Character style* writes
 the cleared `style` mark.  The Styles panel itself waits for LIB-020.
 
+NOTE: As built by TYPE-035 (`WTApp/Text/Styles/TextStyleBehavior.swift`, `TextStyleOperations.swift`).
+menu:Text[Styles > New Paragraph Style], *New Character Style*, *Redefine Style…* and *Style
+Behavior…* (context `style`, so the Styles panel's menu lists them): a new style takes, per *Build
+text styles based on*, the first targeted paragraph's settings or what every targeted run and
+paragraph shares, based on the current paragraph style, or with nothing selected becomes a child of
+the given style; Redefine's sheet picks the style and writes the settings the source sets.  The
+Style Behavior sheet edits the style's optional settings -- font, face, size, leading (Solid, Auto),
+range kerning, baseline shift, horizontal scale, effect (*No effect* a real value), *Style affects
+text color*, alignment (blank = no selection), space above and below, the three indents, hang
+punctuation and keep with next (tri-state), keep lines, *Next style* -- with *Global settings*, and
+btn:[OK] writes only the settings that changed (`EditTextStyle`).  `TextStyleOperations.drop` applies a
+style dropped on text to the paragraph under the drop or, per *Dragging a text style changes*, the
+block.  Not built: wiring that drop to the Styles panel's drag (LIB-020's; a follow-up),
+the sheet's text ruler for tabs, and the axes and features controls (TYPE-046).
+
 === Build tasks
 
 [[TYPE-034]]

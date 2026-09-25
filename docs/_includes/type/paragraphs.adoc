@@ -238,6 +238,18 @@ appearance; a rule below a wrapping-tab row sits below its deepest sub-line.  A 
 justified, hyphenated flow relays out in 19--21 ms in release after a one-paragraph edit; the
 budget is enforced there.
 
+NOTE: As built by TYPE-026 (`WTApp/Text/Paragraph/`).  The Object panel section `textParagraph`: *Space
+above*, *Space below*, *Left*, *Right* and *First line* write one register each, *Hyphenate* its
+`enabled`, *Hang punctuation* and *Rules* (None, Centered, Paragraph) theirs -- on the paragraphs the
+Text tool's selection touches, else every paragraph of the selected blocks, one change; a value
+the paragraphs do not share shows *Mixed*.  The Hyphenation sheet writes *Language*, *Consecutive
+hyphens* and *Skip capitalized words*; *Inhibit hyphens in selection* writes the `no_hyphen` mark.
+The Paragraph Rule Width sheet writes width, basis, position and *Above*, and with *Override stroke*
+the override's colour (a black tint) and width.  Deviations: the Edit Alignment sheet (ragged width,
+flush zone) opens from btn:[Edit Alignment…] in this section rather than the Character section; an
+override stroke once written cannot be removed from the sheet (the STRUCT has no "unset" write); the
+conformance vectors for `Hyphenation` and `ParagraphRule` are proposed, not added.
+
 === Build tasks
 
 [[TYPE-026]]

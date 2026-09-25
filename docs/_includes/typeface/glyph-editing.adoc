@@ -390,8 +390,24 @@ centres.  menu:View[Fit Glyph] fits the em box.  menu:Glyph[Components and Ancho
 components (source, offset, *removed* or *loop*) with add by glyph name, remove, decompose and
 decompose all, and the anchors (name, position in font y, role) with add, move, role and remove --
 one change per button.  Not built: the draggable bearing handles and their readout, labels drawn in
-screen space, the anchor overlay and its hit-testing, the mark attachment preview, the Find
-Problems panel and the preview strip (FONT-017).
+screen space, the anchor overlay and its hit-testing, the mark attachment preview.  The Find Problems
+panel and the preview strip came with FONT-014 and FONT-017.
+
+NOTE: As built by FONT-014's UI and FONT-017 (`WTApp/Typeface/FindProblemsPanel.swift`, `PreviewStrip.swift`;
+`WTModel/GlyphFixes.swift`, a new file).  menu:Glyph[Find Problems…] brings the *Find Problems* panel
+forward: the document's `FontValidation` problems, errors first, for the font or the current glyph (a
+glyph tab's), checked again after each change; a row opens its glyph; *Round to Units*
+(`RoundGlyphPoints`: every anchor and handle of the glyph's paths rounded in glyph space) and *Remove
+Component* (the components that no longer resolve) are the fixes; btn:[Select in Grid] selects the
+glyphs with problems.  Deviations: no kbd:[Cmd+Shift+P] (it is Page Setup); no badges in the tab or the
+grid; no *Correct Directions* or *Add Extrema* buttons (the generator does both);
+`GlyphContours.isOffGrid` also reads a line's interpolated controls, so a straight segment whose
+length is not a multiple of three units reads as off the grid after rounding (a WTRender defect,
+reported).  The preview strip lies along the bottom of each glyph tab's canvas: the *Font preview text*
+line set from the flattened outlines with kerning (the Metrics window's `MetricsSetting`, so the
+kerning is the same), missing characters as hollow boxes, the tab's glyph tinted, a click opening the
+glyph clicked, redrawn 150 ms after a change; the size pop-up, *Kern*, the top edge resizing it (below
+40 points it hides) and menu:View[Preview Strip].
 
 === Build tasks
 

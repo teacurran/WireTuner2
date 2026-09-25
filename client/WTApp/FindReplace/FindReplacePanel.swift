@@ -20,6 +20,8 @@ final class FindReplaceState {
     /// The attributes the panel has (find-replace.adoc's tables, as far as they are built).
     enum Attribute: String, CaseIterable, Identifiable {
         case font, textEffect
+        // The Replace tab's object attributes (OBJ-023; `GraphicReplaceState`).
+        case color, replaceStrokeWidth, remove, rotate, scale, simplify, blendSteps
         // The object attributes of the Select tab (OBJ-022's query; `ObjectAttributeSearch`).
         case name, objectType, sameAs, pathShape, strokeWidth, size, halftone, overprint
         var id: String { rawValue }
@@ -27,13 +29,20 @@ final class FindReplaceState {
             switch self {
             case .font: "Font"
             case .textEffect: "Text effect"
-            default: objectAttribute!.title
+            default: graphicAttribute?.title ?? objectAttribute!.title
             }
         }
         /// The object attribute this is, nil for the type attributes.
         var objectAttribute: ObjectAttributeSearch.Attribute? { ObjectAttributeSearch.Attribute(rawValue: rawValue) }
-        /// The Replace tab has *Font*; text effects and the object attributes are found, not replaced.
-        static func available(in tab: Tab) -> [Attribute] { tab == .replace ? [.font] : allCases }
+        /// The Replace tab's graphic attribute this is.
+        var graphicAttribute: GraphicReplaceState.Attribute? {
+            self == .replaceStrokeWidth ? .strokeWidth : GraphicReplaceState.Attribute(rawValue: rawValue)
+        }
+        /// The Replace tab has *Font* and the graphic attributes; the Select tab the rest.
+        static func available(in tab: Tab) -> [Attribute] {
+            let graphic: [Attribute] = [.color, .replaceStrokeWidth, .remove, .rotate, .scale, .simplify, .blendSteps]
+            return tab == .replace ? [.font] + graphic : allCases.filter { !graphic.contains($0) }
+        }
     }
 
     var tab = Tab.replace
@@ -45,6 +54,8 @@ final class FindReplaceState {
     var effect = EffectCriteria.any
     /// The object attributes' settings and the candidates cache.
     let objects = ObjectAttributeSearch()
+    /// The Replace tab's object attributes' settings.
+    let graphics = GraphicReplaceState()
     /// *Add to selection* (page, document) or *Remove from selection* (selection scope).
     var adjustSelection = false
     /// The count shown at the bottom of the panel.
@@ -56,6 +67,11 @@ final class FindReplaceState {
     @discardableResult
     func change(_ selection: ActiveSelection?) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         guard let document = selection?.document, let current = selection?.model?.selection else { return nil }
+        if let graphic = attribute.graphicAttribute {
+            graphics.change(graphic, scope: scope, selection: selection)
+            result = graphics.result
+            return nil
+        }
         let search = TypeAttributeSearch(document: document, selection: current)
         guard let (command, blocks) = search.replaceFont(from, with: to, in: scope) else {
             result = "No blocks changed"
@@ -190,7 +206,10 @@ struct FindReplacePanelBody: View {
                     ForEach(FindReplaceState.Attribute.available(in: state.tab)) { Text($0.title).tag($0) }
                 }
                 .accessibilityIdentifier("findReplace.attribute")
-                if state.tab == .replace {
+                if state.tab == .replace, let graphic = state.attribute.graphicAttribute {
+                    GraphicReplaceFields(state: state.graphics, attribute: graphic, swatches: selection?.document.map { SwatchList($0.state).swatches } ?? [],
+                                         resolver: selection?.document.map { SwatchList($0.state).resolver })
+                } else if state.tab == .replace {
                     Self.fontCriteria("From", $state.from)
                     Section("To") {
                         Picker("Font", selection: Self.optional($state.to.family, none: Self.noChange)) {

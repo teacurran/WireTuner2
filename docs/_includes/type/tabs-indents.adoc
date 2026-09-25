@@ -213,6 +213,22 @@ one as a break.  Vertical text ignores tab stops (the default stops remain).  Re
 1,000-row wrapping table after a one-row edit takes 22--48 ms in release on this Mac, busy with
 other builds (25--34 ms in debug); the 50 ms budget is enforced in release.
 
+NOTE: As built by TYPE-023 (`WTApp/Text/Ruler/`; `WTModel/TabStopCommands.swift`, a new file).  The ruler
+is an `NSView` over the canvas along the top of the Text tool's block, turned with it
+(`frameRotation`), scaled with the zoom and placed again on every overlay draw; it shows the width in
+points, the tab well (left, right, centre, decimal, wrapping), the default ticks every 36 pt past the
+last stop, the stops of the first paragraph the selection touches and the three indent markers with
+the square under them.  Gestures write one change at mouse-up: a kind dragged from the well places a
+stop (`AddTabStop`, on every paragraph the selection touches; a leader is dropped on a wrapping
+stop), a stop dragged along moves (`SetTabStop` of `position`, finding the stop in each paragraph
+by where it stands), with kbd:[Option] duplicates, and dragged more than 20 view points off the ruler
+is removed (`DeleteTabStop`); the left marker moves the left indent keeping the first line where it
+was, the upper marker the first-line indent, the square both, the right marker the right indent
+(`SetParagraph`).  While a stop is dragged a dashed line runs down the block (*Track tab movement with
+vertical line*).  menu:View[Text Rulers] is shown or hidden for every window (user defaults
+`WTTextRulersShown`).  Not built: the Edit Tab sheet on a double-click (TYPE-024) and the
+conformance vector for `TabStop` (a `crdt-conformance` change, proposed).
+
 === Build tasks
 
 [[TYPE-023]]

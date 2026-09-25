@@ -304,6 +304,17 @@ conformance vector for `TextEffect` as a mark value belongs to `crdt-conformance
 directory.  The merge case (two replicas' shadow offsets: one whole effect) is in
 `TextEffectEditingTests`.
 
+NOTE: As built by TYPE-039's remaining half (`WTApp/Text/TextWrapSheet.swift`; `WTModel/TextWrapping.swift`,
+a new file, and two additive lines in `TextLayoutReading.swift`).  `SetTextWrap` writes `enabled` and,
+when on, `standoff` on each selected object ("Text Wrap", "Remove Text Wrap"); groups and blends are
+refused (the sheet says why).  `TextWrapping.exclusions` collects every object after the block in
+stacking order (visible, unlocked layers) with wrap on -- a shape's contours, a text block's stored
+frame, else its bounds -- with its transform into the block and its standoff, and the layout gets them
+as `TextBlock.exclusions`; the wrapping objects are the text's scene sources, so moving one re-lays
+the text.  Deviation: an object whose wrap is switched on was not a source of the text laid out
+before, so the sheet reloads the document's scene after its change; a collaborator switching wrap on
+re-wraps this Mac's text at its next change.  Collecting the objects walks the layers per text block.
+
 === Build tasks
 
 [[TYPE-036]]

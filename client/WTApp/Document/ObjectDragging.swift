@@ -19,6 +19,9 @@ final class ObjectDragging: NSObject, NSDraggingSource {
     /// Writes a PDF of the window's selection to the URL (the app's export pipeline); false when
     /// it could not.  Nil promises no file.
     var writePDF: (@MainActor @Sendable (URL) async -> Bool)?
+    /// What a drag carries instead, given the native payload (IO-016's lazy flavors and file
+    /// promise); nil keeps the objects and the PDF promise.
+    var makeWriters: (@MainActor (Data) -> [any NSPasteboardWriting])?
     /// The session begun last (tests).
     private(set) var session: NSDraggingSession?
 
@@ -37,6 +40,13 @@ final class ObjectDragging: NSObject, NSDraggingSource {
     /// What a drag of the selection carries: the objects, and a PDF promise when a writer is set.
     func draggingItems(image: NSImage?, frame: NSRect) -> [NSDraggingItem] {
         guard let data = payload() else { return [] }
+        if let makeWriters {
+            return makeWriters(data).map { writer in
+                let item = NSDraggingItem(pasteboardWriter: writer)
+                item.setDraggingFrame(frame, contents: image)
+                return item
+            }
+        }
         let objects = NSPasteboardItem()
         objects.setData(data, forType: Self.type)
         var writers: [any NSPasteboardWriting] = [objects]

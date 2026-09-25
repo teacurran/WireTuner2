@@ -399,6 +399,13 @@ result on the canvas through the document's preview (nothing written), btn:[OK] 
 passed back.  menu:Modify[Alter Path > Correct Direction] and its toolbar entry perform `CorrectDirection`.  Tests:
 `ModelGlueFeaturesTests`.
 
+NOTE: As built by DRAW-029 (`WTApp/Tools/EraserTool.swift`).  The Eraser records each sample's width
+(pen pressure through the curve, else the bracket keys' width, which a pen in contact overrides); the
+strip's two edges are offset from the drag by each sample's half width (the ends extended by half a
+width), their crossings split each selected path's contours with the Knife's `PathCutting`, and the
+pieces whose middle lies inside the strip (by the nearest sample's width) are dropped; the pieces stay
+open.  One change "Erase".  The sheet lists *Min*, *Max* and the pressure curve.
+
 === Build tasks
 
 [[DRAW-025]]
