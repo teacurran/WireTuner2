@@ -377,6 +377,28 @@ resolution is below* (its pixel width over its placed width in inches) gets an a
 ppi.  kbd:[Option]-drag resizing in printer-resolution steps is not built (the Pointer tool is
 another task's).
 
+NOTE: As built by IMG-027 (`WTRender/Images/SubjectMask.swift`, `VisionSubjectSegmenter.swift`).
+The Vision request sits behind the `SubjectSegmenter` protocol; `VisionSubjectSegmenter` runs
+`VNGenerateForegroundInstanceMaskRequest` on the image reduced to at most 4 MP
+(`SubjectMask.downsampled`) and returns each instance's soft mask from
+`generateScaledMaskForImage(forInstances:from:)` at that reduced size, as a `SubjectSegmentation`
+(nil, "no subject found", when Vision finds none).  The rest is plain arithmetic, deterministic
+for an image and an instance choice: `instance(at:)` hit-tests the per-pixel label (the strongest
+instance at one half or more, ties to the lower number) in unit image space; `SubjectMask.mask`
+scales the chosen instances' mask bilinearly to full resolution and feathers it (separable
+Gaussian, σ = *Soften edge* / 2 px); `alphaPNG` multiplies the premultiplied RGBA8 pixels by the
+mask and encodes a PNG; `SubjectMaskBuffer.path(in:)` thresholds at one half and runs
+`Trace.outline` (conformity 6, holes kept), mapped onto the image's natural frame.  The async
+`segment` and `transparentImage` run on a global queue with progress and stop, throwing
+`cancelled`, when the calling task is cancelled (the feather polls once per row).
+*Deviation*: the mask is applied by hand rather than with `CIBlendWithMask`, and the full-resolution
+mask is scaled from the reduced segmentation rather than asked of Vision at full size, so at most
+the mask and the image's pixels are held at full resolution.  The fixture-set criterion (IoU ≥ 0.9
+against hand-made references on four photographs, the logo refused) and the 24 MP timing are not
+tested: the repository holds no photograph fixtures or reference masks.  The tests run the kernel
+on synthetic segmentations and the real Vision segmenter once on a drawn shape, where a mask or
+"no subject found" both pass.
+
 [[IMG-016]]
 ==== IMG-016 Object panel image editor
 [horizontal]

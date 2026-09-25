@@ -304,7 +304,8 @@ enum NodeValues {
         case .instance: props.instance.appearance = stack
         case .barcode: props.barcode.appearance = stack
         case .connector: props.connector.appearance = stack
-        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: break
+        case .text: props.text.blockAppearance = stack
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: break
         }
         return props
     }
@@ -331,6 +332,8 @@ enum NodeValues {
         case .brush: props.brush.common = common
         case .blend: props.blend.common = common
         case .extrude: props.extrude.common = common
+        case .image: props.image.common = common
+        case .svgAnimation: props.svgAnimation.common = common
         }
         return props
     }
@@ -359,6 +362,8 @@ enum NodeValues {
         case .blend(let blend)?: blend.common
         case .extrude(let extrude)?: extrude.common
         case .brush(let brush)?: brush.common
+        case .image(let image)?: image.common
+        case .svgAnimation(let animation)?: animation.common
         default: nil
         }
     }
@@ -374,6 +379,7 @@ enum NodeValues {
         case .instance(let instance)?: instance.appearance
         case .barcode(let barcode)?: barcode.appearance
         case .connector(let connector)?: connector.appearance
+        case .text(let text)?: text.blockAppearance
         default: nil
         }
     }
@@ -391,7 +397,8 @@ enum NodeValues {
         case .instance: props.instance.appearance = appearance
         case .barcode: props.barcode.appearance = appearance
         case .connector: props.connector.appearance = appearance
-        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: break
+        case .text: props.text.blockAppearance = appearance
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: break
         }
         return props
     }
@@ -407,7 +414,9 @@ enum NodeValues {
         case .instance: 4
         case .barcode: 7
         case .connector: 4
-        case .layer, .chart, .symbol, .placedFile, .text, .brush, .blend, .extrude: nil
+        // A text node's own fills and strokes (`block_appearance`, TYPE-029).
+        case .text: 7
+        case .layer, .chart, .symbol, .placedFile, .brush, .blend, .extrude, .image, .svgAnimation: nil
         }
     }
 }

@@ -486,7 +486,11 @@ draws a separation.  Derived drawing is built in WTRender from render-side input
 `BarcodeSpec` -- and `DependencyIndex` is the reverse index (node → nodes drawn from it) WTModel
 maintains so a change summary reaches connectors and instances.  WTText depends on WTRender, so
 derived labels are shaped by a `LabelTypesetter` (`CoreTextLabels`, one Core Text line) rather than
-by WTText.
+by WTText.  A builder that measured its items keeps those bounds: `DisplayList(canvas:items:itemBounds:nodeIDs:layers:)`
+is public (bounds of the wrong length are measured again) and `LayerContent.bounds` carries each
+layer's measured bounds into `LayerScene.build`, which WTModel's scene fills from the bounds it
+records per object, so no item is measured twice.  Canvas-only marks (a placed SVG animation's play
+glyph, `ImageItem.showsPlayGlyph`) are cleared in `.output` lists.
 
 == Undo
 

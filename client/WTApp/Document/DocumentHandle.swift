@@ -164,8 +164,8 @@ final class DocumentHandle: Identifiable, CommandSink {
         builder.rebuild(model.state)
         _ = builder.setBackground(backgroundItems(model.state), state: model.state)
         modelObservation = model.observe { [weak self] event in self?.modelDidChange(event) }
-        // The template's swatches and first page are not content to draw.
-        let template: Set<UInt32> = [SwatchFields.kind, PageFields.kind]
+        // The template's swatches, Normal Text style and first page are not content to draw.
+        let template: Set<UInt32> = [SwatchFields.kind, PageFields.kind, TextStyleFields.kind]
         if model.state.store.nodes.contains(where: { model.state.store.isCreated($0) && !template.contains(model.state.store.kind($0)) }) {
             changeCount += 1
             let summary = ChangeSummary(origin: .local, isStructural: true)

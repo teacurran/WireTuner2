@@ -44,7 +44,8 @@ public enum Subtrees {
         let origin = payload.bounds.map { AffineTransform.translation(x: -$0.minX, y: -$0.minY) } ?? .identity
         var subtree = Wiretuner_Doc_V1_Subtree()
         func add(_ tree: NodeTree, parent: Int32) throws(PasteInError) {
-            guard tree.kind != nil, tree.kind != .layer else { throw .excluded }
+            // Text, bitmaps, placed animations, blends and extrusions have no tile drawing.
+            guard let kind = tree.kind, ![.layer, .text, .image, .svgAnimation, .blend, .extrude].contains(kind) else { throw .excluded }
             if let appearance = NodeValues.appearance(tree.props), appearance.fills.contains(where: { [.tiled, .lens].contains($0.settings.kind) }) {
                 throw .excluded
             }
@@ -69,8 +70,10 @@ public enum Subtrees {
         let trees = trees(subtree)
         guard !trees.isEmpty else { return nil }
         var bounds = Rect.null
+        // Geometric bounds, as `ClipboardPayload(copying:from:)` measures a copy, so a tile
+        // captured again from its own Copy Out is the same tile.
         for item in SubtreeRendering.items(subtree) {
-            if let rect = item.bounds { bounds = bounds.union(rect) }
+            if let rect = item.ownBounds { bounds = bounds.union(rect) }
         }
         return ClipboardPayload(nodes: trees, bounds: bounds.isNull ? nil : bounds)
     }

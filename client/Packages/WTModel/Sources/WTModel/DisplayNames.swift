@@ -22,7 +22,9 @@ extension NodeKind {
         case .layer: "Layer"
         case .symbol: "Symbol"
         case .instance: "Symbol Instance"
+        case .image: "Image"
         case .placedFile: "Placed File"
+        case .svgAnimation: "SVG Animation"
         case .barcode: "Barcode"
         }
     }

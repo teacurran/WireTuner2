@@ -25,9 +25,11 @@ public enum Objects {
     /// The kinds the object commands act on.  A connector is selected, styled, deleted, copied
     /// and grouped like any object, but never moved or transformed on its own: it follows the
     /// objects it joins (connectors.adoc), so `MoveObjects` and `TransformObjects` skip it.
-    /// Blends and extrusions move and transform as one object, as groups do.
+    /// Blends and extrusions move and transform as one object, as groups do; images and placed
+    /// SVG animations as their frames.
     public static let kinds: Set<NodeKind> = [
         .path, .rect, .ellipse, .polygon, .group, .chart, .instance, .barcode, .connector, .placedFile, .text, .blend, .extrude,
+        .image, .svgAnimation,
     ]
 
     /// The kind of the live object `node`, or throws.
@@ -152,6 +154,10 @@ public enum Objects {
             return Connectors.bounds(of: node, in: state)
         case .placedFile:
             return PlacedFiles.placedFile(state.props(node).placedFile, transform: transform).effectiveBounds.applying(transform)
+        case .image:
+            return ImageNodes.item(state.props(node).image, transform: transform).visibleRect.applying(transform)
+        case .svgAnimation:
+            return SvgAnimationInfo(node, in: state).map { $0.bounds.applying(transform) }
         default:
             break
         }

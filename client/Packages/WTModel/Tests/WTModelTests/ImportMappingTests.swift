@@ -126,7 +126,7 @@ enum ImportFixture {
         #expect(sequence.marks.count == 5)
 
         let image = a.state.props(children[5]).image
-        #expect(image.dpiX == 144 && image.dpiY == 72)
+        #expect(image.dpiX == 144 && image.dpiY == 72 && image.displayAlpha)
         #expect(!image.hasSource, "an image inside a vector file has no link record")
         #expect(image.pixels.format == "public.png" && image.pixels.pixelWidth == 300 && image.pixels.hasAlpha_p)
         #expect(image.common.transform.tx == 1)

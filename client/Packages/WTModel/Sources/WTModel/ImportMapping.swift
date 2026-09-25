@@ -376,6 +376,8 @@ enum ImportMapping {
         props.image.sourceName = String((image.name ?? "").prefix(256))
         props.image.dpiX = image.dpiX
         props.image.dpiY = image.dpiY
+        // *Display alpha channel* is on by default (bitmaps.adoc, "Image properties").
+        props.image.displayAlpha = true
         if let source { props.image.source.id = source.proto }
         return props
     }

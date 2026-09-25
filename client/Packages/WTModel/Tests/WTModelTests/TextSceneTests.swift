@@ -20,10 +20,15 @@ import WTText
     @Test func theTextKindIsKnown() {
         #expect(NodeKind(rawValue: 130) == .text)
         #expect(NodeKind.allCases.contains(.text))
-        #expect(NodeValues.appearanceField(.text) == nil)
-        #expect(NodeValues.with(kind: .text, appearanceField: 7, Wiretuner_Doc_V1_AppearanceProps()) == Wiretuner_Doc_V1_NodeProps())
+        // A text node's own fills and strokes are its `block_appearance` (TYPE-029).
+        #expect(NodeValues.appearanceField(.text) == 7)
+        #expect(NodeValues.with(kind: .text, appearanceField: 7, Wiretuner_Doc_V1_AppearanceProps()) == Wiretuner_Doc_V1_NodeProps.with {
+            $0.text.blockAppearance = Wiretuner_Doc_V1_AppearanceProps()
+        })
         let props = Wiretuner_Doc_V1_NodeProps.with { $0.text.common.name = "Label" }
-        #expect(NodeValues.replacing(Wiretuner_Doc_V1_AppearanceProps(), of: .text, in: props) == props)
+        var stack = Wiretuner_Doc_V1_AppearanceProps()
+        stack.rasterDpi = 150
+        #expect(NodeValues.appearance(NodeValues.replacing(stack, of: .text, in: props))?.rasterDpi == 150)
         #expect(NodeValues.common(props)?.name == "Label")
         #expect(NodeValues.common(kind: .text) { $0.locked = true }.text.common.locked)
     }

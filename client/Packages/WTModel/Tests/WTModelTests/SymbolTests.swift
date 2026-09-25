@@ -305,8 +305,9 @@ enum SymbolFixture {
         var builder = DocumentDisplayListBuilder(canvas: "c")
         let scene = builder.rebuild(a.state)
         let artwork = try #require(builder.library.symbols[NodeID(symbol)])
-        #expect(artwork.nodes.map(\.id) == [masters[0], masters[1], group].map(NodeID.init), "text, image and an empty chart draw nothing yet")
-        guard case .group(_, let members)? = artwork.nodes.last?.content, case .item(let placed)? = members.first?.content else {
+        #expect(artwork.nodes.map(\.id) == [masters[0], masters[1], group, image].map(NodeID.init),
+                "text and an empty chart draw nothing yet; an image without pixels draws its placeholder")
+        guard artwork.nodes.count > 2, case .group(_, let members) = artwork.nodes[2].content, case .item(let placed)? = members.first?.content else {
             Issue.record("the group's member"); return
         }
         #expect(placed.bounds?.minX == 5, "a member is flattened through its group")

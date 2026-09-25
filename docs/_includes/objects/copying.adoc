@@ -358,6 +358,17 @@ keeps kbd:[Cmd+D] from the shortcut catalog and Clone has no default key (the gu
 and kbd:[Cmd+Shift+D] are left to the shortcut presets).  Paste In Front is kbd:[Cmd+Option+V] and
 Paste Behind kbd:[Cmd+Option+Shift+V].
 
+NOTE: As built: a copy keeps its attribute stack's order.  The three lists of a stack share one
+position space, which a node's typed props cannot show, so `NodeTree` records the stack order read
+from the document (`stackOrder`: the list of each row, bottom first) and `NodeCopier` inserts the
+stack as one run in that order through `PasteAttributes.insert` -- the path Join and Split use --
+with each attached effect attached to the copy of its element; before, each list was positioned on
+its own and Paste, Clone and Duplicate regrouped an interleaved stack.  A tree without a matching
+order stacks fills, then strokes, then effects.  The pasteboard carries the order as `ClipboardNode`
+field 4 (`stack_order`, one byte per row naming its `AppearanceProps` list); a payload with an
+unknown list number reads without an order.  Copies of text blocks, blends, extrusions, images and
+placed SVG animations keep their paste offset (their transforms were not written before).
+
 NOTE: As built by OBJ-013 (`WTApp/Tools/PointerTool.swift`, `WTApp/Document/ObjectDragging.swift`).
 kbd:[Option]-drag copying was OBJ-008's (`DuplicateObjects` on release); this adds the plus-sign cursor
 (`NSCursor.dragCopy`) whenever the release would copy -- kbd:[Option] pressed before or after the drag

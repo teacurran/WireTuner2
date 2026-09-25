@@ -306,6 +306,7 @@ public struct CoreGraphicsRenderer: WTRender {
                 drawImageBox(image, color: Color(white: 0.45), into: context)
             } else {
                 drawImage(image, state: state, cull: cull, into: context)
+                if image.showsPlayGlyph { drawPlayGlyph(image, into: context) }
             }
         case .text(let text):
             if shouldGreek(text, in: context) {
@@ -434,6 +435,19 @@ public struct CoreGraphicsRenderer: WTRender {
             return
         }
         ImageDrawing.draw(image, item: item, renderer: self, into: context)
+    }
+
+    /// The canvas-only play glyph over a placed SVG animation's poster (`ImageDrawing.playGlyph`).
+    private func drawPlayGlyph(_ item: ImageItem, into context: CGContext) {
+        let glyph = ImageDrawing.playGlyph(item)
+        context.saveGState()
+        context.concatenate(item.transform.cg)
+        for (path, color) in [(glyph.disc, ImageDrawing.playDisc), (glyph.triangle, ImageDrawing.playTriangle)] {
+            context.addPath(path.cgPath)
+            context.setFillColor(fillColor(ink(color)!))
+            context.fillPath()
+        }
+        context.restoreGState()
     }
 
     /// A neutral grey block with a diagonal cross over the visible frame; while the blob

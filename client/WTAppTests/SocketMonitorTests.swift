@@ -44,8 +44,10 @@ import Testing
         let before = monitor.counts
         let fd = socket(AF_INET6, SOCK_DGRAM, 0)
         defer { close(fd) }
-        for _ in 0..<100 where monitor.counts == before { try await Task.sleep(for: .milliseconds(10)) }
-        #expect(monitor.counts.internet == before.internet + 1)
+        // The counts are the whole test process's sockets, which other suites open and close in
+        // parallel: wait for the internet count itself, not for any change.
+        for _ in 0..<300 where monitor.counts.internet <= before.internet { try await Task.sleep(for: .milliseconds(10)) }
+        #expect(monitor.counts.internet >= before.internet + 1)
         monitor.stop()
         monitor.stop()
     }

@@ -131,6 +131,26 @@ enum ImageDrawing {
         return Rect(x: frame.minX, y: frame.maxY - height, width: frame.width * progress, height: height)
     }
 
+    /// The play glyph over a placed SVG animation's poster (WEB-026), in the item's local space:
+    /// a translucent dark disc a fifth of the visible frame's shorter side across, centred, and a
+    /// white triangle pointing right inside it.
+    static let playDisc = Color(white: 0, alpha: 0.55)
+    static let playTriangle = Color(white: 1)
+
+    static func playGlyph(_ item: ImageItem) -> (disc: DisplayPath, triangle: DisplayPath) {
+        let frame = item.visibleRect
+        let radius = min(frame.width, frame.height) / 10
+        let centre = Point(x: frame.midX, y: frame.midY)
+        let disc = DisplayPath(ellipseIn: Rect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2))
+        let side = radius * 0.9
+        let triangle = DisplayPath(polygon: [
+            Point(x: centre.x - side * 0.4, y: centre.y - side * 0.55),
+            Point(x: centre.x + side * 0.6, y: centre.y),
+            Point(x: centre.x - side * 0.4, y: centre.y + side * 0.55),
+        ])
+        return (disc, triangle)
+    }
+
     /// The frame's diagonals, and its outline when `framed`.
     static func box(_ rect: Rect, framed: Bool) -> DisplayPath {
         var box = framed ? DisplayPath(rect: rect) : DisplayPath()

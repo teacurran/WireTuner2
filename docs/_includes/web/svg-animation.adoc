@@ -284,6 +284,13 @@ the import pointer's marquee (kbd:[Shift] fills its width; IMG-005).
 * Undo: placing an animation is one step ("Place SVG animation"); every Object panel edit one
   step.
 
+NOTE: As built by WEB-008's placed-animation part (`WTInterchange/HTML/HTMLAnimations.swift`; the
+details are on xref:publish-html.adoc[Publishing as HTML], "Client").  The publisher reads
+`ExportScene.svgAnimations` (file bytes, natural size, transform, script flag and *On the web*
+settings by node); the wrapper is a `<div>` rather than an injected `<svg>`, and a file that needs
+isolation (script kept under *Allow scripts*) is an `<object>` rather than an `<img>`, since an
+`<img>` runs no script.  The SVG exporter's nesting and the animated-SVG exporter's are not built.
+
 NOTE: As built by WEB-024 (`WTModel/WebSvgAnimation.swift`).  `SvgAnimationInfo` reads a node with
 the read-time normalizations (a zero natural size 320 × 240, a poster time beyond a finite duration
 the duration, a dangling or non-asset `asset`/`poster` nil, the node then `isPlaceholder`).  The
@@ -302,9 +309,20 @@ one selected `svg_animation` node: size and *Scale* against the natural size, th
 and SMIL timelines, cached per asset and time for the session, stored as a blob and made the poster
 with `SetSvgAnimationPosterFrame` -- the asset and both registers in one change), *On the web*
 (`SetSvgAnimationWeb`), *Duration*, *Scripts*, the file line, btn:[Reveal] (the original when this
-Mac has it) and btn:[Save a Copy…].  The scene does not build items for placed animations yet
-(WEB-026), so such a node cannot be selected on the canvas and the panel lists no kind for it; the
-section shows once it can be.  Not built: btn:[Replace…] and btn:[Edit With…].
+Mac has it) and btn:[Save a Copy…].  The section shows for a placed animation selected on the canvas
+(the scene draws them since WEB-026).  Not built: btn:[Replace…] and btn:[Edit With…].
+
+NOTE: As built by WEB-026 (`WTModel/ImageCommands.swift` `ImageNodes.poster`, `DocumentScene.swift`;
+`WTRender`: `ImageItem.showsPlayGlyph`, `ImageDrawing.playGlyph`, `LayerScene`).  `NodeKind.svgAnimation`
+(190) makes a placed animation an object (selected, moved, transformed, copied; its bounds the
+natural size through its transform).  The scene draws its poster asset's PNG as an image item over
+the natural size -- the image placeholder while the poster is missing or downloading -- with the
+play glyph (a translucent disc a fifth of the shorter side across with a white triangle) over its
+centre.  `LayerScene` clears the glyph in output lists, so print, PDF and bitmap exports draw the
+poster alone.  The poster asset is a scene dependency and the node's own registers are touched by a
+poster change, so a remote poster change repaints only the animation's tiles.  A dangling SVG asset
+draws the ordinary image placeholder rather than a hatched one.  With the scene drawing them, the
+WEB-027 section and the kind names ("SVG Animation") apply.
 
 === Build tasks
 

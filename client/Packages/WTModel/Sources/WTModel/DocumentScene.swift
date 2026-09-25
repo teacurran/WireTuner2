@@ -93,7 +93,10 @@ public struct DocumentScene: Hashable, Sendable {
 /// hidden layers contribute nothing), deleted nodes skipped, each object a top-level item tagged
 /// with its node id (group members nested), transforms flattened, attribute stacks resolved.
 /// Symbol instances draw their symbol's artwork through `SymbolRenderer` (LIB-010/026), charts
-/// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018).  Colours resolve through one
+/// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018), images their pixels through
+/// WTRender's image drawing (`ImageNodes.item`, IMG-004: the window's `ImageStore` supplies the
+/// pixels, the placeholder draws until they arrive) and placed SVG animations their poster frame
+/// with the canvas-only play glyph (`ImageNodes.poster`, WEB-026).  Colours resolve through one
 /// `ColorResolver` per build (`ColorResolver.current`): a swatch reference shows the swatch's
 /// colour as it is now, and colours from spot swatches carry their ink (PRINT-007).  Items for
 /// nodes a change did not touch are reused; a change's touched nodes are expanded through the
@@ -432,6 +435,7 @@ public struct DocumentDisplayListBuilder: Sendable {
                 highlight: layer.highlight.map(Appearances.color) ?? .black, isGuides: layer.role == .guides
             )
             var items: [(item: DisplayItem, node: NodeID?)] = []
+            var bounds: [Rect?] = []
             if layer.visible || includeHidden {
                 let layerTransform = layerTransform(layer.id, state: state)
                 let context = Placing(layer: layer.id, locked: layer.locked)
@@ -439,11 +443,13 @@ public struct DocumentDisplayListBuilder: Sendable {
                     guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
                                            objects: &objects) else { continue }
                     items.append((item, NodeID(child)))
+                    bounds.append(objects[NodeID(child)]?.bounds)
                     topLevel.append(NodeID(child))
                     next += 1
                 }
             }
-            contents.append(LayerContent(layer: rendering, visible: layer.visible, items: items))
+            // The bounds `place` measured are the list's: nothing is measured twice.
+            contents.append(LayerContent(layer: rendering, visible: layer.visible, items: items, bounds: bounds))
         }
         return (contents, topLevel)
     }
@@ -629,8 +635,17 @@ public struct DocumentDisplayListBuilder: Sendable {
             built = routed(node, stored, state: state)
         case .text?:
             built.item = textLayout?.item(node, state: state, substitution: substitution)
+            // Styles, the settings node and inline graphics redraw the text (TYPE-034/038).
+            built.sources = TextLayoutReading.sources(node, in: state)
         case .placedFile(let placed)?:
             built.item = PlacedFileDrawing.item(PlacedFiles.placedFile(placed, transform: transform))
+        case .image(let image)?:
+            built.item = .image(ImageNodes.item(image, transform: transform))
+            built.sources = image.hasTint ? ColorResolver.swatch(of: image.tint).map { [$0] } ?? [] : []
+        case .svgAnimation?:
+            let poster = ImageNodes.poster(node, transform: transform, in: state)
+            built.item = poster.map(DisplayItem.image)
+            built.sources = SvgAnimationInfo(node, in: state)?.poster.map { [$0] } ?? []
         case .group(let group)?:
             built.groupAppearance = Appearances.resolve(group.appearance, order: order)
             built.groupStrokes = GroupStrokeMode(transformAsUnit: group.transformAsUnit)

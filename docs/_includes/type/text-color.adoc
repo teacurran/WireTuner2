@@ -120,6 +120,12 @@ selection.  Rendering: glyph fills and strokes are drawn per run by `WTText`; th
 appearance is drawn by `WTRender` as a rectangle path behind the text (or the container path
 for text inside a path).  Undo: one step per drop or field commit.
 
+NOTE: As built: `block_appearance` (field 7) is the text kind's attribute stack in WTModel
+(`NodeValues.appearanceField(.text)`), so the stack commands (Add Fill, Add Stroke, reorder,
+effects) and graphic styles act on a text block's own fills and strokes as on any object's, and
+copies keep its stack order.  Copy and Paste Attributes still carry a text block's type attributes
+only, never its block stack.
+
 === Build tasks
 
 [[TYPE-029]]

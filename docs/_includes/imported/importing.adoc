@@ -417,6 +417,27 @@ document ("Shared Items") with kbd:[Option] or no document open; the folder is r
 folders older than a day at launch.  Not built: the `WireTunerShare` extension target, its app group
 entitlement and sandbox profile, and the library window's picker.
 
+NOTE: As built by IMG-003 (`WTModel/ImageCommands.swift`).  `NodeKind.image` (170) makes images
+objects: selected, moved, transformed, copied and deleted like any other, with `Objects.bounds` the
+cropped natural rect through the transform.  Commands, one change each, undone by the engine's
+inverse: `PlaceImage` ("Place <name>": `CreateNode` on top of the drawing layer with the pixel
+source, `name` and `source_name`, stored resolution, transform, the link record's asset and
+*Display alpha channel* on -- the importer's `ImportMapping.image` now sets it too), `ReplaceImagePixels`
+("Replace Pixels": `pixels` with `dpi_x`/`dpi_y` recomputed so the placed bounds stay, and
+`source_name` when given, in one `SetFields`), `SetImageResolution` ("Set Resolution": either or both
+dpi registers) and `SetImageSetting` (*Display alpha channel*, *Transparent*, ramp, tint, crop; nil
+clears the register).  Several images take one change ("… (N images)").  The validators are the
+schema's rules checked in the commands (`ImageEditError.invalidValue` names the field): a 32-byte
+hash, format ≤ 128 characters, positive size, 1/8/16 bits, a defined mode, a positive finite dpi,
+a crop inside 0..1 with positive area, ramp values in −100…100.  Mode-gated settings are written on
+any image and ignored on colour ones when read.  The scene draws each image through WTRender's image
+path (`ImageNodes.item`: natural frame, crop, mode, alpha flags, ramp, the tint resolved through the
+build's swatches with the swatch as a dependency, the image's own source profile -- the embedded one
+with `use_embedded` -- and intent, the name); the window's `ImageStore` (IMG-017) supplies the pixels
+and the renderer draws the placeholder, with its download bar, until they arrive.  An unset source
+profile draws the decoded pixels in their own colour space rather than the document's default for
+the mode (deviation).
+
 === Build tasks
 
 [[IMG-001]]

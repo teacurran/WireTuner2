@@ -318,6 +318,18 @@ selected is *Update everywhere* (`ReplaceLink`, "Change link on N objects").  A 
 draft once typed into, committed on kbd:[Return]; when the stored value changes underneath a draft
 the field says "Changed by someone else" (the author's name is not resolved).
 
+NOTE: As built by WEB-004's render and model halves (`WTRender/Links/LinkOverlay.swift`,
+`WTModel/LinkOverlayReading.swift`).  `LinkOverlayReading.overlay` makes a `LinkOverlay` from the
+scene, the window's `LinkIndex` and the text-range rectangles `ExportSnapshot.textLinks` lays out:
+a tint mark over each drawn object carrying a link (its painted bounds as the scene places it) and an
+underline mark for each line of a linked range, in draw order.  `LinkOverlay.draw` paints them into
+a view-space overlay context (a light blue tint; a 2 pt blue underline that does not scale with
+zoom), `url(at:)` gives the hover tooltip's URL (text lines before the object tint beneath them),
+and `dirtyRects(from:to:)` names only the areas of the nodes whose marks changed.  The overlay is
+never in the display list, so toggling it rebuilds nothing and it cannot reach print or an export.
+Not built: the menu:View[Show Links] item, its per-window state, the overlay layer and the tooltip in
+the app (WTApp).
+
 === Build tasks
 
 [[WEB-001]]

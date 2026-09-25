@@ -186,7 +186,7 @@ public struct ExportSnapshot: Sendable {
             guard let page = holder, let text = TextNode(entry.node, in: state) else { continue }
             let position = stacking[page, default: 0]
             stacking[page] = position + 1
-            blocks.append(ExportTextBlock(node: NodeID(entry.node), page: page, stackingOrder: position, story: story(text)))
+            blocks.append(ExportTextBlock(node: NodeID(entry.node), page: page, stackingOrder: position, story: story(text, state: state)))
         }
         return blocks
     }
@@ -219,15 +219,10 @@ public struct ExportSnapshot: Sendable {
         return result
     }
 
-    static func story(_ text: TextNode) -> ExportStory {
-        ExportStory(paragraphs: text.paragraphs.map { paragraph in
-            let scalars = paragraph.range.compactMap(text.scalar(at:)).filter { $0 != "\n" }
-            var string = ""
-            string.unicodeScalars.append(contentsOf: scalars)
-            let props = paragraph.props
-            let style = ExportParagraphStyle(leftIndent: props.leftIndent, rightIndent: props.rightIndent, firstLineIndent: props.firstLineIndent)
-            return ExportParagraph([ExportTextRun(string)], style: style)
-        })
+    /// The story of `text` for text exports: its paragraphs with resolved attributes, the
+    /// document's text styles and swatch colours applied (`TextAttributeMapping.story`, TYPE-034).
+    static func story(_ text: TextNode, state: EngineState) -> ExportStory {
+        TextAttributeMapping.story(text, styles: TextStyleResolver(state), colors: ColorResolver(state))
     }
 }
 

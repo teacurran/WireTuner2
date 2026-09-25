@@ -292,8 +292,12 @@ cache of every reference to the removed style (paragraph registers, and `style` 
 runs where they win) and folds the removed style's settings into each child it re-parents, so
 text using the style or a child renders identically afterwards even when the style was edited
 after it was applied.  Resolving 10,000 paragraphs after a style edit takes a few milliseconds
-(`PerfBudget`, 20 ms).  The document template does not create Normal Text yet (the template is
-DOC's; `CreateNormalTextStyle` is the command to add to it).  Vectors: `type/text-style-attrs-struct`
+(`PerfBudget`, 20 ms).  The document template (`DocumentTemplate`) runs `CreateNormalTextStyle`
+after the default swatches, so every new document has Normal Text; the scene records each text
+node's dependence on the style nodes, the settings node and its inline graphics
+(`TextLayoutReading.sources`), so a style, defaults or inline-graphic edit redraws the text that
+uses it; and the text exports' stories (`ExportSnapshot`) resolve through the document's
+`TextStyleResolver` and swatches.  Vectors: `type/text-style-attrs-struct`
 and `type/style-cached-fallback`.  The Styles panel rows and sheets are TYPE-035.
 
 [[TYPE-035]]

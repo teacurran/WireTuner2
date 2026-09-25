@@ -60,8 +60,12 @@ public enum NodeKind: UInt32, Sendable, CaseIterable {
     case symbol = 151
     /// An instance of a symbol, on a layer (library.adoc).
     case instance = 153
+    /// An imported bitmap (bitmaps.adoc, "Data model"; `ImageProps`).
+    case image = 170
     /// A placed file shown through its preview, such as EPS (import-formats.adoc).
     case placedFile = 171
+    /// A placed SVG animation, drawn as its poster frame (svg-animation.adoc; `SvgAnimationProps`).
+    case svgAnimation = 190
     /// A QR or Code 128 barcode (data-merge.adoc, "Barcodes").
     case barcode = 240
 }

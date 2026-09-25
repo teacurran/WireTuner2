@@ -87,8 +87,8 @@ import WTRender
         fixture.drag(Point(x: 10, y: 10), Point(x: 10.4, y: 10.9))
         await fixture.document.settle()
         let store = fixture.document.state.store
-        #expect(store.nodes.allSatisfy { !store.isCreated($0) || [SwatchFields.kind, PageFields.kind].contains(store.kind($0)) },
-                "only the new document's default swatches and page")
+        #expect(store.nodes.allSatisfy { !store.isCreated($0) || [SwatchFields.kind, PageFields.kind, TextStyleFields.kind].contains(store.kind($0)) },
+                "only the new document's default swatches, Normal Text style and page")
         #expect(!fixture.document.canUndo)
         #expect(fixture.document.changeCount == 0)
     }

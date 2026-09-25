@@ -11,16 +11,29 @@ public struct NodeTree: Hashable, Sendable {
     public var children: [NodeTree]
     /// The node this was read from (references between copied nodes are rewritten through it).
     public var source: OpID?
+    /// The attribute stack's order, bottom first: which list each row comes from, the rows of
+    /// one list in the order `props` holds them.  The three lists share one position space in the
+    /// document (attribute-stack.adoc, "Data model"), which `props` cannot show, so a node read
+    /// from a state records it and `NodeCopier` recreates the interleaving.  Nil (or one that
+    /// does not match the lists' lengths) reads as the fills, then the strokes, then the effects.
+    public var stackOrder: [AppearanceList]?
 
-    public init(props: Wiretuner_Doc_V1_NodeProps, children: [NodeTree] = [], source: OpID? = nil) {
+    public init(props: Wiretuner_Doc_V1_NodeProps, children: [NodeTree] = [], source: OpID? = nil, stackOrder: [AppearanceList]? = nil) {
         self.props = props
         self.children = children
         self.source = source
+        self.stackOrder = stackOrder
     }
 
-    /// `node` as merged, with its live children (deleted descendants are left out).
+    /// `node` as merged, with its live children (deleted descendants are left out) and its stack
+    /// order.
     public init(_ node: OpID, state: EngineState) {
-        self.init(props: state.props(node), children: state.liveChildren(node).map { NodeTree($0, state: state) }, source: node)
+        var order: [AppearanceList]?
+        if case .object? = StackOwner.of(node, in: state) {
+            let rows = AppearanceEditing.stack(node, in: state)
+            if !rows.isEmpty { order = rows.map(\.list) }
+        }
+        self.init(props: state.props(node), children: state.liveChildren(node).map { NodeTree($0, state: state) }, source: node, stackOrder: order)
     }
 
     /// The kind WTModel knows this node as.
@@ -38,6 +51,11 @@ public struct NodeTree: Hashable, Sendable {
         case .barcode?: .barcode
         case .connector?: .connector
         case .placedFile?: .placedFile
+        case .text?: .text
+        case .blend?: .blend
+        case .extrude?: .extrude
+        case .image?: .image
+        case .svgAnimation?: .svgAnimation
         default: nil
         }
     }
@@ -67,7 +85,57 @@ public struct NodeTree: Hashable, Sendable {
             case .instance?: assign(&props.instance.common)
             case .barcode?: assign(&props.barcode.common)
             case .placedFile?: assign(&props.placedFile.common)
+            case .text?: assign(&props.text.common)
+            case .blend?: assign(&props.blend.common)
+            case .extrude?: assign(&props.extrude.common)
+            case .image?: assign(&props.image.common)
+            case .svgAnimation?: assign(&props.svgAnimation.common)
             default: break
+            }
+        }
+    }
+
+    /// The node's attribute stack in `stackOrder` as `PasteAttributes.insert` takes it (effects'
+    /// `attached_to` naming their element's place); nil when the node's kind has no stack or the
+    /// stack is empty.
+    var stack: [AttributePayload.Element]? {
+        guard let kind, NodeValues.appearanceField(kind) != nil, let appearance = NodeValues.appearance(props) else { return nil }
+        let counts: [AppearanceList: Int] = [.fills: appearance.fills.count, .strokes: appearance.strokes.count, .effects: appearance.effects.count]
+        guard counts.values.contains(where: { $0 > 0 }) else { return nil }
+        var order = stackOrder ?? []
+        if AppearanceList.allCases.contains(where: { list in order.count(where: { $0 == list }) != counts[list] }) {
+            order = AppearanceList.allCases.flatMap { Array(repeating: $0, count: counts[$0]!) }
+        }
+        var next: [AppearanceList: Int] = [:]
+        var rows: [(list: AppearanceList, index: Int)] = []
+        for list in order {
+            rows.append((list, next[list, default: 0]))
+            next[list, default: 0] += 1
+        }
+        // Each element's place (1 = bottom) by its source id, for `attached_to`.
+        func id(_ row: (list: AppearanceList, index: Int)) -> Wiretuner_Doc_V1_ElementId {
+            switch row.list {
+            case .fills: appearance.fills[row.index].id
+            case .strokes: appearance.strokes[row.index].id
+            case .effects: appearance.effects[row.index].id
+            }
+        }
+        var place: [Wiretuner_Doc_V1_ElementId: UInt64] = [:]
+        for (offset, row) in rows.enumerated() where place[id(row)] == nil { place[id(row)] = UInt64(offset + 1) }
+        return rows.map { row -> AttributePayload.Element in
+            switch row.list {
+            case .fills: return .fill(appearance.fills[row.index])
+            case .strokes: return .stroke(appearance.strokes[row.index])
+            case .effects:
+                var effect = appearance.effects[row.index]
+                if effect.hasAttachedTo {
+                    if let target = place[effect.attachedTo] {
+                        effect.attachedTo = Ops.elementID(OpID(counter: target, replica: 0))
+                    } else {
+                        effect.clearAttachedTo()
+                    }
+                }
+                return .effect(effect)
             }
         }
     }
@@ -97,6 +165,11 @@ public struct NodeTree: Hashable, Sendable {
 /// `ElementInsert` per SEQUENCE field with every live element under a fresh element id, nested
 /// sequences after their parent element, then the children.  Generic over every kind: the
 /// sequences are found through the schema's merge table, at the wire level.
+///
+/// An object's attribute stack is inserted by `PasteAttributes.insert` in the tree's
+/// `stackOrder`, so a copy keeps the source's interleaving of fills, strokes and effects (each
+/// list positioned on its own would regroup them) and each attached effect stays attached to
+/// the copy of its element.
 ///
 /// Not copied: SET members and TEXT fields (no kind WTModel copies has them yet), a group's
 /// `layer_origins` (written once at grouping time) and a layer's `merged_into`.  A group's
@@ -163,8 +236,12 @@ public enum NodeCopier {
         default:
             break
         }
+        // The stack is inserted as one interleaved run (below), not list by list.
+        let stack = tree.stack
+        if let kind = tree.kind, stack != nil { props = NodeValues.replacing(Self.withoutLists(NodeValues.appearance(props)!), of: kind, in: props) }
         let node = builder.append(Ops.create(parent: parent, position: position, props: props))
         if let source = tree.source { mapping[source] = node }
+        if let kind = tree.kind, let stack { try PasteAttributes.insert(stack, into: node, kind: kind, schema: schema, builder: &builder) }
         let bytes: [UInt8] = try props.serializedBytes()
         if let kind = WireReader.fields(bytes)?.last, kind.wireType == 2,
            let typeName = schema.field(Schema.root, Int(kind.number))?.typeName {
@@ -176,6 +253,15 @@ public enum NodeCopier {
             _ = try create(child, parent: node, position: key, schema: schema, builder: &builder, mapping: &mapping)
         }
         return node
+    }
+
+    /// `appearance` without its fills, strokes and effects (its other fields kept).
+    static func withoutLists(_ appearance: Wiretuner_Doc_V1_AppearanceProps) -> Wiretuner_Doc_V1_AppearanceProps {
+        var result = appearance
+        result.fills = []
+        result.strokes = []
+        result.effects = []
+        return result
     }
 
     /// Inserts every element of each SEQUENCE field of the message `message` (encoded as

@@ -9,8 +9,10 @@ import WTProto
 /// Deviation: `clipboard.proto` is not in `proto/` yet (the proto track owns it), so the payload
 /// is encoded here by hand in exactly the wire format of the sketched `ClipboardPayload` message
 /// (nodes 1, layer_names 2, assets 3, bounds 4, source_document 5; `ClipboardNode` props 1,
-/// children 2, source_id 3).  No assets are carried: swatches, styles, symbols and brushes are
-/// not nodes yet, and colours are inline.
+/// children 2, source_id 3, plus stack_order 4: one byte per attribute-stack row, bottom first,
+/// the row's `AppearanceProps` list number, since the typed props cannot show how the lists
+/// interleave).  No assets are carried: swatches, styles, symbols and brushes are not nodes yet,
+/// and colours are inline.
 public struct ClipboardPayload: Hashable, Sendable {
     /// The pasteboard type.
     public static let pasteboardType = "com.villagecompute.wiretuner.objects"
@@ -74,6 +76,7 @@ public struct ClipboardPayload: Hashable, Sendable {
         var out = Wire.field(1, Wire.bytes { try node.props.serializedBytes() })
         for child in node.children { out += Wire.field(2, encode(child)) }
         if let source = node.source { out += Wire.field(3, Wire.bytes { try source.proto.serializedBytes() }) }
+        if let order = node.stackOrder { out += Wire.field(4, order.map { UInt8($0.rawValue) }) }
         return out
     }
 
@@ -117,6 +120,10 @@ public struct ClipboardPayload: Hashable, Sendable {
             case 3:
                 guard let id = try? Wiretuner_Doc_V1_OpId(serializedBytes: field.payload) else { return nil }
                 tree.source = OpID(id)
+            case 4:
+                // An unknown list number leaves the order unset (fills, strokes, effects).
+                let order = field.payload.compactMap { AppearanceList(rawValue: UInt32($0)) }
+                tree.stackOrder = order.count == field.payload.count ? order : nil
             default:
                 continue
             }

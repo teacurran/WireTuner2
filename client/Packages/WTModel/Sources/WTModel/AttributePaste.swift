@@ -46,7 +46,8 @@ public struct AttributePayload: Hashable, Sendable {
     public init?(copying node: OpID, from state: EngineState) {
         guard Objects.isObject(node, in: state) else { return nil }
         var stack: [Element]?
-        if StackOwner.of(node, in: state) != nil, let appearance = StackOwner.appearance(node, in: state) {
+        // A text block's look is its type attributes; its block fills and strokes are not copied.
+        if state.nodeKind(node) != .text, StackOwner.of(node, in: state) != nil, let appearance = StackOwner.appearance(node, in: state) {
             let rows = AppearanceEditing.stack(node, in: state)
             let place = Dictionary(uniqueKeysWithValues: rows.enumerated().map { ($0.element.element, UInt64($0.offset + 1)) })
             func renumbered(_ id: Wiretuner_Doc_V1_ElementId) -> Wiretuner_Doc_V1_ElementId {
@@ -170,12 +171,17 @@ public struct PasteAttributes: Command {
 
     /// Whether `node` takes some part of `payload`.
     static func takes(_ payload: AttributePayload, _ node: OpID, in state: EngineState) -> Bool {
-        (payload.stack != nil && StackOwner.of(node, in: state) != nil) || (payload.textAttributes != nil && state.textNode(node) != nil)
+        (payload.stack != nil && takesStack(node, in: state)) || (payload.textAttributes != nil && state.textNode(node) != nil)
+    }
+
+    /// Whether `node` takes a payload's stack: an object with one, not a text block.
+    static func takesStack(_ node: OpID, in state: EngineState) -> Bool {
+        StackOwner.of(node, in: state) != nil && state.nodeKind(node) != .text
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         for node in Objects.editable(nodes, in: state) {
-            if let stack = payload.stack, case .object(let kind)? = StackOwner.of(node, in: state) {
+            if let stack = payload.stack, Self.takesStack(node, in: state), case .object(let kind)? = StackOwner.of(node, in: state) {
                 try replaceStack(of: node, kind: kind, with: stack, state: state, builder: &builder)
             }
             if let attributes = payload.textAttributes, let text = state.textNode(node) {

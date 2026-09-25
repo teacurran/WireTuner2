@@ -202,6 +202,12 @@ struct PaintListBuilder: Sendable {
             } else {
                 addFill(DisplayPath(rect: image.visibleRect), transform: transform, rule: .nonZero, color: Color(white: 0.75), state: state, into: &result)
                 addImageBox(image, transform: transform, color: Color(white: 0.45), lineWidth: 1, state: state, into: &result)
+                // With a store the reference texture carries the glyph (the Core Graphics drawing).
+                if image.showsPlayGlyph {
+                    let glyph = ImageDrawing.playGlyph(image)
+                    addFill(glyph.disc, transform: transform, rule: .nonZero, color: ImageDrawing.playDisc, state: state, into: &result)
+                    addFill(glyph.triangle, transform: transform, rule: .nonZero, color: ImageDrawing.playTriangle, state: state, into: &result)
+                }
             }
         case .text(let text):
             let transform = text.transform.concatenating(base)

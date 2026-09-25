@@ -76,11 +76,15 @@ public struct LayerContent: Sendable {
     public var visible: Bool
     /// The layer's objects bottom first, each with the node it was built from.
     public var items: [(item: DisplayItem, node: NodeID?)]
+    /// Each item's pasteboard bounds when the builder already measured them (`items[i].bounds`),
+    /// parallel to `items`; nil (or a different count) computes them.
+    public var bounds: [Rect?]?
 
-    public init(layer: LayerRendering, visible: Bool = true, items: [(item: DisplayItem, node: NodeID?)]) {
+    public init(layer: LayerRendering, visible: Bool = true, items: [(item: DisplayItem, node: NodeID?)], bounds: [Rect?]? = nil) {
         self.layer = layer
         self.visible = visible
         self.items = items
+        self.bounds = bounds
     }
 }
 
@@ -97,11 +101,14 @@ public enum LayerScene {
     }
 
     /// The list of `layers` (bottom first) for `purpose`, with `background` items (page
-    /// furniture) beneath every layer.
+    /// furniture) beneath every layer.  A layer's measured `bounds` are reused; an output list
+    /// leaves out the canvas-only marks (`ImageItem.showsPlayGlyph`), which never change bounds.
     public static func build(canvas: CanvasID, layers: [LayerContent], purpose: Purpose, background: [DisplayItem] = []) -> DisplayList {
         var items = background
         var nodes: [NodeID?] = Array(repeating: nil, count: background.count)
+        var itemBounds = background.map(\.bounds)
         var spans: [LayerSpan] = []
+        let output = if case .output = purpose { true } else { false }
         for content in layers {
             var rendering = content.layer
             switch purpose {
@@ -115,13 +122,38 @@ public enum LayerScene {
                 rendering.keyline = false
             }
             let start = items.count
-            for entry in content.items {
-                items.append(entry.item)
+            let measured = content.bounds.flatMap { $0.count == content.items.count ? $0 : nil }
+            for (index, entry) in content.items.enumerated() {
+                items.append(output ? (entry.item.withoutCanvasMarks ?? entry.item) : entry.item)
                 nodes.append(entry.node)
+                itemBounds.append(measured.map { $0[index] } ?? entry.item.bounds)
             }
             spans.append(LayerSpan(layer: rendering, range: start..<items.count))
         }
-        return DisplayList(canvas: canvas, items: items, nodeIDs: nodes.contains { $0 != nil } ? nodes : [], layers: spans)
+        return DisplayList(canvas: canvas, items: items, itemBounds: itemBounds, nodeIDs: nodes.contains { $0 != nil } ? nodes : [], layers: spans)
+    }
+}
+
+extension DisplayItem {
+    /// The item without its canvas-only marks (a poster's play glyph, at any depth); nil when it
+    /// has none, so unmarked items are never copied.
+    var withoutCanvasMarks: DisplayItem? {
+        switch self {
+        case .image(var image) where image.showsPlayGlyph:
+            image.showsPlayGlyph = false
+            return .image(image)
+        case .group(var group):
+            var changed = false
+            for index in group.children.indices {
+                if let child = group.children[index].withoutCanvasMarks {
+                    group.children[index] = child
+                    changed = true
+                }
+            }
+            return changed ? .group(group) : nil
+        default:
+            return nil
+        }
     }
 }
 

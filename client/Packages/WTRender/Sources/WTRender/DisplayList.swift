@@ -195,6 +195,9 @@ public struct ImageItem: Hashable, Sendable {
     /// What draws, in the image's local space (under `transform`), whenever its pixels cannot:
     /// a placed file's gray box (IMG-011, `PlacedFileDrawing`).  Nil draws the placeholder.
     public var fallback: DisplayItem?
+    /// A placed SVG animation's poster (WEB-026): the play glyph is drawn over its centre on the
+    /// canvas.  `LayerScene` clears it in output lists, so print and exports never show it.
+    public var showsPlayGlyph: Bool
 
     public init(
         assetID: String,
@@ -210,7 +213,8 @@ public struct ImageItem: Hashable, Sendable {
         sourceProfile: WTColor.ProfileRef? = nil,
         intent: WTColor.RenderingIntent? = nil,
         name: String = "",
-        fallback: DisplayItem? = nil
+        fallback: DisplayItem? = nil,
+        showsPlayGlyph: Bool = false
     ) {
         self.assetID = assetID
         self.rect = rect
@@ -226,6 +230,7 @@ public struct ImageItem: Hashable, Sendable {
         self.intent = intent
         self.name = name
         self.fallback = fallback
+        self.showsPlayGlyph = showsPlayGlyph
     }
 
     /// The natural frame of a `pixelWidth` × `pixelHeight` image at `dpiX` × `dpiY` pixels per
@@ -459,8 +464,11 @@ public struct DisplayList: Hashable, Sendable {
         self.init(canvas: canvas, items: items, itemBounds: items.map(\.bounds), nodeIDs: nodeIDs, layers: layers)
     }
 
-    /// A list over items whose bounds are already known (a subset of another list's).
-    init(canvas: CanvasID, items: [DisplayItem], itemBounds: [Rect?], nodeIDs: [NodeID?], layers: [LayerSpan]) {
+    /// A list over items whose bounds are already known (a subset of another list's, or a
+    /// builder that measured them while placing): `itemBounds[i]` must be `items[i].bounds`.  A
+    /// bounds array of the wrong length is ignored and the bounds are computed.
+    public init(canvas: CanvasID, items: [DisplayItem], itemBounds: [Rect?], nodeIDs: [NodeID?] = [], layers: [LayerSpan] = []) {
+        let itemBounds = itemBounds.count == items.count ? itemBounds : items.map(\.bounds)
         self.canvas = canvas
         self.items = items
         self.itemBounds = itemBounds
