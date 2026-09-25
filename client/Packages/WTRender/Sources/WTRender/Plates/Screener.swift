@@ -135,10 +135,13 @@ public struct Screener: Sendable {
 
     /// `plate` of `displayList` over the pasteboard rectangle `page`, rasterized at this
     /// resolution band by band (bands in parallel) and screened: each object with an entry in
-    /// `objectScreens` (keyed by its top-level node id; the effective screen WTModel resolved:
-    /// its own, else its nearest ancestor's) with that screen, everything else with
-    /// `plateScreen`.  `ignoreObjectScreens` (`ignore_object_halftones`) screens everything
-    /// with the plate's.  `isCancelled` is polled before each band.
+    /// `objectScreens` with that screen, everything else with `plateScreen`.  Entries are keyed
+    /// by node id: a top-level item's from `displayList.nodeIDs`, a group member's through
+    /// `nestedNodeIDs` (index path: top-level index, then child indices, as `ExportPage` keeps
+    /// them), so a member's own screen wins over its group's and members without one take the
+    /// group's (halftones.adoc: "A group's screen applies to every member that has no screen of
+    /// its own").  `ignoreObjectScreens` (`ignore_object_halftones`) screens everything with the
+    /// plate's.  `isCancelled` is polled before each band.
     public func screenPlate(
         _ displayList: DisplayList,
         plate: Ink,
@@ -146,6 +149,7 @@ public struct Screener: Sendable {
         page: Rect,
         plateScreen: HalftoneScreen,
         objectScreens: [NodeID: HalftoneScreen] = [:],
+        nestedNodeIDs: [[Int]: NodeID] = [:],
         ignoreObjectScreens: Bool = false,
         isCancelled: @Sendable () -> Bool = { false }
     ) throws -> BitPlate {
@@ -155,7 +159,7 @@ public struct Screener: Sendable {
         guard width > 0, height > 0, width <= 1 << 20, height <= 1 << 20 else {
             throw ScreenError.emptyPage
         }
-        let assignment = ignoreObjectScreens ? nil : ScreenAssignment(displayList, plateScreen: plateScreen, objectScreens: objectScreens)
+        let assignment = ignoreObjectScreens ? nil : ScreenAssignment(displayList, plateScreen: plateScreen, objectScreens: objectScreens, nestedNodeIDs: nestedNodeIDs)
         let grids = (assignment?.screens ?? [plateScreen]).map { ScreenGrid(screen: $0, resolution: resolution) }
         let plateRenderer = renderer.renderer(for: plate)
         var result = BitPlate(width: width, height: height)
@@ -218,11 +222,13 @@ public struct Screener: Sendable {
         page: Rect,
         plateScreen: HalftoneScreen,
         objectScreens: [NodeID: HalftoneScreen] = [:],
+        nestedNodeIDs: [[Int]: NodeID] = [:],
         ignoreObjectScreens: Bool = false
     ) async throws -> BitPlate {
         let screener = self
         let task = Task.detached(priority: .userInitiated) {
-            try screener.screenPlate(displayList, plate: plate, renderer: renderer, page: page, plateScreen: plateScreen, objectScreens: objectScreens, ignoreObjectScreens: ignoreObjectScreens, isCancelled: { Task.isCancelled })
+            try screener.screenPlate(displayList, plate: plate, renderer: renderer, page: page, plateScreen: plateScreen, objectScreens: objectScreens,
+                                     nestedNodeIDs: nestedNodeIDs, ignoreObjectScreens: ignoreObjectScreens, isCancelled: { Task.isCancelled })
         }
         return try await withTaskCancellationHandler {
             try await task.value
@@ -255,33 +261,47 @@ private struct ScreenOutput: @unchecked Sendable {
     let bits: UnsafeMutablePointer<UInt8>
 }
 
-/// Which screen paints each pixel: the list recoloured so every top-level item paints its
-/// screen's index, drawn without anti-aliasing.
+/// Which screen paints each pixel: the list recoloured so every object paints its screen's
+/// index, drawn without anti-aliasing.  Screens are assigned down the group tree: an item with a
+/// screen of its own (by node id, top-level or nested) paints its index, and everything inside
+/// it that has none paints the same.
 struct ScreenAssignment: Sendable {
     let screens: [HalftoneScreen]
     let list: DisplayList
 
     /// Nil when no object has a screen of its own (every pixel takes the plate's).
-    init?(_ displayList: DisplayList, plateScreen: HalftoneScreen, objectScreens: [NodeID: HalftoneScreen]) {
-        guard !objectScreens.isEmpty, !displayList.nodeIDs.isEmpty else {
+    init?(_ displayList: DisplayList, plateScreen: HalftoneScreen, objectScreens: [NodeID: HalftoneScreen], nestedNodeIDs: [[Int]: NodeID] = [:]) {
+        guard !objectScreens.isEmpty, !displayList.nodeIDs.isEmpty || !nestedNodeIDs.isEmpty else {
             return nil
         }
         var screens = [plateScreen]
-        var items: [DisplayItem] = []
         var used = false
-        for (index, item) in displayList.items.enumerated() {
-            var slot = 0
-            if let node = displayList.nodeIDs[index], let screen = objectScreens[node] {
-                if let existing = screens.firstIndex(of: screen) {
-                    slot = existing
-                } else if screens.count < 256 {
-                    screens.append(screen)
-                    slot = screens.count - 1
-                }
-                used = used || slot != 0
+        func slot(for node: NodeID?, inherited: Int) -> Int {
+            guard let node, let screen = objectScreens[node] else { return inherited }
+            if let existing = screens.firstIndex(of: screen) {
+                used = used || existing != 0
+                return existing
             }
-            items.append(item.painted(Color(white: Double(slot) / 255)))
+            guard screens.count < 256 else { return inherited }
+            screens.append(screen)
+            used = true
+            return screens.count - 1
         }
+        func assign(_ item: DisplayItem, path: [Int], inherited: Int) -> DisplayItem {
+            let node = path.count == 1 ? (displayList.nodeIDs.indices.contains(path[0]) ? displayList.nodeIDs[path[0]] : nil) : nestedNodeIDs[path]
+            let own = slot(for: node, inherited: inherited)
+            guard case .group(let group) = item, !nestedNodeIDs.isEmpty else {
+                return item.painted(Color(white: Double(own) / 255))
+            }
+            return .group(GroupItem(
+                children: group.children.enumerated().map { assign($1, path: path + [$0], inherited: own) },
+                clip: group.clip,
+                clipRule: group.clipRule,
+                transform: group.transform,
+                hiddenInKeyline: group.hiddenInKeyline
+            ))
+        }
+        let items = displayList.items.enumerated().map { assign($1, path: [$0], inherited: 0) }
         guard used else {
             return nil
         }

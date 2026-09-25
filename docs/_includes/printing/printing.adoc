@@ -507,6 +507,38 @@ scaled by *Uniform*/*Variable*/*Fit on paper*, centred on the printable area and
 set on the context.  Not built here (PRINT-003 to PRINT-006): tiling, marks and bleed drawn, separations, emulsion and
 negative, *Selected objects only*, presets through the print info dictionary, and the focused-field rule beyond the
 Object panel's `CommitField`.
+NOTE: As built by PRINT-003, PRINT-005 and PRINT-006 (pipeline; `WTInterchange/Print`, `WTModel/PrintSnapshot.swift`,
+additions in `WTRender`).  The plan is platform-neutral (D-073): `PrintRequest` holds the snapshot as an `ExportScene`, the
+settings as `PrintOptions` (read-time normalized again), the paper as `PrintPaper` (size and printable area in points, *top-left
+origin, y down*, and the queue's resolution), and the job parameters (page range, *Selected objects only*, each page's zero
+point, object screens, path flatness, the date).  `PrintSnapshot.capture` fills it from the document -- `ExportSnapshot` with
+every page (or the output area, `.outputArea(rect)`, which the caller reads with `OutputArea.read`) captured grown by the
+bleed so artwork reaching only into the bleed prints, then set back to the page -- and `PrintPlan(request)` is the pure
+function: `OutputSheet`s ordered page, tile (row-major), plate, each with the pasteboard region it prints, the pasteboard ->
+paper transform, the clip (page plus bleed within the tile), the trim, its marks and labels in paper space, its name (`Page 1,
+row 2 column 1, Magenta`) and whether a mark or label falls outside the printable area (`PrintPlan.clippingWarning` is the
+preview's warning).  `PrintSheetRenderer.draw(sheet:of:into:)` draws one sheet into any y-up paper context -- the print view's,
+a PDF page (`PrintPDF.data`, one page per sheet, the renderer switched to `CoreGraphicsRenderer.forVectorOutput()`) or a
+bitmap -- so the print view, *Save as PDF* and the tests draw the same sheets; `drawPreviewOverlays` draws the preview's
+non-printing overlays (paper, dotted printable area, page, bleed band, tile grid with the current tile and hatched overlaps).
+A composite sheet at 100% rasterizes identically to the canvas render of the page.  Decisions the page left open: *Fit on
+paper* fits the page plus bleed into the printable area less the marks' margin (`PrinterMarks.margin`, 30 pt) when any mark is
+on; *Automatic* tiles are the printable area (less that margin) over the scale, placed at its top-left, and ignore the
+offset; *Manual* tiling's tile has its top-left at the page's zero point (`Page.zeroPoint`; the default zero point is the
+page's bottom-left, so the default tile hangs below the page); a tile carries crop marks only at the page corners that fall
+on it, tile marks (ticks outside the printed area where each neighbour's artwork begins) and, with any mark on, its label;
+crop marks start 6 pt outside the bleed, 18 pt long, registration targets centre on each side, labels hug the printed area
+(file name, page and date top left, separation name bottom left, tile label top right).  Flatness: `CoreGraphicsRenderer`
+gained `outputFlatness` (the job's, set on the context in place of the flattening tolerance's) and `flatnessOverrides` (a
+path's own flatness by item path, `CGContextSetFlatness` around that item).  *Print text as outlines* is the
+`PrintSheetRenderer.textOutliner` hook (PRINT-014) and *Rasterize output* is drawn here (`rasterize_dpi`, 4096-row bands,
+marks stay vector; PRINT-013's progress sheet is the app's).  Presets (PRINT-004's pipeline half): `PrintPreset` writes the
+pane's registers and plate rows as `WTPrint*` property-list entries (spot rows keyed by swatch name) and reads them back;
+`PrintPresets.preset(state)` makes one from the document and `ApplyPrintPreset` writes one as a single change labelled
+`Apply print preset`, editing or inserting the plate entries of the inks the document has.  The AppKit side (`PrintPlanView`,
+`NSPrintOperation`, `PrintAccessoryController`) is WTApp's: its view paginates by `PrintPlan.count`, draws
+`PrintSheetRenderer.draw` for the sheet in `rectForPage` (plus the overlays when `NSPrintOperation.current?.isPreview`), and
+the pane re-plans on every commit and remote change.
 
 === Build tasks
 

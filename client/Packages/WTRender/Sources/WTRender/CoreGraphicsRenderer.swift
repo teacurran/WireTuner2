@@ -63,6 +63,15 @@ public struct CoreGraphicsRenderer: WTRender {
     /// reaches Core Graphics, and the sheet starts white.  Nil draws the composite.
     public var plate: PlateContext?
 
+    /// The print job's *Flatness* (PRINT-006): the device-pixel flatness set on the context in
+    /// place of the flattening tolerance's; nil (the canvas, or a job at 0) keeps the tolerance.
+    public var outputFlatness: Double?
+
+    /// Per-object flatness for output (PRINT-006): device pixels by item index path (a top-level
+    /// index, then group child indices), applied with `CGContextSetFlatness` around that item's
+    /// drawing -- a path's own *Flatness* overriding the job's.  Empty for the canvas.
+    public var flatnessOverrides: [[Int]: Double] = [:]
+
     /// Whether the context is vector output (PDF): raster effects are placed as images at the
     /// objects' own resolution and masks become image soft masks.
     var vectorOutput = false
@@ -100,6 +109,18 @@ public struct CoreGraphicsRenderer: WTRender {
     public func with(overprintPreview: Bool) -> CoreGraphicsRenderer {
         var result = self
         result.overprintPreview = overprintPreview
+        return result
+    }
+
+    /// The same renderer set up for a vector context -- a PDF, or the print context the print
+    /// path draws into (PRINT-003): raster effects placed as images at `rasterScale` device pixels
+    /// per point, masks as image soft masks, colours tagged, no proofing and no greeking, as
+    /// `renderPDF` draws.
+    public func forVectorOutput(rasterScale: Double = CoreGraphicsRenderer.pdfRasterScale) -> CoreGraphicsRenderer {
+        var result = self
+        result.rasterScale = max(rasterScale.isFinite ? rasterScale : 1, 1)
+        result.vectorOutput = true
+        result.colorManagement.proof = nil
         return result
     }
 
@@ -196,7 +217,7 @@ public struct CoreGraphicsRenderer: WTRender {
     ) {
         context.saveGState()
         defer { context.restoreGState() }
-        context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
+        context.setFlatness(CGFloat(outputFlatness ?? flatteningTolerance.devicePixels))
         context.translateBy(x: 0, y: CGFloat(surface.height))
         context.scaleBy(x: 1, y: -1)
         if let background = plate == nil ? background : .white {
@@ -254,7 +275,7 @@ public struct CoreGraphicsRenderer: WTRender {
     func drawCanvasItems(_ items: [DisplayItem], canvas: DisplayList, in context: CGContext, lensDepth: Int) {
         context.saveGState()
         defer { context.restoreGState() }
-        context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
+        context.setFlatness(CGFloat(outputFlatness ?? flatteningTolerance.devicePixels))
         let cull = Rect(context.boundingBoxOfClipPath)
         let base = DrawState(canvas: canvas, lensDepth: lensDepth, canvasToBase: context.ctm)
         for (index, item) in items.enumerated() {
@@ -270,7 +291,7 @@ public struct CoreGraphicsRenderer: WTRender {
     func drawNested(_ items: [DisplayItem], in context: CGContext) {
         context.saveGState()
         defer { context.restoreGState() }
-        context.setFlatness(CGFloat(flatteningTolerance.devicePixels))
+        context.setFlatness(CGFloat(outputFlatness ?? flatteningTolerance.devicePixels))
         let state = DrawState(canvasToBase: context.ctm)
         let cull = Rect(context.boundingBoxOfClipPath)
         for item in items {
@@ -279,6 +300,16 @@ public struct CoreGraphicsRenderer: WTRender {
     }
 
     func draw(_ item: DisplayItem, state: DrawState, cull: Rect, into context: CGContext) {
+        if !flatnessOverrides.isEmpty, let flatness = flatnessOverrides[state.indexPath] {
+            var inner = self
+            context.saveGState()
+            context.setFlatness(CGFloat(flatness))
+            // Members of an overridden group keep their own overrides.
+            inner.flatnessOverrides = flatnessOverrides.filter { $0.key.count > state.indexPath.count }
+            inner.draw(item, state: state, cull: cull, into: context)
+            context.restoreGState()
+            return
+        }
         if viewMode.isKeyline {
             drawKeyline(item, state: state, cull: cull, into: context)
             return

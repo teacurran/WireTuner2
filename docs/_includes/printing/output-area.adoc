@@ -146,6 +146,11 @@ is kept per document in this Mac's user defaults (`WTOutputAreaShown.<document>`
 table, and menu:View[Output Area > Remove] writes the register unset.  The Export sheet's *Output area* reads the area.
 The *Done when* UI tests are unit tests hosted in the app (`PrintFeaturesTests`); the conformance vector is not added
 (the register uses the existing ATOMIC policy).
+NOTE: The plan half of PRINT-012 is built with PRINT-003 (`WTInterchange/Print`): `PrintSnapshot.capture` with
+`.outputArea(rect)` (the caller passes `OutputArea.read`) captures the area as the job's one page -- no page number, so the
+page range does not apply -- and `PrintRequest.Source.outputArea(pageOutlines:)` carries the rectangles of the pages the area
+meets, which `PrintSheetRenderer` strokes (0.25 pt, black) inside the clip when *Print page boundaries* is on; marks, bleed,
+scaling and tiling treat the area as the page.
 
 === Build tasks
 

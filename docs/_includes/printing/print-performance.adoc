@@ -121,6 +121,12 @@ Nothing.
   composite, separated, tiled and rasterized paths to PDF and compares rasterized pages with
   the canvas renderer's output.
 
+NOTE: *Rasterize output* is drawn by `PrintSheetRenderer` (PRINT-006's hook, built with it): the sheet's artwork -- composite
+in RGB, a plate in gray -- rendered at `rasterize_dpi` over the printed area in bands of at most `bandHeight` (4096) rows,
+each band placed as one image, the marks and labels drawn afterwards as vectors; `isCancelled` is polled between bands and by
+the screener, and a cancelled sheet throws `CancellationError`.  The progress sheet, the snapshot hand-off and the print-time
+raster effect resolution remain PRINT-013's.
+
 === Build tasks
 
 [[PRINT-013]]

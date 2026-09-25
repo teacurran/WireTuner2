@@ -140,7 +140,10 @@ plate's shape and a frequency of 0 (or outside 1--600) the plate's frequency; a 
 inherited is no object screen, and *Ignore object screens* gives none.  The screener assigns screens
 per top-level item, so a group's screen covers its members and a member's own screen inside a group
 is not separable; resolution through groups (PRINT-010) needs member-level spans in WTRender's
-`ScreenAssignment`.
+`ScreenAssignment`.  Since PRINT-008 it has them: `Screener.screenPlate(..., nestedNodeIDs:)` takes the page's
+nested node ids (index path -> node, as `ExportPage` keeps them) and `ScreenAssignment` assigns screens down the group tree,
+so a member's own screen wins over its group's and members without one take the group's; the print path passes every
+object's own screen (`PrintSnapshot.objectScreens`, any depth) rather than `Halftones.objectScreens`.
 
 NOTE: As built by PRINT-010 (`WTApp/Print/HalftonesPanel.swift`; `WTModel/ObjectHalftones.swift`, a new file).
 `SetObjectHalftone(nodes, halftone:)` writes `CommonProps.halftone` whole on each unlocked object ("Change halftone of N

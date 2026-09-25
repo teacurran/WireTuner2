@@ -197,6 +197,19 @@ the resolved colour (`Color.spot`), an unnamed tint of a spot swatch at its perc
 components are the swatch's live colour.  A change to a swatch rebuilds and repaints the objects
 using it or a tint of it (`SwatchIndex`), no others.
 
+NOTE: As built by PRINT-008, with PRINT-009's `screen_in_app` wiring (`WTInterchange/Print`).  With *Separations* the plan
+emits one sheet per printed plate -- `PrintOptions.printedPlates`: the ink list's rows with *Print* on, spot rows dropped
+under *Print spot colors as process* -- in C, M, Y, K, spot order after the page and tile.  The ink list
+(`PrintSnapshot.plates`, and `PrintSnapshot.inks` for the pane's rows) is the process inks plus the spot inks the printed
+artwork uses (base spot swatches in swatch order), each with its plate entry's print, angle and frequency or the defaults;
+a preset's rows cover every spot swatch.  A plate sheet draws the list through `PlateRenderer.drawPlate` (grays), or, with
+*Screen in {product}*, through `WTRender.Screener`: the list is moved onto the paper, screened at the queue's resolution
+(else `rasterize_dpi`, else 300 dpi -- the page names no value when both are unset) over the printed area with the plate's
+screen (its angle, its frequency or the document's, the document's shape) and every object screen resolved for that plate
+(`ObjectScreen`: *Default* parts take the plate's), member screens found through the page's nested node ids, and placed as
+the 1-bit image.  Separation-name labels read `Magenta 75° 133 lpi`; marks and labels are drawn in black on every plate at
+the same paper position, before *Negative* inverts the whole sheet and after *Emulsion down* mirrored it.
+
 === Build tasks
 
 [[PRINT-007]]
