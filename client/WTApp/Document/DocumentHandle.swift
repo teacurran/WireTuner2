@@ -358,12 +358,15 @@ final class DocumentHandle: Identifiable, CommandSink {
     }
 
     /// The layout of text node `node` as the canvas draws it (container space: the node's own
-    /// space; `Objects.pasteboardTransform` places it), nil when it is not a text node.
+    /// space; `Objects.pasteboardTransform` places it), nil when it is not a text node.  Text on a
+    /// path is laid out along (or inside) it, as the scene draws it, so carets, selections and hit
+    /// tests follow the curve (text-on-path.adoc, "Client").
     func textLayout(for node: OpID) -> TextLayout? {
         if let cached = textLayouts[node], cached.count == changeCount { return cached.layout }
         let state = state
         guard let text = state.textNode(node) else { return nil }
-        let layout = TextLayoutReading.layout(text, engine: textEngine, colors: ColorResolver(state))
+        let onPath = TextLayoutReading.path(of: text, in: state) != nil
+        let layout = TextLayoutReading.layout(text, engine: textEngine, colors: ColorResolver(state), state: onPath ? state : nil)
         textLayouts[node] = (changeCount, layout)
         return layout
     }

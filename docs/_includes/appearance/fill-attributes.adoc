@@ -453,6 +453,9 @@ or, unset, at the centre of its own bounds; dragging writes `centerpoint` on eve
 undo group ("Move lens centerpoint", one step; kbd:[Esc] undoes it) and kbd:[Shift]-click clears it
 ("Reset lens centerpoint").  Deselected objects show none.
 
+NOTE: The lens form's *Snapshot* (`WTApp/Inspectors/FillEditors.swift`) turned on performs `SnapshotLens` (the flag and the
+captured contents in one change, "Snapshot"); turned off it clears both, as before.
+
 === Build tasks
 
 [[ATTR-016]]

@@ -26,6 +26,9 @@ final class ExportController {
     var configureBuilder: @MainActor (inout DocumentDisplayListBuilder, DocumentHandle) -> Void = { _, _ in }
     /// The window's output area, once the Output Area tool makes one.
     var outputArea: @MainActor (DocumentWindowController) -> Rect? = { _ in nil }
+    /// A comment author's display name in a window (the window's roster), for *Comments as
+    /// annotations* (COLLAB-033); the account id without one.
+    var commentAuthor: @MainActor (DocumentWindowController, String) -> String = { $1 }
     var runSavePanel: @MainActor (NSSavePanel, NSWindow?) async -> URL? = ModalUI.url
     var showAlert: @MainActor (String, String, NSWindow?) -> Void = ModalUI.alert
     /// Asks for a password at export time (a preset stores none); nil when cancelled.
@@ -210,7 +213,14 @@ final class ExportController {
         var builder = DocumentDisplayListBuilder(canvas: CanvasID("export-\(document.id)"))
         configureBuilder(&builder, document)
         let blobs = blobs
-        return ExportSnapshot.capture(document.state, request: request, builder: builder, blob: { blobs.cached($0) })
+        var snapshot = ExportSnapshot.capture(document.state, request: request, builder: builder, blob: { blobs.cached($0) })
+        // *Comments as annotations* (PDF, never under a PDF/X standard, which forces it off).
+        let pdf = settings.options.pdf
+        if settings.format == .pdf, pdf.commentsAsAnnotations, pdf.standard == .none {
+            let author = commentAuthor
+            snapshot.scene.comments = ExportSnapshot.comments(document.state, pages: document.pageList) { author(window, $0) }
+        }
+        return snapshot
     }
 
     /// Notes the snapshot adds to the summary.

@@ -328,6 +328,20 @@ struct EffectEditorModel {
     func setOperation(_ op: Wiretuner_Doc_V1_BooleanOp) -> any WTModel.Command {
         edit("Change operation", [EffectField.combine(1)]) { $0.combine.op = op }
     }
+
+    /// The selected groups whose Combine draws (btn:[Expand] is enabled for them).
+    var expandableGroups: [OpID] {
+        let state = context.document.state
+        var seen: Set<OpID> = []
+        return pairs.map(\.node).filter { CombineReading.canExpand($0, in: state) && seen.insert($0).inserted }
+    }
+
+    /// btn:[Expand] (FX-049): each group's combined outline written as one path in its place, one
+    /// change "Expand Combine"; nil when no selected group's Combine draws.
+    func expandCombine() -> (any WTModel.Command)? {
+        let groups = expandableGroups
+        return groups.isEmpty ? nil : ExpandCombine(groups)
+    }
 }
 
 /// The btn:[Add Effect] menu's groups (live-effects.adoc, "To add a live effect"): vector effects
@@ -483,8 +497,16 @@ struct EffectEditorView: View {
         .disabled(model.cornersAll != false)
     }
 
+    /// btn:[Expand] in the Combine form.
+    static func expanding(_ model: EffectEditorModel) -> () -> Void {
+        { model.context.perform(model.expandCombine()) }
+    }
+
     @ViewBuilder private var combine: some View {
         AttributePicker(title: "Operation", value: model.operation, choices: EffectEditorModel.operations, identifier: "effect.combine.op",
                         commit: model.context.committing(model.setOperation))
+        Button("Expand", action: Self.expanding(model)).disabled(model.expandableGroups.isEmpty)
+            .help("Replace the group with its combined outline as one path")
+            .accessibilityIdentifier("effect.combine.expand")
     }
 }

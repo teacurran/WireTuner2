@@ -248,6 +248,16 @@ hit testing of the text editing session, which still lay out the block
 back to a block and Restore brings the attachment back; two replicas attaching one path to
 different texts converge, the loser a plain block).
 
+NOTE: As built by TYPE-017's text-on-path items (`WTApp/Text/TextOnPathMenu.swift`).  menu:Text[Attach to Path]
+(kbd:[Cmd+Shift+Y]), *Flow Inside Path* and *Detach from Path* are commands on the selection -- Attach and Flow want one text
+block and one path (Flow a closed one; a block already on a path says to detach first) and select the text afterwards;
+Detach takes every selected text on a path or path of one -- and the Text toolbar's btn:[Attach to Path] and btn:[Flow
+Inside Path] are the same commands.  The Object panel shows btn:[Attach to Path] and btn:[Flow Inside Path] for a text block
+and a path, btn:[Detach from Path] for text on a path.  The Text tool's editing session lays text on a path out along it
+(`DocumentHandle.textLayout` passes the state for text on a path; `TextEditingSession` uses the path container), so
+carets, selections, clicks and drags follow the curve; a block's hit area is then its path and glyph boxes
+(`TextFrames.frame`).  Tests: `TextOnPathMenuTests`.
+
 === Build tasks
 
 [[TYPE-041]]

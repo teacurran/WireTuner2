@@ -391,6 +391,14 @@ area, one inside an odd number with negative -- writing `reversed` only; open an
 contours are left alone.  The Simplify sheet, the menu items and the Extension Operations toolbar
 entries are WTApp's.
 
+NOTE: As built by DRAW-030's app half (`WTApp/Effects/PathAlterFeatures.swift`).  menu:Modify[Alter Path > Simplify] and
+the Extension Operations toolbar's *Simplify…* open the Simplify sheet over the selected paths: *Amount* by slider or field
+(0--100, remembered on this Mac as `tools.simplify.amount`), the point count before and after, btn:[Apply] showing the
+result on the canvas through the document's preview (nothing written), btn:[OK] writing `SimplifyPaths` (one change
+"Simplify") and btn:[Cancel] dropping the preview; Repeat and kbd:[Cmd]-click on the toolbar button run it with the amount
+passed back.  menu:Modify[Alter Path > Correct Direction] and its toolbar entry perform `CorrectDirection`.  Tests:
+`ModelGlueFeaturesTests`.
+
 === Build tasks
 
 [[DRAW-025]]

@@ -182,6 +182,8 @@ struct PDFOptionsForm: View {
         Section("Interactive") {
             Toggle("Links from URLs", isOn: $model.settings.options.pdf.linksFromURLs)
             Toggle("Notes as comments", isOn: $model.settings.options.pdf.notesAsComments)
+            Toggle("Comments as annotations", isOn: $model.settings.options.pdf.commentsAsAnnotations)
+                .accessibilityIdentifier("export.pdf.commentsAsAnnotations")
             Toggle("Bookmarks from page names", isOn: $model.settings.options.pdf.bookmarksFromPageNames)
             SecureField("Open password", text: $model.settings.options.pdf.openPassword)
             SecureField("Permissions password", text: $model.settings.options.pdf.permissionsPassword)

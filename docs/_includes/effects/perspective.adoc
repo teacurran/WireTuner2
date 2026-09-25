@@ -347,6 +347,26 @@ depends on the settings node and the pages, so a grid edit repaints every attach
 `cell_position`.  `ReleaseWithPerspective` draws the children from a scratch copy of the state in which
 they are unwrapped (`PerspectiveBaking.item`), so it does not wait for the hook.
 
+NOTE: As built by FX-043 and FX-044 (`WTApp/Effects/PerspectiveFeatures.swift`, `PerspectiveGeometry.swift`,
+`WTApp/Tools/PerspectiveTool.swift`).  menu:View[Perspective Grid] holds *Show* (checked), *Define Grids…*, then *Remove
+Perspective* and *Release with Perspective* for selected objects on the grid.  The overlay draws, for every page, the
+horizon across the page, each unhidden plane's lines (twelve cells each way, fewer on an axis running toward the viewer so
+it stops short of the horizon) in its colour -- red, blue and green by default -- and the vanishing points as rings.  The
+Define Grids sheet lists the grids by display name with btn:[New] (the page's built-in grid, "Grid", "Grid 2" ...),
+btn:[Duplicate] and btn:[Delete], a *Name* field (an empty or taken name is refused with a message), *Vanishing points*,
+*Cell size* and the three colour wells, each edit its own change; btn:[OK] points the page at the selected grid.  The
+Perspective tool: a press on an object off the grid is a pending attach -- an arrow key picks the plane and the release
+writes `AttachToPerspectiveGrid` with the object's corner at the cell under the pointer (released without a plane it moves
+flat); a press on an attached object slides it (`MoveOnGrid`, kbd:[Shift] whole cells), kbd:[Space] flips and kbd:[1] to
+kbd:[6] resize by a cell, written on release as one change; with the grid shown a vanishing point or the horizon drags
+(`EditGrid`, "Move vanishing point" / "Move horizon"; kbd:[Option+Shift] makes it `CloneOnGrid`) and a double-click hides or
+shows a wall or the floor.  *Deviations*: *Show* is window state (as the page grid's *Show* is) rather than
+`PageProps.perspective_grid_visible`, because a new document's page is synthesized and has no node to hold the register;
+the overlay and the tool use `PlaneMap`, a copy of WTRender's internal `PlaneProjector` homography (the tests hold the two
+to the same drawing); the built-in grid is reshaped only after it is defined (the tool says so).  *Not built yet*: the
+grid-line and wall-edge handles and the arrow badge cursor, kbd:[Option]-drag grid creation, kbd:[Cmd+Option]-double-click
+text editing, and the Pointer tool's detach with Snap to Grid.  Tests: `PerspectiveUITests`.
+
 === Build tasks
 
 [[FX-040]]

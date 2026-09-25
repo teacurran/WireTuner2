@@ -886,6 +886,9 @@ strokes stay attached, renumbered through Copy Attributes' stack copy); then the
 with its members.  A group whose Combine is hidden, or that has none, is skipped.  The btn:[Expand]
 button in the Combine form is WTApp's.
 
+NOTE: The Combine form's btn:[Expand] (`WTApp/Inspector/Effects/EffectEditors.swift`) performs `ExpandCombine` on the
+selected groups whose Combine draws, one change "Expand Combine"; it is disabled otherwise.
+
 === Build tasks
 
 [[FX-001]]

@@ -330,6 +330,12 @@ never in the display list, so toggling it rebuilds nothing and it cannot reach p
 Not built: the menu:View[Show Links] item, its per-window state, the overlay layer and the tooltip in
 the app (WTApp).
 
+NOTE: As built by WEB-004's app half (`WTApp/Web/LinkOverlayFeatures.swift`).  menu:View[Show Links] (checked) is per window:
+the window's furniture layer draws `LinkOverlay` read from its scene, the web features' `LinkIndex` and
+`ExportSnapshot.textLinks`, read again after each change and repainted only when the marks changed; toggling it redraws
+the layer and no tile.  While it is on, the canvas's tooltip is the URL under the pointer (`LinkOverlay.url(at:)`, a
+tolerance of 3 view points).  Tests: `ModelGlueFeaturesTests`.
+
 === Build tasks
 
 [[WEB-001]]

@@ -70,26 +70,6 @@ import WTRender
 
     // MARK: Kernels
 
-    @Test func fractalizeTurnsASquareIntoSixteenSegmentsSpikedOutward() {
-        let square = Self.contour(Self.square)
-        let result = DistortKernels.fractalize(square)
-        #expect(result.segments.count == 16 && result.closed)
-        // The first side's spike points up, away from the square, by the equilateral height.
-        let spike = result.points[2].anchor
-        #expect(abs(spike.x - 150) < 1e-6 && abs(spike.y - (100 - 100.0 / 3 * 3.0.squareRoot() / 2)) < 1e-6)
-        // A counter-clockwise square spikes outward too: its first side is the bottom one.
-        let reversed = DistortKernels.fractalize(Self.contour(Self.square.reversed()))
-        #expect(reversed.points[2].anchor.y > 200, "the bottom side's spike points down")
-        // An open path: three segments per… four per segment, the ends kept.
-        let open = DistortKernels.fractalize(Self.contour([Point(x: 0, y: 0), Point(x: 90, y: 0)], closed: false))
-        #expect(open.segments.count == 4 && open.points.first?.anchor == Point(x: 0, y: 0) && open.points.last?.anchor == Point(x: 90, y: 0))
-        #expect(DistortKernels.fractalize(Self.contour([Point(x: 1, y: 1)], closed: false)).points.count == 1, "nothing to spike")
-        // Curves keep their shape outside the middle thirds.
-        let curved = DistortKernels.fractalize(DistortContour(points: Self.circle, closed: true))
-        #expect(curved.points.count == 16 && curved.points[0].outHandle.length > 0 && curved.points[0].inHandle.length > 0)
-        #expect(Self.contour(Self.square).signedArea > 0 && Self.contour([Point(x: 0, y: 0)]).signedArea == 0)
-    }
-
     @Test func roughenAddsPointsPerInchAndMovesThemWithinTheDrag() {
         var random = SeededGenerator(seed: 7)
         let square = Self.contour(Self.square)
@@ -224,6 +204,8 @@ import WTRender
         var manager: ToolManager?
         DistortFeatures.install(tools: tools, extensions: registry, store: TestEnvironment().preferences, target: { editing }, tools: { manager },
                                 present: { presented.append($0.id) })
+        // Fractalize is WTModel's command, delivered with the path clean-ups.
+        PathAlterFeatures(target: { editing }, store: TestEnvironment().preferences).install(commands: CommandRegistry(), extensions: registry)
         #expect(registry.validation(ofExtension: "fractalize").reason == DistortFeatures.noPath)
         f.select([path])
         #expect(registry.validation(ofExtension: "fractalize").isEnabled && registry.validation(ofExtension: "addPoints").isEnabled)
@@ -236,7 +218,6 @@ import WTRender
         // Cmd-click replays the previous settings (none captured: the defaults) without a sheet.
         #expect(registry.performWithPreviousSettings("fractalize") && registry.repeatState?.extensionID == "fractalize")
         #expect(!registry.performWithPreviousSettings("emboss"), "a stub does not run")
-        #expect(DistortFeatures.fractalize(ObjectEditing(document: f.document, selection: SelectionController(document: f.document))) == nil)
         // The Distort submenu's tools choose the tool and open its options.
         #expect(!registry.validation(ofExtension: "bend").isEnabled)
         manager = ToolManager(registry: tools, context: f.context)
@@ -287,7 +268,7 @@ import WTRender
         Keylines.add([DistortContour(points: [VectorPoint(anchor: .zero)], closed: false)], to: DrawingToolTests.bitmap(), viewport: f.context.viewport)
         // A path whose transform cannot be inverted is left alone.
         let target = PathSplitting.Target(node: path.opID, transform: .scale(x: 0, y: 0), contours: [])
-        #expect((DistortTargetsCommand.command([target], label: "Fractalize", DistortKernels.fractalize) as? CompositeCommand)?.commands.isEmpty == true)
+        #expect((DistortTargetsCommand.command([target], label: "Roughen") { $0 } as? CompositeCommand)?.commands.isEmpty == true)
         // Without the catalog's descriptors, there is nothing to deliver.
         #expect(DistortFeatures.extensionDescriptors(existing: ExtensionRegistry(descriptors: []), target: { nil }, tools: { nil }, present: { _ in },
                                                      registry: ToolRegistry()).isEmpty)

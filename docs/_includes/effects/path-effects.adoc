@@ -540,6 +540,30 @@ outline (every path of a group, the bounds of anything without a path), and the 
 trackball turn -- about the page axis perpendicular to the drag by an angle proportional to its
 length -- with kbd:[Shift] snapping the angle and the drag's heading to 45° steps.
 
+NOTE: As built by FX-039's client-ui half (`WTApp/Effects/EnvelopeFeatures.swift`, `EnvelopeOutlineHandles.swift`).
+menu:Modify[Envelope] holds *Create* and *Paste as Envelope*, then *Show Map* (checked while every selected envelope shows
+its map), *Copy as Path*, *Release* and *Remove*, then *Save as Preset…* and *Delete Preset* (titled with the preset it
+deletes); the Envelope toolbar's buttons are the same commands, and its btn:[Envelope Presets] opens the preset pop-up at
+the pointer -- one item per preset, the chosen one checked.  Create and Paste as Envelope pass the canvas's painted bounds
+of the selection and the active layer, and select the new envelope; Release passes the document's `TextSceneLayout`, so
+text bakes as glyph outlines, and selects the baked group; Copy as Path puts `EnvelopeReading.asPath` on the clipboard as a
+one-path payload; Paste as Envelope takes the clipboard's first path with a closed contour of four or more points.
+Presets are the synced preference `tools.envelope.presets` (a list of `EnvelopePreset.encoded` strings; empty reads as the
+default set), so they follow the account to another Mac; the chosen preset is this Mac's `tools.envelope.preset`.  Save as
+Preset appends to the list (replacing a preset of the same name, keeping the defaults when the list was still the default
+set) and chooses it; Delete Preset removes the chosen one, and removing the last brings the defaults back.  The Object
+panel shows "Envelope" or "Empty envelope" and, with fewer than four live points, "Envelope needs four points".
+*Deviation*: the outline is edited through a canvas handle layer rather than the path tools -- with the Pointer or
+Subselect tool every selected, unlocked envelope shows its outline dashed with its anchors and curve handles; dragging an
+anchor or a handle end writes one change ("Move Point" / "Move Handle", `EditEnvelopePoint`, a WTApp command on the
+envelope's own contour registers, in drawing orientation, leaving *Automatic*), kbd:[Shift] constraining the drag to 45°
+steps and kbd:[Esc] abandoning it.  Adding and deleting points and the Freeform tool on the outline need the scene to
+expose the outline as the envelope's path (`SceneObject.path`, `elementPoints`), which WTModel's scene does not do yet.
+Tests: `EnvelopeUITests`.
+
+NOTE: *Fractalize* (menu:Extensions[Distort > Fractalize] and the Extension Operations toolbar) now runs WTModel's
+`Fractalize` (`WTApp/Effects/PathAlterFeatures.swift`); the app's own kernel described under FX-030 above is removed.
+
 === Build tasks
 
 [[FX-030]]

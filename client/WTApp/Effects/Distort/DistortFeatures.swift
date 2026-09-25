@@ -6,7 +6,7 @@ import WTModel
 /// Everything the destructive effect tasks add to the app, installed by `AppDelegate` in one call
 /// (path-effects.adoc; FX-030, FX-032, FX-033): the Roughen, Fisheye Lens, Bend, Smudge and Shadow
 /// tools in place of their catalog stubs, each with its options sheet; the Operations toolbar's
-/// and menu:Extensions[Distort]'s *Add Points* and *Fractalize*; and the Distort submenu's tool
+/// and menu:Extensions[Distort]'s *Add Points* (*Fractalize* is `PathAlterFeatures`'); and the Distort submenu's tool
 /// entries (*Roughen…*, *Fisheye Lens…*, *Bend…*, *Smudge…*, *3D Rotation…*), which choose the tool
 /// in the front window and open its options.
 @MainActor
@@ -59,14 +59,6 @@ enum DistortFeatures {
         PathSplitting.targets(editing.selection.selection, document: editing.document).map(\.node)
     }
 
-    /// menu:Extensions[Distort > Fractalize] (and the toolbar button): every segment of every
-    /// selected path spiked, one change "Fractalize".
-    static func fractalize(_ editing: ObjectEditing) -> (any WTModel.Command)? {
-        let targets = PathSplitting.targets(editing.selection.selection, document: editing.document)
-        guard !targets.isEmpty else { return nil }
-        return DistortTargetsCommand.command(targets, label: "Fractalize", DistortKernels.fractalize)
-    }
-
     /// The operations these tasks deliver, replacing their stubs.
     static func extensionDescriptors(existing: ExtensionRegistry, target: @escaping Target, tools: @escaping Tools, present: @escaping @MainActor (ToolDescriptor) -> Void,
                                      registry: ToolRegistry) -> [ExtensionDescriptor] {
@@ -74,7 +66,6 @@ enum DistortFeatures {
         var result: [ExtensionDescriptor] = []
         let operations: [(String, @MainActor (ObjectEditing) -> Void)] = [
             ("addPoints", { editing in editing.perform(AddPoints(paths(editing))) }),
-            ("fractalize", { editing in if let command = fractalize(editing) { editing.perform(command) } }),
         ]
         for (id, run) in operations {
             guard var descriptor = existing.descriptor(for: id) else { continue }
@@ -114,7 +105,7 @@ final class ControllerHolder {
     weak var controller: NSViewController?
 }
 
-/// A kernel applied to paths outside a drag (Fractalize).
+/// A kernel applied to the selected paths (the distort tools' release).
 @MainActor
 enum DistortTargetsCommand {
     static func command(_ targets: [PathSplitting.Target], label: String, _ kernel: (DistortContour) -> DistortContour) -> any WTModel.Command {

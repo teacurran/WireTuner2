@@ -143,9 +143,10 @@ final class TextEditingSession {
         }
     }
 
-    /// The container the block lays out in (its own, or the new block's).
+    /// The container the block lays out in (its own -- its path when it is on one -- or the new
+    /// block's).
     private var container: TextContainer {
-        if let text { return TextLayoutReading.container(text) }
+        if let text { return TextLayoutReading.container(text, state: document.state) }
         switch target {
         case .pending(.area(let rect)), .creating(.area(let rect)):
             return .block(TextBlock(width: rect.width, height: rect.height, autoWidth: false, autoHeight: false))
@@ -168,11 +169,10 @@ final class TextEditingSession {
         return emptyLayout
     }
 
-    /// The block's rectangle in container space (a new auto-expanding block: the caret's height).
+    /// The block's rectangle in container space (a new auto-expanding block: the caret's height;
+    /// text on a path: its path and glyphs, `TextFrames.frame`).
     var localFrame: Rect {
-        // One container, one size.
-        let size = editingLayout.sizes[0]
-        return Rect(x: 0, y: 0, width: max(size.width, 1), height: max(size.height, 1))
+        TextFrames.frame(of: editingLayout)
     }
 
     /// The block's corners in pasteboard space, clockwise from the top-left.
@@ -691,5 +691,22 @@ final class TextEditingSession {
 
     private func changed() {
         onChange?()
+    }
+}
+
+/// Where a laid-out block lies in its container space, for hit testing (text-blocks.adoc;
+/// text-on-path.adoc, "Client": carets and hit tests follow the curve): a block's laid-out
+/// rectangle from its origin, or for text on a path the bounds of the path and of every placed
+/// glyph's box.
+enum TextFrames {
+    static func frame(of layout: TextLayout) -> Rect {
+        if case .path(let path)? = layout.containers.first {
+            let glyphs = layout.selection(from: 0, to: layout.laidOutEnd).flatMap(\.corners)
+            let bounds = glyphs.reduce(path.contour.bounds) { $0.union($1) }
+            return Rect(x: bounds.minX, y: bounds.minY, width: max(bounds.width, 1), height: max(bounds.height, 1))
+        }
+        // One container, one size.
+        let size = layout.sizes[0]
+        return Rect(x: 0, y: 0, width: max(size.width, 1), height: max(size.height, 1))
     }
 }

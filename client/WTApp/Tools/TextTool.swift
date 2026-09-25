@@ -171,8 +171,7 @@ final class TextTool: Tool, TextInputHandling {
         return document.scene.objects.values.filter { object in
             guard object.kind == .text, !object.isEffectivelyLocked, let layout = document.textLayout(for: object.id),
                   let local = Objects.pasteboardTransform(of: object.id, in: state).inverted()?.apply(e.pasteboardPoint) else { return false }
-            let size = layout.sizes[0]
-            return Rect(x: 0, y: 0, width: size.width, height: size.height).expanded(by: slop).contains(local)
+            return TextFrames.frame(of: layout).expanded(by: slop).contains(local)
         }
         .max { $0.itemPath.lexicographicallyPrecedes($1.itemPath) }?.id
     }

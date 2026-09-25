@@ -241,12 +241,11 @@ struct FillEditorModel {
         edit("Objects only", [AttributeFields.Lens.objectsOnly]) { $0.lens.objectsOnly = on }
     }
 
-    /// *Snapshot*: on freezes the lens, off returns it to live.  Turning it off also drops the
-    /// captured contents.
+    /// *Snapshot*: on freezes the lens -- what it shows now captured with the flag in one change
+    /// (`SnapshotLens`, ATTR-020) -- off returns it to live and drops the captured contents.
     func setSnapshot(_ on: Bool) -> any WTModel.Command {
-        edit("Snapshot", on ? [AttributeFields.Lens.snapshot] : [AttributeFields.Lens.snapshot, AttributeFields.Lens.snapshotContents]) {
-            $0.lens.snapshot = on
-        }
+        guard !on else { return SnapshotLens(pairs) }
+        return edit("Snapshot", [AttributeFields.Lens.snapshot, AttributeFields.Lens.snapshotContents]) { $0.lens.snapshot = false }
     }
 
     // MARK: Pattern

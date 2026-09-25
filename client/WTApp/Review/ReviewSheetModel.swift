@@ -68,6 +68,15 @@ final class ReviewSheetModel {
         let kind: String
         /// The conflict entry; nil for an object only one side changed.
         let entry: ReviewEntry?
+        /// A data-merge row (DATA-023) instead of an object's.
+        var data: DataRow? = nil
+    }
+
+    /// The data-merge rows beside the objects (data-merge.adoc, "Review rows"): two merge runs
+    /// after the same page, and a field removed while the other side used it.
+    enum DataRow: Equatable {
+        case mergeRuns(MergeRunConflict)
+        case removedField(FieldRemovedEntry)
     }
 
     /// One conflicting attribute: both values and which the merge kept.
@@ -124,7 +133,7 @@ final class ReviewSheetModel {
         var remoteSeen = listed.union(localNodes)
         remoteNodes = remote.flatMap { change in RegisterNames.touched(by: change).map { ($0.node, change.replica) } }
             .filter { remoteSeen.insert($0.0).inserted && merged.store.exists($0.0) }
-        filter = review.entries.isEmpty ? .everything : .conflicts
+        filter = review.entries.isEmpty && review.mergeRuns.isEmpty && review.removedFields.isEmpty ? .everything : .conflicts
         selectedID = nil
         selectedID = rows.first?.id
     }
@@ -156,17 +165,33 @@ final class ReviewSheetModel {
     func filterTitle(_ filter: Filter) -> String {
         switch filter {
         case .everything: "Everything"
-        case .conflicts: "Conflicts (\(review.entries.count))"
+        case .conflicts: "Conflicts (\(review.entries.count + dataRows.count))"
         case .mine: "Mine (\(localNodes.count) \(localNodes.count == 1 ? "object" : "objects"))"
         case .theirs: "Theirs (\(remoteNodes.count))"
         }
+    }
+
+    /// The data-merge rows: each pair of merge runs, then each removed field.
+    var dataRows: [Row] {
+        review.mergeRuns.map { conflict in
+            Row(id: conflict.id, node: conflict.page, name: Self.mergeRunsName(conflict), kind: "Both merged", entry: nil, data: .mergeRuns(conflict))
+        } + review.removedFields.map { field in
+            Row(id: field.id, node: field.field, name: field.title, kind: field.deletedLocally ? "Removed by you" : "Removed by someone else", entry: nil,
+                data: .removedField(field))
+        }
+    }
+
+    /// "Two merge runs: 3 pages and 4 pages".
+    static func mergeRunsName(_ conflict: MergeRunConflict) -> String {
+        func pages(_ run: MergeRun) -> String { run.pages.count == 1 ? "1 page" : "\(run.pages.count) pages" }
+        return "Two merge runs: \(pages(conflict.mine)) and \(pages(conflict.theirs))"
     }
 
     var rows: [Row] {
         let conflicts = review.entries.sorted { ($0.kind, $0.id) < ($1.kind, $1.id) }.map { entry in
             Row(id: entry.id, node: entry.node, name: settingTitle(entry) ?? ObjectNaming.name(of: entry.node, in: merged),
                 kind: entry.kind.title, entry: entry)
-        }
+        } + dataRows
         let mine = localNodes.map { Row(id: "mine:\($0)", node: $0, name: ObjectNaming.name(of: $0, in: merged), kind: "Changed by you", entry: nil) }
         let theirs = remoteNodes.sorted { ($0.replica, $0.node) < ($1.replica, $1.node) }.map { item in
             Row(id: "theirs:\(item.node)", node: item.node, name: ObjectNaming.name(of: item.node, in: merged),
@@ -314,6 +339,32 @@ final class ReviewSheetModel {
     }
 
     func isReviewed(_ id: String) -> Bool { reviewed.contains(id) }
+
+    // MARK: Data-merge rows (DATA-023)
+
+    /// The choices of the selected data-merge row: *Keep both, one after the other*, *Remove
+    /// theirs*, *Remove mine* for two merge runs; *Restore* for a removed field.
+    var dataChoices: [String] {
+        guard allowsChoices, let data = selectedRow?.data else { return [] }
+        switch data {
+        case .mergeRuns: return MergeRunConflict.Choice.allCases.map(\.title)
+        case .removedField: return ["Restore"]
+        }
+    }
+
+    /// Runs the data-merge choice titled `title` on the selected row as one change; nil when it
+    /// writes nothing (the runs already in order, the pages already gone).
+    @discardableResult
+    func performData(_ title: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard allowsChoices, let row = selectedRow, let data = row.data, let index = dataChoices.firstIndex(of: title) else { return nil }
+        reviewed.insert(row.id)
+        switch data {
+        case .mergeRuns(let conflict):
+            return conflict.command(MergeRunConflict.Choice.allCases[index], in: merged).map { context.perform($0) }
+        case .removedField(let field):
+            return context.perform(field.restore)
+        }
+    }
 
     // MARK: Preview
 

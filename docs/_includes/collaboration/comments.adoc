@@ -645,6 +645,13 @@ equals the uncommented one's, and the PDF passes `qpdf --check`.  Not built: the
 on) and the *Comments as annotations* checkbox in the Export sheet's *Interactive* section
 (WTApp, disabled under PDF/X like its neighbours).
 
+NOTE: As built by COLLAB-033's model and app halves (`WTModel/ExportSnapshot.swift`, `WTApp/Export/`).
+`ExportSnapshot.comments` reads every thread with a drawn pin from `CommentThreadModel` -- live comments in thread order,
+each author's display name from the caller, `wall_time_ms` -- and the export controller assigns it to
+`ExportScene.comments` after `capture` when the format is PDF, *Comments as annotations* is on and no PDF/X standard is
+chosen, names coming from the window's roster (`WindowComments.name(of:)`).  The Export sheet's *Interactive* section has
+the *Comments as annotations* checkbox, disabled under PDF/X with its neighbours.
+
 === Build tasks
 
 [[COLLAB-025]]

@@ -106,6 +106,7 @@ public struct ExportSnapshot: Sendable {
         let pages = capture.pages(for: request)
         var scene = ExportScene(name: request.name, pages: pages, info: documentInfo(state), nodes: capture.nodes, assets: capture.assets,
                                 rasterResolution: rasterResolution(state), placedPostScript: capture.postScript)
+        scene.svgAnimations = capture.svgAnimations
         if request.text {
             scene.text = textBlocks(pages, state: state, request: request)
         }
@@ -203,7 +204,8 @@ public struct ExportSnapshot: Sendable {
             guard let text = TextNode(node, in: state) else { continue }
             let runs = TextLinks.runs(text)
             guard !runs.isEmpty else { continue }
-            let layout = TextLayoutReading.layout(text, engine: engine)
+            // Text on a path lays out along it (TYPE-041), so its links follow the curve.
+            let layout = TextLayoutReading.layout(text, engine: engine, state: TextLayoutReading.path(of: text, in: state) == nil ? nil : state)
             let transform = Objects.pasteboardTransform(of: node, in: state)
             let links = runs.compactMap { run -> ExportTextLink? in
                 let rects = layout.selection(from: run.range.lowerBound, to: run.range.upperBound).compactMap { quad -> Rect? in
@@ -217,6 +219,72 @@ public struct ExportSnapshot: Sendable {
             if !links.isEmpty { result[NodeID(node)] = links }
         }
         return result
+    }
+
+    // MARK: Comments (COLLAB-033)
+
+    /// The document's comment threads for the PDF writer's *Comments as annotations*
+    /// (comments.adoc, "Exporting"): every thread with a drawn pin (pasteboard points), resolved or
+    /// not, its live comments in thread order -- deleted ones left out -- with each author's display
+    /// name from `name` (the window's roster) and `wall_time_ms`.  The app assigns the result to
+    /// `ExportScene.comments` after `capture` when the option is on.
+    public static func comments(_ state: EngineState, pages: PageList? = nil, name: (String) -> String) -> [ExportCommentThread] {
+        CommentThreadModel(state, pages: pages).threads.compactMap { thread in
+            guard let pin = thread.pin else { return nil }
+            let comments = thread.comments.filter { !$0.deleted }.map { ExportComment(author: name($0.author), text: $0.text, wallTimeMs: $0.wallTimeMs) }
+            return ExportCommentThread(pin: pin, resolved: thread.resolved, comments: comments)
+        }
+    }
+
+    // MARK: Snippets (COLLAB-036, COLLAB-037)
+
+    /// What no snippet can express for a node of `kind`, in the snippet's words.
+    static func unexpressed(_ kind: NodeKind?) -> [String] {
+        switch kind {
+        case .blend?: ["a blend"]
+        case .extrude?: ["an extrusion"]
+        case .envelope?: ["an envelope"]
+        case .perspective?: ["an object on a perspective grid"]
+        default: []
+        }
+    }
+
+    /// The Inspect panel's `SnippetObject` for drawn object `node` of `scene`: its display item as
+    /// placed, what the display list does not keep -- its kind (a rectangle with equal corner radii
+    /// is a rounded rectangle), name, the swatch names of the document's colours, what no snippet
+    /// can express -- and the placed images it draws, decoded from `blob`.  Nil when the scene does
+    /// not draw it.
+    public static func snippetObject(_ node: OpID, scene: DocumentScene, state: EngineState, blob: (Data) -> Data? = { _ in nil }) -> SnippetObject? {
+        guard let object = scene.objects[NodeID(node)] else { return nil }
+        let props = state.props(node)
+        let shape: SnippetObject.Shape
+        switch props.kind {
+        case .rect(let rect)?:
+            let corners = rect.corners
+            let radii = corners.uniform ? [corners.topLeft] : [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft]
+            shape = radii.allSatisfy({ $0 == radii[0] }) && radii[0] > 0 ? .roundedRectangle(radius: radii[0]) : .rectangle
+        case .ellipse?: shape = .ellipse
+        case .path?, .polygon?: shape = .path
+        case .text?: shape = .text
+        default: shape = .other
+        }
+        var assets: [String: ExportAsset] = [:]
+        func collect(_ item: DisplayItem) {
+            switch item {
+            case .group(let group): group.children.forEach(collect)
+            case .image(let image):
+                if let fallback = image.fallback { collect(fallback) }
+                if assets[image.assetID] == nil, let hash = ExportCapture.bytes(hex: image.assetID), let data = blob(hash),
+                   let asset = ExportCapture.asset(data) { assets[image.assetID] = asset }
+            default: break
+            }
+        }
+        collect(object.item)
+        var swatchNames: [Color: String] = [:]
+        for swatch in SwatchList(state).swatches where swatchNames[swatch.color] == nil { swatchNames[swatch.color] = swatch.name }
+        let name = NodeValues.common(props).flatMap { ExportCapture.text($0.name) }
+        return SnippetObject(name: name, node: NodeID(node), shape: shape, item: object.item, assets: assets, swatchNames: swatchNames,
+                             cannotExpress: unexpressed(state.nodeKind(node)))
     }
 
     /// The story of `text` for text exports: its paragraphs with resolved attributes, the
@@ -236,6 +304,8 @@ struct ExportCapture {
     private(set) var nodes: [NodeID: ExportNodeInfo] = [:]
     private(set) var assets: [String: ExportAsset] = [:]
     private(set) var postScript: [NodeID: ExportPostScript] = [:]
+    /// Placed SVG animations drawn on the exported pages (WEB-008's WTModel half).
+    private(set) var svgAnimations: [NodeID: ExportSVGAnimation] = [:]
     private(set) var missing: [String] = []
     private var tried: Set<String> = []
     /// Document page numbers (1-based) by page node, for page links.
@@ -334,6 +404,7 @@ struct ExportCapture {
             let bounds = Rect(x: b.x, y: b.y, width: b.width, height: b.height)
             postScript[node] = ExportPostScript(data: data, boundingBox: bounds, bounds: bounds, transform: Objects.pasteboardTransform(of: id, in: state))
         }
+        if let animation = Self.svgAnimation(id, in: state, blob: blob) { svgAnimations[node] = animation }
         if let common = NodeValues.common(props) {
             // The navigation facts (WEB-005, WEB-023), with the read-time normalizations.
             let navigation = NavigationInfo(common, in: state)
@@ -343,6 +414,23 @@ struct ExportCapture {
                                       pageLink: navigation.goToPage.flatMap { pageNumbers[$0] })
             if info != ExportNodeInfo() { nodes[node] = info }
         }
+    }
+
+    /// A placed SVG animation as the HTML publisher plays it: the file's bytes from its asset's
+    /// blob, its natural size, its transform to the pasteboard and its *On the web* settings.  Nil
+    /// for any other node, a dangling asset, a blob not on this Mac, or a gzip-compressed file
+    /// (`.svgz`: the publisher then keeps the poster the display list draws).
+    static func svgAnimation(_ node: OpID, in state: EngineState, blob: (Data) -> Data?) -> ExportSVGAnimation? {
+        guard let info = SvgAnimationInfo(node, in: state), let asset = info.asset, let data = blob(state.props(asset).asset.sha256),
+              !data.starts(with: [0x1F, 0x8B]) else { return nil }
+        let loop: ExportSVGAnimation.Loop = switch info.web.loop {
+        case .loop: .loop
+        case .once: .once
+        case .asFile: .asFile
+        }
+        return ExportSVGAnimation(data: data, width: info.naturalSize.width, height: info.naturalSize.height,
+                                  transform: Objects.pasteboardTransform(of: node, in: state), script: info.kinds.script,
+                                  autoplay: info.web.autoplay, loop: loop, playOnHover: info.web.playOnHover)
     }
 
     /// `value`, nil when it is blank.

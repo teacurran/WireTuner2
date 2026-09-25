@@ -1605,6 +1605,11 @@ each row; clicking one previews that record.
 template rectangle, and a page is drawn (as a one-page vector PDF) only when the print loop asks.
 The printing chapter's own pane is not built, so the dialog is the standard one.
 
+NOTE: The review sheet lists DATA-023's rows (`WTApp/Review/ReviewSheetModel.swift`): after the object conflicts, one row per
+*two merge runs* ("Two merge runs: 3 pages and 4 pages", *Both merged*) with *Keep both, one after the other*, *Remove
+theirs* and *Remove mine*, and one per removed field ("Field “city” removed with 3 bindings", removed by you or by someone
+else) with *Restore*; each choice is one change against the merged state, and the *Conflicts* count includes them.
+
 === Build tasks
 
 [[DATA-001]]

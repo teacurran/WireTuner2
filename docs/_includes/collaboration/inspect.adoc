@@ -331,6 +331,18 @@ other key is consumed, so tool shortcuts do nothing), and every document command
 written whatever a menu, key or tool asks for.  Not built: the toolbar button, entering the mode by
 default for a viewer, hovered path points, undo and redo being inert too, and the 2 ms frame budget.
 
+NOTE: As built by COLLAB-037's snippet half (`WTApp/Collaboration/InspectPanel.swift`; the `SnippetObject` builder is
+`ExportSnapshot.snippetObject` in WTModel).  menu:Window[Inspect] is a panel reading the front window's selection -- one
+object, or several as one group (`other`) -- with the *Notation*, *Unit* and *Scale* pop-ups, *Layout* (x and y of the
+top-left corner from the page holding the object's centre, width and height; a click copies a value), the *Code* tabs
+(SVG, CSS and Swift from WTInterchange's snippets, btn:[Copy]) and btn:[PNG 1×] to btn:[PNG 3×] on the pasteboard.
+`ExportSnapshot.snippetObject` gives the kind (a rectangle whose corner radii are all equal and above zero is a rounded
+rectangle; paths and polygons are paths), the name, the document's swatch names by colour, what no snippet can express
+(blends, extrusions, envelopes, objects on a perspective grid) and the placed images the item draws.  *Not built yet*: the
+Colors, Stroke, Fills, Effects, Typography and Text sections, the `inspect.unit`/`inspect.scale` preferences (the
+pop-ups are the panel's own state), kbd:[Option]-click to save a PNG, the attribution flash and remote-selection
+inspection.  Tests: `ModelGlueFeaturesTests`, `WTModelTests/ExportSnapshotGlueTests`.
+
 === Build tasks
 
 [[COLLAB-035]]

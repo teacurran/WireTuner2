@@ -19,6 +19,7 @@ struct ReviewSheetView: View {
     }
     static func overlay(_ model: ReviewSheetModel) -> () -> Void { { model.overlay.toggle() } }
     static func action(_ model: ReviewSheetModel, _ action: ReviewAction) -> () -> Void { { model.perform(action) } }
+    static func data(_ model: ReviewSheetModel, _ choice: String) -> () -> Void { { model.performData(choice) } }
     static func paragraph(_ model: ReviewSheetModel, _ action: ReviewAction, _ row: ReviewSheetModel.ParagraphRow) -> () -> Void {
         { model.perform(action, paragraph: row) }
     }
@@ -125,6 +126,9 @@ struct ReviewSheetView: View {
                 ForEach(model.actions, id: \.self) { action in
                     Button(ReviewSheetModel.actionTitle(action), action: Self.action(model, action))
                         .accessibilityIdentifier("review.action.\(ReviewSheetModel.actionTitle(action))")
+                }
+                ForEach(model.dataChoices, id: \.self) { choice in
+                    Button(choice, action: Self.data(model, choice)).accessibilityIdentifier("review.data.\(choice)")
                 }
             }
         }

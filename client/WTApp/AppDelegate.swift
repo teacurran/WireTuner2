@@ -139,6 +139,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let documentInfo = DocumentInfoFeatures()
     /// *Storage almost full* and the retry when space frees (IO-009).
     let storage = StorageMonitor()
+    /// Envelopes, text on a path, perspective, Show Links, the path clean-ups and the Inspect
+    /// panel (FX-039, TYPE-017, FX-043, FX-044, WEB-004, DRAW-030, COLLAB-036).
+    private(set) lazy var modelGlue = ModelGlueFeatures(preferences: preferences)
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -245,6 +248,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.printing.attach(window)
             self?.editMenu.attach(window)
             self?.attachWindowGlue(window)
+            self?.attachModelGlue(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -333,6 +337,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installPrinting()
         installEditing()
         installWindowGlue()
+        installModelGlue()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
@@ -424,6 +429,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installStyles()
         installGraphicHose()
         installArrowheadEditor()
+        installModelGlueTools()
         colors.colorControl = { effects.colorControlMenuItem() }
         self.effects = effects
         let palette = toolPalette

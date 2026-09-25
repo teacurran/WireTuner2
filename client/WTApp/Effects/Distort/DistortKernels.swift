@@ -9,16 +9,6 @@ struct DistortContour: Equatable {
 
     /// The segments between consecutive points (and back to the first when closed).
     var segments: [CubicBezier] { ContourPoints.segments(points, closed: closed) }
-
-    /// Twice the signed area of the anchor polygon: positive when the contour turns clockwise on
-    /// screen (y down).
-    var signedArea: Double {
-        guard points.count >= 3 else { return 0 }
-        return points.indices.reduce(0) { sum, index in
-            let a = points[index].anchor, b = points[(index + 1) % points.count].anchor
-            return sum + (a.x * b.y - b.x * a.y)
-        }
-    }
 }
 
 /// A random source the kernels draw from: the system generator in the app, a seeded one in tests.
@@ -46,43 +36,6 @@ struct SeededGenerator: RandomNumberGenerator {
 /// their element ids, so a concurrent drag of one of them merges point by point; new points have
 /// the zero id.
 enum DistortKernels {
-    // MARK: Fractalize
-
-    /// Fractalize: every segment becomes four -- its first third, a spike out to the outward side
-    /// of its middle third (an equilateral Koch spike), and its last third.  The two split points
-    /// and the spike are corners.
-    static func fractalize(_ contour: DistortContour) -> DistortContour {
-        let segments = contour.segments
-        guard !segments.isEmpty else { return contour }
-        // Outward is to the left of travel for a clockwise contour (y down), else to the right.
-        let side: Double = contour.closed && contour.signedArea < 0 ? -1 : 1
-        var points = contour.points
-        var inserted: [[VectorPoint]] = []
-        for (index, segment) in segments.enumerated() {
-            // Thirds by length (a straight segment's retracted handles make `t` uneven).
-            let length = segment.length()
-            let t1 = segment.parameter(atLength: length / 3), t2 = segment.parameter(atLength: length * 2 / 3)
-            let (first, rest) = segment.split(at: t1)
-            let (_, last) = rest.split(at: (t2 - t1) / max(1 - t1, 1e-12))
-            points[index].outHandle = first.p1 - first.p0
-            points[(index + 1) % points.count].inHandle = last.p2 - last.p3
-            let a = first.p3, b = last.p0
-            let chord = b - a
-            let spike = Point.lerp(a, b, 0.5) + chord.perpendicular.normalized * (-side * chord.length * 3.0.squareRoot() / 2)
-            inserted.append([
-                VectorPoint(anchor: a, inHandle: first.p2 - first.p3, kind: .corner),
-                VectorPoint(anchor: spike, kind: .corner),
-                VectorPoint(anchor: b, outHandle: last.p1 - last.p0, kind: .corner),
-            ])
-        }
-        var result: [VectorPoint] = []
-        for index in points.indices {
-            result.append(points[index])
-            if index < inserted.count { result += inserted[index] }
-        }
-        return DistortContour(points: result, closed: contour.closed)
-    }
-
     // MARK: Roughen
 
     /// Roughen: points added every `1 / amount` inch along the outline (none at 0), then every
