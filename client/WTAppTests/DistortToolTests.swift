@@ -142,7 +142,10 @@ import WTRender
         #expect((f.document.path(path)?.contours[0].points.count ?? 0) > 4)
         let lens = FisheyeLensTool { 80 }
         lens.activate(in: f.context)
-        await f.drag(lens, Point(x: 100, y: 150), Point(x: 200, y: 150))
+        // A lens of radius 60 about the square's centre: Roughen's points (a random seed per press)
+        // lie within 50.5 ± 6 of it, so some are always inside and the lens always moves them.  A
+        // lens of radius 50 missed every one for 64 seeds in 20,000, and wrote nothing.
+        await f.drag(lens, Point(x: 90, y: 150), Point(x: 210, y: 150))
         #expect(f.document.undoTitle == "Undo Fisheye lens")
         // Option: the lens is drawn from its centre.
         lens.mouseDown(TestEvents.point(150, 150))

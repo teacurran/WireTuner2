@@ -685,14 +685,15 @@ no remote dependencies.
   one.
 * *Budgets in the perf run.*  `PerfBudget.expect` holds a figure only when `WT_PERF=1` is set
   and the test module is a release build (`swift test -c release -Xswiftc -enable-testing`).  A
-  budget whose debug figure is meaningful says why (`enforcedInDebug:`); only the app's two
-  budgets do, because the app's tests build Debug only, and unoptimised code within a budget is
+  budget whose debug figure is meaningful says why (`enforcedInDebug:`); only the app's budgets
+  do (`CanvasPerformanceTests`, `CommandPaletteTests`, `PointHandleTests`,
+  `TransformPreviewPerformanceTests`, `CanvasMetalTests`), because the app's tests build Debug only, and unoptimised code within a budget is
   within it optimised too.  A budget known to be missed on current hardware says so
   (`knownIssue:`): a miss is recorded as a known issue and reported, not failed.  `make
   client-perf` runs, in release with `WT_PERF=1` and one test at a time (`--no-parallel`: Swift
   Testing otherwise runs a suite's tests side by side, and a budget sharing the cores with its
   own suite misses by up to five times while the load average stays under the guard), the tests
-  of every package whose tests call `PerfBudget`, then the app's `CanvasPerformanceTests` and `CommandPaletteModelTests` (Debug) with
+  of every package whose tests call `PerfBudget`, then the app's `CanvasPerformanceTests`, `CommandPaletteModelTests` and `CanvasMetalTests` (Debug) with
   `TEST_RUNNER_WT_PERF=1`.  Each budget appends a row (measure, measured, budget, build, and met,
   missed or skipped with the reason) to `client/build/perf-results.md` (`WT_PERF_RESULTS` names
   another file) and prints it prefixed `PERF`; the sandboxed test host cannot write outside its
@@ -747,6 +748,7 @@ no remote dependencies.
 |`WTInterchange`: an A3 300 ppi PNG and Targa export, time and process peak (IO-021) |reported |`PerformanceTests` (perf run only)
 |App: main-thread pan frame at 50,000 rectangles, p95 of 120 (APP-002; Debug) |16.7 ms |`CanvasPerformanceTests`
 |App: the worst keystroke ranking 5,000 palette items, best of three each (Debug) |16 ms |`CommandPaletteModelTests`
+|App: Metal pan, zoom and rotate frame at 50,000 rectangles, p95 (Debug) |8.3 ms |`CanvasMetalTests`
 |===
 
 Not budgets, and left as they are: waits with a deadline for something to happen (`eventually`

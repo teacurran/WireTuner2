@@ -202,14 +202,17 @@ extension DocumentWindowController {
     }
 
     /// *Changing view sets the active page*: once the view has rested 200 ms, the page covering
-    /// most of it becomes active.
+    /// most of it becomes active -- unless the active page changed meanwhile (the page selector,
+    /// the Document panel, Add Page, a remote deletion moving it to the nearest page): a page
+    /// chosen after the view last moved is not taken back by that move.
     func viewDidMove() {
         viewPageTask?.cancel()
         guard environment.preferences[PreferenceCatalog.Document.viewSetsPage] else { return }
+        let active = documentHandle.activePage.id
         viewPageTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            self?.settleViewPage()
+            guard !Task.isCancelled, let self, self.documentHandle.activePage.id == active else { return }
+            self.settleViewPage()
         }
     }
 

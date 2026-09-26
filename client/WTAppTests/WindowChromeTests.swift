@@ -122,6 +122,25 @@ import WTRender
         #expect(PageSelection.name(of: 4) == "Page 5" && PageSelection.name(of: 0, label: "Cover") == "Cover")
     }
 
+    @Test func aPageChosenAfterTheViewMovedIsNotTakenBack() async {
+        let controller = window()
+        defer { controller.close() }
+        let document = controller.documentHandle
+        await document.addPage().value
+        await controller.viewPageTask?.value
+        #expect(document.currentPageIndex == 1, "the window's opening fit does not take back the added page")
+        // On page 1, the view moves (it still shows page 1); page 2 is chosen within the 200 ms rest.
+        document.selectPage(0)
+        controller.viewDidMove()
+        document.selectPage(1)
+        await controller.viewPageTask?.value
+        #expect(document.currentPageIndex == 1, "a page chosen after the view moved stands")
+        // A move after the choice still makes the page covering most of the view active.
+        controller.viewDidMove()
+        await controller.viewPageTask?.value
+        #expect(document.currentPageIndex == 0)
+    }
+
     @Test func aRemotelyDeletedCurrentPageMovesToTheNearest() async {
         let controller = window()
         defer { controller.close() }

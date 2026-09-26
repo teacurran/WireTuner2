@@ -70,11 +70,11 @@ import WTRender
         }
         for (name, stat) in stats {
             print("BASIC-034 \(name), 50,000 rects, 1200×800 pt @2×, Metal frame (CPU encode + GPU): \(stat)")
-            if stat.p95 > Self.frameBudget {
-                withKnownIssue("\(name) frame p95 \(stat) exceeds 8.3 ms", isIntermittent: true) {
-                    #expect(stat.p95 <= Self.frameBudget)
-                }
-            }
+            #expect(stat.samples.count == 60)
+            // The timing is a budget (testing.adoc, "Client budgets"): held in the perf run only,
+            // where a loaded machine skips it instead of failing a correctness run.
+            PerfBudget.expect(.seconds(stat.p95), within: .seconds(Self.frameBudget), "\(name) frame p95",
+                              enforcedInDebug: "the app's tests build Debug only; a Debug figure within the budget is a Release one too")
         }
     }
 }
