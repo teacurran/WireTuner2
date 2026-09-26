@@ -596,16 +596,23 @@ SwiftUI interface (the mobile design is its own), and porting later (the AppKit 
 would have spread by then).
 
 [[D-074]]
-=== D-074 One SonarQube project, WireTuner, analysed from the server build
-The SonarQube instance has a single project for this work, `WireTuner`, and its analysis token is
-scoped to that project.  That instance is a Community Build with no Swift analyzer, so Swift files
-are never indexed and a client upload could show neither issues nor coverage -- and, sharing the
-project, it would replace the server's analysis.  So `server/pom.xml` analyses into `WireTuner`
-(JaCoCo coverage from every module), and the client scanner (`client/sonar-project.properties`,
-`make sonar-client`) is kept but not run against this server.  The client's coverage gate stays
-where D-066 put it: `tools/coverage/client-coverage.sh --gate` in CI.  `tools/sonar/configure-gates.sh`
-still describes two projects; setting the gate on `WireTuner` needs an admin token.  Revisit if the
-instance gains a Swift analyzer or a second project.
+=== D-074 Two SonarQube projects: WireTuner (server) and WireTuner-Client
+The SonarQube instance holds `WireTuner`, analysed from the server build (`server/pom.xml`, JaCoCo
+coverage from every module), and `WireTuner-Client`, analysed by `sonar-scanner` from
+`client/sonar-project.properties` (`make sonar-client`).  The instance is a Community Build with no
+Swift analyzer, and Sonar keeps no measures for a file without a language, so the client
+properties give the Swift files one by borrowing Kotlin's suffix list
+(`sonar.kotlin.file.suffixes=.swift`).  The generic coverage report
+(`client/build/coverage/sonar.xml`) then attaches line coverage to them; the Kotlin parser rejects
+every Swift file, so no Kotlin rule runs and no issue is raised.  The costs: Sonar lists the files
+as Kotlin, shows no lines-of-code count, and the scanner log carries one parse error per file.
+The Text language (`sonar.text.inclusions=**/*.swift`) still runs the secrets rules.  No Swift
+code rules run, so the client's gate stays where D-066 put it:
+`tools/coverage/client-coverage.sh --gate` (95% lines, 95% llvm-cov regions) in CI; Sonar shows
+the line figure.  The analysis token can create projects but not administer them, so
+`tools/sonar/configure-gates.sh` (quality gates) still needs an admin token; until then both
+projects use the instance's default gate.  Revisit if the instance gains a Swift analyzer, or
+import SwiftLint's report as external issues.
 
 == Open questions
 

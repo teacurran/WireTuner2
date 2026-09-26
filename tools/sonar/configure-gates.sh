@@ -8,9 +8,9 @@
 #     tools/sonar/configure-gates.sh --dry-run   # print the calls a run on an empty server makes
 #
 #   project           gate              conditions (metric < 95 fails)
-#   wiretuner-server  wiretuner-server  new_line_coverage, line_coverage,
+#   WireTuner         wiretuner-server  new_line_coverage, line_coverage,
 #                                       new_branch_coverage, branch_coverage
-#   wiretuner-client  wiretuner-client  new_line_coverage, line_coverage
+#   WireTuner-Client  wiretuner-client  new_line_coverage, line_coverage
 #
 # The client gate has no condition metric: Swift's coverage mapping emits no branch records, so
 # Sonar would never have a branch measure for it.  The client's branch gate is the llvm-cov
@@ -160,11 +160,11 @@ select_gate() {
 
 [ "$dry_run" = true ] && echo "dry run against $host (no requests are sent):"
 
-ensure_project wiretuner-server
-ensure_project wiretuner-client
+ensure_project WireTuner
+ensure_project WireTuner-Client
 ensure_gate wiretuner-server new_line_coverage line_coverage new_branch_coverage branch_coverage
 ensure_gate wiretuner-client new_line_coverage line_coverage
-select_gate wiretuner-server wiretuner-server
-select_gate wiretuner-client wiretuner-client
+select_gate wiretuner-server WireTuner
+select_gate wiretuner-client WireTuner-Client
 
 echo "configure-gates: done"

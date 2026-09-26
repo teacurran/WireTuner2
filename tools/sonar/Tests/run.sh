@@ -67,11 +67,11 @@ printf '%s\n' "$token" > "$work/home/.sonar-token"
 env -u SONAR_TOKEN HOME="$work/home" "$tools/configure-gates.sh" > "$work/run1.out"
 test "$(grep -c '^POST ' "$work/requests.log")" -eq 12 || fail "first run should make 12 writes"
 state | jq -e '
-    (.projects | keys) == ["wiretuner-client", "wiretuner-server"] and
+    (.projects | keys) == ["WireTuner", "WireTuner-Client"] and
     ([.gates["wiretuner-server"][] | .metric] | sort) == ["branch_coverage", "line_coverage", "new_branch_coverage", "new_line_coverage"] and
     ([.gates["wiretuner-client"][] | .metric] | sort) == ["line_coverage", "new_line_coverage"] and
     ([.gates[][] | select(.op != "LT" or .error != "95")] | length) == 0 and
-    .selected == {"wiretuner-server": "wiretuner-server", "wiretuner-client": "wiretuner-client"}
+    .selected == {"WireTuner": "wiretuner-server", "WireTuner-Client": "wiretuner-client"}
 ' > /dev/null || fail "unexpected server state after the first run: $(state)"
 if grep -q "$hex40" "$work/run1.out" "$work/requests.log"; then fail "the token leaked into output or request parameters"; fi
 : > "$work/requests.log"

@@ -524,12 +524,13 @@ and fails the client workflow's `sonar` job below 95% lines or 95% regions, befo
 the figures and the ten files with the most uncovered regions go to the job summary.
 
 |Projects
-|Two Sonar projects, `wiretuner-server` and `wiretuner-client`, created with gates of the same
-names by `tools/sonar/configure-gates.sh` (idempotent; `--dry-run` prints the Web API calls).
-`wiretuner-server`: `new_line_coverage`, `line_coverage`, `new_branch_coverage`,
-`branch_coverage`, each failing below 95.  `wiretuner-client`: `new_line_coverage` and
-`line_coverage` only.  The proto module contributes no measurable code; the docs contribute
-none.
+|Two Sonar projects, `WireTuner` (the server) and `WireTuner-Client` (xref:decisions.adoc#D-074[D-074]),
+with gates `wiretuner-server` and `wiretuner-client` created and selected by
+`tools/sonar/configure-gates.sh` (idempotent; `--dry-run` prints the Web API calls; it needs a
+token that may administer quality gates).  `wiretuner-server`: `new_line_coverage`,
+`line_coverage`, `new_branch_coverage`, `branch_coverage`, each failing below 95.
+`wiretuner-client`: `new_line_coverage` and `line_coverage` only.  The proto module contributes
+no measurable code; the docs contribute none.
 
 |CI
 |The `sonar` job of `.github/workflows/server.yml` (after `verify`) runs `./mvnw -B -ntp
@@ -547,7 +548,7 @@ The client's branch gate is llvm-cov region coverage (xref:decisions.adoc#D-066[
 Swift compiler's coverage mapping (Xcode 26.4, Swift 6.3) emits line and function regions but no
 branch regions: `llvm-cov export -format=lcov` on a Swift binary writes `BRF:0` and no `BRDA`
 records (APP-001 found this), so Sonar never has a branch or condition measure for
-`wiretuner-client`, and a `branch_coverage` condition there would be vacuously met rather than
+`WireTuner-Client`, and a `branch_coverage` condition there would be vacuously met rather than
 measured.  What llvm-cov does count for Swift is *regions*: every `if`/`guard`/`switch` arm,
 each operand of `?:` and `??`, every loop body and closure has its own counter, so an untaken
 arm is an uncovered region exactly as it would be an uncovered branch.  The client gate is
@@ -568,11 +569,13 @@ Two limits of the server as installed (SonarQube Community Build 26.9) shape the
   commercial edition or the community branch plugin; the jobs then pass
   `sonar.pullrequest.key`/`branch`/`base` from the event).  Until then a PR is blocked by the CI
   gates above, which apply the same 95% bars to the same files, not by Sonar's status check.
-* *No Swift analyzer.*  The Community Build's language list has no Swift, so the scanner may not
-  index `.swift` files and the generic coverage report may then attach to nothing; the client
-  line gate is enforced by `regions-gate.swift` (`--minimum-lines 95`) regardless.  Verify on
-  the first CI run that `wiretuner-client` shows a coverage measure; if it does not, the options
-  are a commercial edition or the community `sonar-swift` plugin.
+* *No Swift analyzer.*  The Community Build's language list has no Swift, and Sonar keeps no
+  measures for a file without a language, so `client/sonar-project.properties` lets the Swift
+  files borrow Kotlin's suffix list: the generic coverage report then attaches to them (the Kotlin
+  parser rejects each file, so no rule runs on it; the files are listed as Kotlin, with no
+  lines-of-code count).  The client line gate is enforced by `regions-gate.swift`
+  (`--minimum-lines 95`) regardless.  A commercial edition or the community `sonar-swift` plugin
+  would bring Swift rules.
 
 The token is read from `SONAR_TOKEN` or, when that is unset, `~/.sonar-token` for local runs
 (`make sonar-server`, `make sonar-client`, `configure-gates.sh`) and from the `SONAR_TOKEN`
