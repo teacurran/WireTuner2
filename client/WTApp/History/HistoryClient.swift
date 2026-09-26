@@ -81,6 +81,8 @@ protocol HistoryClient: Sendable {
     func delete(version: String) async throws
     /// A new document holding the state at `serverSeq`; its id.
     func restoreAsCopy(of document: String, serverSeq: UInt64, newID: String, name: String) async throws -> String
+    /// One object's changes, newest first (`ListNodeHistory`; the object history popover).
+    func nodeHistory(of document: String, node: OpID, cursor: String) async throws -> NodeHistoryPage
 }
 
 struct GRPCHistoryClient: HistoryClient {

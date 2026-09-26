@@ -1,4 +1,5 @@
 import SwiftUI
+import WTCRDT
 import WTModel
 
 /// The Object panel (object-panel.adoc; APP-007): the inspector host.  The upper half is the
@@ -26,6 +27,9 @@ struct ObjectPanelBody: View {
             if let line = selection?.editingLine {
                 Text(line).font(.caption).italic().foregroundStyle(.secondary).padding(.horizontal).accessibilityIdentifier("object.editingBy")
             }
+            if let node = Self.blamed(selection) {
+                BlameLineView(node: node)
+            }
             if let list = Self.attributes(selection) {
                 AttributesListView(model: list, state: attributes, selection: selection?.model)
                 Divider()
@@ -51,6 +55,13 @@ struct ObjectPanelBody: View {
         } else if let model = model(selection) {
             ForEach(registry.views(for: model), id: \.id) { $0.view }
         }
+    }
+
+    /// The object whose blame line shows: exactly one selected (history.adoc, "Who changed this
+    /// object").
+    static func blamed(_ selection: ActiveSelection?) -> OpID? {
+        guard let ids = selection?.model?.ids, ids.count == 1 else { return nil }
+        return ids.first?.opID
     }
 
     /// The Attributes list of the front window's selection (ATTR-003).

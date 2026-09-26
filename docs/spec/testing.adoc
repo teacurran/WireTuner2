@@ -693,7 +693,7 @@ no remote dependencies.
   and the test module is a release build (`swift test -c release -Xswiftc -enable-testing`).  A
   budget whose debug figure is meaningful says why (`enforcedInDebug:`); only the app's budgets
   do (`CanvasPerformanceTests`, `CommandPaletteTests`, `PointHandleTests`,
-  `TransformPreviewPerformanceTests`, `CanvasMetalTests`), because the app's tests build Debug only, and unoptimised code within a budget is
+  `TransformPreviewPerformanceTests`, `CanvasMetalTests`, `InspectOverlayPerformanceTests`, `BranchMergePerformanceTests`), because the app's tests build Debug only, and unoptimised code within a budget is
   within it optimised too.  A budget known to be missed on current hardware says so
   (`knownIssue:`): a miss is recorded as a known issue and reported, not failed.  `make
   client-perf` runs, in release with `WT_PERF=1` and one test at a time (`--no-parallel`: Swift
@@ -755,6 +755,8 @@ no remote dependencies.
 |App: main-thread pan frame at 50,000 rectangles, p95 of 120 (APP-002; Debug) |16.7 ms |`CanvasPerformanceTests`
 |App: the worst keystroke ranking 5,000 palette items, best of three each (Debug) |16 ms |`CommandPaletteModelTests`
 |App: Metal pan, zoom and rotate frame at 50,000 rectangles, p95 (Debug) |8.3 ms |`CanvasMetalTests`
+|App: Inspect mode hover frame at 50,000 rectangles, p95 of 200 (COLLAB-035; Debug) |2 ms |`InspectOverlayPerformanceTests`
+|App: merge review of 10,000 branch changes against 10,000 on main (COLLAB-018; Debug) |2 s |`BranchMergePerformanceTests`
 |===
 
 Not budgets, and left as they are: waits with a deadline for something to happen (`eventually`

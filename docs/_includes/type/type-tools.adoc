@@ -223,6 +223,17 @@ mark on the character before it (none at the start of the text); over a selectio
 moves by the nudges.  Deviation: at an insertion point baseline shift and size change the pending
 format of what is typed next, which writes nothing.
 
+NOTE: As built by TYPE-018 (`WTApp/Text/TextBlockHandles.swift`; `WTModel/TypeHandleDrags.swift`, a new file).  A press on a
+text block's top, bottom or side handle starts a type drag; once the pointer has moved 3 view points the moved edge
+previews dashed with the value beside the pointer ("Leading +2 pt", "Range kerning 5%"), and mouse-up writes one mark over
+the whole text, "Leading" or "Kern".  The edge follows the pointer: leading changes by the drag's distance (block space,
+away from the block positive) over the number of laid-out lines, range kerning by the distance over the size and the
+characters per line less one, as percent of an em.  Leading keeps the mode of the first character's leading (unset reads
+as auto, 120%): + and = move by points, % by the equivalent percent of the size; the line height never goes below zero.
+Values land on tenths, or with kbd:[Shift] on whole points (+, =) or whole percent (%, kerning).  A press that does not
+move writes nothing, so a double-click still toggles auto width or height.  *Deviation*: the live preview is the edge and
+the readout on the canvas; the text does not reflow and the Object panel shows the value once it is written.
+
 === Build tasks
 
 [[TYPE-017]]

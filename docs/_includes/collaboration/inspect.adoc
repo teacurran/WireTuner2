@@ -329,7 +329,12 @@ the format from the document's unit; a click selects; kbd:[Shift] freezes; kbd:[
 other key is consumed, so tool shortcuts do nothing), and every document command is made inert:
 `DocumentHandle.commandTransform` hands the document an `InertCommand`, which throws, so nothing is
 written whatever a menu, key or tool asks for.  Not built: the toolbar button, entering the mode by
-default for a viewer, hovered path points, undo and redo being inert too, and the 2 ms frame budget.
+default for a viewer, hovered path points, and undo and redo being inert too.  The 2 ms frame budget is
+`InspectOverlayPerformanceTests` (COLLAB-035's rest): 200 pointer moves over the 50,000-rectangle
+document in a window, each timed from `InspectTool.pointerMoved` through the hit test, the
+measurements and the overlay layer's `display()`, p95 held to 2 ms as a `PerfBudget` (Debug, like the
+other app budgets); every run asserts that no document tile was rasterized meanwhile (the canvas's
+tile counters).
 
 NOTE: As built by COLLAB-037's snippet half (`WTApp/Collaboration/InspectPanel.swift`; the `SnippetObject` builder is
 `ExportSnapshot.snippetObject` in WTModel).  menu:Window[Inspect] is a panel reading the front window's selection -- one

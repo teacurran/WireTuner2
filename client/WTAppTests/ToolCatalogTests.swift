@@ -11,7 +11,7 @@ import WTRender
     /// list is a decision) or its help page fails here.
     static let snapshot: [String] = [
         "pointer v,0 - tools options selecting", "subselect a,1 - tools options selecting", "lasso l - tools options selecting",
-        "page d - tools - pages", "text t - tools - creating-text",
+        "page d - tools - pages", "crop shift+c - tools - cropping-bitmaps", "text t - tools - creating-text",
         "pen p,6 pen tools - pen-bezigon", "bezigon b,5 pen tools - pen-bezigon",
         "pencil y,9 pencil tools options freeform", "variableStrokePen - pencil tools options freeform", "calligraphicPen - pencil tools options freeform",
         "line n,4 - tools - rectangles-ellipses-lines",
@@ -24,7 +24,7 @@ import WTRender
         "trace 8 - tools options tracing", "eyedropper i - tools - applying-color",
         "extrude x effects tools - extrude", "blend w effects tools - blends", "perspective - effects tools - perspective",
         "graphicHose shift+h - tools options graphic-hose", "chart - - tools options charts", "connector - - tools - connectors",
-        "action - - tools - interactivity", "outputArea - - tools - output-area",
+        "action shift+l - tools - interactivity", "outputArea - - tools - output-area",
         "rotate - transform tools options transforming", "scale - transform tools options transforming",
         "skew - transform tools options transforming", "reflect - transform tools options transforming",
         "zoom z - view - document-view", "hand h - view - document-view",
@@ -56,7 +56,7 @@ import WTRender
         #expect(conflicts.isEmpty, "\(conflicts)")
         #expect(tools.descriptor(for: .pointer)?.make() is PointerTool)
         #expect(tools.members(of: .pen).map(\.id) == ["pen", "bezigon"])
-        #expect(ToolRegistry.builtIn().count == 42)
+        #expect(ToolRegistry.builtIn().count == 43)
     }
 
     @Test func descriptorsDescribeThemselves() {
@@ -120,7 +120,7 @@ import WTRender
         let slots = model.slots(in: .tools)
         #expect(slots.first == .tool(.pointer))
         #expect(slots.contains(.flyout(.pen, visible: "pen", members: ["pen", "bezigon"])))
-        #expect(slots.count == 21, "40 tools, 27 of them in 8 flyouts")
+        #expect(slots.count == 22, "41 tools, 27 of them in 8 flyouts")
         #expect(model.slots(in: .view) == [.tool(.zoom), .tool(.hand)])
         #expect(ToolSlot.flyout(.pen, visible: "bezigon", members: []).id == "flyout.pen")
         #expect(ToolSlot.tool(.hand).id == "hand" && ToolSlot.tool(.hand).visibleTool == .hand)

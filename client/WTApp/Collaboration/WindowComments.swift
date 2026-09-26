@@ -6,6 +6,7 @@ import WTGeometry
 import WTModel
 import WTProto
 import WTRender
+import WTSync
 
 /// A thread being started: the pin is placed and the composer is open, but nothing is written
 /// until btn:[Comment] (comments.adoc, "Adding a comment"); kbd:[Esc] discards it with its pin.
@@ -34,10 +35,15 @@ final class WindowComments {
     @ObservationIgnored let layer = CanvasOverlayLayer()
     private(set) var model = CommentThreadModel(EngineState())
     private(set) var revision = 0
-    /// Comments displayed on this Mac (or present when the window opened).
-    @ObservationIgnored private(set) var read: Set<OpID> = []
+    /// What this account has not seen: the server's `GetUnread`, arrivals since, and the marks
+    /// made by displaying threads (sent as `MarkRead`).  Without a server, comments present when
+    /// the window opened count as read.
+    @ObservationIgnored let readState: CommentReadState
     /// Every comment id seen, for spotting new ones.
     @ObservationIgnored private(set) var known: Set<OpID> = []
+    /// New comments count as arrivals (after the window's first read of the document).
+    @ObservationIgnored private var tracking = false
+    @ObservationIgnored private var sessionToken: UUID?
     private(set) var openThread: OpID?
     private(set) var pending: PendingThread?
     /// The pin the pointer is over (its first line shows).
@@ -61,6 +67,7 @@ final class WindowComments {
         self.window = window
         document = window.documentHandle
         self.features = features
+        readState = CommentReadState(documentID: window.documentHandle.id, service: features.readService(window.documentHandle.id))
     }
 
     var account: String { features.account().id }
@@ -83,13 +90,22 @@ final class WindowComments {
         }
         observation = document.observe { [weak self] change in self?.documentDidChange(change) }
         refresh()
-        read = known
-        refresh(force: true)
+        tracking = true
+        readState.onChange = { [weak self] in self?.unreadDidChange() }
+        window.mainToolbar?.badgeCount = { [weak self] id in id == MainToolbarController.comments ? self?.unreadTotal : nil }
+        sessionToken = window.collaboration.session?.observe { [weak self] notice in
+            if case .document(let event) = notice, case .comment(let comment)? = event.event { self?.commentEvent(comment) }
+        }
         let features = features
         let id = document.id
         Task { [weak self] in
             let members = await features.members(id)
             self?.members = members
+        }
+        Task { [weak self] in
+            guard let self, await self.readState.load() else { return }
+            self.refresh(force: true)
+            self.setNeedsDisplay()
         }
         let banner = window.collaboration.banner
         let previous = banner.onAction
@@ -116,6 +132,8 @@ final class WindowComments {
     func tearDown() {
         if let observation { document.stopObserving(observation) }
         observation = nil
+        if let sessionToken { window?.collaboration.session?.stopObserving(sessionToken) }
+        sessionToken = nil
         popover?.close()
         popover = nil
         layer.removeFromSuperlayer()
@@ -130,12 +148,21 @@ final class WindowComments {
         let state = document.state
         let me = account
         var unread: [OpID: Set<OpID>] = [:]
+        var send = false
         let all = CommentThreadModel(state, pages: document.pageList)
         for thread in all.threads {
-            let ids = thread.comments.filter { !$0.deleted && $0.author != me && !read.contains($0.id) }.map(\.id)
-            if thread.id == openThread { read.formUnion(ids) } else if !ids.isEmpty { unread[thread.id] = Set(ids) }
+            let others = thread.comments.filter { !$0.deleted && $0.author != me }
+            if tracking {
+                for comment in others where !known.contains(comment.id) { readState.arrived(comment.id, in: thread.id) }
+            }
             known.formUnion(thread.comments.map(\.id))
+            if thread.id == openThread, let newest = thread.comments.map(\.id).max() {
+                send = readState.mark(thread.id, through: newest) || send
+            }
+            let ids = readState.unread(in: thread.id).intersection(others.map(\.id))
+            if !ids.isEmpty { unread[thread.id] = ids }
         }
+        if send { flushMarks() }
         model = CommentThreadModel(state, pages: document.pageList, unread: unread)
         revision += 1
         if let openThread, model[openThread] == nil { close() }
@@ -149,6 +176,7 @@ final class WindowComments {
         setNeedsDisplay()
         features.panel.touch()
         guard change.summary.origin == .remote else { return }
+        if !readState.pending.isEmpty { flushMarks() }
         let me = account
         for thread in model.threads {
             for comment in thread.comments where !before.contains(comment.id) && comment.author != me && !comment.deleted {
@@ -178,8 +206,28 @@ final class WindowComments {
         return members.first { $0.id == account }?.name ?? (account.isEmpty ? "Someone" : account)
     }
 
-    /// The unread comments in the document (the Comments panel's count).
-    var unreadTotal: Int { model.unreadTotal }
+    /// The unread comments in the document (the Comments panel's and the toolbar button's count):
+    /// the server's count, which includes comments not received yet, once it has answered.
+    var unreadTotal: Int { readState.isLoaded ? readState.total : model.unreadTotal }
+
+    /// Sends the read marks waiting (`MarkRead`).
+    private func flushMarks() {
+        let readState = readState
+        Task { await readState.flush() }
+    }
+
+    /// What is unread changed: the toolbar badge and the panel's count follow.
+    private func unreadDidChange() {
+        window?.mainToolbar?.refreshBadges()
+        features.panel.touch()
+    }
+
+    /// A `CommentEvent`: the comment counts as unread at once (it may not have arrived yet).
+    func commentEvent(_ event: Wiretuner_Sync_V1_CommentEvent) {
+        readState.handle(event)
+        refresh(force: true)
+        setNeedsDisplay()
+    }
 
     // MARK: Pins
 
@@ -227,7 +275,7 @@ final class WindowComments {
 
     /// The author's colour: a stable pick from the presence palette.
     static func color(of account: String) -> PinColor {
-        PresencePalette.color(at: account.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF })
+        PresencePalette.color(at: PresencePalette.index(for: account))
     }
 
     /// Draws every visible pin (constant size, numbered, the author's colour or grey when
@@ -354,7 +402,7 @@ final class WindowComments {
         guard let entry = model[thread] else { return }
         pending = nil
         openThread = thread
-        read.formUnion(entry.comments.map(\.id))
+        if let newest = entry.comments.map(\.id).max(), readState.mark(thread, through: newest) { flushMarks() }
         refresh(force: true)
         setNeedsDisplay()
         features.panel.touch()

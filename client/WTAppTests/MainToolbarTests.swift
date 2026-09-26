@@ -27,7 +27,7 @@ import WTRender
         let labels = MainToolbarController.defaultCommands.map { toolbar.item(for: $0).label }
         #expect(labels == [
             "New", "Open", "Save Version", "Import", "Print", "Lock", "Unlock", "Find & Replace", "Align", "Transform",
-            "Library", "Object", "Color Mixer", "Swatches", "Layers", "Share",
+            "Library", "Object", "Color Mixer", "Swatches", "Layers", "Comments", "Share",
         ])
         let allowed = Set(toolbar.toolbarAllowedItemIdentifiers(toolbar.toolbar))
         for command in environment.commands.commands {

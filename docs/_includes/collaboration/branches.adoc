@@ -473,8 +473,14 @@ default) or *Use main* per object, and *Keep branch open*; btn:[Merge] sends `Me
 `excluded_nodes` and the main seq the review was built on as `reviewed_parent_seq`.  `MERGE_STALE` rebuilds the review
 over main as it is now, keeping the choices; the result says how many changes were merged and how many the replay dropped,
 also in the status bar.  Deviations: the review is a list rather than the review sheet's merge mode with previews; *Keep
-both copies* and *Restore* are not offered and no resolutions are sent (*Use branch* is the server's replay); the merge
-toast for collaborators (`BranchEvent`) and the 10,000-change timing are not built; main must be on this Mac.
+both copies* and *Restore* are not offered and no resolutions are sent (*Use branch* is the server's replay); main must be on
+this Mac.  The rest (COLLAB-018): the session passes every `DocumentEvent` to its windows (`SessionNotice.document`); a
+`BranchEvent` `MERGED` whose parent is the window's document shows "Autumn palette merged by Priya" in the status bar, and
+for ten seconds after it the parent's remote changes of no known session author pulse with the merger's name
+(`WindowCollaboration.author(of:)`); in the merged branch's own window it reads "Autumn palette was merged into main by
+Priya".  The review list is built off the main actor (`BranchMergeModel.preview`); its timing is `BranchMergePerformanceTests`
+(10,000 branch changes against 10,000 on main over 4,000 objects, 2 s, testing.adoc).  The post-merge hash equality with
+the server stays SRV-011's server test; the client end-to-end run is not built.
 
 === Build tasks
 

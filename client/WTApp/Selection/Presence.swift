@@ -107,6 +107,12 @@ enum PresencePalette {
         let count = colors.count
         return colors[((index % count) + count) % count]
     }
+
+    /// A stable colour index for an account seen outside presence (a comment's author, a
+    /// branch's merger): a hash of its id.
+    static func index(for account: String) -> Int {
+        account.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
+    }
 }
 
 /// Where the overlay, the avatar strip and the Object panel read the other participants from.

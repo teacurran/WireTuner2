@@ -30,6 +30,8 @@ enum ToolCatalog {
         stub("subselect", "Subselect", "cursorarrow.rays", [key("a"), key("1")], options: true, help: "selecting"),
         stub("lasso", "Lasso", "lasso", [key("l")], options: true, help: "selecting"),
         stub("page", "Page", "doc", [key("d")], help: "pages"),
+        // IMG-025: the Crop tool, with the selection tools (cropping-bitmaps.adoc).
+        ToolDescriptor(id: "crop", title: "Crop", symbolName: "crop", shortcuts: [key("c", .shift)], helpSlug: "cropping-bitmaps") { CropTool() },
         // Text
         stub("text", "Text", "textformat", [key("t")], help: "creating-text"),
         // Pen flyout
@@ -81,7 +83,8 @@ enum ToolCatalog {
         stub("graphicHose", "Graphic Hose", "sparkles", [key("h", .shift)], options: true, help: "graphic-hose"),
         stub("chart", "Chart", "chart.bar", options: true, help: "charts"),
         stub("connector", "Connector", "point.3.connected.trianglepath.dotted", help: "connectors"),
-        stub("action", "Action", "hand.tap", help: "interactivity"),
+        // WEB-022: the Link tool (interactivity.adoc; its id stays "action" for saved shortcut sets).
+        ToolDescriptor(id: "action", title: "Link", symbolName: "link", shortcuts: [key("l", .shift)], helpSlug: "interactivity") { LinkTool() },
         stub("outputArea", "Output Area", "crop", help: "output-area"),
         // Transform flyout
         stub("rotate", "Rotate", "rotate.right", group: .transform, options: true, help: "transforming"),

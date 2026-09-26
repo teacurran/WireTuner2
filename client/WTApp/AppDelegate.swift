@@ -256,6 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.attachDocumentGlue(window)
             self?.attachTypeAndDrawingFeatures(window)
             self?.attachExtras(window)
+            self?.attachImageLinkAndAccessibility(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -353,6 +354,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
         installExtras()
+        installImageLinkAndAccessibility()
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
         panelsDidChange()

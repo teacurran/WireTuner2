@@ -446,7 +446,9 @@ NOTE: TYPE-016, continued: the Text Editor draws collaborators' carets (name bes
 (tinted) in their colour, resolved through anchors like the canvas's.  When a remote change deletes
 the block being edited, the window's banner says "<name> deleted the text you were editing." with
 btn:[Restore], one undoable change "Restore text" (`deleted = false`; `WTApp/Text/RemovedTextNotice.swift`).
-Carets on text on a path still follow the block's ordinary layout.
+On text on a path a collaborator's caret is the line between the caret's top and bottom through the
+path layout, so it stands across the path and leans with its glyph, and a range tints each glyph along
+the curve (`PresenceOverlay.carets`; `RemoteCaretsOnPathTests`).
 
 NOTE: As built by TYPE-012 (`WTApp/Text/SpecialCharacters.swift`; `WTModel/SmartQuotes.swift`, a new
 file).  menu:Text[Special Characters] has the nine characters (end of column U+000C, end of line
@@ -622,6 +624,6 @@ Done when::
 NOTE: Partly built with TYPE-003: on the canvas a collaborator's caret is drawn at its character
 through the block's layout (a deleted character reads where it was; a character not received yet,
 or a caret in a deleted block, is not drawn) and a range as a tint in their colour
-(`PresenceOverlay.caretGeometry`).  Carets on text on a path and in the Text Editor, and the
-*Restore* notice, remain; a remote delete of the edited block ends editing for now.
+(`PresenceOverlay.caretGeometry`).  Carets in the Text Editor and the *Restore* notice came with
+the TYPE-016 note under "Working with others"; carets on text on a path, with the note there.
 endif::spec[]

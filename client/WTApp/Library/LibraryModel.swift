@@ -48,6 +48,15 @@ final class LibraryModel {
     @ObservationIgnored var onOpen: @MainActor ([LibraryDocument]) -> Void = { _ in }
     /// Team settings and joining a team (SEC-003); nil leaves them out.
     @ObservationIgnored var collaboration: CollaborationServices?
+    /// `ListMentionedDocuments` (the mention dots); nil shows none.
+    @ObservationIgnored var mentions: (any MentionedDocumentsClient)?
+    /// How often the dots are read again while the app runs (comments.adoc: on open and every
+    /// five minutes).
+    @ObservationIgnored var mentionInterval: Duration = .seconds(300)
+    @ObservationIgnored private(set) var mentionPolling: Task<Void, Never>?
+    /// Documents holding a comment that mentions this account and that it has not seen: a dot
+    /// beside the name.
+    private(set) var mentioned: Set<String> = []
 
     private(set) var cache: LibraryCacheFile
     private(set) var currentSpaceID: String?
@@ -168,6 +177,29 @@ final class LibraryModel {
         }
         save()
         await prefetchThumbnails()
+    }
+
+    /// The mention dots, read again (kept as they were when the call fails).
+    func refreshMentions() async {
+        guard let mentions, let documents = try? await mentions.mentionedDocuments() else { return }
+        mentioned = documents
+    }
+
+    /// Reads the dots now and every `mentionInterval` (idempotent).
+    func startMentionPolling() {
+        guard mentionPolling == nil else { return }
+        let interval = mentionInterval
+        mentionPolling = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshMentions()
+                try? await Task.sleep(for: interval)
+            }
+        }
+    }
+
+    func stopMentionPolling() {
+        mentionPolling?.cancel()
+        mentionPolling = nil
     }
 
     /// The current section only.

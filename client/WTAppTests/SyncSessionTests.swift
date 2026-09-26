@@ -126,6 +126,7 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
             case .merged(let review): notices.append("merged:\(review.toast)")
             case .message(let text): notices.append(text)
             case .openReview: notices.append("open")
+            case .document: notices.append("event")
             }
         }
         var signIns = 0, exports = 0
@@ -155,12 +156,13 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         session.handle(.stateReplaced(serverSeq: 3))
         session.handle(.presence(.with { $0.participants = [try! presenceFrame(user: "u", name: "Tom", session: 9), Wiretuner_Sync_V1_PresenceUpdate()] }))
         session.handle(.stable(1))
+        session.handle(.document(.with { $0.renamed = .with { $0.name = "R" } }))
         #expect(session.author(of: 9)?.name == "Tom")
         #expect(notices == [
             "merged:Merged 2 changes from Priya", "open", "review", "open", "Recovered 1 change from an expired session",
             "Recovered 3 changes from an expired session; 1 could not be applied",
             "A large change was split to send it", "2 large changes were split to send them; 1 could not be applied",
-            "A change could not be synced and was left out; it is kept on this Mac",
+            "A change could not be synced and was left out; it is kept on this Mac", "event",
         ])
         session.stopObserving(token)
         try await session.resolveReview(.upload)

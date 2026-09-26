@@ -355,8 +355,10 @@ else (a gradient, a pattern, a lens) the pixel the renderer draws there, as an u
 A click (under 3 view points of movement) makes the colour the active well's current colour and
 loads it into the Color Mixer; a drag drops it on the object under the pointer with the canvas drop's
 rules (`CanvasColorDrop`), one `ApplyColor` change.  Sampling writes nothing.  The cursor carries a
-chip of the colour.  *Not built here*: drops on the Tools panel wells and the Swatches panel (the
-tool drags inside the canvas only), and bitmap pixels through the image's profile (image nodes are
+chip of the colour.  A drag that leaves the canvas becomes an ordinary colour drag
+(`EyedropperDragOut`, COLOR-012's remainder): the `ColorRef` payload -- a swatch travels as the swatch -- and an `NSColor`,
+so the Tools panel wells, the Swatches panel and the other colour drop targets take it by their own rules, and the canvas
+writes nothing.  *Not built here*: bitmap pixels through the image's profile (image nodes are
 not drawn by the scene yet; the pixel path is ready for them).
 
 === Build tasks

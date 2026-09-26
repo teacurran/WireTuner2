@@ -406,7 +406,13 @@ network* while the session is offline; an image whose blob is not in this Mac's 
 name and "uploading from <name>" (the author of the node's replica from the session, else
 "someone").  The marks are read from the state (image nodes, their natural rect through their
 pasteboard transform), not from display-list items, and redraw on document, sync-state and viewport
-changes.  Per-blob upload progress and the download progress ring are not built.  IMG-007: the
+changes.  Progress (IMG-006's rest): `BlobQueue.transfers()` reports every chunk of an upload and
+of a download (`BlobTransfer`: hash, direction, bytes done, size) and `transfer(of:)` how far a blob
+in flight has got; the *Uploading* badge's ring fills with its upload, and a placeholder of a
+collaborator's image asks the queue for the blob (once) and draws a ring under "uploading from
+<name>" filling with the download.  The window follows the queue's transfers and arrivals: a step
+redraws the marks, an arrival hands the blob to the `ImageStore` (decoded, then only its tiles
+repaint) and the mark goes.  Before this, nothing asked for a remote image's blob.  IMG-007: the
 *Downsample images larger than* preference (Preferences > Import, synced) reaches the importer through
 `ImportController.context`, the converters' "downsampled to N MP" notes show in the status bar and
 over-limit files are named in the import alert (IMG-005's paths); no other code was needed.  The

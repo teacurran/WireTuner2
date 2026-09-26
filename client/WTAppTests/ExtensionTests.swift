@@ -24,7 +24,7 @@ import Testing
 
     static let toolsToolbar = [
         "Mirror", "Roughen", "Bend", "Fisheye Lens", "Smudge", "Shadow", "3D Rotation", "Graphic Hose", "Chart", "Spiral", "Arc",
-        "Eyedropper", "Extrude", "Blend", "Perspective", "Connector", "Action", "Output Area", "Eraser",
+        "Eyedropper", "Extrude", "Blend", "Perspective", "Connector", "Link", "Output Area", "Eraser",
     ]
 
     static let operationsToolbar = [

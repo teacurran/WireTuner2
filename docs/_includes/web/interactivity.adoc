@@ -48,7 +48,7 @@ The Link tool draws a page link by dragging: start on an object, end on a page.
 
 To link an object to a page with the Link tool:
 
-. Choose the Link tool in the Tools panel (its shortcut is kbd:[L]).
+. Choose the Link tool in the Tools panel (its shortcut is kbd:[Shift+L]).
 . Drag from the object to any point on the target page.  While you drag, the page under the
   pointer highlights and a connector follows the pointer; kbd:[Space] pans, and the view
   auto-scrolls near the window edges so a page off-screen can be reached.
@@ -175,7 +175,18 @@ NOTE: As built: the Navigation panel's *On click* pop-up (WEB-021's panel half, 
 page)* for a dangling target; choosing a page writes `go_to_page`, *Nothing* or *Open link* clears it
 and leaves `url`.  The link badge is `WTApp/Web/LinkBadges.swift`: while menu:View[Show Links] is on, every drawn object
 with a live page link shows a 12 × 12 pt badge at its bounds' lower right, drawn with the links overlay, and hovering it
-names the page ("Go to Page 2").  The Link tool (WEB-022) is not built.
+names the page ("Go to Page 2").  The Link tool is WEB-022's (next note).
+
+NOTE: As built by WEB-022 (`WTApp/Web/LinkTool.swift`; `WTModel/PageLinkDrag.swift`, a new file).  The Link tool keeps the
+catalog id `action` (the Tools panel's former *Action* stub, so saved shortcut sets keep working) with the title *Link*.
+A press takes the link badge under the pointer first (badges are drawn while the tool is selected), else the top-level
+object; `PageLinkDrag.isLinkable` refuses locked objects and kinds without navigation, and text being edited in the window
+counts as a text range and is refused too -- the pointer shows the chain over a linkable object and "no" over a refused
+one.  While dragging, the page under the pointer is outlined and a dashed connector runs from the object's centre (from a
+badge's corner when a badge is dragged); kbd:[Space] pans (the tool is `SpaceDragging`) and the canvas's edge auto-scroll
+applies.  On release `PageLinkDrag.outcome` decides: another page links ("Link to page N"), the source's own page removes
+its link ("Remove page link") or with kbd:[Option] links to that page, the pasteboard or the synthesized page of a
+document without pages does nothing.  *Deviation*: the default shortcut is kbd:[Shift+L], since kbd:[L] is the Lasso's.
 
 === Build tasks
 
@@ -197,7 +208,7 @@ Done when::
 Track:: client-ui
 Depends on:: APP-003, REND-003, WEB-001, WEB-021
 Size:: M
-Delivers:: The Link tool with drag-to-page, page highlight, connector overlay, auto-scroll and kbd:[Space] pan, badge drag to remove or retarget, kbd:[Option]-drop for self-links, cursors, kbd:[L] shortcut, Tools panel registration.
+Delivers:: The Link tool with drag-to-page, page highlight, connector overlay, auto-scroll and kbd:[Space] pan, badge drag to remove or retarget, kbd:[Option]-drop for self-links, cursors, kbd:[Shift+L] shortcut (kbd:[L] is the Lasso's), Tools panel registration.
 Done when::
 * Drag from an object to another page sets the link in one change; dropping on the source page clears it; kbd:[Option]-drop on the source page links to it.
 * Dragging over text ranges and locked objects shows the "no" cursor and does nothing on release.

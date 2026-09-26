@@ -487,8 +487,15 @@ document now); two rows compare with each other (*Older* / *Newer*); named versi
 them act.  The version window is a document window over the state in memory, not synced and not reopened at launch, whose
 every command is made inert; its bar offers Restore, Restore as Copy (`RestoreAsCopy`, the copy opened), Compare with Current
 and Inspect.  menu:File[Name This Version…] opens the Save Version sheet; kbd:[Cmd+S] stays *Save Version…* as saving.adoc
-names it.  Deviations: a collaborator's new version shows on the next remote change or refresh (no version event exists);
-the object history popover is not built.
+names it.  Deviations: a collaborator's new version shows on the next remote change or refresh (no version event exists).
+
+NOTE: As built: the object history popover (COLLAB-022's rest, `WTApp/History/NodeHistory.swift`).  With exactly one object
+selected the Object panel shows _Changed by Priya, 5 minutes ago_ under the selection summary (`BlameLineView`, read from
+`ListNodeHistory` through `HistoryClient.nodeHistory`); a click opens the popover: the object's changes newest first, each
+with what it wrote ("Fill, Stroke" -- a losing write marked "(did not apply)" from `lost_attributes`), who and when, and
+btn:[View] opening the read-only version window at `server_seq - 1` (its bar's Restore, Restore as Copy and Compare act on
+that state); *Show More* pages with the cursor.  Deviations (COLLAB-023's part): the line is read from the server only, not
+from the local log first, so it shows only online and follows a change on the next selection rather than within a frame.
 
 === Build tasks
 

@@ -220,20 +220,44 @@ enum TextBlockResize {
 /// The text block handles (TYPE-005): solid or hollow side and bottom handles and the link box on
 /// each selected text block, for the Pointer and Subselect tools.  A corner drag resizes (one change
 /// at mouse-up); a double-click on a side handle toggles auto width, on the top or bottom handle
-/// auto height, on the link box fits the block to its text.  A single press on a side or bottom
-/// handle is taken and does nothing yet (the kerning and leading drags are TYPE-018's).
+/// auto height, on the link box fits the block to its text.  A drag of the top or bottom handle
+/// adjusts the block's leading, of a side handle its range kerning (TYPE-018, `TypeHandleDrag`):
+/// the moved edge and the value preview on the canvas, one mark over the whole text lands at
+/// mouse-up, kbd:[Shift] takes whole steps.  A press that does not move writes nothing, so the
+/// double-click toggles stay apart from the drags.
 @MainActor
 final class TextBlockHandles: CanvasHandleLayer {
     static let radius = 5.0
     static let size = 7.0
     static let linkBoxOffset = 8.0
     static let linkBoxSize = 8.0
+    /// View points a press on a side, top or bottom handle moves before it adjusts type.
+    static let typeDragThreshold = 3.0
+
+    /// A leading or kerning drag (TYPE-018).
+    struct TypeDrag {
+        var frame: TextBlockFrame
+        var handle: TextBlockFrame.Handle
+        var kind: TypeHandleDrag.Kind
+        /// Where the press was, pasteboard and view.
+        var start: Point
+        var startView: Point
+        /// Laid-out lines, and characters per line, for the rate the edge follows the pointer.
+        var lines: Int
+        var characters: Int
+        var size: Double
+        /// The value the drag lands on now; nil until it moves past the threshold.
+        var value: Wiretuner_Doc_V1_TextMarkValue?
+        /// The pointer, pasteboard.
+        var current: Point
+    }
 
     private(set) var dragging: (frame: TextBlockFrame, corner: TextBlockFrame.Handle)?
     /// The drag's current result (the overlay's preview).
     private(set) var preview: TextBlockResize.Result?
     /// A drag from a link box (TYPE-007).
     let linking = TextLinkDrag()
+    private(set) var typeDrag: TypeDrag?
 
     init() {}
 
@@ -267,7 +291,11 @@ final class TextBlockHandles: CanvasHandleLayer {
                 dragging = (frame, handle)
                 preview = nil
             case .handle(let handle):
-                guard e.clickCount == 2 else { return true }
+                guard e.clickCount == 2 else {
+                    typeDrag = Self.typeDrag(frame, handle: handle, at: e, document: context.document)
+                    return true
+                }
+                typeDrag = nil
                 context.commandSink.perform(handle.isSide ? TextBlockResize.toggleWidth(frame) : TextBlockResize.toggleHeight(frame))
             }
             return true
@@ -275,8 +303,43 @@ final class TextBlockHandles: CanvasHandleLayer {
         return false
     }
 
+    /// A leading (top, bottom) or kerning (side) drag starting at `e`.
+    static func typeDrag(_ frame: TextBlockFrame, handle: TextBlockFrame.Handle, at e: CanvasEvent, document: DocumentHandle) -> TypeDrag {
+        let layout = document.textLayout(for: frame.node)
+        let lines = max(layout?.lineCount ?? 1, 1)
+        let characters = max((layout?.characterCount ?? frame.text.length) / lines, 1)
+        let size = frame.text.length > 0 ? TextLayoutReading.attributes(frame.text.values(at: 0)).size : 12
+        return TypeDrag(frame: frame, handle: handle, kind: handle.isSide ? .kerning : .leading, start: e.pasteboardPoint, startView: e.viewPoint,
+                        lines: lines, characters: characters, size: size, current: e.pasteboardPoint)
+    }
+
+    /// The value a type drag lands on with the pointer at `e`: nil within the threshold.
+    static func typeValue(_ drag: TypeDrag, at e: CanvasEvent) -> Wiretuner_Doc_V1_TextMarkValue? {
+        guard drag.startView.distance(to: e.viewPoint) >= typeDragThreshold else { return nil }
+        let from = drag.frame.toLocal(drag.start)
+        let to = drag.frame.toLocal(e.pasteboardPoint)
+        let distance: Double = switch drag.handle {
+        case .left: from.x - to.x
+        case .right: to.x - from.x
+        case .top: from.y - to.y
+        default: to.y - from.y
+        }
+        let delta = switch drag.kind {
+        case .leading: TypeHandleDrag.leadingDelta(distance: distance, lines: drag.lines)
+        case .kerning: TypeHandleDrag.kerningDelta(distance: distance, size: drag.size, characters: drag.characters)
+        }
+        return TypeHandleDrag.mark(drag.kind, text: drag.frame.text, delta: delta, coarse: e.modifiers.contains(.shift))
+    }
+
     func drag(_ e: CanvasEvent, context: ToolContext) {
         linking.move(e, context: context)
+        if var typeDrag {
+            typeDrag.value = Self.typeValue(typeDrag, at: e)
+            typeDrag.current = e.pasteboardPoint
+            self.typeDrag = typeDrag
+            context.host.setNeedsOverlayDisplay()
+            return
+        }
         guard let dragging else { return }
         preview = TextBlockResize.result(dragging.frame, corner: dragging.corner, to: e.pasteboardPoint,
                                          shift: e.modifiers.contains(.shift), option: e.modifiers.contains(.option))
@@ -285,6 +348,13 @@ final class TextBlockHandles: CanvasHandleLayer {
 
     func release(_ e: CanvasEvent, context: ToolContext) {
         linking.end(e, context: context)
+        if let typeDrag {
+            self.typeDrag = nil
+            guard let value = Self.typeValue(typeDrag, at: e),
+                  let command = TypeHandleDrag.command(node: typeDrag.frame.node, text: typeDrag.frame.text, value: value) else { return }
+            context.commandSink.perform(command)
+            return
+        }
         defer {
             dragging = nil
             preview = nil
@@ -298,6 +368,7 @@ final class TextBlockHandles: CanvasHandleLayer {
         dragging = nil
         preview = nil
         linking.cancel()
+        typeDrag = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
@@ -329,6 +400,28 @@ final class TextBlockHandles: CanvasHandleLayer {
             ctx.addPath(TextTool.polygon(corners.map { viewport.toView(dragging.frame.transform.apply(Point(x: origin.x + $0.x, y: origin.y + $0.y))) }))
             ctx.strokePath()
         }
+        if let typeDrag, typeDrag.value != nil { drawTypeDrag(typeDrag, in: ctx, viewport: viewport) }
+    }
+
+    /// A type drag's preview: the dragged edge moved with the pointer (dashed) and the value.
+    func drawTypeDrag(_ drag: TypeDrag, in ctx: CGContext, viewport: Viewport) {
+        let frame = drag.frame
+        let local = frame.toLocal(drag.current)
+        let edge: [Point] = switch drag.handle {
+        case .left, .right: [Point(x: local.x, y: frame.local.minY), Point(x: local.x, y: frame.local.maxY)]
+        default: [Point(x: frame.local.minX, y: local.y), Point(x: frame.local.maxX, y: local.y)]
+        }
+        let points = edge.map { viewport.toView(frame.transform.apply($0)).cgPoint }
+        ctx.setLineDash(phase: 0, lengths: [3, 3])
+        ctx.strokeLineSegments(between: points)
+        ctx.setLineDash(phase: 0, lengths: [])
+        guard let value = drag.value else { return }
+        let label = NSAttributedString(string: TypeHandleDrag.readout(value), attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor])
+        let at = viewport.toView(drag.current)
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
+        label.draw(at: NSPoint(x: at.x + 10, y: at.y + 10))
+        NSGraphicsContext.restoreGraphicsState()
     }
 
     /// The link box: a square with a dot for overflow or an arrow for a link.

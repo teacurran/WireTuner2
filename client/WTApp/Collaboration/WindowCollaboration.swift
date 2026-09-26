@@ -253,7 +253,46 @@ final class WindowCollaboration {
             controller.statusBar.show(message: review.toast + offer)
         case .message(let text):
             controller.statusBar.show(message: text)
+        case .document(let event):
+            documentEvent(event)
         }
+    }
+
+    /// How long after a merge's `BranchEvent` the parent's remote changes of no known author pulse
+    /// with the merger's name (the replayed changes follow the event on the subscription).
+    static let mergeAttributionWindow: TimeInterval = 10
+    /// The merger of the branch merged into this document last, and when (the pulses' author).
+    private(set) var merger: (author: SessionAuthor, at: Date)?
+    var now: @MainActor () -> Date = { Date() }
+
+    /// "Autumn palette merged by Priya" (branches.adoc, "Working with others"; COLLAB-018): a
+    /// branch merged into this document, or this branch merged into its parent by someone.
+    static func mergeToast(_ event: Wiretuner_Sync_V1_BranchEvent, document: String) -> String? {
+        guard event.kind == .merged else { return nil }
+        let name = event.name.isEmpty ? "A branch" : event.name
+        let actor = event.actor.displayName.isEmpty ? "someone" : event.actor.displayName
+        if event.parentDocumentID == document { return "\(name) merged by \(actor)" }
+        if event.branchDocumentID == document { return "\(name) was merged into main by \(actor)" }
+        return nil
+    }
+
+    /// A server-state event on the window's subscription.
+    func documentEvent(_ event: Wiretuner_Sync_V1_DocumentEvent) {
+        guard let controller, case .branch(let branch)? = event.event,
+              let toast = Self.mergeToast(branch, document: controller.documentHandle.id) else { return }
+        controller.statusBar.show(message: toast)
+        if branch.parentDocumentID == controller.documentHandle.id {
+            let color = PresencePalette.index(for: branch.actor.userID)
+            merger = (SessionAuthor(name: branch.actor.displayName.isEmpty ? "Someone" : branch.actor.displayName, colorIndex: color), now())
+        }
+    }
+
+    /// Who a remote change pulses as: its session's author, else, just after a merge into this
+    /// document, the merger.
+    func author(of change: Wiretuner_Doc_V1_Change) -> SessionAuthor? {
+        if let author = session?.author(of: change.replica) { return author }
+        guard let merger, now().timeIntervalSince(merger.at) < Self.mergeAttributionWindow else { return nil }
+        return change.replica == session?.localReplica ? nil : merger.author
     }
 
     // MARK: Document and selection
@@ -262,7 +301,7 @@ final class WindowCollaboration {
     func contentDidChange(_ change: ContentChange) {
         defer { recentSelection = Set(controller?.selection.model.ids ?? []) }
         guard change.summary.origin == .remote, let applied = change.change, !applied.ops.isEmpty, let controller else { return }
-        let author = session?.author(of: applied.replica)
+        let author = author(of: applied)
         flashes.changeApplied(applied, author: author)
         let deleted = applied.ops.compactMap { op -> SelectionID? in
             guard case .setDeleted(let delete)? = op.op, delete.deleted else { return nil }

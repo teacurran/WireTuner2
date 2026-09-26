@@ -612,10 +612,25 @@ and the owner's Delete Thread.  Unread is kept on this Mac: comments present whe
 count as read, a comment by someone else that arrives later is unread until its thread is displayed
 (at once, not after one second).  A remote comment that mentions the caller (or the document's team)
 shows "<name> mentioned you" with btn:[Show] in the bar above the canvas (the page notices'
-`BannerAction`s).  Not built: `CommentReadState` against the server (`GetUnread`, `MarkRead`) and
-`CommentEvent` handling, the toolbar Comments button with its count, the library window's mention
-dots (`ListMentionedDocuments`), the Pointer tool querying pins, `editing` presence while the
+`BannerAction`s).  Not built: the Pointer tool querying pins, `editing` presence while the
 composer has focus, and the UI tests (the app-hosted `CommentsFeatureTests` drive the same paths).
+
+NOTE: As built, the rest of COLLAB-027/029's client half.  `WTSync/CommentReadState.swift` (a new
+file): per document, the unread comment ids per thread -- `GetUnread` on open (it replaces what
+this Mac thought, keeping its own marks, and counts comments not received yet), plus comments by
+others that arrive in the document, plus `CommentEvent`s (`handle`, `MENTION` flagging the
+thread) -- less everything at or before a thread's mark.  Displaying a thread marks it through its
+newest comment at once (`mark`) and sends `MarkRead`; a mark that fails stays in `pending` and
+goes with the next `flush()` (after the next remote change).  `WindowComments` builds its unread
+overlay from it; the toolbar count is the state's total once the server answered.  The session
+passes `DocumentEvent`s to the window (`SessionNotice.document`), which hands `CommentEvent`s to the
+state.  The Main toolbar's default set gains *Comments* (`MainToolbarController.comments`, opening
+the panel) with an `NSToolbarItem` badge of the unread count.  The library window reads
+`ListMentionedDocuments` (every page) on launch and every five minutes
+(`LibraryModel.startMentionPolling`) and draws a blue dot beside those documents' names.
+Deviations: queued marks are kept in memory, not in `pending_calls` (COLLAB-024), so a quit
+before reconnecting drops them (the server then still counts them unread); `GetUnread` is not
+cached for offline opens (offline, the window's own arrivals count as before).
 
 NOTE: As built by COLLAB-032 (`WTSync/Divergence.swift`, `WTModel/RestoreDiff.swift`; tests
 `WTSyncTests/CommentReviewTests`, simulator `WTTestSupportTests/Simulation/CommentScenarioTests`).

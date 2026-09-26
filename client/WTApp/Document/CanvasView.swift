@@ -108,6 +108,9 @@ final class CanvasView: NSView, CanvasHost {
     /// A drag that left the window (OBJ-013): the Pointer's move becomes a dragging session when
     /// this answers true.
     var onDragOut: (@MainActor (NSEvent) -> Bool)?
+    /// A drag that left the canvas (not necessarily the window): the Eyedropper's colour becomes a
+    /// dragging session to the panels' wells when this answers true (COLOR-012).
+    var onLeaveCanvas: (@MainActor (NSEvent) -> Bool)?
     /// The modifiers held during a drag (kbd:[Shift], kbd:[Cmd], kbd:[Option] choose what a colour
     /// drop colours); replaceable in tests.
     var dragModifiers: @MainActor () -> KeyModifiers = { KeyEquivalentResolver.modifiers(NSEvent.modifierFlags) }
@@ -462,6 +465,11 @@ final class CanvasView: NSView, CanvasHost {
         return !content.bounds.contains(content.convert(event.locationInWindow, from: nil))
     }
 
+    /// Whether `event` lies outside the canvas's bounds.
+    func leftCanvas(_ event: NSEvent) -> Bool {
+        !bounds.contains(convert(event.locationInWindow, from: nil))
+    }
+
     /// kbd:[Control+Option]-click with the Pointer or Subselect tool cycles through stacked objects
     /// (OBJ-007) instead of opening the context menu.
     func cyclesSelection(_ event: NSEvent) -> Bool {
@@ -488,6 +496,11 @@ final class CanvasView: NSView, CanvasHost {
 
     override func mouseDragged(with event: NSEvent) {
         if leftWindow(event), onDragOut?(event) == true {
+            stopAutoscroll()
+            onPress?(false)
+            return
+        }
+        if leftCanvas(event), onLeaveCanvas?(event) == true {
             stopAutoscroll()
             onPress?(false)
             return

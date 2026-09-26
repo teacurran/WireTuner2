@@ -374,8 +374,7 @@ away, so the renderer draws every image as its grey placeholder, and the marks l
 the level needs the renderer).  The document scene does not yet build `ImageItem`s from image nodes,
 so on screen images show only their marks until it does.  An image below *Warn when image
 resolution is below* (its pixel width over its placed width in inches) gets an amber frame with its
-ppi.  kbd:[Option]-drag resizing in printer-resolution steps is not built (the Pointer tool is
-another task's).
+ppi.  kbd:[Option]-drag resizing in printer-resolution steps is `ImageResolutionHandles` (next notes but one).
 
 NOTE: As built by IMG-004's remainder (`WTModel/ImageResolution.swift`).  The steps of kbd:[Option]-drag resizing are a pure function:
 `ImageResolution.snapped(_:ppi:printer:)` (or `snapped(_:for:in:)` with the node's dpi and the document's printer resolution) answers
@@ -388,6 +387,27 @@ NOTE: As built by IMG-004's app half (`WTApp/Objects/ShapeHandles.swift`, `Image
 press on a corner of the one selected image's frame (Pointer or Subselect tool) is taken before the tool's Option-copy: the drag
 scales the image about the opposite corner to `ImageResolution.snapped` of the proposed scale, previewing the frame and the
 percentage, and one "Scale" change (`TransformObjects`) lands on release.
+
+NOTE: As built by IMG-016 (`WTApp/Images/ImageSection.swift`; `WTModel/ImageDetails.swift`, a new file).  The image
+section of the Object panel (order 72, before the colour rows and btn:[Edit With…]) reads `ImageDetails` on every render:
+*Image (<mode>)*; *File* (the source name, *Pasted* when it has none) with btn:[Links…] running menu:Edit[Links…];
+*Pixels* ("1500 × 1000, 8-bit"); *Color mode* ("Grayscale, alpha"); *Stored* resolution with a lock (on: one
+`SetImageResolution` of both axes; off: a second field for the vertical); *Effective* (stored over the transform chain's
+scale, the lower axis), amber with a caution symbol below *Warn when image resolution is below*; *Scale %* with a lock and
+the placed *Width* and *Height* in document units, each a `TransformObjects` "Scale" about the image's top-left; *Display
+alpha channel* only when every selected image has alpha; *Transparent*, btn:[Edit ramp…] and the *Tint* well only when
+every one is bilevel or grayscale; the crop fields (IMG-025) and btn:[Info…] for one image.  With several images a value
+reads *Mixed* until one applies to all.  The ramp sheet (`RampSheetModel`) offers the presets, *Lightness* and *Contrast*
+(moving either makes the ramp Custom) over a strip showing the ramp's 256 levels; btn:[Apply] writes one "Edit Ramp"
+change when the ramp differs from the one last written, btn:[OK] applies and closes, btn:[Cancel] writes back the ramp the
+images had when it opened (when Apply changed it), btn:[Reset] returns to Normal.  menu:Object[Image > Image Info…] shows
+the same popover as btn:[Info…] beside the image (`ImageInfoLines`: file, format, pixels, stored and effective resolution,
+mode and depth, alpha, embedded profile, who placed it).  *Deviations*: the tint is a *Tint* colour well in the section (the
+image has no attribute stack, and the properties list shows no fill row for it); the popover names who placed the image
+(the node's creating replica through the session) but not when, and gives no stored file size, since neither is kept per
+node; the ramp sheet previews the ramp as a strip of levels and on the page through btn:[Apply], not with a thumbnail of the
+image.  The merge criterion (Transparent from one replica, tint from another) is the independence of the registers, tested by
+IMG-003's `ImageCommandsTests`; the live *Effective* value by `ImageSectionTests` with a remote scale.
 
 NOTE: As built by IMG-027 (`WTRender/Images/SubjectMask.swift`, `VisionSubjectSegmenter.swift`).
 The Vision request sits behind the `SubjectSegmenter` protocol; `VisionSubjectSegmenter` runs

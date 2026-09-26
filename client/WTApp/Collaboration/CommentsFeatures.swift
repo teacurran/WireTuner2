@@ -5,6 +5,7 @@ import WTGeometry
 import WTModel
 import WTProto
 import WTRender
+import WTSync
 
 /// Someone the composer can mention (comments.adoc, "Mentioning people"): a person with access to
 /// the document, or the document's team (`team:<id>`).
@@ -76,6 +77,8 @@ final class CommentsFeatures {
     var pasteboard: NSPasteboard = .general
     /// Shows a panel by id.
     var showPanel: @MainActor (PanelID) -> Void = { _ in }
+    /// The server's read state for a document (`CommentService`); nil keeps it on this Mac.
+    var readService: @MainActor (String) -> (any CommentReadService)? = { _ in nil }
     private var windows: [ObjectIdentifier: (window: DocumentWindowController, comments: WindowComments)] = [:]
     private var closing: [ObjectIdentifier: NSObjectProtocol] = [:]
 
@@ -175,6 +178,19 @@ extension AppDelegate {
         comments.role = { documentID in library.cache.documents[documentID]?.role ?? .owner }
         let layout = layout
         comments.showPanel = { layout.showPanel($0) }
+        // Read state and the library's mention dots against the server (COLLAB-027/029).
+        let configuration = AuthConfiguration(infoDictionary: Bundle.main.infoDictionary)
+        let caller = GRPCUnaryCaller(api: configuration.api, clientVersion: LaunchEnvironment.clientVersion(Bundle.main.infoDictionary),
+                                     deviceID: DeviceIdentity.current(defaults: preferences.defaults))
+        let auth = account.auth
+        let token: @Sendable () async throws -> String = { try await auth.validAccessToken() }
+        let service = GRPCCommentReadService(caller: caller, accessToken: token)
+        let testing = launchEnvironment.isTesting
+        comments.readService = { _ in !testing && account.isSignedIn ? service : nil }
+        if !testing {
+            library.mentions = GRPCMentionedDocuments(caller: caller, accessToken: token)
+            library.startMentionPolling()
+        }
         comments.install(commands: commands, panels: panels, tools: tools) { documents.activeWindowController }
     }
 }

@@ -108,6 +108,28 @@ Nothing beyond storing and relaying changes.
 * *Trim to crop* in Optimize Image (IMG-020) re-encodes the visible pixels, resets `crop` and
   rewrites `transform` so the visible part does not move; it is one change.
 
+NOTE: As built by IMG-025 (`WTModel/ImageCropping.swift`, a new file; `WTApp/Images/CropTool.swift`; the crop fields in
+`WTApp/Images/ImageSection.swift`).  `ImageCropping` holds the arithmetic: `unitDelta` maps a pasteboard drag through the
+inverse of the image's pasteboard transform over its natural size, `resize` moves a handle's edges (never past the
+picture's edge or through the opposite edge; kbd:[Shift] on a corner keeps the proportions, kbd:[Option] moves the opposite
+edge the other way, both scale about the centre), `slide` keeps a moved crop inside the picture, `pixels` and
+`unit(fromPixels:)` convert for the Object panel.  `CropImage` writes the crop ("Crop _name_", "Remove Crop"; a crop of the
+whole picture is written as unset); with `slide` it also moves the image under its transform in the same change.  The Crop
+tool (`crop`, kbd:[Shift+C], after the Page tool) takes the one selected image on activation, or the image clicked; each
+handle or inside drag is one change at mouse-up (the live crop is the overlay's).  kbd:[Return] hands back to the Pointer; so
+does kbd:[Esc] when no drag is in progress (with one, it abandons the drag).  menu:Modify[Remove Crop] removes the crop of the
+selected cropped images; menu:Object[Image > Crop] chooses the tool; the Object panel's image section shows the crop as
+*Left*, *Top*, *Width* and *Height* in pixels of the current picture with btn:[Reset].  `TrimImageToCrop` is *Trim to crop*'s
+change: the new pixels (cut by the caller to `ImageCropping.trimRect`, the crop rounded out to whole pixels), the crop unset
+and the transform moved by the kept pixels' offset, one change "Trim to Crop"; the visible part stays within half a point.
+*Deviations*: a drag inside moves the picture behind a fixed crop -- the crop moves the other way and the image's transform
+by the same amount, so the visible part stays in place -- as the guide describes, rather than moving the crop over a fixed
+picture; the hidden part is dimmed (30% black over the natural frame outside the crop) rather than drawn from the pixels at
+30%, since the tool has no decoded image.  *Not built*: the *Trim to crop* checkbox itself, which belongs to the Optimize
+Image sheet (IMG-020, not built; its encoder is WTInterchange's `ImageOptimizer`).  The merge criteria are WTModel tests
+(`ImageCroppingTests`: a crop against a larger pixel replacement keeps the proportion; two crops converge); the placeholder
+case follows from the crop being an ordinary register applied by the renderer whenever the blob arrives.
+
 === Build tasks
 
 [[IMG-025]]

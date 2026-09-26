@@ -25,6 +25,9 @@ enum SessionNotice: Sendable {
     case message(String)
     /// menu:File[Review Merge…] or the popover's *Review Merge…*: open the sheet on the model.
     case openReview(ReviewModel)
+    /// A server-state event on the subscription (`DocumentEvent`): a branch merged, a comment
+    /// that concerns this account (COLLAB-018, COLLAB-027).
+    case document(Wiretuner_Sync_V1_DocumentEvent)
 }
 
 /// The sync state a window shows, mirrored from the session's `SyncClient.states()`.
@@ -220,6 +223,8 @@ final class DocumentSession {
             learn(update)
         case .replicaRotated(_, let to):
             localReplica = to
+        case .document(let event):
+            post(.document(event))
         default:
             break
         }

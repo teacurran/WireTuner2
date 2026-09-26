@@ -105,7 +105,7 @@ client-test:
 # (one-minute load average over 1.5 x the cores) a budget skips with the load as its reason; the
 # target fails on a missed budget or a failing test, after every package has run.
 PERF_RESULTS = client/build/perf-results.md
-PERF_APP_TESTS = -only-testing:WireTunerTests/CanvasPerformanceTests -only-testing:WireTunerTests/CommandPaletteModelTests -only-testing:WireTunerTests/CanvasMetalTests
+PERF_APP_TESTS = -only-testing:WireTunerTests/CanvasPerformanceTests -only-testing:WireTunerTests/CommandPaletteModelTests -only-testing:WireTunerTests/CanvasMetalTests -only-testing:WireTunerTests/InspectOverlayPerformanceTests -only-testing:WireTunerTests/BranchMergePerformanceTests
 
 client-perf:
 	@rm -f $(PERF_RESULTS); mkdir -p client/build; status=0; \

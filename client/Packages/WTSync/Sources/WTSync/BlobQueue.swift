@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import os
+import Synchronization
 import WTProto
 
 /// What the blob queue reports: uploads finishing or failing, the storage quota, and blobs arriving
@@ -13,6 +14,32 @@ public enum BlobEvent: Sendable, Hashable {
     /// A blob is in the cache at `url`: redraw what showed its placeholder.
     case available(hash: String, url: URL)
     case downloadFailed(hash: String, reason: String)
+}
+
+/// A blob going up or coming down, as far as it has got (the canvas's upload ring and the
+/// placeholder's download ring, IMG-006).
+public struct BlobTransfer: Hashable, Sendable {
+    public enum Direction: Hashable, Sendable {
+        case upload
+        case download
+    }
+
+    public var hash: String
+    public var direction: Direction
+    /// Bytes sent or received so far.
+    public var completed: Int64
+    /// The blob's size.
+    public var total: Int64
+
+    public init(hash: String, direction: Direction, completed: Int64, total: Int64) {
+        self.hash = hash
+        self.direction = direction
+        self.completed = completed
+        self.total = total
+    }
+
+    /// 0...1.
+    public var fraction: Double { total > 0 ? min(max(Double(completed) / Double(total), 0), 1) : 0 }
 }
 
 /// Whether a referenced blob can be drawn now.
@@ -50,6 +77,8 @@ public actor BlobQueue {
     private let logger = Logger(subsystem: "app.wiretuner", category: "blobs")
 
     private let broadcast = Broadcast<BlobEvent>()
+    private let transferBroadcast = Broadcast<BlobTransfer>()
+    private let inFlight = Mutex<[String: BlobTransfer]>([:])
     private let wake = Signal()
     private var worker: Task<Void, Never>?
     private var online = false
@@ -74,6 +103,42 @@ public actor BlobQueue {
     /// Everything the queue reports.
     public nonisolated func events() -> AsyncStream<BlobEvent> {
         broadcast.stream()
+    }
+
+    /// Every step of every transfer (a chunk sent or received), and each transfer's end as its
+    /// last step (`completed == total`).
+    public nonisolated func transfers() -> AsyncStream<BlobTransfer> {
+        transferBroadcast.stream()
+    }
+
+    /// How far the blob `hash` has got, while it is going up or coming down.
+    public nonisolated func transfer(of hash: String) -> BlobTransfer? {
+        inFlight.withLock { $0[hash] }
+    }
+
+    private nonisolated func report(_ transfer: BlobTransfer) {
+        inFlight.withLock { $0[transfer.hash] = transfer }
+        transferBroadcast.yield(transfer)
+    }
+
+    private nonisolated func finish(_ hash: String) {
+        inFlight.withLock { $0[hash] = nil }
+    }
+
+    /// The file's chunks, each reported as a step of the upload of `hash`.
+    nonisolated func reportingChunks(of url: URL, hash: String, total: Int64, chunkSize: Int) -> AsyncThrowingStream<Data, any Error> {
+        let reader = BlobChunks.Reader(url)
+        let sent = Mutex<Int64>(0)
+        report(BlobTransfer(hash: hash, direction: .upload, completed: 0, total: total))
+        return AsyncThrowingStream(unfolding: { [self] in
+            guard let chunk = try reader.next(chunkSize) else { return nil }
+            let done = sent.withLock { value -> Int64 in
+                value += Int64(chunk.count)
+                return value
+            }
+            self.report(BlobTransfer(hash: hash, direction: .upload, completed: done, total: total))
+            return chunk
+        })
     }
 
     /// Starts the upload worker (idempotent).
@@ -187,7 +252,9 @@ public actor BlobQueue {
                     $0.mediaType = blob.mediaType
                     $0.tag = blob.tag == LocalStore.thumbnailTag ? .thumbnail : .unspecified
                 }
-                _ = try await transport.upload(header, chunks: BlobChunks.read(URL(fileURLWithPath: blob.path), chunkSize: options.chunkSize),
+                defer { finish(blob.hash) }
+                _ = try await transport.upload(header, chunks: reportingChunks(of: URL(fileURLWithPath: blob.path), hash: blob.hash, total: blob.size,
+                                                                               chunkSize: options.chunkSize),
                                                token: token)
             }
             try await store.removePendingBlob(hash: blob.hash)
@@ -264,6 +331,10 @@ public actor BlobQueue {
             $0.sha256 = sha256
         }, token: token)
         guard stat.exists else { return false }
+        let total = Int64(stat.blob.size)
+        var received: Int64 = 0
+        report(BlobTransfer(hash: hash, direction: .download, completed: 0, total: total))
+        defer { finish(hash) }
         let temporary = try cache.temporaryURL()
         defer { try? FileManager.default.removeItem(at: temporary) }
         FileManager.default.createFile(atPath: temporary.path, contents: nil)
@@ -278,6 +349,8 @@ public actor BlobQueue {
             if case .chunk(let chunk)? = response.frame {
                 hasher.update(data: chunk)
                 try output.write(contentsOf: chunk)
+                received += Int64(chunk.count)
+                report(BlobTransfer(hash: hash, direction: .download, completed: received, total: total))
             }
         }
         let actual = BlobCache.hex(hasher.finalize())

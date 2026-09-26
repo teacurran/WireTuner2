@@ -85,7 +85,7 @@ enum ExtensionCatalog {
         tool("blend", "Blend", Category.tools, "square.on.circle", "blends"),
         tool("perspective", "Perspective", Category.tools, "perspective", "perspective"),
         tool("connector", "Connector", Category.tools, "point.3.connected.trianglepath.dotted", "connectors"),
-        tool("action", "Action", Category.tools, "hand.tap", "interactivity"),
+        tool("action", "Link", Category.tools, "link", "interactivity"),
         tool("outputArea", "Output Area", Category.tools, "crop", "output-area"),
         tool("eraser", "Eraser", Category.tools, "eraser", "editing-paths"),
     ]

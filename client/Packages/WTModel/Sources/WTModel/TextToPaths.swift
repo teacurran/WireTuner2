@@ -186,6 +186,8 @@ public struct ConvertTextToPaths: Command {
         guard let parent = state.store.placement(node)?.parent else { throw TextToPathsError.notText(node) }
         var group = Wiretuner_Doc_V1_NodeProps()
         group.group.common.name = conversion.name
+        // Marks the group as text a reader can no longer read (the accessibility check, IO-033).
+        group.group.common.note = AccessibilityCheck.outlinedTextNote
         let groupID = builder.append(Ops.create(parent: parent, position: try Arranging.keys(next: node, above: true, count: 1, in: state)[0], props: group))
         var shapes = conversion.shapes
         if let corners = conversion.block {

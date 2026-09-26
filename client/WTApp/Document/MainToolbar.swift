@@ -17,15 +17,17 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
         StandardCommands.ID.print, ContextMenuCatalog.ID.lock, ContextMenuCatalog.ID.unlock,
         PanelCommands.ID.show("findReplace"), PanelCommands.ID.show("align"), PanelCommands.ID.show("transform"),
         PanelCommands.ID.show("library"), PanelCommands.ID.show("object"), PanelCommands.ID.show("colorMixer"),
-        PanelCommands.ID.show("swatches"), PanelCommands.ID.show("layers"), ContextMenuCatalog.ID.share,
+        PanelCommands.ID.show("swatches"), PanelCommands.ID.show("layers"), MainToolbarController.comments, ContextMenuCatalog.ID.share,
     ]
+    /// The Comments button: opens the Comments panel, badged with the unread count (comments.adoc).
+    static let comments = PanelCommands.ID.show("comments")
     static let saveVersion = StandardCommands.ID.saveVersion
     static let importFile = StandardCommands.ID.importFile
 
     /// The toolbar's own labels where the command's title is a menu wording.
     static let labels: [CommandID: String] = [
         saveVersion: "Save Version", importFile: "Import", StandardCommands.ID.print: "Print", StandardCommands.ID.open: "Open",
-        PanelCommands.ID.show("findReplace"): "Find & Replace", ContextMenuCatalog.ID.share: "Share",
+        PanelCommands.ID.show("findReplace"): "Find & Replace", ContextMenuCatalog.ID.share: "Share", comments: "Comments",
     ]
 
     static let symbols: [CommandID: String] = [
@@ -36,10 +38,13 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
         PanelCommands.ID.show("library"): "books.vertical", PanelCommands.ID.show("object"): "square.on.circle",
         PanelCommands.ID.show("colorMixer"): "paintpalette", PanelCommands.ID.show("swatches"): "swatchpalette",
         PanelCommands.ID.show("layers"): "square.3.layers.3d", ContextMenuCatalog.ID.share: "square.and.arrow.up",
+        comments: "text.bubble",
     ]
 
     let environment: DocumentEnvironment
     let toolbar: NSToolbar
+    /// The number an item's badge shows (the Comments button's unread count); nil or zero shows none.
+    var badgeCount: @MainActor (CommandID) -> Int? = { _ in nil }
 
     init(environment: DocumentEnvironment, window: NSWindow?, identifier: NSToolbar.Identifier = MainToolbarController.identifier) {
         self.environment = environment
@@ -96,7 +101,25 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
         item.target = self
         item.action = #selector(runItem(_:))
         item.autovalidates = true
+        applyBadge(to: item)
         return item
+    }
+
+    /// The item's badge from `badgeCount` (before macOS 26, the count in its label).
+    func applyBadge(to item: NSToolbarItem) {
+        guard let id = Self.commandID(of: item.itemIdentifier) else { return }
+        let count = badgeCount(id) ?? 0
+        if #available(macOS 26.0, *) {
+            item.badge = count > 0 ? .count(count) : nil
+        } else {
+            let title = Self.labels[id] ?? item.paletteLabel
+            item.label = count > 0 ? "\(title) (\(count))" : title
+        }
+    }
+
+    /// Every item's badge again (the count changed).
+    func refreshBadges() {
+        for item in toolbar.items { applyBadge(to: item) }
     }
 
     @objc func runItem(_ sender: NSToolbarItem) {
@@ -106,6 +129,7 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
         guard let id = Self.commandID(of: item.itemIdentifier), let validation = environment.commands.validate(id) else { return false }
+        applyBadge(to: item)
         if !validation.isEnabled, let reason = validation.reason { item.toolTip = "\(item.label) — \(reason)" }
         return validation.isEnabled
     }

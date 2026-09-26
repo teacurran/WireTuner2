@@ -122,19 +122,21 @@ struct PresenceOverlay {
     /// at the character the caret is before -- a deleted one reads where it was, before the next
     /// surviving character; zero is the end -- or, when the block cannot place it (nothing laid
     /// out yet), a flag at the block's top-left corner.  Carets in deleted blocks, or naming a
-    /// character not received yet, are not drawn.
-    func carets(_ participants: [RemoteParticipant]) -> [(rect: Rect, name: String, color: Color)] {
+    /// character not received yet, are not drawn.  A caret is the line from `top` to `bottom`, so
+    /// on text on a path it leans with the glyph it stands by; `rect` bounds it.
+    func carets(_ participants: [RemoteParticipant]) -> [(rect: Rect, top: Point, bottom: Point, name: String, color: Color)] {
         participants.compactMap { participant in
             guard let caret = participant.caret, document.state.isLive(caret.node.opID) else { return nil }
             if let geometry = caretGeometry(caret) {
                 let top = geometry.top
                 let bottom = geometry.bottom
-                return (Rect(x: min(top.x, bottom.x), y: min(top.y, bottom.y), width: 1.5, height: max(abs(bottom.y - top.y), 1)),
-                        participant.name, participant.color)
+                return (Rect(x: min(top.x, bottom.x), y: min(top.y, bottom.y), width: max(abs(bottom.x - top.x), 1.5), height: max(abs(bottom.y - top.y), 1)),
+                        top, bottom, participant.name, participant.color)
             }
             guard let bounds = document.object(for: caret.node)?.bounds else { return nil }
             let rect = bounds.applying(viewport.pasteboardToView)
-            return (Rect(x: rect.minX, y: rect.minY, width: 1.5, height: rect.height), participant.name, participant.color)
+            return (Rect(x: rect.minX, y: rect.minY, width: 1.5, height: rect.height), Point(x: rect.minX, y: rect.minY), Point(x: rect.minX, y: rect.maxY),
+                    participant.name, participant.color)
         }
     }
 
@@ -198,9 +200,12 @@ struct PresenceOverlay {
                 ctx.fillPath()
             }
             for caret in carets(participants) {
-                ctx.setFillColor(caret.color.cgColor)
-                ctx.fill(caret.rect.cgRect)
-                Self.drawTag(caret.name, at: Point(x: caret.rect.minX, y: caret.rect.minY - SelectionOverlay.tagFontSize - 2 * SelectionOverlay.tagPadding),
+                ctx.setStrokeColor(caret.color.cgColor)
+                ctx.setLineWidth(1.5)
+                ctx.move(to: caret.top.cgPoint)
+                ctx.addLine(to: caret.bottom.cgPoint)
+                ctx.strokePath()
+                Self.drawTag(caret.name, at: Point(x: caret.top.x, y: caret.top.y - SelectionOverlay.tagFontSize - 2 * SelectionOverlay.tagPadding),
                              color: caret.color, in: ctx)
             }
         }

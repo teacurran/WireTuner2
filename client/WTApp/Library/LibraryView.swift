@@ -206,6 +206,11 @@ struct LibraryDocumentTile: View {
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? Color.accentColor : Color.secondary.opacity(0.3), lineWidth: selected ? 3 : 1))
             HStack(spacing: 4) {
                 Text(document.name).lineLimit(1).accessibilityIdentifier("library.document.\(document.id).name")
+                if model.mentioned.contains(document.id) {
+                    Circle().fill(Color.blue).frame(width: 7, height: 7)
+                        .help("You were mentioned in a comment you have not seen")
+                        .accessibilityIdentifier("library.document.\(document.id).mention")
+                }
                 if model.isOfflineAvailable(document) {
                     Image(systemName: document.isPendingUpload ? "icloud.and.arrow.up" : "laptopcomputer")
                         .foregroundStyle(.secondary)

@@ -34,6 +34,19 @@ struct ImageBlobStatus {
     var isOffline: @MainActor () -> Bool = { false }
     /// The display name of whoever's replica created `node`; nil for this Mac's own.
     var author: @MainActor (OpID) -> String? = { _ in nil }
+    /// How far a blob going up or coming down has got.
+    var transfer: @MainActor (String) -> BlobTransfer? = { _ in nil }
+    /// Asks for a blob this Mac does not hold (downloaded once however often asked).
+    var fetch: @MainActor (String) -> Void = { _ in }
+    /// Blobs whose transfer moved on, or (`arrived`) that reached the cache; nil while the
+    /// document has no blob queue (not connected yet, or no server).
+    var changes: @MainActor () -> AsyncStream<BlobChange>? = { nil }
+}
+
+/// A blob's transfer moved on, or it arrived.
+struct BlobChange: Sendable, Equatable {
+    var hash: String
+    var arrived: Bool
 }
 
 /// The image marks and pixels of one window (IMG-004's app glue, IMG-006, IMG-017): the window's
@@ -57,6 +70,10 @@ final class WindowImages {
     private var statusToken: UUID?
     private var preferenceToken: UUID?
     private var previousViewportChange: (@MainActor (Viewport) -> Void)?
+    /// Follows the blob queue's progress and arrivals, once there is one.
+    private(set) var watch: Task<Void, Never>?
+    /// Blobs asked for.
+    private(set) var fetched: Set<String> = []
     /// Makes the store (the blob cache in the app).
     var makeStore: @MainActor () -> ImageStore?
 
@@ -94,7 +111,37 @@ final class WindowImages {
         if let statusToken { window?.syncStatus.stopObserving(statusToken) }
         observation = nil
         statusToken = nil
+        watch?.cancel()
+        watch = nil
         layer.removeFromSuperlayer()
+    }
+
+    /// Starts following the blob queue when there is one to follow.
+    func watchBlobs() {
+        guard watch == nil, let changes = status.changes() else { return }
+        watch = Task { [weak self] in
+            for await change in changes { self?.blobChanged(change) }
+        }
+    }
+
+    /// A transfer moved on (the rings redraw) or a blob arrived (its pixels decode and its tiles
+    /// repaint when ready; the mark goes).
+    func blobChanged(_ change: BlobChange) {
+        if change.arrived {
+            store?.blobArrived(assetID: change.hash)
+            fetched.remove(change.hash)
+            contentDidChange()
+        } else {
+            layer.setNeedsDisplay()
+        }
+    }
+
+    /// Asks for every placed image's blob this Mac lacks.
+    func fetchMissing() {
+        for mark in marks where !status.isCached(mark.assetID) && !pending.contains(mark.assetID) && !fetched.contains(mark.assetID) {
+            fetched.insert(mark.assetID)
+            status.fetch(mark.assetID)
+        }
     }
 
     // MARK: Pixels
@@ -132,13 +179,20 @@ final class WindowImages {
     @discardableResult
     func contentDidChange() -> Task<Void, Never> {
         layer.setNeedsDisplay()
+        watchBlobs()
         let status = status
         return Task { [weak self] in
             let pending = await status.pending()
             guard let self else { return }
             self.pending = pending
+            self.fetchMissing()
             self.layer.setNeedsDisplay()
         }
+    }
+
+    /// How far `mark`'s blob has got going up or coming down, 0...1 (0 before it starts).
+    func progress(_ mark: PlacedImageMark) -> Double {
+        status.transfer(mark.assetID)?.fraction ?? 0
     }
 
     private func viewportDidChange() {
@@ -203,19 +257,39 @@ final class WindowImages {
             }
             switch badge(mark) {
             case .uploading?:
-                Self.label(in: ctx, "Uploading", at: CGPoint(x: rect.maxX - 76, y: rect.maxY - 20), fill: CGColor(gray: 0, alpha: 0.6), ring: true)
+                Self.label(in: ctx, "Uploading", at: CGPoint(x: rect.maxX - 76, y: rect.maxY - 20), fill: CGColor(gray: 0, alpha: 0.6), ring: progress(mark))
             case .waitingForNetwork?:
                 Self.label(in: ctx, "Waiting for network", at: CGPoint(x: rect.maxX - 124, y: rect.maxY - 20), fill: CGColor(gray: 0, alpha: 0.6))
             case .remote(let name)?:
                 Self.centered(in: ctx, [mark.name, "uploading from \(name)"], rect: rect)
+                Self.ring(in: ctx, center: CGPoint(x: rect.midX, y: rect.midY + 28), radius: 8, fraction: progress(mark),
+                          color: CGColor(gray: 0.35, alpha: 1), track: CGColor(gray: 0.35, alpha: 0.25))
             case nil:
                 if gray { Self.centered(in: ctx, [mark.name], rect: rect) }
             }
         }
     }
 
+    /// A progress ring: the faint track, then the arc done so far from twelve o'clock clockwise.
+    static func ring(in ctx: CGContext, center: CGPoint, radius: Double, fraction: Double, color: CGColor, track: CGColor) {
+        ctx.saveGState()
+        ctx.setLineWidth(1.5)
+        ctx.setStrokeColor(track)
+        ctx.addArc(center: center, radius: radius, startAngle: 0, endAngle: .pi * 2, clockwise: false)
+        ctx.strokePath()
+        let done = min(max(fraction, 0), 1)
+        if done > 0 {
+            ctx.setStrokeColor(color)
+            // The layer is flipped (y down): increasing angles run clockwise on screen.
+            ctx.addArc(center: center, radius: radius, startAngle: -.pi / 2, endAngle: -.pi / 2 + .pi * 2 * done, clockwise: false)
+            ctx.strokePath()
+        }
+        ctx.restoreGState()
+    }
+
     /// A small capsule with white text (a progress ring before it while uploading).
-    static func label(in ctx: CGContext, _ text: String, at origin: CGPoint, fill: CGColor, ring: Bool = false) {
+    static func label(in ctx: CGContext, _ text: String, at origin: CGPoint, fill: CGColor, ring progress: Double? = nil) {
+        let ring = progress != nil
         let attributed = NSAttributedString(string: text, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.white])
         let line = CTLineCreateWithAttributedString(attributed)
         let width = CTLineGetTypographicBounds(line, nil, nil, nil) + (ring ? 16 : 8)
@@ -224,11 +298,9 @@ final class WindowImages {
         ctx.setFillColor(fill)
         ctx.addPath(CGPath(roundedRect: box, cornerWidth: 8, cornerHeight: 8, transform: nil))
         ctx.fillPath()
-        if ring {
-            ctx.setStrokeColor(CGColor(gray: 1, alpha: 1))
-            ctx.setLineWidth(1.5)
-            ctx.addArc(center: CGPoint(x: box.minX + 8, y: box.midY), radius: 4, startAngle: 0, endAngle: .pi * 1.5, clockwise: false)
-            ctx.strokePath()
+        if let progress {
+            Self.ring(in: ctx, center: CGPoint(x: box.minX + 8, y: box.midY), radius: 4, fraction: progress, color: CGColor(gray: 1, alpha: 1),
+                      track: CGColor(gray: 1, alpha: 0.35))
         }
         ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
         ctx.textPosition = CGPoint(x: box.minX + (ring ? 14 : 4), y: box.maxY - 4)
@@ -331,7 +403,39 @@ final class ImageFeatures {
             return false
         }
         status.author = { [weak window] node in window?.session?.author(of: node.replica)?.name }
+        status.transfer = { [weak window] hash in window?.session?.client?.blobs?.transfer(of: hash) }
+        status.fetch = { [weak window] hash in
+            guard let blobs = window?.session?.client?.blobs else { return }
+            Task { _ = await blobs.blob(hash) }
+        }
+        status.changes = { [weak window] in
+            guard let blobs = window?.session?.client?.blobs else { return nil }
+            return changes(of: blobs)
+        }
         return status
+    }
+
+    /// The queue's transfer steps, uploads finishing and blobs arriving, as one stream.
+    nonisolated static func changes(of blobs: BlobQueue) -> AsyncStream<BlobChange> {
+        let transfers = blobs.transfers(), events = blobs.events()
+        return AsyncStream { continuation in
+            let steps = Task {
+                for await transfer in transfers { continuation.yield(BlobChange(hash: transfer.hash, arrived: false)) }
+            }
+            let arrivals = Task {
+                for await event in events {
+                    switch event {
+                    case .available(let hash, _): continuation.yield(BlobChange(hash: hash, arrived: true))
+                    case .uploaded(let hash): continuation.yield(BlobChange(hash: hash, arrived: false))
+                    default: break
+                    }
+                }
+            }
+            continuation.onTermination = { _ in
+                steps.cancel()
+                arrivals.cancel()
+            }
+        }
     }
 }
 

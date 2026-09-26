@@ -44,6 +44,9 @@ append a line:
   afterwards (xref:collaboration.adoc[Working together]).
 * Tracing and importing may record the source file in the note
   (xref:tracing.adoc[Tracing]).
+* menu:Text[Convert to Paths] writes `Converted from text` in the note of the group it makes, so the
+  accessibility check knows the group is text a screen reader can no longer read
+  (<<accessibility,Describing objects for accessibility>>).
 
 == Describing objects for accessibility [[accessibility]]
 
@@ -281,6 +284,22 @@ last; each gesture is one change and one undo step, and numbered badges mark the
 open.  Deviation: a floating panel rather than a sheet (a sheet blocks the canvas clicks), and canvas
 clicks reach it with the Pointer or Subselect tool.  Vectors: `objects/reading-order-insert`, `-move`, `-delete`
 and `-dangling`.
+
+NOTE: As built by IO-033 (`WTModel/AccessibilityCheck.swift`, a new file; `WTApp/Accessibility/AccessibilityCheckerPanel.swift`).
+`AccessibilityCheck.run(_:displayList:layout:)` reads the state, the window's display list and its text layouts and writes
+nothing.  *Missing descriptions*: images, placed files, groups named "Trace…" (the Trace tool's names) and groups whose note
+has the line "Converted from text" -- menu:Text[Convert to Paths] now writes that line into its group's note -- that carry
+neither alt text nor *Decorative*; a described or decorative group covers its members.  *Low contrast*: per laid-out line of
+each text node, the display list's items beneath its top-level object are drawn over the line's bounds at 2× (at most 512
+pixels a side; the pasteboard reads as white) and the line's fill luminance (WCAG 2.1) is compared with the 10th and 90th
+percentile of the backdrop, the worse ratio reported against 4.5:1, or 3:1 for text 18 pt and up or 14 pt and up in a bold,
+heavy or black face.  *Reading order*: each page's `ReadingOrder.order`.  *Document language*: Document Info's language
+empty.  menu:File[Check Accessibility…] opens a floating panel per window (deviation: a panel rather than a sheet, like
+Reading Order, so the canvas stays live): a row's name selects its object; alt text typed in the row (kbd:[Return]) or
+btn:[Decorative] is one `DescribeObject` change labelled `Describe "name"`; every page's reading order shows as numbered
+badges on the canvas while it is open; btn:[Arrange…] opens the Reading Order panel; btn:[Check Again] re-runs it.
+*Not measured*: the 5 s budget on the design-point document.  Reading order only lists objects whose bounds the state gives
+(`Objects.bounds`), which leaves text blocks out -- OBJ-041's derivation, unchanged here.
 
 === Build tasks
 

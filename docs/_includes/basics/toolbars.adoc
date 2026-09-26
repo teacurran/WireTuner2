@@ -53,6 +53,7 @@ default set, left to right:
 |Color Mixer |Opens the Color Mixer panel.
 |Swatches |Opens the Swatches panel.
 |Layers |Opens the Layers panel.
+|Comments |Opens the Comments panel; its badge counts the comments you have not seen (xref:comments.adoc[Comments]).
 |Share |Opens the sharing sheet (xref:sharing.adoc[Sharing]).
 |===
 
@@ -100,6 +101,7 @@ letter and a digit, both work.
 |Subselect |kbd:[A], kbd:[1] |Select inside groups and clipping paths without ungrouping. |xref:selecting.adoc[Selecting]
 |Lasso |kbd:[L] |Select by drawing a freeform marquee. |xref:selecting.adoc[Selecting]
 |Page |kbd:[D] |Select, move, duplicate and resize pages on the pasteboard. |xref:pages.adoc[Pages]
+|Crop |kbd:[Shift+C] |Crop a bitmap image to a rectangle. |xref:cropping-bitmaps.adoc[Cropping bitmap images]
 
 4+h|Text
 |Text |kbd:[T] |Create and edit text blocks. |xref:creating-text.adoc[Creating text]
@@ -152,7 +154,7 @@ letter and a digit, both work.
 |Graphic Hose |kbd:[Shift+H] |Spray objects from a set. |xref:graphic-hose.adoc[Graphic Hose]
 |Chart |-- |Create charts from data. |xref:charts.adoc[Charts]
 |Connector |-- |Draw connector lines that follow the objects they join. |xref:connectors.adoc[Connectors]
-|Action |-- |Assign an interaction (link, show, hide, go to page) to an object for web export. |xref:interactivity.adoc[Interactivity]
+|Link |kbd:[Shift+L] |Link an object to a page by dragging from the object to the page. |xref:interactivity.adoc[Interactivity]
 |Output Area |-- |Mark a region of the pasteboard to print or export. |xref:output-area.adoc[Output area]
 
 4+h|Transform flyout
@@ -162,7 +164,7 @@ letter and a digit, both work.
 |Reflect |-- |Flip across an axis. |xref:transforming.adoc[Transforming]
 |===
 
-The *Action* tool assigns interactions that survive HTML and SVG export
+The *Link* tool draws page links that survive PDF, HTML and SVG export
 (xref:interactivity.adoc[Interactivity]).  The extension tools (Mirror, Roughen, Bend,
 Fisheye Lens, Smudge, Shadow, 3D Rotation, Graphic Hose, Chart) are built in and appear in
 the Tools panel flyouts; the Extension Tools toolbar shows the same tools in one row for
