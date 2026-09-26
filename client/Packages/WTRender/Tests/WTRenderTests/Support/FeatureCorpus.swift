@@ -36,6 +36,7 @@ enum FeatureCorpus {
         // rasterizes up to 37/255 apart from the bitmap; goldens and parity hold it.
         ReferenceCase(name: "symbolInstances", list: instances, comparesPDF: false),
         ReferenceCase(name: "symbolOverrides", list: overrides),
+        ReferenceCase(name: "symbolTextOverrides", list: textOverrides),
         ReferenceCase(name: "chartGroupedColumn", list: chart(.groupedColumn, options: ChartOptions(dataNumbers: true, dropShadow: true, gridlinesX: true)), viewSize: chartView),
         ReferenceCase(name: "chartStackedColumn", list: chart(.stackedColumn, options: ChartOptions(columnWidth: 60, legendsAcrossTop: true, axisDisplay: .both, gridlinesY: true)), viewSize: chartView),
         ReferenceCase(name: "chartLine", list: chart(.line, options: ChartOptions(markers: .diamond, dataNumbers: true), yAxis: ChartAxis(manual: ChartAxisRange(minimum: 0, maximum: 12, between: 3), major: .across, minor: .inside, minorCount: 2, prefix: "$")), viewSize: chartView),
@@ -141,6 +142,55 @@ enum FeatureCorpus {
             placedInstance.transform = .translation(x: x, y: y)
             return renderer.item(for: placedInstance, in: library)
         })
+    }()
+
+    // MARK: Text overrides
+
+    /// One laid-out run as WTModel supplies it: `text` in `font` from `origin` (symbol space).
+    static func run(_ text: String, _ font: GlyphFont, at origin: Point, _ color: Color) -> DisplayItem {
+        let glyphs = C.makeGlyphRun(text, font: font, at: origin)
+        return .text(TextRunItem(text: text, origin: origin, bounds: glyphs.inkBounds ?? Rect(origin, origin), color: color, glyphRun: glyphs))
+    }
+
+    static let regular = GlyphFont(postScriptName: "Helvetica", size: 8)
+    static let bold = GlyphFont(postScriptName: "Helvetica-Bold", size: 8)
+
+    /// A card: a frame and a text block "Buy now" (two runs, one bold) on one line.
+    static let card = SymbolArtwork(symbol: id(120), name: "Card", version: 1, origin: Point(x: 22, y: 14), nodes: [
+        SymbolNode(id: id(121), content: .item(C.path(DisplayPath(rect: Rect(x: 0, y: 0, width: 44, height: 28)), [C.fill(Color(white: 0.92)), C.stroke(blue, width: 1)]))),
+        SymbolNode(id: id(122), content: .item(.group(GroupItem(children: [run("Buy", bold, at: Point(x: 4, y: 12), .black), run(" now", regular, at: Point(x: 20, y: 12), .black)])))),
+    ])
+
+    /// A host symbol holding a card instance whose text is overridden (overrides of a nested
+    /// instance travel with it).
+    static let cardHost = SymbolArtwork(symbol: id(130), name: "Host", version: 1, nodes: [
+        SymbolNode(id: id(131), content: .item(C.path(DisplayPath(ellipseIn: Rect(x: 0, y: 0, width: 56, height: 36)), [C.fill(Color(red: 0.9, green: 0.95, blue: 0.85))]))),
+        SymbolNode(id: id(132), content: .instance(SymbolInstance(symbol: id(120), transform: .translation(x: 28, y: 18), overrides: [.text(id(122), cardText)]))),
+    ])
+
+    /// The override's layout: "Sale ends" in two colours over two lines, the master block's
+    /// place.
+    static let cardText: [DisplayItem] = [
+        .group(GroupItem(children: [
+            run("Sale", bold, at: Point(x: 4, y: 11), red),
+            run(" ends", regular, at: Point(x: 22, y: 11), blue),
+            run("today", regular, at: Point(x: 4, y: 21), green),
+        ])),
+    ]
+
+    static let textLibrary = SymbolLibrary([card, cardHost])
+
+    /// The master's words; the override laid out in their place; the override on a rotated and
+    /// scaled instance; and a nested instance carrying its override inside a host.
+    static let textOverrides: DisplayList = {
+        let renderer = SymbolRenderer(typesetter: labels)
+        return C.list([
+            renderer.item(for: SymbolInstance(symbol: id(120), transform: .translation(x: 26, y: 18)), in: textLibrary),
+            renderer.item(for: SymbolInstance(symbol: id(120), transform: .translation(x: 76, y: 18), overrides: [.text(id(122), cardText)]), in: textLibrary),
+            renderer.item(for: SymbolInstance(symbol: id(120), transform: AffineTransform.scale(1.3).concatenating(.rotation(degrees: -15)).concatenating(.translation(x: 38, y: 64)),
+                                              overrides: [.text(id(122), cardText), .fill(id(121), Color(red: 1, green: 0.95, blue: 0.8))]), in: textLibrary),
+            renderer.item(for: SymbolInstance(symbol: id(130), transform: .translation(x: 66, y: 52)), in: textLibrary),
+        ])
     }()
 
     // MARK: Charts

@@ -80,6 +80,18 @@ public struct TextNode: Sendable {
         newlineProps = Self.paragraphRegisters(id, in: state)
     }
 
+    /// Text node `id` (its registers: block, tail paragraph) holding the characters of another
+    /// node's TEXT field instead of its own -- an instance's text override (LIB-025): `field` of
+    /// `holder`, whose newlines carry their own paragraph registers.
+    init?(_ id: OpID, text holder: OpID, field: RegisterPath, in state: EngineState) {
+        guard state.store.kind(id) == TextFields.kind else { return nil }
+        self.id = id
+        props = state.props(id).text
+        sequence = state.text(holder, field) ?? TextSequence()
+        chars = sequence.liveChars
+        newlineProps = Self.paragraphRegisters(holder, field: field, in: state)
+    }
+
     /// The live text.
     public var string: String { sequence.string }
 

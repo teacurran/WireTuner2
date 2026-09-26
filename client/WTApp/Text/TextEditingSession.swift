@@ -31,6 +31,10 @@ final class TextEditingSession {
         case creating(CreateTextBlock.Frame)
         /// An existing block.
         case node(OpID)
+        /// Text block `master` of a symbol as instance `instance` shows it (library.adoc, "Text
+        /// tool inside an instance"): edits write the instance's `TEXT` override (`OverrideText`),
+        /// the first one copying the master's text into it.
+        case override(instance: OpID, master: OpID)
     }
 
     /// The input method's composition: shown at the insertion point, never sent.
@@ -88,8 +92,18 @@ final class TextEditingSession {
         return nil
     }
 
-    /// The block as merged now (nil before it exists).
-    var text: TextNode? { node.flatMap { document.state.textNode($0) } }
+    /// The instance and master block of an override target.
+    var override: (instance: OpID, master: OpID)? {
+        if case .override(let instance, let master) = target { return (instance, master) }
+        return nil
+    }
+
+    /// The block as merged now (nil before it exists); inside an instance, the master block
+    /// holding the override's text, or the master's own before the first edit (`Symbols.textNode`).
+    var text: TextNode? {
+        if let override { return Symbols.textNode(override.master, in: override.instance, state: document.state) }
+        return node.flatMap { document.state.textNode($0) }
+    }
 
     /// The live scalars.
     var scalars: [Unicode.Scalar] { text.map { Array($0.string.unicodeScalars) } ?? [] }
@@ -118,6 +132,11 @@ final class TextEditingSession {
     /// Whether the document now holds the block (a remote delete or an undo of its creation ends
     /// the session).
     var isLive: Bool {
+        if let override {
+            // The instance still draws the block: not deleted, swapped, released or hidden.
+            let state = document.state
+            return state.isLive(override.instance) && Symbols.resolvedArtwork(of: override.instance, in: state)?.texts[override.master] != nil
+        }
         guard let node else { return true }
         return document.state.isLive(node)
     }
@@ -125,13 +144,32 @@ final class TextEditingSession {
     // MARK: Geometry
 
     /// The block's layout (nil before it exists).
-    var layout: TextLayout? { node.flatMap { document.textLayout(for: $0) } }
+    var layout: TextLayout? {
+        guard override != nil else { return node.flatMap { document.textLayout(for: $0) } }
+        if let cached = overrideLayout, cached.count == document.changeCount { return cached.layout }
+        guard let text else { return nil }
+        let layout = Self.layout(text, document: document)
+        overrideLayout = (document.changeCount, layout)
+        return layout
+    }
+
+    /// An override's layout as of the document's change count.
+    @ObservationIgnored private var overrideLayout: (count: Int, layout: TextLayout)?
+
+    /// `text` laid out as `DocumentHandle.textLayout(for:)` lays out a block (an instance's text
+    /// reads as its master block, so it lays out in the master's geometry).
+    static func layout(_ text: TextNode, document: DocumentHandle) -> TextLayout {
+        let state = document.state
+        let onPath = TextLayoutReading.path(of: text, in: state) != nil
+        return TextLayoutReading.layout(text, engine: document.textEngine, colors: ColorResolver(state), state: onPath ? state : nil)
+    }
 
     /// Container space → pasteboard: the block's placement through its groups and layer, or the
     /// new block's origin.
     var toPasteboard: WTGeometry.AffineTransform {
         switch target {
         case .node(let id): return Objects.pasteboardTransform(of: id, in: document.state)
+        case .override(let instance, let master): return Symbols.pasteboardTransform(ofMaster: master, in: instance, state: document.state) ?? .identity
         case .pending(let frame), .creating(let frame): return .translation(x: Self.origin(frame).x, y: Self.origin(frame).y)
         }
     }
@@ -352,6 +390,7 @@ final class TextEditingSession {
 
     private func applyInsert(_ string: String, typing: Bool) {
         goalX = nil
+        if override != nil { return applyOverride(.insert(string)) }
         guard case .node(let node) = target, let text else {
             if case .pending(let frame) = target { create(frame, string, typing: typing) }
             return
@@ -404,6 +443,7 @@ final class TextEditingSession {
 
     private func applyDelete(_ action: TextKeystroke.Action) {
         goalX = nil
+        if override != nil { return applyOverride(action) }
         guard case .node(let node) = target, let text else { return }
         var range = selectedRange
         if range.isEmpty, action == .deleteSelection { return }
@@ -436,6 +476,43 @@ final class TextEditingSession {
             guard edge != from else { return }
             session.setSelection(anchor: edge, focus: from)
             session.applyDelete(.deleteSelection)
+        }
+    }
+
+    /// A keystroke inside an instance: the edit `action` makes of the selection, written to the
+    /// instance's text override; once it lands the insertion point is re-read at its offset (the
+    /// first edit replaces the master's characters with the override's copies).
+    private func applyOverride(_ action: TextKeystroke.Action) {
+        guard let override, text != nil, let result = Self.overrideEdit(action, range: selectedRange, scalars: scalars) else { return }
+        let (edit, caret) = result
+        perform(OverrideText(override.instance, master: override.master, edit: edit)) { session, _ in
+            session.setSelection(anchor: caret, focus: caret)
+        }
+        changed()
+    }
+
+    /// What `action` does to `range` of `scalars` as an override edit, with the insertion point
+    /// after it; nil when it does nothing (the rules of `TextKeystroke`).
+    static func overrideEdit(_ action: TextKeystroke.Action, range: Range<Int>, scalars: [Unicode.Scalar]) -> (OverrideTextEdit, Int)? {
+        func delete(_ deleted: Range<Int>) -> (OverrideTextEdit, Int)? { deleted.isEmpty ? nil : (.delete(deleted), deleted.lowerBound) }
+        switch action {
+        case .insert(let string):
+            let caret = range.lowerBound + string.unicodeScalars.count
+            return range.isEmpty ? (.insert(string, at: range.lowerBound), caret) : (.replace(range, with: string), caret)
+        case .deleteSelection:
+            return delete(range)
+        case .backspace:
+            guard range.isEmpty else { return delete(range) }
+            return range.lowerBound > 0 ? delete(range.lowerBound - 1..<range.lowerBound) : nil
+        case .forwardDelete:
+            guard range.isEmpty else { return delete(range) }
+            return delete(range.lowerBound..<min(range.lowerBound + 1, scalars.count))
+        case .deleteWordBackward:
+            guard range.isEmpty else { return delete(range) }
+            return delete(TextNavigation.wordStart(before: range.lowerBound, in: scalars)..<range.lowerBound)
+        case .deleteWordForward:
+            guard range.isEmpty else { return delete(range) }
+            return delete(range.lowerBound..<TextNavigation.wordEnd(after: range.lowerBound, in: scalars))
         }
     }
 
@@ -673,6 +750,17 @@ final class TextEditingSession {
     @discardableResult
     func end() -> OpID? {
         unmarkText()
+        if let override {
+            // An override emptied by editing is reset: the block shows the master's text again.
+            guard isLive else { return nil }
+            enqueue { session in
+                guard session.isLive, session.text?.length == 0,
+                      Symbols.liveOverrides(of: override.instance, in: session.document.state)[OverrideKey(master: override.master, property: .text)] != nil
+                else { return }
+                session.perform(ResetOverrides([override.instance], key: OverrideKey(master: override.master, property: .text)))
+            }
+            return override.instance
+        }
         guard let node, isLive else { return nil }
         let waiting = inflight > 0
         enqueue { session in

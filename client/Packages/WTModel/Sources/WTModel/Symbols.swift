@@ -110,8 +110,8 @@ public enum Symbols {
         }
     }
 
-    /// The render-side overrides of `instance` (text overrides are not laid out yet: TXT-001 has
-    /// no layout in WTModel, so a text override draws the master's text).
+    /// The render-side overrides of `instance` but its text ones, which need the document's text
+    /// layout: the scene builder adds them (`TextSceneLayout.overrides(of:artwork:state:)`).
     static func renderOverrides(of instance: OpID, in state: EngineState) -> [InstanceOverride] {
         liveOverrides(of: instance, in: state).sorted { $0.key < $1.key }.compactMap { key, override in
             let node = NodeID(key.master)

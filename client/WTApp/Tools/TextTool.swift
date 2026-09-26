@@ -123,6 +123,9 @@ final class TextTool: Tool, TextInputHandling {
         if case .node(let node) = target {
             context.selection.model.set(Selection([SelectionID(node)]))
             session.click(at: point, granularity: granularity, extend: false)
+        } else if case .override(let instance, _) = target {
+            context.selection.model.set(Selection([SelectionID(instance)]))
+            session.click(at: point, granularity: granularity, extend: false)
         } else {
             context.selection.model.clear()
         }
@@ -133,9 +136,14 @@ final class TextTool: Tool, TextInputHandling {
     /// The Pointer's double-click on a text block, or a click in one: editing starts with the
     /// insertion point at `point` (pasteboard).
     func edit(_ node: OpID, at point: Point, granularity: TextGranularity = .character) {
+        edit(.node(node), at: point, granularity: granularity)
+    }
+
+    /// `edit(_:at:granularity:)` for a block or a text block inside an instance.
+    func edit(_ target: TextEditingSession.Target, at point: Point, granularity: TextGranularity = .character) {
         guard let context else { return }
         endEditing(revert: false)
-        begin(.node(node), at: point, granularity: granularity, context: context)
+        begin(target, at: point, granularity: granularity, context: context)
     }
 
     /// Ends editing: the block stays selected (an emptied one is deleted); with `revert` the
@@ -168,15 +176,37 @@ final class TextTool: Tool, TextInputHandling {
     /// out size, grown by the hit slop) holds the point -- so a click between lines or in a
     /// fixed-size block's empty part lands in it too.
     private func textBlock(at e: CanvasEvent, context: ToolContext) -> OpID? {
+        if case .node(let node)? = textTarget(at: e, context: context) { return node }
+        return nil
+    }
+
+    /// What a click at `e` edits: `textBlock(at:context:)`'s rule over the blocks and over the text
+    /// blocks inside unlocked instances (library.adoc, "Text tool inside an instance": the resolved
+    /// artwork's text blocks through the instance's transform, the topmost block of the topmost
+    /// instance winning).
+    func textTarget(at e: CanvasEvent, context: ToolContext) -> TextEditingSession.Target? {
         let document = context.document
         let state = document.state
         let slop = Self.hitSlop / max(context.viewport.zoom, 0.0001)
-        return document.scene.objects.values.filter { object in
-            guard object.kind == .text, !object.isEffectivelyLocked, let layout = document.textLayout(for: object.id),
-                  let local = Objects.pasteboardTransform(of: object.id, in: state).inverted()?.apply(e.pasteboardPoint) else { return false }
-            return TextFrames.frame(of: layout).expanded(by: slop).contains(local)
+        let point = e.pasteboardPoint
+        var hits: [(path: [Int], target: TextEditingSession.Target)] = []
+        for object in document.scene.objects.values where !object.isEffectivelyLocked {
+            if object.kind == .text {
+                guard let layout = document.textLayout(for: object.id),
+                      let local = Objects.pasteboardTransform(of: object.id, in: state).inverted()?.apply(point),
+                      TextFrames.frame(of: layout).expanded(by: slop).contains(local) else { continue }
+                hits.append((object.itemPath, .node(object.id)))
+            } else if object.kind == .instance, object.bounds?.expanded(by: slop).contains(point) == true,
+                      let artwork = Symbols.resolvedArtwork(of: object.id, in: state) {
+                for (index, master) in artwork.textBlocks.enumerated() {
+                    guard let text = Symbols.textNode(master, in: object.id, state: state),
+                          let local = Symbols.pasteboardTransform(ofMaster: master, in: object.id, state: state)?.inverted()?.apply(point),
+                          TextFrames.frame(of: TextEditingSession.layout(text, document: document)).expanded(by: slop).contains(local) else { continue }
+                    hits.append((object.itemPath + [index], .override(instance: object.id, master: master)))
+                }
+            }
         }
-        .max { $0.itemPath.lexicographicallyPrecedes($1.itemPath) }?.id
+        return hits.max { $0.path.lexicographicallyPrecedes($1.path) }?.target
     }
 
     // MARK: Pointer
@@ -203,8 +233,8 @@ final class TextTool: Tool, TextInputHandling {
             }
             // A click in another block edits it; a click away finishes, and by default the
             // Pointer takes over and the click does nothing more.
-            if let node = textBlock(at: e, context: context) {
-                edit(node, at: e.pasteboardPoint, granularity: TextGranularity(clickCount: e.clickCount))
+            if let target = textTarget(at: e, context: context) {
+                edit(target, at: e.pasteboardPoint, granularity: TextGranularity(clickCount: e.clickCount))
                 gesture = .select
                 return
             }
@@ -215,9 +245,9 @@ final class TextTool: Tool, TextInputHandling {
                 return
             }
         }
-        if let node = textBlock(at: e, context: context) {
+        if let target = textTarget(at: e, context: context) {
             gesture = .select
-            begin(.node(node), at: e.pasteboardPoint, granularity: TextGranularity(clickCount: e.clickCount), context: context)
+            begin(target, at: e.pasteboardPoint, granularity: TextGranularity(clickCount: e.clickCount), context: context)
             return
         }
         gesture = .create

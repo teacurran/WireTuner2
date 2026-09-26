@@ -18,6 +18,8 @@ public enum OverrideTextEdit: Hashable, Sendable {
     case insert(String, at: Int)
     /// Deletes the characters in `range`.
     case delete(Range<Int>)
+    /// Types `string` over the characters in `range` (typing over a selection; one change).
+    case replace(Range<Int>, with: String)
 }
 
 /// Typing into a text block of an instance (the Text tool inside an instance; library.adoc, "Text
@@ -72,7 +74,8 @@ public struct OverrideText: Command {
         let element = builder.append(Ops.elementInsert(instance, SymbolFields.overrides, positions: try PathEditing.keys(between: last, and: nil, count: 1),
                                                        values: values))
         let field = SymbolFields.overrideText(element)
-        let copied = TextCopying.copy(source.string, runs: source.runs, into: instance, field: field, builder: &builder)
+        let copied = TextCopying.copy(source.string, runs: source.runs, paragraphs: source.paragraphs.compactMap { $0.terminator == nil ? nil : $0.props },
+                                      into: instance, field: field, builder: &builder)
         try Self.apply(edit, node: instance, field: field, chars: copied, origins: { offset in
             (offset > 0 ? copied[offset - 1] : .zero, offset < copied.count ? copied[offset] : .zero)
         }, builder: &builder)
@@ -90,6 +93,14 @@ public struct OverrideText: Command {
         case .delete(let range):
             guard range.lowerBound >= 0, range.upperBound <= chars.count else { throw TextEditError.invalidValue("range") }
             for op in TextCopying.deletes(node, field, Array(chars[range])) { builder.append(op) }
+        case .replace(let range, let string):
+            guard range.lowerBound >= 0, range.upperBound <= chars.count else { throw TextEditError.invalidValue("range") }
+            // Typed after the replaced characters (their tombstones keep the place), then they go.
+            if !string.isEmpty {
+                let (left, right) = origins(range.upperBound)
+                builder.append(Ops.textInsert(node, field, string, left: left, right: right))
+            }
+            for op in TextCopying.deletes(node, field, Array(chars[range])) { builder.append(op) }
         }
     }
 }
@@ -97,9 +108,11 @@ public struct OverrideText: Command {
 /// Copying characters and marks into a TEXT field as fresh inserts.
 enum TextCopying {
     /// Inserts `string` at the start of the (empty) TEXT field `field` of `node` with one mark per
-    /// value of each of `runs` (live offsets into `string`); returns the new characters' ids.
+    /// value of each of `runs` (live offsets into `string`) and the paragraph registers of each of
+    /// its newlines (`paragraphs`, in order); returns the new characters' ids.
     @discardableResult
-    static func copy(_ string: String, runs: [TextMarkRun], into node: OpID, field: RegisterPath, builder: inout ChangeBuilder) -> [OpID] {
+    static func copy(_ string: String, runs: [TextMarkRun], paragraphs: [Wiretuner_Doc_V1_ParagraphProps] = [], into node: OpID, field: RegisterPath,
+                     builder: inout ChangeBuilder) -> [OpID] {
         let count = string.unicodeScalars.count
         guard count > 0 else { return [] }
         let first = builder.append(Ops.textInsert(node, field, string))
@@ -117,6 +130,12 @@ enum TextCopying {
                 op.textMark = mark
                 builder.append(op)
             }
+        }
+        var newline = 0
+        for (offset, scalar) in string.unicodeScalars.enumerated() where scalar == "\n" {
+            defer { newline += 1 }
+            guard newline < paragraphs.count else { break }
+            NodeCopier.writeParagraph(paragraphs[newline], newline: ids[offset], node: node, field: field, builder: &builder)
         }
         return ids
     }
@@ -145,6 +164,8 @@ public struct ResolvedText: Hashable, Sendable {
     public var runs: [TextMarkRun]
     /// Whether a live `TEXT` override supplies it.
     public var isOverride: Bool
+    /// The override element whose text it is (nil: the master's).
+    public var element: OpID? = nil
 }
 
 /// An instance's artwork as resolved (`Symbols.resolvedArtwork(of:)`): the symbol's children as
@@ -155,6 +176,18 @@ public struct ResolvedArtwork: Hashable, Sendable {
     public var symbol: OpID
     public var nodes: [NodeTree]
     public var texts: [OpID: ResolvedText]
+
+    /// The text blocks drawn (the keys of `texts`) in stacking order, bottom first: what the Text
+    /// tool can click into.
+    public var textBlocks: [OpID] {
+        var result: [OpID] = []
+        func collect(_ tree: NodeTree) {
+            if case .text? = tree.props.kind, let master = tree.source { result.append(master) }
+            tree.children.forEach(collect)
+        }
+        nodes.forEach(collect)
+        return result
+    }
 }
 
 extension Symbols {
@@ -175,6 +208,42 @@ extension Symbols {
         return ResolvedArtwork(symbol: symbol, nodes: nodes, texts: texts)
     }
 
+    /// Text block `master` as `instance` shows it, for layout and editing (LIB-025, "Text tool
+    /// inside an instance"): the characters, marks and paragraph registers of its live `TEXT`
+    /// override where there is one, else the master's own; the master's block, inset, columns,
+    /// tail paragraph and transform either way (its `id` is the master's).  Nil when `master` is
+    /// not a text block the instance draws.
+    public static func textNode(_ master: OpID, in instance: OpID, state: EngineState) -> TextNode? {
+        guard let symbol = symbol(of: instance, in: state), artworkNodes(of: symbol, in: state).contains(master) else { return nil }
+        if let override = liveOverrides(of: instance, in: state)[OverrideKey(master: master, property: .text)], let element = OpID(element: override.id),
+           let text = TextNode(master, text: instance, field: SymbolFields.overrideText(element), in: state) {
+            return text
+        }
+        return TextNode(master, in: state)
+    }
+
+    /// Master node `master`'s own space → its symbol's space: its transform and those of the
+    /// groups between it and the symbol (the symbol's own is not applied).  Nil when `master` is
+    /// not in `symbol`'s artwork.
+    public static func symbolSpaceTransform(of master: OpID, in symbol: OpID, state: EngineState) -> AffineTransform? {
+        var result = AffineTransform.identity
+        var current: OpID? = master
+        while let id = current, id != symbol {
+            result = result.concatenating(Objects.transform(of: id, in: state))
+            current = state.store.placement(id)?.parent
+        }
+        return current == symbol ? result : nil
+    }
+
+    /// Master node `master`'s own space → pasteboard as `instance` draws it: through the groups to
+    /// the symbol, the symbol's origin to the instance's place, and the instance's own placement
+    /// (its transform, groups and layer).  Nil when the instance does not draw `master`'s symbol.
+    public static func pasteboardTransform(ofMaster master: OpID, in instance: OpID, state: EngineState) -> AffineTransform? {
+        guard let symbol = symbol(of: instance, in: state), let inner = symbolSpaceTransform(of: master, in: symbol, state: state) else { return nil }
+        let origin = state.props(symbol).symbol.origin
+        return inner.concatenating(.translation(x: -origin.x, y: -origin.y)).concatenating(Objects.pasteboardTransform(of: instance, in: state))
+    }
+
     /// The text master text block `master` shows in `instance`.
     static func resolvedText(_ master: OpID, instance: OpID, overrides: [OverrideKey: Wiretuner_Doc_V1_Override], in state: EngineState) -> ResolvedText {
         if let override = overrides[OverrideKey(master: master, property: .text)], let element = OpID(element: override.id),
@@ -183,7 +252,7 @@ extension Symbols {
                 TextMarkRun(range: run.start..<run.start + run.length,
                             values: run.attributes.compactMap { try? Wiretuner_Doc_V1_TextMarkValue(serializedBytes: $0.value) })
             }
-            return ResolvedText(string: sequence.string, runs: runs, isOverride: true)
+            return ResolvedText(string: sequence.string, runs: runs, isOverride: true, element: element)
         }
         let source = TextNode(master, in: state)
         return ResolvedText(string: source?.string ?? "", runs: source?.runs ?? [], isOverride: false)

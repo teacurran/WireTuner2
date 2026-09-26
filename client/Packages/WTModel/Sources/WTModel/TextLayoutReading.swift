@@ -154,6 +154,13 @@ public enum TextLayoutReading {
     @MainActor
     public static func item(_ node: OpID, in state: EngineState, engine: TextLayoutEngine) -> DisplayItem? {
         guard let text = TextNode(node, in: state) else { return nil }
+        return item(text, in: state, engine: engine)
+    }
+
+    /// `item(_:in:engine:)` for `text` as read (an instance's text override reads as its master
+    /// block holding the override's characters, `Symbols.textNode`).
+    @MainActor
+    public static func item(_ text: TextNode, in state: EngineState, engine: TextLayoutEngine) -> DisplayItem? {
         let glyphs = layout(text, engine: engine, colors: ColorResolver.current ?? ColorResolver(state), state: state).displayItems(forContainer: 0)
         let path = pathDrawing(text, in: state)
         let items = path.below + glyphs + path.above

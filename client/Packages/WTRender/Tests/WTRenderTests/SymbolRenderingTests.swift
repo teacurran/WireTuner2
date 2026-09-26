@@ -77,6 +77,41 @@ import WTGeometry
         #expect(hiddenGroup.count == 1)
     }
 
+    /// Every text run in `item` with its pasteboard baseline origin, depth first.
+    static func runs(_ item: DisplayItem) -> [(text: String, origin: Point)] {
+        switch item {
+        case .text(let run): [(run.text, run.transform.apply(run.origin))]
+        case .group(let group): group.children.flatMap { runs($0) }
+        default: []
+        }
+    }
+
+    /// A text override's laid-out runs replace the master's words, placed through the instance's
+    /// transform like the rest of the artwork (LIB-025/026); instances with the same override
+    /// text share a build, a different text builds its own.
+    @Test func textOverridesPlaceTheLaidOutRunsInsteadOfTheMastersWords() throws {
+        let renderer = SymbolRenderer(typesetter: F.labels)
+        let transform = AffineTransform.rotation(degrees: 30).concatenating(.translation(x: 40, y: 10))
+        let plain = renderer.item(for: SymbolInstance(symbol: F.id(120), transform: transform), in: F.textLibrary)
+        #expect(Self.runs(plain).map(\.text) == ["Buy", " now"])
+        let item = renderer.item(for: SymbolInstance(symbol: F.id(120), transform: transform, overrides: [.text(F.id(122), F.cardText)]), in: F.textLibrary)
+        let runs = Self.runs(item)
+        #expect(runs.map(\.text) == ["Sale", " ends", "today"])
+        let placement = AffineTransform.translation(x: -22, y: -14).concatenating(transform)
+        let expected = [Point(x: 4, y: 11), Point(x: 22, y: 11), Point(x: 4, y: 21)].map { placement.apply($0) }
+        for (run, point) in zip(runs, expected) {
+            #expect(abs(run.origin.x - point.x) < 1e-9 && abs(run.origin.y - point.y) < 1e-9)
+        }
+        #expect(renderer.buildCount == 2)
+        _ = renderer.item(for: SymbolInstance(symbol: F.id(120), transform: .identity, overrides: [.text(F.id(122), F.cardText)]), in: F.textLibrary)
+        #expect(renderer.buildCount == 2, "the same override text shares the sub-list")
+        _ = renderer.item(for: SymbolInstance(symbol: F.id(120), overrides: [.text(F.id(122), [F.run("Other", F.regular, at: Point(x: 4, y: 11), .black)])]), in: F.textLibrary)
+        #expect(renderer.buildCount == 3)
+        // A nested instance draws its own text override inside its host.
+        let host = renderer.item(for: SymbolInstance(symbol: F.id(130)), in: F.textLibrary)
+        #expect(Self.runs(host).map(\.text) == ["Sale", " ends", "today"])
+    }
+
     @Test func recolouringReachesTextAndGroupsButNotOtherPaints() {
         let gradient = Paint.gradient(Gradient(from: .black, to: .white))
         let item = DisplayItem.group(GroupItem(children: [

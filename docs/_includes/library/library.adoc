@@ -141,7 +141,8 @@ To override text on the canvas:
 
 * With the Text tool, click into a text block inside the instance and type.  Only this
   instance changes; the caret, selection and everything else about editing text work as in any
-  block (xref:editing-text.adoc[Editing text]).
+  block (xref:editing-text.adoc[Editing text]).  If you delete all of the text and finish
+  editing, the block shows the symbol's text again.
 
 To reset an override:
 
@@ -631,7 +632,10 @@ Text tool inside an instance:: A Text tool click hit-tests the resolved artwork'
 through the instance's transform.  If the block has no `TEXT` override, the first edit creates
 one by copying the master's characters and marks as fresh inserts into the element in the same
 change as the edit; afterwards the caret, selection and remote carets address
-`(instance, element, Anchor)` and every text command from TYPE-002 applies unchanged.
+`(instance, element, Anchor)` and every text command from TYPE-002 applies unchanged.  Ending
+editing with the override's text empty resets it (the element is deleted, "Reset override"),
+so the block shows the master's text again -- as an emptied block is deleted when editing
+ends.
 
 Undo grouping:: Every command is one change and one undo step, including *Remove* with
 instance handling ("Remove symbol Star and 12 instances").  Edits inside the symbol editing
@@ -670,8 +674,7 @@ last known bounds.  `Symbols.liveOverrides` applies the read-time rules (propert
 live node of the current symbol's artwork; `TEXT` only on a text block, `IMAGE` only on an image;
 the greatest element id per `(master_node, property)`); a fill or stroke of *None* recolours to
 clear, and an image override names the asset's SHA-256 in hex (WTRender's asset id).  Text
-overrides are read but not drawn -- WTModel has no text layout and the builder draws no text blocks
-yet -- so an instance shows the master's words.  Commands: `ConvertToSymbol` ("Convert to Symbol";
+overrides are laid out by the builder's `TextSceneLayout` (see the LIB-025 note below).  Commands: `ConvertToSymbol` ("Convert to Symbol";
 origin the selection's bounds centre, masters flattened into symbol space, the instance in place or
 on the active layer; name the single object's own or the first free "Symbol N"), `PlaceInstance`
 ("Place Symbol"), `SwapSymbol` ("Swap Symbol"), `ReleaseInstances` ("Release Instance", or
@@ -748,8 +751,27 @@ change reaches -- the instance itself, or anything under its symbol or a symbol 
 *Release Instance* now bakes image overrides and gives text blocks the override's text or the master's -- it copied no characters
 before; the text now rides on the resolved tree (`NodeTree.texts`) and `NodeCopier` writes it with the copy.  Swap sets overrides aside by the read-time rule (they read as nothing under the
 new symbol and return on a swap back).  Merge tests: reset vs. edit, duplicate creation, master node deleted vs. edit, swap vs.
-edit.  Not built: text overrides are resolved but not yet drawn by instances (the builder lays out the master's words), and the
-Text tool's hit test inside an instance (WTApp).
+edit.
+
+NOTE: As built by LIB-025 (the rest; `WTModel/TextSceneLayout.swift`, `SymbolOverrides.swift`, `DocumentScene.swift`;
+`WTApp/Tools/TextTool.swift`, `Text/TextEditingSession.swift`).  Instances draw their text overrides.  The scene builder keeps a
+`ResolvedArtworkCache` -- invalidated by every applied change (the instance's own override edits, edits under its symbol or a
+symbol nested in it) and emptied by `rebuild` and `reload` -- and for each text block of an instance's resolved artwork whose text a
+live override supplies, `TextSceneLayout.overrides(of:artwork:state:)` lays it out through `TextLayoutReading` as the master block
+holding the override's characters (`Symbols.textNode`: the override's marks and newline paragraph registers; the master's block,
+inset, columns, tail paragraph, transform, styles and path), places it through the groups between the master and the symbol, and
+hands it to `SymbolRenderer` as `InstanceOverride.text`, which draws those runs instead of the master's words; the instance also
+depends on each overridden master's text sources (styles, settings).  An emptied override draws no words.  The first override edit
+now also copies the master's paragraph registers onto the copied newlines, and `OverrideTextEdit.replace(_:with:)` types over a
+range in one change.  The Text tool hit-tests the text blocks of unlocked instances under the click (the resolved artwork's
+`textBlocks` through `Symbols.pasteboardTransform(ofMaster:in:state:)`; the topmost block of the topmost object wins, ordinary
+blocks included); the session's target `.override(instance:master:)` edits with `OverrideText` (typing, the deletes, typing over a
+selection), re-reads the insertion point by offset once each edit lands, and draws the frame, caret and selection at the
+instance's placement; ending editing with the override emptied resets it.  Not built (LIB-027): formatting, paragraph settings,
+placeholders and the Text Editor inside an instance (the session has no `node`, so those commands do nothing there) and presence
+carets on an override.  Merge tests (`SymbolTextOverrideSceneTests`): concurrent override typing vs. a master reword (the override
+keeps the words it copied, the other instances take the new ones, both replicas draw the same), concurrent typing into one
+override.  Reference render `symbolTextOverrides` (goldens and Metal parity).
 
 NOTE: LIB-025's app half is still not built: editing a text block inside an instance with the Text tool (`OverrideText`) waits for
 instances to draw their text overrides, which is a change to the scene builder and the symbol renderer (WTModel, WTRender), not

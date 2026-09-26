@@ -102,7 +102,8 @@ public struct DocumentScene: Hashable, Sendable {
 /// live children through a WTRender live group (`Wrappers.live`: an envelope's warp is resolved in
 /// its own space by `EnvelopeReading.spec`, a projection by `PerspectiveReading.live`), and a
 /// change to a member repaints the wrapper.  Symbol instances draw their symbol's artwork through
-/// `SymbolRenderer` (LIB-010/026), charts
+/// `SymbolRenderer` (LIB-010/026; an instance's text overrides laid out by the `TextSceneLayout`
+/// from its resolved artwork, `ResolvedArtworkCache`), charts
 /// their `ChartLayout` (DRAW-032), barcodes their bars (DATA-018), images their pixels through
 /// WTRender's image drawing (`ImageNodes.item`, IMG-004: the window's `ImageStore` supplies the
 /// pixels, the placeholder draws until they arrive) and placed SVG animations their poster frame
@@ -148,6 +149,10 @@ public struct DocumentDisplayListBuilder: Sendable {
     public private(set) var swatchIndex: SwatchIndex?
     private var cache: [OpID: Built] = [:]
     private let symbolRenderer = SymbolRenderer()
+    /// Each instance's resolved artwork (LIB-025), for laying out its text overrides: dropped for
+    /// an instance by a change to it or under its symbol (`ResolvedArtworkCache.invalidate`), and
+    /// wholesale by `rebuild` and `reload`.
+    private var resolvedArtwork = ResolvedArtworkCache()
     private let labels = CoreTextLabels()
     /// While building: the layer list, each connector end's attachment bounds so far, and the
     /// connectors being routed (a connector inside a group it is attached to is left out of that
@@ -222,6 +227,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     @discardableResult
     public mutating func rebuild(_ state: EngineState) -> DocumentScene {
         cache = [:]
+        resolvedArtwork = ResolvedArtworkCache()
         connectors = [:]
         masters.reset()
         swatchIndex = SwatchIndex(state)
@@ -235,6 +241,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     public mutating func reload(_ state: EngineState, origin: ChangeOrigin = .remote) -> (DocumentScene, ChangeSummary) {
         let before = scene
         cache = [:]
+        resolvedArtwork = ResolvedArtworkCache()
         connectors = [:]
         swatchIndex = SwatchIndex(state)
         scene = build(state)
@@ -269,6 +276,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             if case .create = op.op { touched[id, default: []] += [] }
         }
         let recoloured = recoloured(by: change, state: state)
+        resolvedArtwork.invalidate(by: change, state: state)
         return update(touched: touched, also: recoloured, state: state, origin: origin)
     }
 
@@ -673,6 +681,12 @@ public struct DocumentDisplayListBuilder: Sendable {
         case .instance(let instance)?:
             built.instance = Symbols.instanceSpec(node, transform: transform, in: state)
             built.sources = instance.hasSymbol ? [OpID(instance.symbol.id)] : []
+            // Text overrides are laid out here, in the master blocks' geometry (LIB-025/026).
+            if let textLayout, built.instance?.symbol != nil {
+                let text = textLayout.overrides(of: node, artwork: resolvedArtwork.artwork(of: node, in: state), state: state)
+                built.instance?.overrides += text.overrides
+                built.sources += text.sources
+            }
         case .chart(let chart)?:
             // Pictograph sources are the chart's children: any node under it redraws it.
             built.sources = Array(Symbols.artworkNodes(of: node, in: state))
