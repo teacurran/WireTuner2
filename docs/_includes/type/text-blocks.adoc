@@ -281,6 +281,23 @@ rows and path text are ignored.  The fields keep the APP-007 rule (`FieldEditor`
 `TextBlockSectionTests` (mixed values, the one-register write, a remote change under a draft,
 inset left and right from two replicas).
 
+NOTE: As built by TYPE-005 (`WTApp/Text/TextBlockHandles.swift`).  A canvas handle layer (Pointer and
+Subselect tools) draws each selected block's eight handles in its own space -- the side handles hollow
+for an auto width, the top and bottom ones for an auto height -- and the link box just past the
+lower-right corner with the overflow dot or, for a linked block, the arrow.  A corner drag writes at
+mouse-up one change: `width` and `height` (an auto dimension becomes fixed), the block's placement
+when its top-left moved, and with kbd:[Option] a `size` mark per run of equal size scaled by the
+vertical factor (by the uniform one with kbd:[Shift+Option]); a text of one size gets one mark over
+the whole text.  A double-click on a side handle toggles auto width, on the top or bottom handle auto
+height (fixing a dimension at the size laid out then), on the link box fits the block (the height all
+its text needs at the current width, the width of its longest line when that is narrower; "Fit Text
+Block").  A single press on a side or bottom handle is taken and does nothing: the kerning and leading
+drags are TYPE-018's.  menu:Text[Remove Transforms] keeps each block's top-left and drops rotation,
+skew and scale ("Remove Transforms").  menu:Extensions[Delete > Empty Text Blocks] deletes the blocks
+with no characters that are in no linked chain and not open in a Text Editor, one change.  An empty
+auto-expanding block that leaves the window's selection is deleted (not the Text tool's or a Text
+Editor's); deviation: that delete is an undo step of its own ("Delete").
+
 === Build tasks
 
 [[TYPE-005]]

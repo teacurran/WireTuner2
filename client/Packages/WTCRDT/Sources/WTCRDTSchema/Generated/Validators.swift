@@ -4852,6 +4852,9 @@ public enum WTValidators {
         for (i, v) in m.guides.enumerated() {
             out += validate(v, path: "\(path)guides[\(i)].")
         }
+        for (i, v) in m.readingOrder.enumerated() {
+            out += validate(v, path: "\(path)reading_order[\(i)].")
+        }
         return out
     }
 
@@ -5463,6 +5466,16 @@ public enum WTValidators {
             if !(v >= 1 && v <= 2400) {
                 out.append(ValidationViolation(fieldPath: "\(path)resolution_ppi", ruleID: "uint32.gte_lte", message: "value must be greater than or equal to 1 and less than or equal to 2400"))
             }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.doc.v1.ReadingOrderEntry`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Doc_V1_ReadingOrderEntry, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.hasNode {
+            let v = m.node
+            out += validate(v, path: "\(path)node.")
         }
         return out
     }

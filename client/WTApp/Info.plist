@@ -75,6 +75,28 @@
 	<string>Copyright 2026 Village Compute</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Add to WireTuner Document</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>addToDocument</string>
+			<key>NSPortName</key>
+			<string>WireTuner</string>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>com.adobe.pdf</string>
+				<string>public.svg-image</string>
+				<string>public.rtf</string>
+				<string>public.utf8-plain-text</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
 	<key>NSUserActivityTypes</key>

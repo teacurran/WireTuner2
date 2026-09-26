@@ -268,7 +268,7 @@ punctuation and keep with next (tri-state), keep lines, *Next style* -- with *Gl
 btn:[OK] writes only the settings that changed (`EditTextStyle`).  `TextStyleOperations.drop` applies a
 style dropped on text to the paragraph under the drop or, per *Dragging a text style changes*, the
 block.  Not built: wiring that drop to the Styles panel's drag (LIB-020's; a follow-up),
-the sheet's text ruler for tabs, and the axes and features controls (TYPE-046).
+and the sheet's text ruler for tabs.  The axes and features controls came with TYPE-046.
 
 === Build tasks
 

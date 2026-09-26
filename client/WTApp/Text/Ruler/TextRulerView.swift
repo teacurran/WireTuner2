@@ -29,6 +29,8 @@ final class TextRulerView: NSView {
     var perform: @MainActor (any WTModel.Command) -> Void = { _ in }
     /// Tracks the drag (the canvas draws the tracking line from it).
     var onTrack: @MainActor (Double?) -> Void = { _ in }
+    /// A double-click on the ruler at a position (ruler points): the Edit Tab sheet (TYPE-024).
+    var onDoubleClick: (@MainActor (Double) -> Void)?
     private(set) var grab: Grab?
     private var grabStart = NSPoint.zero
     /// The drag's current point, local.
@@ -120,7 +122,19 @@ final class TextRulerView: NSView {
         onTrack(model.position(Double(dragPoint.x)))
     }
 
-    override func mouseDown(with event: NSEvent) { begin(at: convert(event.locationInWindow, from: nil)) }
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if event.clickCount == 2, doubleClick(at: point) { return }
+        begin(at: point)
+    }
+
+    /// A double-click at `point` (local) past the tab well; answers whether it was taken.
+    @discardableResult
+    func doubleClick(at point: NSPoint) -> Bool {
+        guard let model, let onDoubleClick, point.x >= 0 else { return false }
+        onDoubleClick(model.position(Double(point.x)))
+        return true
+    }
     override func mouseDragged(with event: NSEvent) { drag(to: convert(event.locationInWindow, from: nil)) }
     override func mouseUp(with event: NSEvent) {
         end(at: convert(event.locationInWindow, from: nil), duplicate: event.modifierFlags.contains(.option))

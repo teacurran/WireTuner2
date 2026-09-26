@@ -255,6 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.attachModelGlue(window)
             self?.attachDocumentGlue(window)
             self?.attachTypeAndDrawingFeatures(window)
+            self?.attachExtras(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -351,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
+        installExtras()
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
         panelsDidChange()

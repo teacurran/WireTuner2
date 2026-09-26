@@ -101,6 +101,21 @@ Nothing beyond storing and relaying changes.
 (DRAW or OBJ epic's tool) calls the same API with the filters.  Undo: one step per paste or
 kbd:[Option]-click.
 
+NOTE: As built by TYPE-031 (`WTModel/TextAttributeSet.swift`, a new file; `WTApp/Text/TextAttributeClipboard.swift`,
+one hook in `Color/Eyedropper/EyedropperTool.swift`).  `TextAttributeSet.capture(from:range:block:in:)` takes
+the travelling marks of the source's first character -- the table's, plus axes and features (one mark
+per tag) -- the first paragraph's settings and, from a block, its block appearance as a stack;
+`PasteTextAttributes` is the documented change (marks over each target's range, with a cleared mark for
+each travelling attribute the target sets and the source does not, so the look is reproduced; every
+paragraph register, hyphenation and the rule by their fields; the tabs sequence replaced).  On the
+attribute clipboard the set is `AttributePayload`'s shape with the paragraph in `tail_paragraph`, so
+the object paste (OBJ-014) still puts the block appearance on a path.  menu:Edit[Special > Copy
+Attributes] and *Paste Attributes* take text first (the Text tool's range, else a selected block) and
+fall back to the object commands.  The Eyedropper: a click on text picks its attributes up at the
+character under the pointer (the colour pick goes on as before), an kbd:[Option]-click on text applies
+them, with kbd:[Shift] the character attributes only, with kbd:[Cmd] the paragraph ones only.
+Deviation: the options popover's two toggles are not built; *Paste Attributes* keeps no key equivalent.
+
 === Build tasks
 
 [[TYPE-031]]

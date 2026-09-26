@@ -98,6 +98,13 @@ final class CanvasView: NSView, CanvasHost {
     /// Graphic styles dragged from the Styles panel (styles.adoc, "Applying styles"): the object
     /// under the pointer takes the style; nil refuses them.
     var styleDrop: StyleCanvasDrop?
+    /// Keys taken before the tool and the menus while text is typed (TYPE-012: special
+    /// characters and smart quotes); answers whether it took the key.
+    var textKeys: (@MainActor (NSEvent) -> Bool)?
+    /// A secondary click's menu before the window's (TYPE-014: spelling suggestions); nil defers.
+    var textContextMenu: (@MainActor (NSEvent, Point) -> NSMenu?)?
+    /// Services in the app menu (IO-037): the requestor for a send and return type, or nil.
+    var servicesRequestor: (@MainActor (NSPasteboard.PasteboardType?, NSPasteboard.PasteboardType?) -> Any?)?
     /// A drag that left the window (OBJ-013): the Pointer's move becomes a dragging session when
     /// this answers true.
     var onDragOut: (@MainActor (NSEvent) -> Bool)?
@@ -503,7 +510,9 @@ final class CanvasView: NSView, CanvasHost {
 
     /// The context menu for the point of `event`, from the window (BASIC-018).
     func contextMenu(for event: NSEvent) -> NSMenu? {
-        onContextMenu?(event, viewPoint(fromAppKit: convert(event.locationInWindow, from: nil)))
+        let point = viewPoint(fromAppKit: convert(event.locationInWindow, from: nil))
+        if let menu = textContextMenu?(event, point) { return menu }
+        return onContextMenu?(event, point)
     }
 
     override func flagsChanged(with event: NSEvent) {
@@ -511,7 +520,17 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func keyDown(with event: NSEvent) {
+        if textKeys?(event) == true { return }
         if toolManager?.keyDown(event) != true { super.keyDown(with: event) }
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if window?.firstResponder === self, textKeys?(event) == true { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func validRequestor(forSendType sendType: NSPasteboard.PasteboardType?, returnType: NSPasteboard.PasteboardType?) -> Any? {
+        servicesRequestor?(sendType, returnType) ?? super.validRequestor(forSendType: sendType, returnType: returnType)
     }
 
     override func keyUp(with event: NSEvent) {

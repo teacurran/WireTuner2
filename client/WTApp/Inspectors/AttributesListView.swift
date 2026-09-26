@@ -123,7 +123,8 @@ struct AttributesListView: View {
             dropColor: { pasteboard, item in drop(from: pasteboard, on: item, model: model) },
             attach: { from, onto in model.perform(model.attach(fromDisplay: from, onto: onto)) },
             remove: { remove(model, state) },
-            openContents: { openContents(members, selection: selection) }
+            openContents: { openContents(members, selection: selection) },
+            clearOverride: { item in model.perform(StyleOverrideMarks.clear(item, list: model)) }
         )
     }
 
@@ -137,6 +138,7 @@ struct AttributesListView: View {
         let members = PropertiesTree.members(model)
         VStack(alignment: .leading, spacing: 6) {
             toolbar(selectedItem)
+            if let styles = ObjectStyleRow.shared { ObjectStyleRow(model: styles) }
             PropertiesOutline(tree: PropertiesTree(list: model, members: members), selected: Self.selectedKey(model, state),
                               actions: Self.actions(model, state, members: members, selection: selection), optionHeld: optionHeld)
                 .frame(minHeight: 90, idealHeight: 130)

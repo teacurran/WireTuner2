@@ -130,6 +130,8 @@ final class EyedropperTool: Tool {
 
     func mouseDown(_ e: CanvasEvent) {
         guard let context else { return }
+        // Text attributes (TYPE-031): a click picks them up, an Option-click applies them.
+        if TextEyedropper.press(e, context: context) { return }
         sample = EyedropperSampling.sample(at: e, context: context, defaultSpace: defaultSpace())
         guard sample != nil else { return }
         press = e

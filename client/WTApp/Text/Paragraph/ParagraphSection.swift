@@ -239,6 +239,7 @@ struct ParagraphSectionView: View {
                 Button("Edit…", action: Self.opening(.rule, $sheet)).accessibilityIdentifier("object.paragraph.ruleWidth")
             }
             Button("Edit Alignment…", action: Self.opening(.alignment, $sheet)).accessibilityIdentifier("object.paragraph.alignment")
+            Button("Tabs…", action: TabSheets.opening(model)).accessibilityIdentifier("object.paragraph.tabs")
         }
         .toggleStyle(.checkbox)
         .padding(.horizontal)

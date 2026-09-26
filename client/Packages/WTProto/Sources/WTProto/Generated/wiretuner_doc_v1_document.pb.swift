@@ -401,6 +401,15 @@ public nonisolated struct Wiretuner_Doc_V1_PageProps: @unchecked Sendable {
     set {_uniqueStorage()._guides = newValue}
   }
 
+  /// Reading order override (objects/names-notes.adoc, OBJ-041).  Empty (the default) means
+  /// stacking order: layers bottom to top, each layer's objects back to front.  Listed objects are
+  /// read first, in sequence order; every other readable object on the page follows in stacking
+  /// order.  SEQUENCE: entries are inserted, moved and deleted individually.
+  public var readingOrder: [Wiretuner_Doc_V1_ReadingOrderEntry] {
+    get {_storage._readingOrder}
+    set {_uniqueStorage()._readingOrder = newValue}
+  }
+
   /// The perspective grid this page uses: an element of SettingsProps.perspective_grids
   /// (effects/perspective.adoc, FX-040).  Unset or dangling reads as the default grid (the
   /// sequence's first live element, or the built-in two-point grid).  ATOMIC.
@@ -424,6 +433,42 @@ public nonisolated struct Wiretuner_Doc_V1_PageProps: @unchecked Sendable {
   public init() {}
 
   fileprivate var _storage = _StorageClass.defaultInstance
+}
+
+/// One entry of a page's reading order (OBJ-041).
+public nonisolated struct Wiretuner_Doc_V1_ReadingOrderEntry: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Element id (MERGE_SEQUENCE).
+  public var id: Wiretuner_Doc_V1_ElementId {
+    get {_id ?? Wiretuner_Doc_V1_ElementId()}
+    set {_id = newValue}
+  }
+  /// Returns true if `id` has been explicitly set.
+  public var hasID: Bool {self._id != nil}
+  /// Clears the value of `id`. Subsequent reads from it will return its default value.
+  public mutating func clearID() {self._id = nil}
+
+  /// A top-level object (a child of a layer) whose bounds meet the page.  A deleted, unknown,
+  /// decorative, nested or off-page object reads as skipped; of several entries naming one
+  /// object the first counts.
+  public var node: Wiretuner_Doc_V1_NodeRef {
+    get {_node ?? Wiretuner_Doc_V1_NodeRef()}
+    set {_node = newValue}
+  }
+  /// Returns true if `node` has been explicitly set.
+  public var hasNode: Bool {self._node != nil}
+  /// Clears the value of `node`. Subsequent reads from it will return its default value.
+  public mutating func clearNode() {self._node = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _id: Wiretuner_Doc_V1_ElementId? = nil
+  fileprivate var _node: Wiretuner_Doc_V1_NodeRef? = nil
 }
 
 /// NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate
@@ -1075,7 +1120,7 @@ nonisolated extension Wiretuner_Doc_V1_Guide: SwiftProtobuf.Message, SwiftProtob
 
 nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PageProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}origin\0\u{1}geometry\0\u{1}bleed\0\u{1}master\0\u{3}ruler_origin\0\u{1}guides\0\u{4}\u{d}perspective_grid\0\u{3}perspective_grid_visible\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}origin\0\u{1}geometry\0\u{1}bleed\0\u{1}master\0\u{3}ruler_origin\0\u{1}guides\0\u{4}\u{3}reading_order\0\u{4}\u{a}perspective_grid\0\u{3}perspective_grid_visible\0")
 
   fileprivate class _StorageClass {
     var _common: Wiretuner_Doc_V1_CommonProps? = nil
@@ -1085,6 +1130,7 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
     var _master: Wiretuner_Doc_V1_NodeRef? = nil
     var _rulerOrigin: Wiretuner_Doc_V1_Point? = nil
     var _guides: [Wiretuner_Doc_V1_Guide] = []
+    var _readingOrder: [Wiretuner_Doc_V1_ReadingOrderEntry] = []
     var _perspectiveGrid: Wiretuner_Doc_V1_ElementId? = nil
     var _perspectiveGridVisible: Bool = false
 
@@ -1104,6 +1150,7 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
       _master = source._master
       _rulerOrigin = source._rulerOrigin
       _guides = source._guides
+      _readingOrder = source._readingOrder
       _perspectiveGrid = source._perspectiveGrid
       _perspectiveGridVisible = source._perspectiveGridVisible
     }
@@ -1131,6 +1178,7 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
         case 5: try { try decoder.decodeSingularMessageField(value: &_storage._master) }()
         case 6: try { try decoder.decodeSingularMessageField(value: &_storage._rulerOrigin) }()
         case 7: try { try decoder.decodeRepeatedMessageField(value: &_storage._guides) }()
+        case 10: try { try decoder.decodeRepeatedMessageField(value: &_storage._readingOrder) }()
         case 20: try { try decoder.decodeSingularMessageField(value: &_storage._perspectiveGrid) }()
         case 21: try { try decoder.decodeSingularBoolField(value: &_storage._perspectiveGridVisible) }()
         default: break
@@ -1166,6 +1214,9 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
       if !_storage._guides.isEmpty {
         try visitor.visitRepeatedMessageField(value: _storage._guides, fieldNumber: 7)
       }
+      if !_storage._readingOrder.isEmpty {
+        try visitor.visitRepeatedMessageField(value: _storage._readingOrder, fieldNumber: 10)
+      }
       try { if let v = _storage._perspectiveGrid {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 20)
       } }()
@@ -1188,12 +1239,52 @@ nonisolated extension Wiretuner_Doc_V1_PageProps: SwiftProtobuf.Message, SwiftPr
         if _storage._master != rhs_storage._master {return false}
         if _storage._rulerOrigin != rhs_storage._rulerOrigin {return false}
         if _storage._guides != rhs_storage._guides {return false}
+        if _storage._readingOrder != rhs_storage._readingOrder {return false}
         if _storage._perspectiveGrid != rhs_storage._perspectiveGrid {return false}
         if _storage._perspectiveGridVisible != rhs_storage._perspectiveGridVisible {return false}
         return true
       }
       if !storagesAreEqual {return false}
     }
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Doc_V1_ReadingOrderEntry: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReadingOrderEntry"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}node\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularMessageField(value: &self._id) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._node) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._id {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 1)
+    } }()
+    try { if let v = self._node {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Doc_V1_ReadingOrderEntry, rhs: Wiretuner_Doc_V1_ReadingOrderEntry) -> Bool {
+    if lhs._id != rhs._id {return false}
+    if lhs._node != rhs._node {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -1,0 +1,38 @@
+# crdt-conformance/vectors/objects/reading-order-insert.textproto (OBJ-041; schema: crdt-conformance/schema/vector.proto)
+name: "objects/reading-order-insert"
+description: "Names and notes, Merge semantics: two replicas both add the same object to an empty reading order (PageProps.reading_order, a SEQUENCE of ReadingOrderEntry).  Both entries are live -- two entries naming one node -- and read-time normalization keeps the first; nothing is merged away."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { common { name: "Page 1" } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 1 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x80"] values { page { reading_order { node { id { counter: 2 replica: 7 } } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 1 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x80"] values { page { reading_order { node { id { counter: 2 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "ef1f947c01510ae533451dfda8a073d592357a45d084bd9c1dfa5521894c58d1"
+  snapshot_hash: "31ae23e52283f6a6498d492fcfe724dc3da365ab62e497b8293bcd7392e0abb0"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: ""
+    sequence { path { segments { field: 3 } segments { field: 10 } } elements { counter: 6 replica: 1 } elements { counter: 6 replica: 2 } }
+  }
+}

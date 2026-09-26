@@ -128,6 +128,14 @@ targets:
           - UTTypeIdentifier: com.villagecompute.wiretuner.gradient-ramp
             UTTypeDescription: WireTuner Gradient Ramp
             UTTypeConformsTo: [public.data]
+        # Services in (exporting.adoc, "The Share menu and Services"; IO-037): *Add to WireTuner
+        # Document* takes images, PDF, SVG and text from other apps.
+        NSServices:
+          - NSMenuItem:
+              default: Add to WireTuner Document
+            NSMessage: addToDocument
+            NSPortName: WireTuner
+            NSSendTypes: [public.image, com.adobe.pdf, public.svg-image, public.rtf, public.utf8-plain-text]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor

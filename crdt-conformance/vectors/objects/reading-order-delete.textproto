@@ -1,0 +1,43 @@
+# crdt-conformance/vectors/objects/reading-order-delete.textproto (OBJ-041; schema: crdt-conformance/schema/vector.proto)
+name: "objects/reading-order-delete"
+description: "Names and notes, Merge semantics: replica 1 chooses Use Stacking Order (every entry deleted) while replica 2 adds an entry for C.  The concurrent insert survives the deletes, so the page keeps that one entry."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { common { name: "Page 1" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 6 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x80", "\x81", "\x82"]
+      values { page { reading_order { node { id { counter: 2 replica: 7 } } } reading_order { node { id { counter: 3 replica: 7 } } } reading_order { node { id { counter: 4 replica: 7 } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 2 label: "Use Stacking Order"
+    ops { element_delete { node { counter: 5 replica: 7 } elements { segments { field: 3 } segments { field: 10 } segments { element { counter: 6 replica: 7 } } } elements { segments { field: 3 } segments { field: 10 } segments { element { counter: 7 replica: 7 } } } elements { segments { field: 3 } segments { field: 10 } segments { element { counter: 8 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 2 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x83"] values { page { reading_order { node { id { counter: 4 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "2a5f870450ffd17b0696b18162e19d8b0a8ff638524a189c0fdedc47eda2397c"
+  snapshot_hash: "e87cdd5f2d971f1f453f8f345867489c3f5e6648b9c7ff3c8c484ce26d1eee40"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: ""
+    sequence { path { segments { field: 3 } segments { field: 10 } } elements { counter: 9 replica: 2 } deleted { counter: 6 replica: 7 } deleted { counter: 7 replica: 7 } deleted { counter: 8 replica: 7 } }
+  }
+}

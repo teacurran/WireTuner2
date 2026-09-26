@@ -82,6 +82,13 @@ final class ColorWorkspace {
     func apply(_ ref: Wiretuner_Doc_V1_ColorRef, name: String = "", target: ColorTarget? = nil) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         let nodes = selectedNodes
         guard !nodes.isEmpty else { return nil }
+        // Picked chart elements take overrides (DRAW-034); text blocks the colour per *Swatches
+        // apply color to* (TYPE-030).
+        if let command = ChartElementStyling.colorCommand(document, selection: nodes, target: target ?? self.target, color: ref) { return perform(command) }
+        if let state = document?.state, let command = TextSwatchTarget.command(nodes, target: target ?? self.target, color: ref, name: name, state: state,
+                                                                                 appliesTo: TextSwatchTarget.appliesTo(store)) {
+            return perform(command)
+        }
         return perform(ApplyColor(nodes, target: target ?? self.target, color: ref, name: name))
     }
 

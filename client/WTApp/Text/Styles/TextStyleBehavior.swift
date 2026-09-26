@@ -42,7 +42,7 @@ final class TextStyleBehaviorModel {
         Field(path: [3, 14]) { $0.paragraph.hasKeepLines == $1.paragraph.hasKeepLines && $0.paragraph.keepLines == $1.paragraph.keepLines },
         Field(path: [3, 15]) { $0.paragraph.hasKeepWithNext == $1.paragraph.hasKeepWithNext && $0.paragraph.keepWithNext == $1.paragraph.keepWithNext },
         Field(path: [4]) { $0.affectsColor == $1.affectsColor },
-    ]
+    ] + StyleVariationControls.fields
 
     let style: TextStyle
     /// The settings the sheet started from.
@@ -278,6 +278,7 @@ struct TextStyleBehaviorSheet: View {
                 Text("No effect").tag("No effect")
                 ForEach(TextEffectKind.effects) { Text($0.title).tag($0.title) }
             }
+            StyleVariationControls(model: model)
             Toggle("Style affects text color", isOn: model.affectsColor).toggleStyle(.checkbox).accessibilityIdentifier("behavior.color")
             if !model.isCharacter {
                 Picker("Alignment", selection: model.alignment) {

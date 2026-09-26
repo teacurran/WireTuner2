@@ -611,6 +611,21 @@ style dragged to another document is refused (cross-document copying is LIB-022'
 `StylesPanelTests` (WTApp).
 ====
 
+NOTE: As built by LIB-021 (`WTApp/Styles/ObjectStyleRow.swift`; `WTModel/StyleOverrideCommands.swift`, a new
+file; small hooks in `Inspector/PropertiesOutline.swift` and `Inspectors/AttributesListView.swift`).  The
+style row sits above the properties list (deviation: a row of its own rather than the outline's first
+row): the preview, the style pop-up, the plus sign and btn:[Redefine].  It works through a
+`StylesPanelModel` of the front window, so it shows what the Styles panel highlights -- the selected
+objects' style (*Mixed* when they differ) or, with nothing selected, the style the defaults mirror -- and
+the plus sign when the objects override it or the defaults differ from it.  The pop-up is the panel's
+click (`ApplyGraphicStyle`, or `SelectGraphicStyleAsDefaults`); btn:[Redefine] runs the Redefine flow's
+command (`RedefineGraphicStyle` from the first selected object, else the defaults) without its sheet,
+one change; the preview drags as a `StyleDrag` onto the Styles panel or an object (deviation: with an
+object selected it still carries the style, not the object).  Rows of a category the first selected
+object overrides show a dot, and their context menu offers *Clear Override*: `ClearGraphicStyleOverride`
+deletes the objects' own elements of that list (or clears the halftone register), one change "Clear
+Override".  The row redraws with the document, never taking the first responder.
+
 === Build tasks
 
 [[LIB-017]]

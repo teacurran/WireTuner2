@@ -342,6 +342,21 @@ Services are IO-015, IO-016 and IO-037.  The tests (`ExportTests`) run over the 
 stub exporter and the real PDF, SVG, GIF and text exporters; the "remote change during a 5-second
 export" case applies a local change on another layer during a half-second stub export.
 
+NOTE: As built by IO-037 (`WTApp/Share/ShareExport.swift`, `ServicesBridge.swift`; the `NSServices` entry in
+`client/project.yml`; one hook in `Document/CanvasView.swift`).  menu:File[Share] (`file.shareExport`,
+beside the collaboration sheet's *Share…*) writes the *Quick Export preset*'s files for the selection,
+else the current page, into a folder of their own under the temporary directory and shows
+`NSSharingServicePicker` with them; with kbd:[Option] the preset comes from the Quick Export menu.  It
+is a registry command, so the toolbar offers it.  Deviations: the files are written when the command
+runs rather than promised (Mail and Messages take file URLs), and the menu item opens the picker rather
+than listing the services as a submenu.  Services out: while the Text tool has a range the canvas
+offers its text (`public.utf8-plain-text`), while objects are selected their artwork as PDF, PNG and
+TIFF (the drag-export writers); nothing else is offered and nothing is taken back.  Services in: *Add
+to WireTuner Document* (`addToDocument`) copies the sent pasteboard and places it in the front
+document -- images and PDF through the import path, text, RTF and SVG through the richest-format paste
+-- one change; with no document open, or with kbd:[Option] held, a panel lists the library's recent
+documents and btn:[New Document] first.
+
 === Build tasks
 
 [[IO-014]]

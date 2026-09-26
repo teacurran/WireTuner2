@@ -226,8 +226,19 @@ is removed (`DeleteTabStop`); the left marker moves the left indent keeping the 
 was, the upper marker the first-line indent, the square both, the right marker the right indent
 (`SetParagraph`).  While a stop is dragged a dashed line runs down the block (*Track tab movement with
 vertical line*).  menu:View[Text Rulers] is shown or hidden for every window (user defaults
-`WTTextRulersShown`).  Not built: the Edit Tab sheet on a double-click (TYPE-024) and the
+`WTTextRulersShown`).  The Edit Tab sheet came with TYPE-024.  Not built: the
 conformance vector for `TabStop` (a `crdt-conformance` change, proposed).
+
+NOTE: As built by TYPE-024 (`WTApp/Text/Ruler/EditTabSheet.swift`, one hook in `TextRulerView.swift`).  A
+double-click on the ruler opens the Edit Tab sheet for the stop within five view points, else for a
+new left stop at that place; btn:[Tabs…] in the Paragraph section opens the Tabs table with every stop
+of the first paragraph, each row editable or removable, and btn:[Add].  *Alignment*, *Position*
+(points, two decimals) and *Leader* (None, Dots, Dashes, Underscores or one typed character) act on
+every paragraph the Text tool's selection -- or the table's blocks -- touches, the stop found by
+where it stands; btn:[OK] writes one change ("Add Tab", "Edit Tab", "Edit Tabs").  Choosing
+*Wrapping* clears and disables the leader, and a wrapping stop with a leader is refused.  Deviation:
+the position is written at btn:[OK], after which the ruler shows it; it is not previewed while typed.
+The indent and inset fields were already in the Paragraph and Text Block sections (TYPE-026, TYPE-006).
 
 === Build tasks
 

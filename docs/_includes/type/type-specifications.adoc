@@ -456,6 +456,23 @@ font <from> → <to> (N blocks)`.  Deviation: locked objects are skipped as well
 locked or hidden layers.  Tests: `TypeFindReplaceTests` (one change touching only matching runs;
 typing inside a matched run picks up the replacement).
 
+NOTE: As built by TYPE-046 (`WTApp/Text/Styles/VariationSection.swift`, two lines in `TextStyleBehavior.swift`;
+`WTModel/FontOffers.swift`, a new file).  `FontOffers` reads the resolved face's axes
+(`CTFontCopyVariationAxes`), the family's named instances (each face's `kCTFontVariationAttribute`, the
+axes it leaves out at their defaults), the documented features the face offers -- a layout asked to
+apply all of them reports those it drops -- and stylistic-set names from the AAT selectors.  Deviation:
+the groups are the Object panel section `textVariations` right after the Character section, and the
+named instances with *Custom* are a *Style* pop-up of the Axes group rather than the Character
+section's.  A slider writes when its drag ends (one change, one `axes` mark with every axis of the
+face); the field writes on commit; the reset arrow writes the axis's default; *Auto* for `opsz` leaves
+it out of the tuple (untested: no public font has `opsz`, as TYPE-047 found); an instance writes
+`font_style` and `axes` in one change.  A feature row is ticked by its effective state (`DEFAULT` reads
+as on for `liga` and `calt`), writes `ON` or `OFF`, and its reset arrow `DEFAULT`; at an insertion point
+both groups go to the pending format.  menu:Text[Style > Plain, Bold, Italic, Bold Italic] are built:
+on a family with a `wght` axis the named instance's `axes` go with its `font_style`.  The Style
+Behavior sheet has a field per axis (empty is *No selection* for the whole tuple) and a pop-up per
+offered feature (*No selection*, Default, On, Off).
+
 === Build tasks
 
 [[TYPE-020]]

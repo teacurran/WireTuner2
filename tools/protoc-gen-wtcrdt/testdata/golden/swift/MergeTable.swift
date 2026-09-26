@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
+    public static let version = "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -253,6 +253,7 @@ public enum WTMergeTable {
         "wiretuner.doc.v1.ProofSettings": wiretuner_doc_v1_ProofSettings,
         "wiretuner.doc.v1.RaggedEffect": wiretuner_doc_v1_RaggedEffect,
         "wiretuner.doc.v1.RasterEffectSettings": wiretuner_doc_v1_RasterEffectSettings,
+        "wiretuner.doc.v1.ReadingOrderEntry": wiretuner_doc_v1_ReadingOrderEntry,
         "wiretuner.doc.v1.Rect": wiretuner_doc_v1_Rect,
         "wiretuner.doc.v1.RectProps": wiretuner_doc_v1_RectProps,
         "wiretuner.doc.v1.Rgb": wiretuner_doc_v1_Rgb,
@@ -9040,6 +9041,17 @@ public enum WTMergeTable {
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
         },
+        "10": {
+          "element_message": "wiretuner.doc.v1.ReadingOrderEntry",
+          "local_only": false,
+          "name": "reading_order",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ReadingOrderEntry"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -11075,6 +11087,32 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "bool",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ReadingOrderEntry": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
         }
       }
     },
@@ -14267,7 +14305,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
+  "version": "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
 }
 """#
 
@@ -18809,6 +18847,11 @@ public enum WTMergeTable {
                 localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.Guide",
                 elementMessage: "wiretuner.doc.v1.Guide", oneof: nil
             ),
+            10: FieldPolicy(
+                fieldNumber: 10, name: "reading_order", policy: .sequence, onDangling: .unset,
+                localOnly: false, type: "message", repeated: true, typeName: "wiretuner.doc.v1.ReadingOrderEntry",
+                elementMessage: "wiretuner.doc.v1.ReadingOrderEntry", oneof: nil
+            ),
             20: FieldPolicy(
                 fieldNumber: 20, name: "perspective_grid", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
@@ -19807,6 +19850,22 @@ public enum WTMergeTable {
             2: FieldPolicy(
                 fieldNumber: 2, name: "optimal_cmyk", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+        ]
+    )
+
+    private static let wiretuner_doc_v1_ReadingOrderEntry = MessagePolicy(
+        name: "wiretuner.doc.v1.ReadingOrderEntry",
+        fields: [
+            1: FieldPolicy(
+                fieldNumber: 1, name: "id", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ElementId",
+                elementMessage: nil, oneof: nil
+            ),
+            2: FieldPolicy(
+                fieldNumber: 2, name: "node", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
                 elementMessage: nil, oneof: nil
             ),
         ]

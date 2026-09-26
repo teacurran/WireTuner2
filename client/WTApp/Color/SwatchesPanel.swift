@@ -87,6 +87,9 @@ final class SwatchesPanelModel {
     /// row of that kind, mixed when they differ; nil with nothing selected.
     func well(_ target: ColorTarget) -> ColorWellModel? {
         guard let document = workspace.document, !workspace.selectedNodes.isEmpty else { return nil }
+        if let text = TextSwatchTarget.well(workspace.selectedNodes, target: target, document: document, appliesTo: TextSwatchTarget.appliesTo(workspace.preferences ?? workspace.selection.preferences)) {
+            return text
+        }
         let state = document.state
         let refs = ApplyColor.rows(workspace.selectedNodes, target: target, in: state).compactMap { row in
             AppearanceEditing.entries(row.node, in: state).first { $0.row == row.row }.flatMap(AttributeFields.color)

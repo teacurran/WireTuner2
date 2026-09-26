@@ -134,9 +134,18 @@ NOTE: As built by TYPE-030, in part (`WTApp/Text/TextColorDrop.swift`, one hook 
 `Document/CanvasView.swift`).  A colour dropped on a text block goes to the characters when the Text
 tool has a selection in that block (a `fill` mark), else to the block's stroke over its border or its
 fill inside (`SetTextBlockAppearance` of the top row, or `AddTextBlockAppearance` with the colour when
-the block has none), one change; drops elsewhere stay the canvas colour drop's.  Not built: the
-*Swatches apply color to* preference's effect on the Swatches panel's selectors and highlight (the
-Swatches panel is the COLOR epic's, being changed in parallel).
+the block has none), one change; drops elsewhere stay the canvas colour drop's.  The *Swatches apply
+color to* preference's effect came with the rest of TYPE-030, below.
+
+NOTE: As built by TYPE-030, the rest (`WTApp/Text/TextSwatchTarget.swift`, one hook each in
+`Color/ColorWorkspace.swift` and `Color/SwatchesPanel.swift`).  With text blocks selected with the
+Pointer, a Swatches click (and the Mixer's and Tints panel's btn:[Apply], which share
+`ColorWorkspace.apply`) writes per *Swatches apply color to*: *Text* -- a `fill` mark over each block's
+text, or a `stroke` mark (the text's own stroke with the colour, else 1 pt) -- or *Text block* -- the
+block's top fill or stroke row, added when it has none; other selected objects take the colour as
+before, in the same change.  The Fill and Stroke wells show the same: the first character's colour or
+the block's top row.  Deviation: "highlight" is read as the wells; the list itself highlights nothing
+for a selection.
 
 === Build tasks
 

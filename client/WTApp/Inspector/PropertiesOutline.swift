@@ -27,6 +27,8 @@ struct PropertiesTree: Equatable {
     let children: [Row]
     /// The group's members *Contents* subselects (empty: no *Contents* row).
     let members: [OpID]
+    /// The lists whose rows override the objects' style: they show a dot (LIB-021).
+    let overridden: Set<AppearanceList>
 
     @MainActor
     init(list: AttributesListModel, members: [OpID] = []) {
@@ -36,6 +38,7 @@ struct PropertiesTree: Equatable {
         if !members.isEmpty { children.append(Row(key: .contents, title: "Contents", icon: "folder", item: nil)) }
         self.children = children
         self.members = members
+        overridden = StyleOverrideMarks.lists(list)
     }
 
     /// A row's title: its description; an effect is named by its kind ("Unsupported effect
@@ -76,6 +79,13 @@ final class PropertiesItem: NSObject {
 /// navigation.
 class PropertiesOutlineView: NSOutlineView {
     var onDelete: (() -> Void)?
+    /// The context menu of the row at an index (LIB-021's *Clear Override*).
+    var menuForRow: (@MainActor (Int) -> NSMenu?)?
+
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let index = row(at: convert(event.locationInWindow, from: nil))
+        return (index >= 0 ? menuForRow?(index) : nil) ?? super.menu(for: event)
+    }
 
     /// Backspace and forward delete.
     static let deleteKeys: Set<UInt16> = [51, 117]
@@ -107,6 +117,8 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
         var attach: @MainActor (_ from: Int, _ onto: AttributeRowItem?) -> Void = { _, _ in }
         var remove: @MainActor () -> Void = {}
         var openContents: @MainActor () -> Void = {}
+        /// *Clear Override* on an overridden row (LIB-021).
+        var clearOverride: @MainActor (AttributeRowItem) -> Void = { _ in }
     }
 
     /// A stack row being dragged: its display position.
@@ -173,6 +185,7 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
         guard let key = (item as? PropertiesItem)?.key, let row = row(key) else { return nil }
         let cell = outlineView.makeView(withIdentifier: PropertiesRowCell.identifier, owner: self) as? PropertiesRowCell ?? PropertiesRowCell()
         cell.configure(row, target: self, action: #selector(toggleVisibility(_:)))
+        cell.showsOverride(row.item.map { tree?.overridden.contains($0.list) == true } ?? false)
         return cell
     }
 
@@ -253,6 +266,27 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
         return item
     }
 
+    /// The context menu of the row at `index`: *Clear Override* on an overridden row.
+    func overrideMenu(at index: Int, in outline: NSOutlineView) -> NSMenu? {
+        guard let key = (outline.item(atRow: index) as? PropertiesItem)?.key, let item = row(key)?.item, tree?.overridden.contains(item.list) == true else { return nil }
+        let menu = NSMenu(title: "Override")
+        let entry = NSMenuItem(title: "Clear Override", action: #selector(clearOverride(_:)), keyEquivalent: "")
+        entry.target = self
+        entry.representedObject = index
+        entry.identifier = NSUserInterfaceItemIdentifier("attributes.clearOverride")
+        menu.addItem(entry)
+        pendingOverride = item
+        return menu
+    }
+
+    /// The row the last override menu was made for.
+    private(set) var pendingOverride: AttributeRowItem?
+
+    @objc func clearOverride(_ sender: Any?) {
+        guard let item = pendingOverride else { return }
+        actions.clearOverride(item)
+    }
+
     /// Builds the outline in its scroll view, wired to this controller.
     func makeOutline() -> (scroll: NSScrollView, outline: PropertiesOutlineView) {
         let outline = PropertiesOutlineView()
@@ -272,6 +306,7 @@ final class PropertiesOutlineController: NSObject, NSOutlineViewDataSource, NSOu
         outline.registerForDraggedTypes([Self.rowType] + Self.colorTypes)
         outline.setDraggingSourceOperationMask([.move, .copy], forLocal: true)
         outline.setAccessibilityIdentifier("attributes.list")
+        outline.menuForRow = { [weak self, weak outline] index in outline.flatMap { self?.overrideMenu(at: index, in: $0) } }
         let scroll = NSScrollView()
         scroll.documentView = outline
         scroll.hasVerticalScroller = true
@@ -293,6 +328,8 @@ final class PropertiesRowCell: NSTableCellView {
     let icon = NSImageView()
     let title = NSTextField(labelWithString: "")
     let visible = PropertiesVisibilityButton(checkboxWithTitle: "", target: nil, action: nil)
+    /// The override dot (LIB-021).
+    let overrideDot = NSTextField(labelWithString: "\u{2022}")
 
     init() {
         super.init(frame: .zero)
@@ -301,7 +338,11 @@ final class PropertiesRowCell: NSTableCellView {
         textField = title
         visible.allowsMixedState = true
         title.lineBreakMode = .byTruncatingTail
-        let stack = NSStackView(views: [icon, title, NSView(), visible])
+        overrideDot.isHidden = true
+        overrideDot.textColor = .controlAccentColor
+        overrideDot.toolTip = "Overrides the style"
+        overrideDot.setAccessibilityLabel("Overrides the style")
+        let stack = NSStackView(views: [icon, title, NSView(), overrideDot, visible])
         stack.orientation = .horizontal
         stack.spacing = 6
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -316,6 +357,11 @@ final class PropertiesRowCell: NSTableCellView {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { nil }
+
+    /// Shows or hides the override dot.
+    func showsOverride(_ on: Bool) {
+        overrideDot.isHidden = !on
+    }
 
     func configure(_ row: PropertiesTree.Row, target: AnyObject?, action: Selector) {
         icon.image = NSImage(systemSymbolName: row.icon, accessibilityDescription: nil)

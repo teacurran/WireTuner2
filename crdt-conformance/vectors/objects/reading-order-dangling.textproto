@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/objects/reading-order-dangling.textproto (OBJ-041; schema: crdt-conformance/schema/vector.proto)
+name: "objects/reading-order-dangling"
+description: "Names and notes, Merge semantics: replica 1 deletes object B while replica 2 moves B to the front of the reading order.  The move is kept and the entry stays in the sequence naming the deleted node; the derived order skips it on every client."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { common { name: "Page 1" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 6 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x80", "\x81", "\x82"]
+      values { page { reading_order { node { id { counter: 2 replica: 7 } } } reading_order { node { id { counter: 3 replica: 7 } } } reading_order { node { id { counter: 4 replica: 7 } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 2 label: "Delete"
+    ops { set_deleted { node { counter: 3 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 2 label: "Reading Order"
+    ops { element_move { node { counter: 5 replica: 7 } element { segments { field: 3 } segments { field: 10 } segments { element { counter: 7 replica: 7 } } } position: "\x7f" } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "df36033391d3d99adb7fa97de9c6bb9a213be1865fadd1cf90adb822006fd889"
+  snapshot_hash: "32a5f4c27aa01756b92cbbde4cea96896f1d03070146e084d4e0cecb560df993"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: ""
+    sequence { path { segments { field: 3 } segments { field: 10 } } elements { counter: 7 replica: 7 } elements { counter: 6 replica: 7 } elements { counter: 8 replica: 7 } }
+  }
+  node {
+    id { counter: 3 replica: 7 }
+    node_hash: ""
+    tree { parent { counter: 1 replica: 7 } position: "\x81" deleted: true }
+  }
+}

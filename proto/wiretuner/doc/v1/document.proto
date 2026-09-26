@@ -155,12 +155,27 @@ message PageProps {
   Point ruler_origin = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Ruler guides.  SEQUENCE: added, moved and deleted individually.
   repeated Guide guides = 7 [(wt.crdt.field).merge = MERGE_SEQUENCE];
+  // Reading order override (objects/names-notes.adoc, OBJ-041).  Empty (the default) means
+  // stacking order: layers bottom to top, each layer's objects back to front.  Listed objects are
+  // read first, in sequence order; every other readable object on the page follows in stacking
+  // order.  SEQUENCE: entries are inserted, moved and deleted individually.
+  repeated ReadingOrderEntry reading_order = 10 [(wt.crdt.field).merge = MERGE_SEQUENCE];
   // The perspective grid this page uses: an element of SettingsProps.perspective_grids
   // (effects/perspective.adoc, FX-040).  Unset or dangling reads as the default grid (the
   // sequence's first live element, or the built-in two-point grid).  ATOMIC.
   ElementId perspective_grid = 20 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // View > Perspective Grid > Show for this page.  View state; never leaves the device.
   bool perspective_grid_visible = 21 [(wt.crdt.field).local_only = true];
+}
+
+// One entry of a page's reading order (OBJ-041).
+message ReadingOrderEntry {
+  // Element id (MERGE_SEQUENCE).
+  ElementId id = 1;
+  // A top-level object (a child of a layer) whose bounds meet the page.  A deleted, unknown,
+  // decorative, nested or off-page object reads as skipped; of several entries naming one
+  // object the first counts.
+  NodeRef node = 2 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
 }
 
 // NodeProps.kind case `master_page`: a child of the well-known masters node 0:3.  A separate

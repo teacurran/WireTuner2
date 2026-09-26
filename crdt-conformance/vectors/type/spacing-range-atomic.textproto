@@ -1,0 +1,39 @@
+# crdt-conformance/vectors/type/spacing-range-atomic.textproto (TYPE-027; schema: crdt-conformance/schema/vector.proto)
+name: "type/spacing-range-atomic"
+description: "Paragraphs, Merge semantics: ParagraphProps.word_spacing is one ATOMIC SpacingRange.  Replica 1 writes 70/90/120 and replica 2 85/110/160 on the same paragraph at once; the greater OpId (replica 2) wins the whole triple and replica 1's is kept as a loser -- never a mix of the two."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { text { block { auto_width: true auto_height: true } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Word Spacing"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 15 } }
+      values { text { tail_paragraph { word_spacing { min: 70 opt: 90 max: 120 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Word Spacing"
+    ops { set { node { counter: 2 replica: 7 }
+      paths { segments { field: 130 } segments { field: 8 } segments { field: 15 } }
+      values { text { tail_paragraph { word_spacing { min: 85 opt: 110 max: 160 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "5492c2ae0b3d70526190d171e7a904f201a9522c52f98474b46796db93359cdb"
+  snapshot_hash: "041747ac6c2db5c25ed2a1df15b8c9000ed3da7376c6d1e5eed0250726d20d01"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: ""
+    register { path { segments { field: 130 } segments { field: 8 } segments { field: 15 } } value { text { tail_paragraph { word_spacing { min: 85 opt: 110 max: 160 } } } } op { counter: 3 replica: 2 } losing { counter: 3 replica: 1 } }
+  }
+}

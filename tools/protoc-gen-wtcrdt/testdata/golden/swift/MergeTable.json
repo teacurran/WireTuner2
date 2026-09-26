@@ -8717,6 +8717,17 @@
           "type": "message",
           "type_name": "wiretuner.doc.v1.CommonProps"
         },
+        "10": {
+          "element_message": "wiretuner.doc.v1.ReadingOrderEntry",
+          "local_only": false,
+          "name": "reading_order",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "SEQUENCE",
+          "repeated": true,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ReadingOrderEntry"
+        },
         "2": {
           "element_message": null,
           "local_only": false,
@@ -10752,6 +10763,32 @@
           "repeated": false,
           "type": "bool",
           "type_name": null
+        }
+      }
+    },
+    "wiretuner.doc.v1.ReadingOrderEntry": {
+      "fields": {
+        "1": {
+          "element_message": null,
+          "local_only": false,
+          "name": "id",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ElementId"
+        },
+        "2": {
+          "element_message": null,
+          "local_only": false,
+          "name": "node",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.NodeRef"
         }
       }
     },
@@ -13944,5 +13981,5 @@
       "kind_field": 1
     }
   },
-  "version": "31de55cdeeb62430eb9c101bc691dfbe08702b22ba0636aaa895fd5957ed46c0"
+  "version": "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
 }

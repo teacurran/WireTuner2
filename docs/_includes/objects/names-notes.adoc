@@ -267,6 +267,21 @@ kept while *Decorative* is on, "Read as its text" for text blocks; *Decorative* 
 VoiceOver hears the selection's readable objects as the canvas's accessibility help.  The schema fields
 exist (PROTO-003); their conformance vectors are proposed, not added.
 
+NOTE: As built by OBJ-041 (`proto/wiretuner/doc/v1/document.proto`: `PageProps.reading_order` 10 and
+`ReadingOrderEntry`, with the generated Swift and merge table; `WTModel/ReadingOrder.swift`, a new file;
+`WTApp/Accessibility/ReadingOrderPanel.swift`).  `ReadingOrder.order(of:in:pages:)` is the derivation: the
+page's top-level objects (`PageObjects`) without the decorative ones, the listed ones first in sequence
+order (first entry of an object wins; others skipped), the rest in stacking order; `readable` expands a
+group without alt text into its members.  `ArrangeReadingOrder(page:order:)` writes one change: the
+entries already in the wanted relative order (the longest increasing run of their positions) stay, the
+others are `ElementMove`d between them, objects not listed get entries; `ClearReadingOrder` deletes every
+entry ("Use Stacking Order").  menu:Object[Reading Order…] opens a panel for the current page: its list
+reorders by dragging, a click on an object on the page makes it the next one read, kbd:[Shift]-click the
+last; each gesture is one change and one undo step, and numbered badges mark the objects while it is
+open.  Deviation: a floating panel rather than a sheet (a sheet blocks the canvas clicks), and canvas
+clicks reach it with the Pointer or Subselect tool.  Vectors: `objects/reading-order-insert`, `-move`, `-delete`
+and `-dangling`.
+
 === Build tasks
 
 [[OBJ-021]]

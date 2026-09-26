@@ -440,13 +440,35 @@ tokens that are URLs, e-mail addresses or paths, and all-capital words.  menu:Te
 (`ReplaceText`), btn:[Ignore] lasts for the document, btn:[Learn] and btn:[Unlearn] use the user
 dictionary (in lowercase with *Add words to dictionary* > *All lowercase*) and write nothing.  With
 *Check spelling while typing* the Text tool's block has its words underlined in red (canvas overlay,
-cached per revision).  Not built: the kbd:[Control]-click suggestions on the canvas.
+cached per revision).  The kbd:[Control]-click suggestions came with the rest of TYPE-014, below.
 
 NOTE: TYPE-016, continued: the Text Editor draws collaborators' carets (name beside) and selections
 (tinted) in their colour, resolved through anchors like the canvas's.  When a remote change deletes
 the block being edited, the window's banner says "<name> deleted the text you were editing." with
 btn:[Restore], one undoable change "Restore text" (`deleted = false`; `WTApp/Text/RemovedTextNotice.swift`).
 Carets on text on a path still follow the block's ordinary layout.
+
+NOTE: As built by TYPE-012 (`WTApp/Text/SpecialCharacters.swift`; `WTModel/SmartQuotes.swift`, a new
+file).  menu:Text[Special Characters] has the nine characters (end of column U+000C, end of line
+U+2028, non-breaking space U+00A0, em space U+2003, en space U+2002, thin space U+2009, em dash
+U+2014, en dash U+2013, discretionary hyphen U+00AD), inserted at the Text tool's insertion point or
+in the key Text Editor.  The documented keys work while the Text tool edits a block: the canvas takes
+them before the tool and before the menus.  Deviation: the menu items show no key equivalents --
+kbd:[Cmd+-] and kbd:[Cmd+Shift+T] are Zoom Out and Transform Again everywhere else.  With *Smart
+quotes* a typed `'` or `"` becomes the chosen set's form -- opening at the start, after white space,
+an opening bracket, a dash or an opening quote, closing otherwise -- and kbd:[Control] types it
+straight.  The six sets are the preference's: English/Dutch curly, German low-high, guillemets,
+reversed guillemets, Swedish double-right and corner brackets (deviation: the guide's second low-high
+pair is not offered).  Smart quotes apply on the canvas; the Text Editor window types what the key
+gives (deviation).  Invisibles on the canvas: each block open in a Text Editor with *Show invisibles*
+on has its spaces (·), non-breaking spaces (°), tabs (→), paragraph ends (¶), ends of line (¬) and
+column (§) and discretionary hyphens (-) marked in blue over the text.
+
+NOTE: As built by TYPE-014, the rest (`WTApp/Text/Spelling/SpellingContextMenu.swift`).  With *Check
+spelling while typing* on, a kbd:[Control]-click (or right click) on an underlined word of the Text
+tool's block opens a menu of up to eight guesses -- a choice is one "Correct spelling" change
+(`ReplaceText`), a duplicate word's is *Delete Repeated Word* -- then *Ignore Spelling* and *Learn
+Spelling*, which write nothing, then the text menu; elsewhere the window's menu is unchanged.
 
 === Build tasks
 

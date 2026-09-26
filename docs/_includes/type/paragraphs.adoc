@@ -250,6 +250,16 @@ flush zone) opens from btn:[Edit Alignment…] in this section rather than the C
 override stroke once written cannot be removed from the sheet (the STRUCT has no "unset" write); the
 conformance vectors for `Hyphenation` and `ParagraphRule` are proposed, not added.
 
+NOTE: As built by TYPE-027 (`WTApp/Text/Paragraph/SpacingSection.swift`).  The Object panel section
+`textSpacing`, after the Paragraph section: *Horizontal scale* (a character mark, above 0 and at most
+10,000), the *Word* and *Letter* triples, *Keep lines together* (0--1,000), *Keep with next*, *Selected
+words* (`no_break`) and *Inhibit hyphens* (`no_hyphen`), on the Text tool's selection (its pending format
+at an insertion point) or every selected block.  A field of a triple writes the whole triple -- the
+other two from the paragraphs' shared value, the default when they differ -- as one ATOMIC register;
+a minimum above the optimum or an optimum above the maximum is refused with a message.  Unset triples
+show layout's defaults, 80/100/150 for words and 0/0/5 for letters; an unordered register shows its
+optimum three times, as layout reads it.  Vector: `type/spacing-range-atomic`.
+
 === Build tasks
 
 [[TYPE-026]]

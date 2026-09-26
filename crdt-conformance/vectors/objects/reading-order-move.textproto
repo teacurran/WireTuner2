@@ -1,0 +1,51 @@
+# crdt-conformance/vectors/objects/reading-order-move.textproto (OBJ-041; schema: crdt-conformance/schema/vector.proto)
+name: "objects/reading-order-move"
+description: "Names and notes, Merge semantics: replica 1 moves A to the end while replica 2 moves C to the front and replica 3 moves A between B and C.  Moves of different entries both stand; the two moves of A resolve on its position register, the greater OpId (replica 3) winning."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Create"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { rect { common { name: "A" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x81" props { rect { common { name: "B" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x82" props { rect { common { name: "C" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 2 } position: "\x80" props { page { common { name: "Page 1" } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 6 label: "Reading Order"
+    ops { element_insert { node { counter: 5 replica: 7 } sequence { segments { field: 3 } segments { field: 10 } } positions: ["\x80", "\x81", "\x82"]
+      values { page { reading_order { node { id { counter: 2 replica: 7 } } } reading_order { node { id { counter: 3 replica: 7 } } } reading_order { node { id { counter: 4 replica: 7 } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 2 label: "Reading Order"
+    ops { element_move { node { counter: 5 replica: 7 } element { segments { field: 3 } segments { field: 10 } segments { element { counter: 6 replica: 7 } } } position: "\x83" } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 2 label: "Reading Order"
+    ops { element_move { node { counter: 5 replica: 7 } element { segments { field: 3 } segments { field: 10 } segments { element { counter: 8 replica: 7 } } } position: "\x7f" } }
+  }
+}
+replica {
+  id: 3
+  change {
+    replica: 3 seq: 1 start_counter: 9 base_server_seq: 2 label: "Reading Order"
+    ops { element_move { node { counter: 5 replica: 7 } element { segments { field: 3 } segments { field: 10 } segments { element { counter: 6 replica: 7 } } } position: "\x81\x80" } }
+  }
+}
+deliveries { order: [1, 2, 3] }
+deliveries { order: [3, 2, 1] }
+deliveries { order: [2, 3, 1] }
+expect {
+  state_hash: "13a41c4722e942c8278eb2dbac816ebc393134252038d56902b2f781e88ef748"
+  snapshot_hash: "5b6cdef60373bedb23091df9436817da5835bdf7cd83260bb89c6fbdb6b1dcba"
+  node {
+    id { counter: 5 replica: 7 }
+    node_hash: ""
+    sequence { path { segments { field: 3 } segments { field: 10 } } elements { counter: 8 replica: 7 } elements { counter: 7 replica: 7 } elements { counter: 6 replica: 7 } }
+  }
+}

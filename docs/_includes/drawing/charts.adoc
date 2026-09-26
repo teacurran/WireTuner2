@@ -407,9 +407,9 @@ cell's `text`, or a new cell), `InsertChartLines` ("Insert Row", "Insert 3 Colum
 `DeleteChartLines`, `ImportChartData` ("Import Chart Data"; tab-delimited text; refused past 10,000
 ops), `SetChartFields` ("Transpose", "Switch XY", "Change Chart Type", "Change Chart": one register
 per changed field of the options and axis STRUCTs) and `SetChartOverride` ("Style chart element":
-creates the override, replaces its stack, sets transform, pictograph and repeating).  Not yet
-built: *Ungroup* for charts, the pictograph paste, and the full eight-case merge suite (duplicate
-cells and delete-column versus cell edit are tested).
+creates the override, replaces its stack, sets transform, pictograph and repeating).  *Ungroup*
+and the pictograph paste came with DRAW-034.  Not yet built: the full eight-case merge suite
+(duplicate cells, delete-column versus cell edit and ungroup versus cell edit are tested).
 
 NOTE: As built by DRAW-033 (`WTApp/Charts/`).  The Chart tool drags a rectangle (kbd:[Shift] square),
 makes the chart ("Chart") and opens the Chart sheet; a double-click on the tool, menu:Object[Chart >
@@ -424,6 +424,24 @@ the X and Y Axis sheets, held as a draft; btn:[Apply] writes the registers that 
 applies and closes, btn:[Cancel] drops the draft.  Deviations: the grid is a SwiftUI grid of buttons
 with arrow buttons rather than an `NSTableView` with keyboard navigation, and the column triangles are
 `resize(column:to:)` without a drag handle.
+
+NOTE: As built by DRAW-034 (`WTApp/Charts/ChartElements.swift`, `ChartPictographs.swift`;
+`WTModel/ChartElementCommands.swift`, a new file).  With the Subselect tool a click on a column, segment,
+marker, point or wedge picks that element of the chart, on a line, area or legend swatch its series;
+kbd:[Shift] adds or removes a pick; menu:Edit[Select > Superselect] (kbd:[~]) widens every pick to its
+series.  The window's selection holds the chart; deviation: the picks are the window's own state, not
+synthetic ids in the APP-006 selection or in presence, so collaborators see the chart selected.  A
+Swatches click on picks writes one `SetChartOverride` per key (the fill or stroke replaced, the other
+list kept); the Object panel section *Chart Element* sets the stroke width and, as the override's extra
+transform, scale and rotation.  menu:Extensions[Chart > Pictograph…] opens a sheet for the picked
+column's series: btn:[Paste In] takes the objects on the clipboard, btn:[Copy Out] puts them back,
+*Repeating*, btn:[OK] makes the artwork a `group` child of the chart named "Pictograph" and points the
+series' override at it (`SetChartPictograph`, one change; an earlier source is deleted).  Deviation: the
+preview says how many objects it holds rather than drawing them.  *Remove Pictograph* clears the
+reference and deletes the source (`RemoveChartPictograph`).  menu:Modify[Ungroup] on charts bakes each
+chart's drawing -- overrides and pictographs included -- into paths under a new group in its place and
+deletes the chart (`UngroupChart`, the release commands' `Baking`); deviation: labels become outlined
+paths, not text blocks.
 
 === Build tasks
 
