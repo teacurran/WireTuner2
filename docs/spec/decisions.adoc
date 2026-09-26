@@ -595,6 +595,18 @@ and text through Core Text, which both platforms have.  Rejected: Mac Catalyst o
 SwiftUI interface (the mobile design is its own), and porting later (the AppKit dependencies
 would have spread by then).
 
+[[D-074]]
+=== D-074 One SonarQube project, WireTuner, analysed from the server build
+The SonarQube instance has a single project for this work, `WireTuner`, and its analysis token is
+scoped to that project.  That instance is a Community Build with no Swift analyzer, so Swift files
+are never indexed and a client upload could show neither issues nor coverage -- and, sharing the
+project, it would replace the server's analysis.  So `server/pom.xml` analyses into `WireTuner`
+(JaCoCo coverage from every module), and the client scanner (`client/sonar-project.properties`,
+`make sonar-client`) is kept but not run against this server.  The client's coverage gate stays
+where D-066 put it: `tools/coverage/client-coverage.sh --gate` in CI.  `tools/sonar/configure-gates.sh`
+still describes two projects; setting the gate on `WireTuner` needs an admin token.  Revisit if the
+instance gains a Swift analyzer or a second project.
+
 == Open questions
 
 [[Q-001]]

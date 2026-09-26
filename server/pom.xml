@@ -45,8 +45,8 @@
          reads the POM and -D flags only (that file is the sonar-scanner CLI's input), exactly as
          dissipate-server does. The token is never here: local runs read ~/.sonar-token, CI the
          SONAR_TOKEN secret (docs/spec/testing.adoc). TEST-003 wires the upload. -->
-    <sonar.projectKey>wiretuner-server</sonar.projectKey>
-    <sonar.projectName>wiretuner-server</sonar.projectName>
+    <sonar.projectKey>WireTuner</sonar.projectKey>
+    <sonar.projectName>WireTuner</sonar.projectName>
     <sonar.host.url>https://sonar.villagecompute.com</sonar.host.url>
     <sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
     <!-- Every module's JaCoCo XML, listed once at the reactor root; Sonar merges the listed
