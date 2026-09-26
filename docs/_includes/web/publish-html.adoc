@@ -471,6 +471,23 @@ sheet (`EditHTMLSetting` with just those), btn:[OK] applies and closes, and a re
 the options not edited here.  Not built: publishing to a web link (WEB-013), the browser pop-up
 (the default browser opens), progress beyond the spinner, and the UI tests.
 
+NOTE: As built by WEB-013, the `WTSync` half (`WTSync/PublishUploader.swift`).  `PublishUploader` runs
+a `Job` (the bundle's files, the seq, the setting name, the access and a UUIDv7 `publish_id`): each
+distinct file is `Stat`-ed and the missing ones uploaded smallest first (so the largest go last), in
+1 MiB chunks with byte progress (`PublishProgress`: checking, uploading, registering, published), then
+`CreatePublish` with the manifest.  The job keeps the hashes confirmed so far, so running it again
+after a dropped connection resumes with the next blob, and a retried `CreatePublish` is idempotent on
+the id; cancellation stops between chunks and deletes nothing.  Republishing an unchanged bundle
+uploads no bytes.  `PublishedLinks` is the *Published links* sheet's model: every page of
+`ListPublishes`, the cached list read-only when offline, a refresh on the document's
+`PublishesChanged` (`handle(_:)` of the session's `SyncEvent`s), *Change access*, *Unpublish*, the
+files of one publish for *Download as folder*, and the current URL for *Copy Link*.
+`GRPCPublishTransport` is the `PublishService` client.  The simulator scenario is
+`AccountAndPublishScenarioTests.aSecondClientsPublishedLinksFollowTheDocumentEvent`
+(`SimPublishService`, which announces changes through `SimServer.announce`).  Not built: the *Web link*
+destination and access chooser in the Publish sheet, the *Published links* sheet itself, clipboard copy
+and the offline dimming (WTApp).
+
 NOTE: The WTModel half of placed SVG animations is built (`ExportSnapshot.svgAnimation`): every `svg_animation` node the
 export draws is carried in `ExportScene.svgAnimations` with its asset's bytes, natural size, pasteboard transform, script
 flag and *On the web* settings.  A gzip-compressed file (`.svgz`) is left out -- the page keeps its poster -- because the

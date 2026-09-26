@@ -752,6 +752,16 @@ the snapshot-time rebuild (the item follows window closes), and the `WireTunerSp
 extension for packages on disk: it needs the snapshot's zstd and protobuf decoding in an extension
 that otherwise links nothing but the zip reader, and is left for a later task.
 +
+NOTE: As built by IO-035's package half (`WTModel/PackageSpotlight.swift`).
+`PackageSpotlightAttributes.read(_:)` is what the importer calls: the manifest's title, and -- for a
+package of at most 64 MiB (`decodeLimit`) -- the snapshot decoded through `DocumentPackage`, giving
+`SpotlightContent` (description, keywords, text of every live text node) and the page count; a larger
+package answers the title alone, at once.  Not built: the `WireTunerSpotlightImporter` target itself
+(`client/WTExtensions` and `project.yml`, a `CSImportExtension` mapping these attributes onto
+`kMDItemTitle`, `kMDItemDescription`, `kMDItemKeywords`, `kMDItemTextContent` and
+`kMDItemNumberOfPages`); since the reader needs `WTModel`, the extension links it rather than only the
+zip reader.  *Remove Local Copy* and the snapshot-time rebuild remain WTApp's.
++
 NOTE: As built by IO-034 (`client/WTExtensions/`, targets `WireTunerThumbnail` and `WireTunerPreview`
 in `project.yml`, embedded under the app's `PlugIns`).  Both are sandboxed with no network entitlement
 and link neither `WTModel` nor `WTInterchange`: they compile `WTExtensions/Shared/PackagePeek.swift`, a

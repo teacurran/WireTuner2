@@ -626,6 +626,27 @@ object overrides show a dot, and their context menu offers *Clear Override*: `Cl
 deletes the objects' own elements of that list (or clears the halftone register), one change "Clear
 Override".  The row redraws with the document, never taking the first responder.
 
+NOTE: As built by LIB-023 (`WTTestSupport`: `LibraryScenarioTests`).  Eight cases, each twice --
+live (the edits cross inside a dropped connection, which merges without asking: no review holds
+the outbox) and with the editor offline for 12 simulated hours -- converge to one state hash across
+three clients and the server.  Offline rows asserted: remove layer vs. draw on it -- the new object
+is *Edited and deleted* through its deleted layer (`deletedAncestor`), the guide's "added to a
+layer that was removed", and reads on the default layer; overlapping merges onto different targets
+-- the shared source's objects *Both moved* [Position], the source layer *Edited and deleted*
+[Deleted, Merged into]; lock vs. an in-progress drag -- none (the drag finishes, the layer is
+locked); two editors in one symbol -- the part *Both edited* [Name, Transform]; release vs. a
+symbol edit -- the instance *Edited and deleted* [Deleted] with *Restore*, the released copy
+untouched by the remote rename; redefine vs. override -- none (the overriding object shows its
+override, the others the redefinition); remove symbol vs. place and remove style vs. apply -- none.
+The rows "placed an instance of a removed symbol" (library.adoc) and "uses a removed style"
+(above) are measured by `WTSync.RemovedTargetReview` beside the overlap (the concurrently placed
+instance or styled object shares no node with the removal): offline, those two scenarios assert the
+row, with the outcome -- the placeholder, which draws the symbol again once it is restored; the look
+kept through the deleted style's registers.  The rows' choices are *Restore* (`deleted = false` on
+the symbol and its artwork, or the style) and *Release* / *Keep look* (`ReleaseInstances` /
+`RemoveGraphicStyle` built against the state with the removal undone, so they read the removed
+node's registers), each one change; the review sheet's rendering is WTApp's.
+
 === Build tasks
 
 [[LIB-017]]

@@ -184,6 +184,24 @@ Stores profile blobs through `BlobService` like any other blob.  Nothing else.
   or ICC stream for each `ColorSpace` value, and a CSS Color 4 serializer that pairs every
   wide-gamut value with its sRGB fallback (gamut-mapped by COLOR-024).
 
+NOTE: As built by CMS-011 (`WTInterchange/Colors/OutputContext.swift`).  `WTColor.OutputContext` holds Working RGB,
+Working CMYK and the gray working profile (a profile of the wrong space, or one whose blob is not here, outputs through the
+bundled default of its space, as it renders), the document intent and compensation, the proof setup and each placed image's
+source profile by asset id; `init(colorManagement:)` builds it from the `ColorManagement` WTModel resolves from
+`ColorSettings`.  It answers `iccData(model:)` / `colorSpace(model:)` per model, `colorSpace(for:)` and `iccStream(for:)` for
+every `Color.Space` (sRGB, Display P3, CIELAB D50, OKLab as Display P3, CMYK in Working CMYK), `convert(_:to:)` and
+`separate(_:)` through the CMS-003 converter (each colour entering through its own space, OKLab through CIELAB),
+`compositeChain(from:device:)` / `compositeColor` / `compositePrintColorManagement(device:)` for a composite device (with
+*Composite simulates separations*: source → Working CMYK (document intent) → device, absolute colorimetric), `tagged` /
+`encode` / `embeddedProfile(in:)` for TIFF, PNG and JPEG, `psdProfile(for:)` for the PSD ICC resource, `outputIntent(_:subtype:)`
+(a `PDFOutputIntent` for any profile) and `cmykConverter`.  `ExportScene.output` carries it: the bitmap rasterizer renders
+and tags CMYK and gray pages in the working profiles and RGB pages in Working RGB (Display P3 still wins under *Auto* when
+the artwork holds wide colours), PSD layers likewise, and the PDF and EPS writers convert with Working CMYK and name it in
+the PDF/X output intent whenever the exporter's converter was not chosen explicitly (`ProfileCMYKConverter.followsDocument`).
+Remaining: WTModel's `ExportSnapshot` does not yet fill `ExportScene.output` (the app glue that passes the document's
+settings), and the "PDF viewer's proof within 2/255" check was not run (no viewer in the test host); the separation route
+uses the CMS-003 converter, whose relative-colorimetric white caveat is noted in `CMYKConversion.swift`.
+
 NOTE: As built by CMS-010 (`proto/wiretuner/doc/v1/color_management.proto`, `node.proto`; `WTModel/ProfileAssets.swift`).
 `ProfileAssetProps` is the `profile_asset` kind, 280, in a new CMS block 280--299.  `ChangeColorSettings` creates the asset for each
 custom (non-bundled) profile its draft names in the same change (`profileSizes` gives the ICC size), and `AddProfileAssets` "Add

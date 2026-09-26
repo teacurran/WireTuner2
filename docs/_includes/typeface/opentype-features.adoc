@@ -230,6 +230,34 @@ NOTE: Deviations recorded by FONT-022.  Only the Features pane of Font Info (the
 switches) is built.  The Features editor window waits for `FeatureChecker` and a feature compiler,
 which FONT-018 and FONT-019 did not build.
 
+NOTE: As built by FONT-019 (`WTInterchange/Fonts/Features/`: `FeatureSyntax.swift`,
+`FeatureChecker.swift`, `FeatureGenerator.swift`, `FeatureCompiler.swift`, `FeatureTables.swift`;
+`WTModel/FeatureFileRename.swift`).  This supersedes the FONT-018 deviation above: the feature file
+*is* compiled, by a feature-file compiler in Swift (decisions.adoc D-071: no fontc).  The grammar
+subset is `languagesystem`, glyph classes (named, bracketed, ranges `a-z` / `a - z`), `markClass`,
+`feature` and `lookup` blocks (`useExtension` accepted), `script`, `language` (`exclude_dflt`),
+`lookupflag` (the four named flags or a number up to 15), lookup references, `subtable`, single,
+multiple, alternate, ligature and chaining contextual substitutions (inline replacements get an
+anonymous lookup; `ignore sub`), single and pair positioning (`enum pos`; glyph pairs before class
+pairs), mark-to-base and mark-to-mark, chaining contextual positioning (values or named lookups;
+`ignore pos`), and `table GDEF { GlyphClassDef … }`; anything else is reported where it stands
+(`unsupported`) and skipped.  `FeatureCompiler.compile(_:glyphs:)` resolves the tree against the
+glyph names and writes `GSUB`, `GPOS` (subtables split to keep offsets in range) and `GDEF` (the
+text's block, else inferred from mark classes and `pos base` glyphs); `FeatureChecker.check` runs
+the same pass, so text that checks clean compiles, and adds duplicate-feature and
+also-generated warnings, the nearest glyph name for an unknown one, and the feature tag list.
+`FeatureGenerator.generated(_:)` writes kern (`@kern1.<name>` / `@kern2.<name>`, `O_2` for a
+repeated name), mark and mkmk (one lookup per `_name` anchor), liga (Ligature-kind glyphs named by
+parts, longest first) and GDEF from a `FontSource`; `file(user:generated:)` assembles the compiled
+text and maps error lines back to the user's text.  `FontCompiler` now checks the user's text
+(errors block generation, at their line and column) and compiles user plus generated text.
+*Rename in feature file* is `RenameInFeatureFile` ("Rename in Feature File": a `TextDelete` per
+character and a `TextInsert` per occurrence, `\name` where the name is a keyword) with
+`RenameInFeatureFile.count(of:in:)` for the confirmation sheet.  Not built: `WTModel.FontGeneration`
+does not yet fill `FontSource`'s glyph kinds, anchors, kerning class names or generate switches (a
+core WTModel file, left to its owner; until then marks and ligatures are generated only from sources
+that set them), the Features editor window and the rename sheet's button (WTApp).
+
 === Build tasks
 
 [[FONT-015]]

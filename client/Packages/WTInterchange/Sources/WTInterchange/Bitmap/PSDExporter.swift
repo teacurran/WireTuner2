@@ -35,7 +35,7 @@ public struct PSDExporter: Exporter {
         let page = scene.pages[index]
         let depth = options.bitsPerChannel
         let common = options.common
-        let rasterizer = BitmapRasterizer(common: common)
+        let rasterizer = BitmapRasterizer(common: common, output: scene.output)
         let (width, height) = rasterizer.pixelSize(of: page, scale: scale)
         let transparent = common.background == .transparent
         let render = rasterizer.render(page, scale: scale, bitsPerComponent: depth, alpha: transparent)
@@ -46,7 +46,7 @@ public struct PSDExporter: Exporter {
         }
         var layers: [PSDLayer] = []
         for source in PSDWriter.layerSources(of: page, scene: scene, layered: options.layers) {
-            layers.append(layer(source, common: common, scale: scale, depth: depth))
+            layers.append(layer(source, common: common, scale: scale, depth: depth, output: scene.output))
         }
         let profile = common.embedProfile ? render.bitmap.colorSpace.copyICCData() as Data? : nil
         return PSDWriter.data(
@@ -56,12 +56,12 @@ public struct PSDExporter: Exporter {
     }
 
     /// One layer: rendered transparent, cropped to where it draws.
-    func layer(_ source: PSDLayerSource, common: BitmapCommonOptions, scale: Double, depth: Int) -> PSDLayer {
+    func layer(_ source: PSDLayerSource, common: BitmapCommonOptions, scale: Double, depth: Int, output: WTColor.OutputContext? = nil) -> PSDLayer {
         var rgb = common
         rgb.color = .rgb
         rgb.background = .transparent
         rgb.maskLayer = nil
-        let shape = PSDExporter.samples(BitmapRasterizer(common: rgb).render(source.page, scale: scale, bitsPerComponent: depth, alpha: true).bitmap)
+        let shape = PSDExporter.samples(BitmapRasterizer(common: rgb, output: output).render(source.page, scale: scale, bitsPerComponent: depth, alpha: true).bitmap)
         var color = shape
         if common.color != .rgb {
             // Grey over black and CMYK over no ink leave each colour multiplied by its alpha.
@@ -74,7 +74,7 @@ public struct PSDExporter: Exporter {
             } else {
                 target.background = .white
             }
-            color = PSDExporter.samples(BitmapRasterizer(common: target).render(page, scale: scale, bitsPerComponent: depth, alpha: false).bitmap)
+            color = PSDExporter.samples(BitmapRasterizer(common: target, output: output).render(page, scale: scale, bitsPerComponent: depth, alpha: false).bitmap)
         }
         // The rectangle where the layer has any coverage.
         var top = shape.height, left = shape.width, bottom = 0, right = 0

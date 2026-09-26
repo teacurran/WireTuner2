@@ -138,6 +138,12 @@ format's options, and the readout under it is `ExportSizeEstimate.bytes` of the 
 preset (a scratch export, detached).  Managing the user's presets and `.wtpreset` files in the sheet
 is not built.
 
+NOTE: As built by WEB-006's management half (package side; `WTInterchange/Export/WebPresetManagement.swift`).
+`WebExportPresetStore` gains `saveNew` (the sheet's settings as a new preset, fresh id, name made unique as "Name 2"),
+`rename`, `duplicate` (built-in or user), `exportFile(_:)` (the chosen presets as a `.wtpreset` file) and `importAsNew`
+(every preset of a file added with a fresh id and a unique name, so nothing is overwritten); `WebExportPreset.user(...)` and
+`isBuiltIn` serve the editor.  The editor itself in the Export sheet is WTApp's and not built.
+
 === Build tasks
 
 [[WEB-006]]

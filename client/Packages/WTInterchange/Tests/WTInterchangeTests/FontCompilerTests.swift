@@ -169,15 +169,19 @@ enum FontFixture {
             #expect(errors.contains("The family and style names must not be empty."))
             #expect(errors.contains("Invalid PostScript name."))
             #expect(errors.contains("Two glyphs are named A.") && errors.contains("Two glyphs encode U+0041."))
-            #expect(diagnostics.contains { $0.severity == .warning && $0.line == 1 })
+            // The feature file names glyphs the font lacks: errors at their line and column.
+            #expect(diagnostics.contains { $0.severity == .error && $0.line == 1 && $0.column == 20 && $0.glyph == "f" })
         }
         var many = FontFixture.source()
         many.glyphs += Array(repeating: FontSource.Glyph(name: "x", advanceWidth: 0), count: FontCompiler.maximumGlyphs)
         #expect(FontCompiler.check(many).contains { $0.message == "More than 65535 glyphs." })
         #expect(FontCompiler.check(FontSource(names: FontFixture.source().names, glyphs: [])).contains { $0.message == "The first glyph must be .notdef." })
-        // A feature file alone is a warning: the font still compiles.
+        // A feature file that checks clean compiles without diagnostics; a warning (a feature
+        // defined twice) does not stop it.
         var featured = FontFixture.source()
         featured.features = "languagesystem DFLT dflt;"
+        #expect(try FontCompiler.compile(featured).diagnostics.isEmpty)
+        featured.features = "feature ss01 { sub A by V; } ss01;\nfeature ss01 { sub O by o; } ss01;"
         #expect(try FontCompiler.compile(featured).diagnostics.map(\.severity) == [.warning])
     }
 
@@ -216,7 +220,7 @@ enum FontFixture {
             #expect(FontFixture.coreText(try FontCompiler.compile(bare, options: .init(format: format)).data) != nil)
         }
         #expect(FontTables.unicodeRanges([0x41, 0x1F600])[1] & (1 << 25) != 0)
-        #expect(GPOSKerning.table(FontSource.Kerning(), glyphCount: 3) == nil)
+        #expect(FeatureTables.layoutTable(.gpos, lookups: [], features: [], systems: []) == nil)
         #expect(FontSource.Kerning(pairs: [.init(left: 1, right: 2, value: -5)], leftClasses: [[3]], rightClasses: [[4]],
                                    classValues: [.init(left: 0, right: 0, value: -9)]).value(3, 4) == -9)
         #expect(FontSource.Kerning().value(1, 2) == 0 && FontSource.Kerning().isEmpty)

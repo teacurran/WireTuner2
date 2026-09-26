@@ -201,6 +201,9 @@ public struct ExportScene: Sendable {
     /// Placed SVG animations by node (WEB-008): the HTML publisher plays them in place of the
     /// posters the display list draws.  Empty for every other output.
     public var svgAnimations: [NodeID: ExportSVGAnimation] = [:]
+    /// The document's colour resolved for output (CMS-011): working profiles, intent, image
+    /// profiles.  Nil exports as before -- sRGB, Default CMYK, generic gray.
+    public var output: WTColor.OutputContext?
 
     public init(name: String = "Untitled", pages: [ExportPage], info: ExportDocumentInfo = ExportDocumentInfo(), nodes: [NodeID: ExportNodeInfo] = [:], assets: [String: ExportAsset] = [:], rasterResolution: Double = 300, text: [ExportTextBlock] = [], animation: ExportAnimation? = nil, package: Data? = nil, placedPostScript: [NodeID: ExportPostScript] = [:]) {
         self.name = name

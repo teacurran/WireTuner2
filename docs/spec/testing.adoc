@@ -249,7 +249,10 @@ the downgrade at step 30 happens on a loaded machine too.  Feature scenarios run
 (their suites' names end in `ScenarioTests`, so `make client-sim` picks them up): comments in the
 review and in restore (COLLAB-032, `CommentScenarioTests`), the colour list (COLOR-022,
 `SwatchScenarioTests`) and data merge (DATA-023, `DataMergeScenarioTests`, with `SimDataService`
-standing in for the data service); together they add about 10 s to the suite.
+standing in for the data service), the collaboration guide's cases against two API nodes
+(COLLAB-003, `CollaborationCaseScenarioTests`, through `SimCluster`, `SimulationBackend.cluster`),
+layers, symbols and styles (LIB-023, `LibraryScenarioTests`) and instance overrides (LIB-028,
+`OverrideScenarioTests`); together they add about 20 s to the suite.
 
 == Geometry and rendering
 

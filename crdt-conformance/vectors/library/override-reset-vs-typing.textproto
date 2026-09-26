@@ -36,5 +36,6 @@ expect {
   node {
     id { counter: 4 replica: 7 }
     sequence { path { segments { field: 153 } segments { field: 3 } } deleted { counter: 5 replica: 7 } }
+    text { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 4 } } text: "hi" chars { counter: 6 replica: 2 } chars { counter: 7 replica: 2 } runs { start: 0 length: 2 } }
   }
 }

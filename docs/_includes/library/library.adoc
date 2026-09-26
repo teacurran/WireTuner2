@@ -723,6 +723,20 @@ NOTE: As built by LIB-024.  The schema was already in `symbol.proto`; the genera
 `library/override-concurrent-typing`, `override-fill-lww`, `override-reset-vs-typing`,
 `override-duplicate-creation`, identical in both engines.
 
+NOTE: As built by LIB-028.  Vectors `library/override-reset-all-vs-edit`,
+`override-master-delete-vs-edit`, `override-swap-vs-edit` and `override-release-vs-edit` join the
+four above (which now also read out the typed text in a reset element and both duplicates' colours),
+identical in both engines in every delivery order.  An engine has no read-time rules, so a vector's
+"resolved artwork" is what the resolution reads: each override element's liveness, colour, hidden
+flag, image reference and text, the instance's `symbol`, the master part's deletion, and for
+release the copy's fill as written.  The resolution itself is asserted by `OverrideScenarioTests`
+(`WTTestSupport`), one scenario per case across three clients, which draw the instance through
+WTRender's Core Graphics renderer and compare the overridden part's pixel on every replica (and the
+override's text): LWW colour, the greater element id of two duplicates, the master's colour after a
+reset or reset all, nothing while the master part is deleted and the edited colour once restored,
+the new symbol's artwork after a swap and the edit again on a swap back, and the released copy in
+the colour it was released with.
+
 NOTE: The symbol half of LIB-011 is built (`WTApp/Library/Symbols/`): the Library panel lists folders and
 symbols as an outline with instance counts, sorted by name or count (click a header again to reverse),
 with click, kbd:[Shift]-click and kbd:[Cmd]-click selection, a preview of the selected symbol, in-place rename
@@ -739,6 +753,27 @@ using them (not renamed or removed from the Library); a symbol dragged onto the 
 the Replace sheet asks before `ReplaceSymbolArtwork`; rows dropped on a folder move into it and an kbd:[Option]-drag
 duplicates.  A drag from the canvas starts only once it leaves the window, so it reaches a floating Library panel, not a
 docked one.  *Not built yet*: *Edit* (LIB-012), *Import…* and *Export…* (LIB-013) and opening a master page (DOC-011).
+
+NOTE: As built by LIB-013 (`WTModel/SymbolTransfer.swift`, `WTSync/SymbolSources.swift`).  A
+`SymbolPackage` is a set of symbols with everything their artwork references, transitively -- nodes in
+the swatches, styles, symbols, brushes and assets collections -- found through the merge table by `ReferenceRewriting` (shared with the library catalog): every
+`OpId` field at any depth of the props (a `NodeRef`'s id, an override's `master_node`) is a reference.
+`ImportSymbols` ("Import Symbol" / "Import N symbols", one change) copies the chosen symbols into the
+top level of the symbols collection, always as new symbols (a taken name gets " 2", " 3" …), with each
+referenced swatch, style or brush matched by kind and name and each asset by hash, else created once;
+every reference in the copies -- including between their own nodes -- is rewritten to the copy.
+`PasteWithSymbols` wraps `Paste` with the package of what the copied objects reference: an instance's
+symbol is reused when this document has one of the same name -- or of that name with a number, as an
+earlier paste named it -- and the same artwork (compared with references mapped, internal ones and
+sequence element ids by position), else added under a free name.  Deviation: the clipboard
+payload's `assets` field is not used; the package travels as a second pasteboard type,
+`com.villagecompute.wiretuner.symbols` (`SymbolPackage.encoded()`), and a symbol library file is a
+`.wtsymbols` file -- the bytes `WTSYMBOLS1\n` followed by the same encoding, asset bytes included
+(`SymbolPackage.fileData`).  `SymbolSources` reads a cached document from its local store (offline) or
+a cloud one at head (newest snapshot and the changes after it), builds a package with the cached asset
+bytes, and stores a file's asset bytes in the blob cache.  Not built: the Import Symbols and Export
+Symbols sheets, the pasteboard glue that writes and reads the second type, and queueing the uploads of
+imported assets' blobs (WTApp).
 
 NOTE: As built by LIB-025 (`WTModel/SymbolOverrides.swift`, `SymbolCommands.swift`).  `OverrideText(instance, master:, edit:)`
 "Override text" with `.insert(_:at:)` / `.delete(_:)` in live offsets: the first edit of a block without a live `TEXT` override

@@ -118,9 +118,18 @@ public struct BitmapRasterizer: Sendable {
     public static let tileSamples = 2048
 
     public var common: BitmapCommonOptions
+    /// The document's colour for output (CMS-011): the working profiles pages render into and
+    /// are tagged with, and Working CMYK for CMYK colours.  Nil renders as before (sRGB or
+    /// Display P3, Generic CMYK, generic gray).
+    public var output: WTColor.OutputContext?
+    /// The renderer whose image store and colour management tiles draw with (a window's, for
+    /// *Rasterize*); nil draws with a fresh one (placed images as placeholders).
+    public var base: CoreGraphicsRenderer?
 
-    public init(common: BitmapCommonOptions) {
+    public init(common: BitmapCommonOptions, output: WTColor.OutputContext? = nil, base: CoreGraphicsRenderer? = nil) {
         self.common = common
+        self.output = output
+        self.base = base
     }
 
     /// The output space a page renders into, and how many colours were outside it.
@@ -134,10 +143,10 @@ public struct BitmapRasterizer: Sendable {
     func colorSetup(for page: ExportPage) -> ColorSetup {
         switch common.color {
         case .gray:
-            let space = CGColorSpace(name: CGColorSpace.genericGrayGamma2_2)!
+            let space = output?.colorSpace(model: .gray) ?? CGColorSpace(name: CGColorSpace.genericGrayGamma2_2)!
             return ColorSetup(space: space, tag: common.embedProfile ? space : CGColorSpaceCreateDeviceGray(), clipped: 0)
         case .cmyk:
-            let space = CGColorSpace(name: CGColorSpace.genericCMYK)!
+            let space = output?.colorSpace(model: .cmyk) ?? CGColorSpace(name: CGColorSpace.genericCMYK)!
             return ColorSetup(space: space, tag: common.embedProfile ? space : CGColorSpaceCreateDeviceCMYK(), clipped: 0)
         case .rgb:
             let wide = WideColorScan.count(in: page.displayList)
@@ -151,7 +160,11 @@ public struct BitmapRasterizer: Sendable {
             if !common.embedProfile {
                 p3 = false
             }
-            let space = CGColorSpace(name: p3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB)!
+            var space = CGColorSpace(name: p3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB)!
+            // Working RGB from the document when it is known, unless the artwork needs Display P3.
+            if let output, common.embedProfile, common.rgbSpace == .workingRGB || (common.rgbSpace == .auto && !p3) {
+                space = output.colorSpace(model: .rgb)
+            }
             return ColorSetup(space: space, tag: common.embedProfile ? space : CGColorSpaceCreateDeviceRGB(), clipped: p3 ? 0 : wide)
         }
     }
@@ -190,7 +203,8 @@ public struct BitmapRasterizer: Sendable {
         let job = BandJob(
             page: page, width: width, height: height, tile: tile, factor: factor, components: components,
             bitsPerComponent: bitsPerComponent, bitmapInfo: info, space: setup.space, background: background,
-            pixelsPerPoint: pixelsPerPoint, overprint: common.simulateOverprint, mask: alphaChannel ? common.maskLayer : nil
+            pixelsPerPoint: pixelsPerPoint, overprint: common.simulateOverprint, mask: alphaChannel ? common.maskLayer : nil,
+            base: base ?? output.map { CoreGraphicsRenderer().with(colorManagement: ColorManagement(cmykProfile: $0.cmykProfile, intent: $0.intent, blackPointCompensation: $0.blackPointCompensation, converter: $0.converter)) }
         )
         let bitmap = RasterBitmap(
             width: width, height: height, bitsPerComponent: bitsPerComponent, components: components, hasAlpha: alphaChannel,
@@ -215,6 +229,8 @@ struct BandJob: @unchecked Sendable {
     let pixelsPerPoint: Double
     let overprint: Bool
     let mask: DisplayList?
+    /// The renderer tiles copy their image store and colour management from.
+    var base: CoreGraphicsRenderer? = nil
 
     var bytesPerComponent: Int { bitsPerComponent / 8 }
 
@@ -251,6 +267,10 @@ struct BandJob: @unchecked Sendable {
         let origin = Point(x: page.bounds.minX + Double(left) / pixelsPerPoint, y: page.bounds.minY + Double(top) / pixelsPerPoint)
         let viewport = Viewport(scrollOrigin: origin, zoom: 1, size: Size(width: Double(sampleWidth) / scale, height: Double(sampleHeight) / scale))
         var renderer = CoreGraphicsRenderer(background: background, overprintPreview: overprint)
+        if let base {
+            renderer.imageStore = base.imageStore
+            renderer.colorManagement = base.colorManagement
+        }
         renderer.rasterPreview = .document
         renderer.render(list, viewport: viewport, into: context)
         let stride = context.bytesPerRow / bytesPerComponent

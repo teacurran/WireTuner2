@@ -195,6 +195,12 @@ public struct ReviewModel: Sendable, Hashable {
     public var mergeRuns: [MergeRunConflict] = []
     /// The *field removed with N bindings* rows, each with *Restore*.
     public var removedFields: [FieldRemovedEntry] = []
+    /// The *released stale master* and *duplicate release* rows (master-pages.adoc).
+    public var releaseOverlaps: [ReleaseOverlap] = []
+    /// The "drawn while the font was rescaled" rows, each with *Rescale mine* (font-info.adoc).
+    public var rescaleRows: [RescaleEntry] = []
+    /// The "placed an instance of a removed symbol" and "uses a removed style" rows.
+    public var removedTargets: [RemovedTargetEntry] = []
     /// For `.recovered`: what salvage re-issued and dropped.
     public var recovered: SalvageReport?
     public var documentActions: [DocumentAction]
@@ -224,6 +230,9 @@ public struct ReviewModel: Sendable, Hashable {
         entries = divergence.entries
         mergeRuns = divergence.mergeRuns
         removedFields = divergence.removedFields
+        releaseOverlaps = divergence.releaseOverlaps
+        rescaleRows = divergence.rescaleRows
+        removedTargets = divergence.removedTargets
         recovered = nil
         documentActions = mode == .readOnly ? [] : [.keepMerged, .saveCopy, .keepBranch]
     }

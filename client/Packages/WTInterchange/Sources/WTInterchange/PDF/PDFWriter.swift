@@ -70,7 +70,7 @@ final class PDFDocumentBuild {
     init(options: PDFOptions, scene: ExportScene, cmyk: any CMYKConverter = ProfileCMYKConverter()) {
         self.options = options
         self.scene = scene
-        self.cmyk = cmyk
+        self.cmyk = cmyk.resolved(for: scene)
         objects = PDFObjects(compress: options.compressContent)
         fonts = PDFFontRegistry(objects: objects, embedAll: options.fonts == .embedFull)
         if options.encrypts {
@@ -132,14 +132,8 @@ final class PDFDocumentBuild {
             ])))
         }
         if options.standard != .none {
-            catalog.append(("OutputIntents", .array([.dictionary([
-                ("Type", .name("OutputIntent")),
-                ("S", .name("GTS_PDFX")),
-                ("OutputConditionIdentifier", .string(cmyk.outputConditionIdentifier)),
-                ("OutputCondition", .string(cmyk.name)),
-                ("Info", .string(cmyk.name)),
-                ("DestOutputProfile", .reference(objects.addStream([("N", .int(4))], data: cmyk.iccProfile))),
-            ])])))
+            let intent = PDFOutputIntent(subtype: "GTS_PDFX", identifier: cmyk.outputConditionIdentifier, condition: cmyk.name, profile: cmyk.iccProfile, components: 4)
+            catalog.append(("OutputIntents", .array([intent.value(objects: objects)])))
         } else if wideKept > 0 {
             // A PDF without a standard that keeps Display P3 objects names Display P3 as its
             // output intent, so viewers know what the document was made for.

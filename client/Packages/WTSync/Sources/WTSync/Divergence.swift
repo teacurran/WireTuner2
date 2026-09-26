@@ -129,13 +129,32 @@ public struct Divergence: Sendable, Hashable {
     public var mergeRuns: [MergeRunConflict] = []
     /// Fields one side deleted that objects the other side wrote use (data-merge.adoc): always listed.
     public var removedFields: [FieldRemovedEntry] = []
+    /// Released stale masters and duplicate releases (master-pages.adoc): always listed.
+    public var releaseOverlaps: [ReleaseOverlap] = []
+    /// Objects created on a glyph canvas concurrently with a units-per-em scale (font-info.adoc,
+    /// "drawn while the font was rescaled"): always listed, with *Rescale mine*.
+    public var rescaleRows: [RescaleEntry] = []
+    /// Instances of a symbol and objects using a graphic style the other side removed
+    /// (library.adoc, styles.adoc): always listed.
+    public var removedTargets: [RemovedTargetEntry] = []
 
     /// Objects changed on both sides (setting entries not counted).
     public var overlapCount: Int { entries.lazy.filter { $0.setting == nil }.count }
 
-    /// Whether the review has any row: an overlap, an always-listed setting, merge runs or a
-    /// removed field.
-    public var hasRows: Bool { !entries.isEmpty || !mergeRuns.isEmpty || !removedFields.isEmpty }
+    /// Whether the review has any row: an overlap, an always-listed setting, merge runs, a
+    /// removed field, a release overlap or an object drawn while the font was rescaled.
+    public var hasRows: Bool {
+        !entries.isEmpty || !mergeRuns.isEmpty || !removedFields.isEmpty || !releaseOverlaps.isEmpty || !rescaleRows.isEmpty
+            || !removedTargets.isEmpty
+    }
+
+    /// Whether a row holds the outbox without an overlap: every row but a font-metric setting
+    /// entry, which is listed after offline work but merges silently when no glyph the other side
+    /// touched overlaps it (font-info.adoc, "The always-list rule for font-level metrics").
+    var holdsRows: Bool {
+        entries.contains { $0.setting != .fontMetrics } || !mergeRuns.isEmpty || !removedFields.isEmpty
+            || !releaseOverlaps.isEmpty || !rescaleRows.isEmpty || !removedTargets.isEmpty
+    }
 
     /// The decision rules with `preferences`.
     ///
@@ -157,7 +176,7 @@ public struct Divergence: Sendable, Hashable {
             }
             return .perObject
         }
-        if hasRows {
+        if holdsRows {
             return .perObject
         }
         if localOps >= preferences.autoMergeBelow || remoteOps >= preferences.autoMergeBelow
@@ -211,7 +230,10 @@ public struct Divergence: Sendable, Hashable {
         return Divergence(localOps: mine.ops, remoteOps: theirs.ops, localObjects: mine.nodes.count, remoteObjects: theirs.nodes.count,
                           remoteOpsByReplica: theirs.opsByReplica, gap: gap, remoteComplete: remoteComplete, entries: entries,
                           mergeRuns: DataMergeReview.conflicts(local: local, remote: remote, state: state),
-                          removedFields: DataMergeReview.removedFields(local: local, remote: remote, state: state))
+                          removedFields: DataMergeReview.removedFields(local: local, remote: remote, state: state),
+                          releaseOverlaps: ReleaseReview.overlaps(local: local, remote: remote, state: state),
+                          rescaleRows: FontRescaleReview.rows(local: local, remote: remote, state: state),
+                          removedTargets: RemovedTargetReview.rows(local: local, remote: remote, state: state))
     }
 }
 
@@ -365,7 +387,11 @@ struct Side {
             return false
         case 50:
             settings[.colorSettings, default: []].insert(replica)
-        case 20, 21:
+        case 20:
+            settings[.fontMetrics, default: []].insert(replica)
+        case 21 where path.fields.count == 2 || path.fields[2] == 2:
+            // `FontMetrics` (or the whole `FontProps`); names, kerning and features are
+            // ordinary registers (font-info.adoc, "The always-list rule for font-level metrics").
             settings[.fontMetrics, default: []].insert(replica)
         default:
             break

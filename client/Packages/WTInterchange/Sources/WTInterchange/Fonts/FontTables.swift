@@ -1,7 +1,7 @@
 // FONT-018: the sfnt tables every generated font carries (OpenType 1.9: `head`, `hhea`, `hmtx`,
 // `maxp`, `OS/2`, `name`, `cmap`, `post`) and the sfnt assembly, written from a `FontSource` in
 // Swift.  The glyph outline tables are `TrueTypeGlyphs` (glyf/loca) and `CFFWriter` (CFF ); the
-// kerning is `GPOSKerning`.
+// kerning goes through the generated feature text (`FeatureGenerator`, `FeatureTables`).
 
 import Foundation
 import WTGeometry

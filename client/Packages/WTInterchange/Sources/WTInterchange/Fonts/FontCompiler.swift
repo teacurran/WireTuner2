@@ -1,12 +1,13 @@
-// FONT-018: the font compiler (font-export.adoc, "Font compiler decision", as built: see the
-// deviation recorded there).  A `FontSource` becomes an OpenType font in memory, in Swift, with no
-// third-party code: OTF (CFF outlines, cubic as drawn) or TTF (quadratic outlines within half a
-// unit), the metric, naming, character-map and PostScript tables, and the kerning model compiled
-// straight into GPOS.  The user's feature file is not compiled by this compiler (there is no
-// feature-file compiler in it); a non-empty one is reported as a warning so generation still
-// succeeds.  Compilation is synchronous and fast; the async entry point runs it off the caller's
-// actor, checks for cancellation between glyphs and tables, and returns the bytes with the
-// diagnostics.
+// FONT-018 / FONT-019: the font compiler (font-export.adoc, "Font compiler decision", as built: see
+// the deviation recorded there).  A `FontSource` becomes an OpenType font in memory, in Swift, with
+// no third-party code: OTF (CFF outlines, cubic as drawn) or TTF (quadratic outlines within half a
+// unit), the metric, naming, character-map and PostScript tables, and the layout tables compiled
+// from feature text: the user's feature file followed by `FeatureGenerator`'s kern, mark, mkmk,
+// liga and GDEF text, through `FeatureCompiler` into GSUB, GPOS and GDEF.  Errors in the user's
+// text stop the compile with their line and column (generation is blocked until the file checks
+// clean, never silently).  Compilation is synchronous and fast; the async entry point runs it off
+// the caller's actor, checks for cancellation between glyphs and tables, and returns the bytes
+// with the diagnostics.
 
 import Foundation
 import WTGeometry
@@ -124,10 +125,37 @@ public struct FontCompiler: Sendable {
             }
         }
         if !source.features.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            result.append(Diagnostic(.warning, "The feature file is not compiled by the built-in compiler; kerning is generated from the kerning model.",
-                                     line: 1, column: 1))
+            let report = FeatureChecker.check(source.features, glyphs: source.glyphs.map(\.name), generated: FeatureGenerator.generatedTags(source))
+            result += report.issues.filter { $0.kind != .generated }.map(diagnostic)
         }
         return result
+    }
+
+    /// A feature-text issue as a compile diagnostic at its line and column.
+    static func diagnostic(_ issue: FeatureIssue) -> Diagnostic {
+        Diagnostic(issue.severity == .error ? .error : .warning, issue.message, glyph: issue.kind == .unknownGlyph ? issue.name : nil,
+                   line: issue.location.line, column: issue.location.column)
+    }
+
+    /// The layout tables of `source`: its feature text and the generated features compiled
+    /// together.  The user's text has already checked clean, so a problem here is a generator bug
+    /// (reported as an error on no line).
+    static func layoutTables(_ source: FontSource) throws -> [String: [UInt8]] {
+        let file = FeatureGenerator.file(user: source.features, generated: FeatureGenerator.generated(source))
+        guard !file.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [:] }
+        let compiled = FeatureCompiler.compile(file.text, glyphs: source.glyphs.map(\.name))
+        let errors = compiled.issues.filter { $0.severity == .error }
+        guard errors.isEmpty else {
+            throw Failure.invalidSource(errors.map { issue in
+                file.userLocation(issue.location).map { diagnostic(FeatureIssue(issue.severity, issue.kind, issue.message, at: $0, name: issue.name)) }
+                    ?? Diagnostic(.error, "Generated features: \(issue.message)")
+            })
+        }
+        var tables: [String: [UInt8]] = [:]
+        if let gsub = compiled.gsub { tables["GSUB"] = gsub }
+        if let gpos = compiled.gpos { tables["GPOS"] = gpos }
+        if let gdef = compiled.gdef { tables["GDEF"] = gdef }
+        return tables
     }
 
     /// Compiles `source` now.
@@ -158,15 +186,16 @@ public struct FontCompiler: Sendable {
         for (index, glyph) in source.glyphs.enumerated() {
             for codepoint in glyph.codepoints { map[codepoint] = index }
         }
-        let gpos = GPOSKerning.table(source.kerning, glyphCount: source.glyphs.count)
+        let layout = try layoutTables(source)
+        guard !isCancelled() else { throw Failure.cancelled }
         tables["head"] = FontTables.head(source, records: records, longLoca: longLoca, created: options.date)
         tables["hhea"] = FontTables.hhea(source, records: records)
         tables["hmtx"] = FontTables.hmtx(records)
-        tables["OS/2"] = FontTables.os2(source, records: records, hasKerning: gpos != nil)
+        tables["OS/2"] = FontTables.os2(source, records: records, hasKerning: layout["GPOS"] != nil)
         tables["name"] = FontTables.name(source)
         tables["cmap"] = FontTables.cmap(map)
         tables["post"] = FontTables.post(source, names: options.format == .ttf)
-        if let gpos { tables["GPOS"] = gpos }
+        tables.merge(layout) { $1 }
         let data = FontTables.assemble(tables, signature: options.format == .otf ? 0x4F54_544F : 0x0001_0000)
         return Result(data: data, diagnostics: diagnostics)
     }

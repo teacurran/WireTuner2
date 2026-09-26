@@ -28,6 +28,16 @@ public struct PrintSheetRenderer: Sendable {
     /// Rows rendered at a time for a rasterized sheet (4096-px bands bound the memory).
     public var bandHeight = 4096
 
+    /// The bytes one band of a rasterized sheet of `plan` holds (4 bytes a pixel over the widest
+    /// printed area): the bound on the renderer's own memory for *Rasterize output*.
+    public func rasterBandBytes(_ plan: PrintPlan) -> Int {
+        let scale = plan.request.options.rasterizeDPI / 72
+        return plan.sheets.map { sheet in
+            let pixels = Self.pixelRect(sheet.clip, scale: scale)
+            return pixels.width * min(bandHeight, pixels.height) * 4
+        }.max() ?? 0
+    }
+
     public init(base: CoreGraphicsRenderer = CoreGraphicsRenderer(), textOutliner: (@Sendable (DisplayList) -> DisplayList)? = nil,
                 isCancelled: @escaping @Sendable () -> Bool = { false }) {
         self.base = base
@@ -50,6 +60,11 @@ public struct PrintSheetRenderer: Sendable {
     /// The renderer the artwork of `plan` draws with: Preview, the job's flatness.
     func renderer(for plan: PrintPlan) -> CoreGraphicsRenderer {
         var renderer = base.with(viewMode: .preview).with(overprintPreview: false)
+        // The print-time raster effect resolution (PRINT-013): each object's own resolution,
+        // rendered before the sheet is drawn -- never the window's *Raster effect preview*
+        // preference, and never progressively (a spooled sheet cannot be repainted).
+        renderer.rasterPreview = .document
+        renderer.rasterEffectsReady = nil
         let flatness = plan.request.options.flatness
         renderer.outputFlatness = flatness > 0 ? flatness : nil
         return renderer

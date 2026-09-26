@@ -32,5 +32,7 @@ expect {
   node {
     id { counter: 4 replica: 7 }
     sequence { path { segments { field: 153 } segments { field: 3 } } elements { counter: 5 replica: 1 } elements { counter: 5 replica: 2 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 1 } } segments { field: 5 } } value { instance { overrides { fill { inline { rgb { r: 1 } } } } } } op { counter: 5 replica: 1 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 2 } } segments { field: 5 } } value { instance { overrides { fill { inline { rgb { b: 1 } } } } } } op { counter: 5 replica: 2 } }
   }
 }

@@ -247,6 +247,23 @@ children (DOC-011): the master page tab (the pop-up's btn:[Edit] is disabled wit
 presence on masters, and the live notices for a stale release and a deleted master (their review
 entries are DOC-013's); the Library panel's master list and drag-to-apply are the LIB epic's.
 
+NOTE: As built by DOC-013 (`WTSync/ReleaseReview.swift`, measured in `Divergence.measure` and carried
+by `ReviewModel.releaseOverlaps`).  A release is read from its change: a label ending in the
+`[master:<id>]` tag, each `SetFields` of a page's `master` starting that page, and the objects the
+change creates on a layer after it (not inside something it created) are that page's copy groups
+(`ReleaseReview.releases`).  *Released stale master*: a release on either side while the other side
+wrote a node on that master's canvas (the node itself or anything inside it, read through the merged
+state); one row per page, naming the page, the master and the writers, with *Update the copies*
+(`UpdateReleasedCopies`, "Update the copies": the release's live copy groups deleted and the master's
+current objects copied again as `ReleaseChildPages` does -- one group per layer at the bottom,
+translated by the page origin, `canvas` cleared -- in one change) and *Keep my copies* (writes
+nothing).  *Duplicate release*: a page released by both sides; the later change (greater first op id)
+is the duplicate, with *Remove duplicates* ("Remove duplicate copies": `deleted` on its live copy
+groups, one change) and *Keep my copies*.  Deviation: the two kinds are not `OverlapKind` cases on an
+object entry but rows of their own (`ReleaseOverlap`, as the data-merge rows are): they are about a page
+and a change, not an object changed on both sides, and they always hold the outbox.  Not built: the
+review sheet's rendering of these rows (WTApp) and the live notice (DOC-012's, which waits for DOC-011).
+
 NOTE: As built by DOC-011 (`WTModel/MasterRendering.swift`, hooks in `DocumentScene.swift`; `GroupItem.inert` and the
 `HitTester` rule in WTRender).  The pasteboard's builder keeps one builder per master that has child pages, drawing the master's
 canvas (`canvasNode` = the master, what the master page tab draws), updated with every change it applies.  On each layer, before

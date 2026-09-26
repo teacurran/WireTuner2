@@ -175,6 +175,18 @@ Nothing beyond storing and relaying changes and blobs.
 * Undo: one change per returned save and per optimize, labelled "Edit _name_ in _app_" /
   "Optimize _name_".
 
+NOTE: As built by IMG-020 (package halves; `WTInterchange/Bitmap/ImageOptimizer.swift`, `WTModel/RasterizeCommands.swift`).
+`ImageOptimizeOptions` is the sheet's settings (format *Keep*/PNG/JPEG/TIFF/WebP/HEIC with `isAvailable` from ImageIO's
+writable types and `holdsAlpha` for dimming, quality 1–100 default 85, resample *None* / *To effective resolution* / *To pixel
+size*, colour mode, *Strip metadata*); `ImageOptimizer.plan` gives the before/after pixel size and effective resolution
+(downsampling only), `optimize` re-encodes with ImageIO keeping the ICC profile, alpha (a grayscale conversion of a
+transparent image is written as gray + alpha) and, unless stripped, EXIF/TIFF/IPTC/GPS (orientation always), and
+`estimate` is the byte count of that encode.  Resampling draws at `CGInterpolationQuality.high`, not Core Image Lanczos, and
+grayscale conversion draws into the generic gray profile rather than going through Core Image -- a deviation from the
+bullet above with the same results for the tests.  `OptimizeImages` writes every result as `ReplaceImagePixels` in one
+change labelled "Optimize _name_" / "Optimize (N images)".  The *Optimize Image…* sheet, its live preview and the blob
+upload are WTApp's and not built.
+
 NOTE: As built by IMG-019 (`WTApp/Images/ExternalEditing.swift`; `WTModel/ExternalEditCommands.swift`, a new file).
 menu:Edit[Edit With] lists the applications Launch Services has for images; the Object panel's btn:[Edit With…] and
 kbd:[Option]-double-click use *Default image editor*, else the system's, after the confirmation while it is on.  The session

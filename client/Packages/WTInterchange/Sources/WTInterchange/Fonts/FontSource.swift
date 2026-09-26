@@ -2,7 +2,8 @@
 // snapshot as WTModel hands it over after validation and flattening -- names, metrics, OS/2
 // fields, glyphs in glyph-id order with their finished outlines (font units, y up, cubic,
 // counter-clockwise outer contours, extrema added, rounded to whole units), advance widths and
-// codepoints, the kerning resolved to glyph indices, and the user's feature text.  WTModel builds
+// codepoints, the kerning resolved to glyph indices, and the user's feature text; since FONT-019
+// also each glyph's kind and anchors and the generate switches, for `FeatureGenerator`.  WTModel builds
 // it (`FontGeneration`); nothing here reads the document.
 
 import WTGeometry
@@ -107,6 +108,24 @@ public struct FontSource: Hashable, Sendable {
         }
     }
 
+    /// A glyph's role in the font, for the generated features and `GDEF` (FONT-019).
+    public enum GlyphKind: Hashable, Sendable, CaseIterable {
+        case base, ligature, mark, component
+    }
+
+    /// A named attachment point, font units y up (FONT-019): `top` on a base, `_top` on a mark.
+    public struct Anchor: Hashable, Sendable {
+        public var name: String
+        public var x: Double
+        public var y: Double
+
+        public init(name: String, x: Double, y: Double) {
+            self.name = name
+            self.x = x
+            self.y = y
+        }
+    }
+
     /// One glyph.
     public struct Glyph: Hashable, Sendable {
         /// The PostScript glyph name.
@@ -116,12 +135,17 @@ public struct FontSource: Hashable, Sendable {
         public var advanceWidth: Double
         /// Finished outlines: font units, y up, closed, counter-clockwise outer contours.
         public var contours: [Contour]
+        public var kind: GlyphKind
+        public var anchors: [Anchor]
 
-        public init(name: String, codepoints: [UInt32] = [], advanceWidth: Double, contours: [Contour] = []) {
+        public init(name: String, codepoints: [UInt32] = [], advanceWidth: Double, contours: [Contour] = [], kind: GlyphKind = .base,
+                    anchors: [Anchor] = []) {
             self.name = name
             self.codepoints = codepoints
             self.advanceWidth = advanceWidth
             self.contours = contours
+            self.kind = kind
+            self.anchors = anchors
         }
 
         /// The outline's bounds, nil when empty.
@@ -165,12 +189,19 @@ public struct FontSource: Hashable, Sendable {
         public var leftClasses: [[Int]]
         public var rightClasses: [[Int]]
         public var classValues: [ClassValue]
+        /// The classes' names (without the `kern1.`/`kern2.` prefix), parallel to the classes; a
+        /// missing name reads as the first member's glyph name.
+        public var leftClassNames: [String]
+        public var rightClassNames: [String]
 
-        public init(pairs: [Pair] = [], leftClasses: [[Int]] = [], rightClasses: [[Int]] = [], classValues: [ClassValue] = []) {
+        public init(pairs: [Pair] = [], leftClasses: [[Int]] = [], rightClasses: [[Int]] = [], classValues: [ClassValue] = [],
+                    leftClassNames: [String] = [], rightClassNames: [String] = []) {
             self.pairs = pairs
             self.leftClasses = leftClasses
             self.rightClasses = rightClasses
             self.classValues = classValues
+            self.leftClassNames = leftClassNames
+            self.rightClassNames = rightClassNames
         }
 
         public var isEmpty: Bool {
@@ -193,15 +224,22 @@ public struct FontSource: Hashable, Sendable {
     /// Glyph 0 is `.notdef`.
     public var glyphs: [Glyph]
     public var kerning: Kerning
-    /// The user's feature file (the built-in compiler does not compile it; see `FontCompiler`).
+    /// The user's feature file; the generated features are added after it at compile time.
     public var features: String
+    /// *Generate mark and mkmk* and *Generate liga* (Font Info's Features pane); kerning is
+    /// generated from `kerning`, which is empty when *Generate kern* is off.
+    public var generateMark: Bool
+    public var generateLiga: Bool
 
-    public init(names: Names, metrics: Metrics = Metrics(), os2: OS2 = OS2(), glyphs: [Glyph], kerning: Kerning = Kerning(), features: String = "") {
+    public init(names: Names, metrics: Metrics = Metrics(), os2: OS2 = OS2(), glyphs: [Glyph], kerning: Kerning = Kerning(), features: String = "",
+                generateMark: Bool = true, generateLiga: Bool = true) {
         self.names = names
         self.metrics = metrics
         self.os2 = os2
         self.glyphs = glyphs
         self.kerning = kerning
         self.features = features
+        self.generateMark = generateMark
+        self.generateLiga = generateLiga
     }
 }

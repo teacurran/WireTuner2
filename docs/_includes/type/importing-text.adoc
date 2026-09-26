@@ -164,8 +164,12 @@ per RTFD picture (`blobs` are the app's to store), and the summary as the block'
 text takes the given default attributes.  Deviations: styles an import creates carry no settings
 (the paragraphs' own registers and marks decide the look, since a register at its zero value
 cannot override a style's setting); all caps are imported as uppercase letters; superscript and
-subscript are a baseline shift of +33% / -14% of the size plus 58% of the size; an import is one
-change however many ops (splitting at 10,000 ops is not done yet).  The export side still writes
+subscript are a baseline shift of +33% / -14% of the size plus 58% of the size.  An import over the
+server's 10,000 ops per change is split by `WTModel.ChangeSplitting.split` (TYPE-008's remainder):
+parts labelled "Import text [i/n]" of the whole change built once as the replica's next change,
+which performed in order in one undo group carry exactly its ops and ids (a part that finds itself at
+another counter rebuilds the import against the planned state, its builder moved back by the parts
+before it, and keeps its slice).  The export side still writes
 plain runs (`ExportSnapshot.story`, IO-030); pointing it at `TextAttributeMapping.story` makes
 export use the table too.  The import cursor, the Finder drop and paste are client-ui work
 (TYPE-009).

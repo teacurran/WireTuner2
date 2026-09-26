@@ -531,6 +531,12 @@ public actor SimServer {
         send(to: document, account: nil, .with { $0.change = entry })
     }
 
+    /// Tells every session on `document` about `event`: how the services beside sync (publishes,
+    /// `SimPublishService`) announce their changes, as the API's document events do.
+    public func announce(_ event: Wiretuner_Sync_V1_DocumentEvent, on document: String) {
+        send(to: document, account: nil, .with { $0.event = event })
+    }
+
     private func send(to document: String, account: String?, _ frame: Wiretuner_Sync_V1_ServerFrame) {
         let now = ContinuousClock.now
         for (id, subscriber) in subscribers where subscriber.document == document && (account == nil || subscriber.caller.account == account) {

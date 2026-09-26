@@ -393,6 +393,30 @@ version of the object on the live state as one change (its registers in one `Set
 deletion, or its return), and *Use <B>* writes nothing.  The 300 ms budget for 1,000 changed nodes is
 not measured.
 
+NOTE: As built by COLLAB-003, simulator half (`WTTestSupport`: `CollaborationCaseScenarioTests`, with
+`SimCluster` for the two nodes and the test-side `ReviewRow`/`ReviewChoices`).  "Two server nodes" is
+`SimCluster`: API nodes in front of the one in-process `SimServer` (one log, as one Postgres), the
+load balancer giving every call the next live node (so one client's pushes land on both), a live
+change reaching the other node's subscriptions after a bus hop, and a node restart ending that node's
+subscriptions and taking it out of the rotation.  Every scenario runs three clients on links that
+lose 3% of requests and of replies and drop streams, asserts hash convergence and either no review
+or the exact rows -- kind in the guide's words and attribute names titled from the merge table, as
+the sheet titles them: same attribute live (LWW; the other attribute untouched) and offline
+(*Same attribute* [Name], *Use mine*); drag vs. drag live and offline (*Same attribute* [Transform],
+*Keep both copies*: the copy has the local position plus the offset); delete vs. move to another
+layer live (restored, it is on the layer it was moved to) and offline (*Edited and deleted*
+[Deleted] with *Restore*; a move both made to different layers is *Both moved* [Position]); lock vs.
+offline edit (*Both edited* [Locked, Transform]; *Use theirs* writes nothing); text co-editing live
+across a node restart and offline (*Same text* [Text]); the three reconnect outcomes (silent merge
+with the toast, merged and offered read-only after a day away, held per object), a 25-object
+overlap opening the whole-document review, and *Save my version as a copy…* (*Keep the merged
+result* throughout; *Keep my changes on a branch* is `CollaborationScenarioTests`).  As built, a
+transform both sides wrote is *Same attribute* (*Transform*), not *Both moved*: *Both moved*
+(`move vs move`) is a change of place in the tree.  *Not built*: the UI-test half and the
+screenshots of the review sheet and the presence overlay for `docs/images` (WTApp, TEST-002), and
+the per-paragraph choices of a *Same text* row in the simulator (they are WTApp's
+`ParagraphChoices`, covered by its tests).
+
 === Build tasks
 
 [[COLLAB-001]]

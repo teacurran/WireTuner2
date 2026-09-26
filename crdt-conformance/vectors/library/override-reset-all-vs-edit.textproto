@@ -1,0 +1,48 @@
+# crdt-conformance/vectors/library/override-reset-all-vs-edit.textproto (LIB-028; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-reset-all-vs-edit"
+description: "Reset All Overrides (one ElementDelete of both elements) against a concurrent recolor of the fill override and a hide of the part: every write applies, both elements stay deleted, and their registers keep the edits (blue, hidden) in the tombstones, so Restore brings the edited overrides back."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { common { name: "Star" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Overrides"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_FILL fill { inline { rgb { r: 1 } } } } } } } }
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x81"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_HIDDEN } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 7 base_server_seq: 2 label: "Reset all overrides"
+    ops { element_delete { node { counter: 4 replica: 7 } elements { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } } elements { segments { field: 153 } segments { field: 3 } segments { element { counter: 6 replica: 7 } } } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 7 base_server_seq: 2 label: "Override fill"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } values { instance { overrides { fill { inline { rgb { b: 1 } } } } } } } }
+  }
+  change {
+    replica: 2 seq: 2 start_counter: 8 base_server_seq: 2 label: "Hide Star"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 6 replica: 7 } } segments { field: 7 } } values { instance { overrides { hidden: true } } } } }
+  }
+}
+deliveries { order: [1, 2, 2] }
+deliveries { order: [2, 2, 1] }
+deliveries { order: [2, 1, 2] }
+expect {
+  state_hash: "f1ffdf5176b3f94d1fa412d96bc462f4e41d569894edd2b4ab14213ddff2e286"
+  snapshot_hash: "2811b87b4471a952887b3e26927d4df8cca6b9ab2aad26212150023eb87d5097"
+  node {
+    id { counter: 4 replica: 7 }
+    sequence { path { segments { field: 153 } segments { field: 3 } } deleted { counter: 5 replica: 7 } deleted { counter: 6 replica: 7 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } value { instance { overrides { fill { inline { rgb { b: 1 } } } } } } op { counter: 7 replica: 2 } losing { counter: 5 replica: 7 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 6 replica: 7 } } segments { field: 7 } } value { instance { overrides { hidden: true } } } op { counter: 8 replica: 2 } }
+  }
+}

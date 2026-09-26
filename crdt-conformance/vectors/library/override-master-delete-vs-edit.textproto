@@ -1,0 +1,45 @@
+# crdt-conformance/vectors/library/override-master-delete-vs-edit.textproto (LIB-028; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-master-delete-vs-edit"
+description: "The symbol's editor deletes the master part an override points at while another replica recolors the override: the part is deleted, the override element stays live with the new color (it reads as nothing until the part is restored, then reads again -- WTModel's rule); nothing is lost."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { common { name: "Star" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Override fill"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_FILL fill { inline { rgb { r: 1 } } } } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Delete"
+    ops { set_deleted { node { counter: 3 replica: 7 } deleted: true } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Override fill"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } values { instance { overrides { fill { inline { rgb { b: 1 } } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "ee2d6f8b6ede133cd248f442f148578f72586f9d473d6364be23531e153151dc"
+  snapshot_hash: "e75614f2b04a7dabb6922b41a7000663560902ba9f67868bf6026696c3b92f1f"
+  node {
+    id { counter: 3 replica: 7 }
+    tree { parent { counter: 2 replica: 7 } position: "\x80" deleted: true }
+  }
+  node {
+    id { counter: 4 replica: 7 }
+    sequence { path { segments { field: 153 } segments { field: 3 } } elements { counter: 5 replica: 7 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 5 } } value { instance { overrides { fill { inline { rgb { b: 1 } } } } } } op { counter: 6 replica: 2 } losing { counter: 5 replica: 7 } }
+  }
+}

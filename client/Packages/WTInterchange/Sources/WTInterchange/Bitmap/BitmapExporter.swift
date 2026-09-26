@@ -155,7 +155,7 @@ public struct BitmapExporter: Exporter {
             let (page, scale) = jobs[index]
             return FileNamePattern.Values(name: scene.name, page: page + 1, pageName: scene.pages[page].name, scale: scale)
         }
-        let rasterizer = BitmapRasterizer(common: common)
+        let rasterizer = BitmapRasterizer(common: common, output: scene.output)
         var summary = ExportSummary()
         var clipped = 0
         for ((page, scale), url) in zip(jobs, urls) {

@@ -28,11 +28,23 @@ public protocol CMYKConverter: Sendable {
     func cmykPixels(_ image: CGImage) -> Data
 }
 
+extension CMYKConverter {
+    /// The converter `scene` is written with: the scene's Working CMYK in place of a converter
+    /// that follows the document, else this one.
+    func resolved(for scene: ExportScene) -> any CMYKConverter {
+        guard let output = scene.output, (self as? ProfileCMYKConverter)?.followsDocument == true else { return self }
+        return output.cmykConverter
+    }
+}
+
 /// Conversion into a CMYK profile of the registry.
 public struct ProfileCMYKConverter: CMYKConverter {
     public var profile: WTColor.ProfileRef
     public var intent: WTColor.RenderingIntent
     public var registry: WTColor.ProfileRegistry
+    /// Whether no profile was chosen: the document's Working CMYK (`ExportScene.output`)
+    /// replaces this converter when the scene carries one (CMS-011).
+    public let followsDocument: Bool
 
     /// A converter into `profile` (the bundled Default CMYK when nil, not a CMYK profile, or not
     /// available on this Mac yet).
@@ -41,6 +53,7 @@ public struct ProfileCMYKConverter: CMYKConverter {
         self.profile = resolved.pending || resolved.profile.space != .cmyk ? registry.defaultCMYK : resolved.profile
         self.intent = intent
         self.registry = registry
+        followsDocument = profile == nil
     }
 
     public var name: String { profile.name }

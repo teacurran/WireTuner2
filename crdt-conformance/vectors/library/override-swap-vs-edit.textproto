@@ -1,0 +1,45 @@
+# crdt-conformance/vectors/library/override-swap-vs-edit.textproto (LIB-028; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-swap-vs-edit"
+description: "One replica swaps the instance to another symbol while the other sets an image override on the old symbol's part: symbol is LWW (the swap stands), the override element stays live with its image, keyed to the old symbol's part, so it reads as nothing under the new symbol and returns on a swap back (WTModel's rule)."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbols with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Badge" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { rect { common { name: "Star" } size { width: 10 height: 10 } } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+    ops { create { parent { counter: 7 } position: "\x81" props { symbol { common { name: "Seal" } } } } }
+    ops { create { parent { counter: 5 replica: 7 } position: "\x80" props { rect { common { name: "Ring" } size { width: 8 height: 8 } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 7 label: "Override"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_IMAGE } } } } }
+    ops { create { parent { counter: 9 } position: "\x80" props { asset { common { name: "photo.png" } media_type: "image/png" } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 9 base_server_seq: 2 label: "Swap Symbol"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 2 } } values { instance { symbol { id { counter: 5 replica: 7 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 9 base_server_seq: 2 label: "Override image"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 7 replica: 7 } } segments { field: 8 } } values { instance { overrides { image { id { counter: 8 replica: 7 } } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "e471b878119be9a277aab27033bca6a0ff72c1db9b22c7ce1dfacf6a3b3b8b10"
+  snapshot_hash: "a0e0d91b699ba94a26d3098fcdf19c7deaca2d2111167a1983f4adbec2a40dcb"
+  node {
+    id { counter: 4 replica: 7 }
+    register { path { segments { field: 153 } segments { field: 2 } } value { instance { symbol { id { counter: 5 replica: 7 } } } } op { counter: 9 replica: 1 } losing { counter: 4 replica: 7 } }
+    sequence { path { segments { field: 153 } segments { field: 3 } } elements { counter: 7 replica: 7 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 7 replica: 7 } } segments { field: 8 } } value { instance { overrides { image { id { counter: 8 replica: 7 } } } } } op { counter: 9 replica: 2 } }
+  }
+}

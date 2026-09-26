@@ -113,6 +113,19 @@ Nothing beyond storing and relaying changes and blobs.
 * Undo: one change, labelled "Rasterize _n_ objects"; undo restores the originals and deletes
   the image; the blob stays cached.
 
+NOTE: As built by IMG-024 (package halves; `WTInterchange/Bitmap/SelectionRasterizer.swift`, `WTModel/RasterizeCommands.swift`).
+`RasterizeOptions` holds the sheet's settings; `SelectionRasterizer.selection` keeps the list's top-level items of the
+selected nodes (a nested selection is passed as its top-level object), `plan` gives the rendered bounds widened to whole
+pixels, the pixel count, the readout (`1,200 × 800 pixels (0.96 MP)`), `exceeds(downsampleLimit:)` for the warning and
+`isRefused` over 200 MiB, and `rasterize` draws the selection through the bitmap rasterizer's supersampled bands (the
+window's renderer, when passed as `base`, supplying placed images and colour management; raster effects at their own
+resolution), reporting after each band and cancelling when the callback says so, then encodes RGB as PNG, CMYK as TIFF in
+Working CMYK and grayscale as 8-bit gray PNG (drawn in the gray working profile, not through Core Image).  CMYK and grayscale
+results are opaque whatever *Background* says.  `RasterizeObjects` is the one change: the image created directly above the
+topmost selected object in its parent, named "Rasterized _name_", `dpi_x = dpi_y` the resolution, its transform the
+selection's origin in the parent's space, then `SetDeleted` for each original unless *Keep originals*.  The sheet, the
+progress sheet over 16 MP and the blob upload are WTApp's and not built.
+
 === Build tasks
 
 [[IMG-024]]

@@ -426,6 +426,23 @@ lines and adds an extra line; the Features pane is the three generate switches. 
 remote-change dots, the progress sheet for large rescales, the canvas notice for a remote metric
 change, the licence preset, editing and removing extra lines, the colour wells and PANOSE.
 
+NOTE: As built by FONT-007 (`WTSync/FontRescaleReview.swift`, the metric rule in `Divergence.swift`).
+The always-list rule counts a remote write of `FontMetrics` (any field, or the whole `FontProps`) or
+of `document_kind`; names, kerning, classes and features are ordinary registers.  The metric setting
+entry is listed after offline work but holds the outbox only with an overlap: a metric write against
+a locally edited glyph opens the sheet (the glyph is an entry), against no glyph edit it merges
+silently with the toast.  A remote UPM scale is recognized by its label (`Scale to N UPM`, with the
+change group's `[k/n]`, after any prefix); its factor is the merged `upm` over the value before the
+scaler's first write (1000 when unset).  `Divergence.rescaleRows` (`RescaleEntry`) lists every object
+created locally on a glyph canvas meanwhile ("Drawn while the font was rescaled", *Rescale mine*) and
+every glyph object whose `transform` both sides wrote and the local write holds (*Rescale*, beside the
+ordinary same-register entry with *Use mine*); nothing is listed on a replica that also wrote `upm`.
+Both buttons are `RescaleObjects` (one change: `TransformObjects` with the uniform scale about the
+origin), per row or `FontRescaleReview.rescaleAll`.  The simulator scenario is
+`AccountAndPublishScenarioTests.aScaleWhileAnotherDrawsOfflineIsRescaledFromTheReview`.  Deviation:
+the rows are a list of their own on `ReviewModel` rather than a new `ReviewAction` case, so the review
+sheet (WTApp, not built here) looks a row up by node to show the button.
+
 === Build tasks
 
 [[FONT-005]]

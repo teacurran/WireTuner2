@@ -340,6 +340,27 @@ and writes `FontImport.plan`'s commands in one undo group, into the front typefa
 typeface document, and shows the plan's report.  Not built: Fix All Warnings, background progress,
 the sync-state reminder, and the fontbakery checks.
 
+NOTE: As built by FONT-024 (`WTInterchange/Fonts/UFOReader.swift`, `WTModel/UFOImport.swift`).
+`UFOReader.read(at:)` reads UFO 2 and 3: `metainfo.plist`, `fontinfo.plist` (names, version from
+`versionMajor`/`versionMinor`, metrics, OS/2 weight, width, vendor, `openTypeOS2Type` bits, PANOSE,
+bold and italic from `styleMapStyleName`), the default layer (`layercontents.plist`; other layers,
+`images` and `data` are reported), `.glif` files (`move`/`line`/`curve`/`qcurve`/`offcurve` points,
+quadratics elevated exactly, implied on-curve points, all-off-curve TrueType loops; components with
+their six numbers; UFO 3 anchors and UFO 2 single-point named contours; unicodes; advance; the lib's
+`public.markColor` mapped to the nearest of the grid's twelve colors; images and guidelines
+reported), `groups.plist` and `kerning.plist` (UFO 3 `public.kern1.`/`public.kern2.` groups, in UFO 2
+any group on its side; group pairs become class cells, a glyph against a group becomes pairs with
+each member -- the UFO precedence --, glyph pairs win; unused UFO 3 kerning groups are kept as
+classes), `features.fea`, the glyph order (`public.glyphOrder`, the rest by name, `.notdef` first)
+and the rest of `lib.plist` as a binary plist.  The result is an `ImportedFont` plus anchors, mark
+colors, features and the lib.  `UFOImport.plan` extends `FontImport.plan` (collisions, report,
+batches) with changes adding the anchors (y negated), the Mark kind for a glyph whose anchors are all
+`_` anchors and the mark colors, and for a new document the feature text; every change is labelled
+"Import <file> [i/n]".  Deviations: `settings.ufo_lib_passthrough` is not in the schema (proto work),
+so the lib is read but not kept, and the report says so; the feature file is added only when opening
+(importing into an existing typeface reports it instead).  Not built: the Open and *Import UFO into
+Typeface…* menu glue and the report sheet (WTApp), UFO export (FONT-023).
+
 === Build tasks
 
 [[FONT-018]]

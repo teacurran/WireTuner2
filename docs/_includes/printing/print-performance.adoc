@@ -127,6 +127,18 @@ each band placed as one image, the marks and labels drawn afterwards as vectors;
 the screener, and a cancelled sheet throws `CancellationError`.  The progress sheet, the snapshot hand-off and the print-time
 raster effect resolution remain PRINT-013's.
 
+NOTE: As built by PRINT-013 (package half; `WTInterchange/Print/PrintRun.swift`, `PrintSheetRenderer.swift`).  `PrintRun`
+draws a job from its `PrintPlan` -- the snapshot -- sheet by sheet (`draw(sheet:into:)` for the print view, `pdf()` /
+`pdfInBackground()` for a whole job off the caller's actor), reporting `PrintProgress` (`Drawing sheet 3 of 8, Page 1,
+Magenta`, a fraction for the bar) before each sheet.  `cancel()` sets the flag the renderer polls between bands and
+screener tiles, refuses every further sheet with `CancellationError` and drops the plan at once; the last sheet drawn drops
+it too.  Sheets render raster effects at each object's own resolution, synchronously, whatever the window's *Raster effect
+preview* (`PrintSheetRenderer.renderer(for:)` sets `rasterPreview = .document`, no progressive callback) -- the print-time
+resolution hook.  `rasterBandBytes` bounds a rasterized sheet's own bitmap (216 MB for a tabloid sheet at 1200 dpi); the
+print or PDF context still holds each placed band until the page ends, so the 512 MiB peak for that sheet is not
+verified.  Remaining (WTApp): the progress sheet on the document window, `canSpawnSeparateThread` with the view drawing from
+`PrintRun`, and the 200-sheet UI test.
+
 === Build tasks
 
 [[PRINT-013]]

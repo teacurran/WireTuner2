@@ -71,7 +71,7 @@ final class EPSBuild {
 
     init(options: EPSOptions, cmyk: any CMYKConverter, scene: ExportScene) {
         self.options = options
-        self.cmyk = cmyk
+        self.cmyk = cmyk.resolved(for: scene)
         self.scene = scene
         fonts = PSFontRegistry(mode: options.fonts)
     }
