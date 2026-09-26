@@ -84,6 +84,19 @@ Nothing beyond storing and relaying changes.
 * Degenerate steps (empty offset result) are skipped; if every step is empty the command
   does nothing and the sheet reports it.
 
+NOTE: As built by OBJ-030 (`WTModel/PathOperationCommands.swift`, `InsetPathCommand`; the sheet
+`WTApp/Objects/PathOperationSheets.swift`).  `InsetPathCommand(nodes, steps:, spacing:, distance:, join:, miterLimit:,
+keepOriginal:)` takes unlocked closed paths, rectangles, ellipses and polygons.  Each input's filled region in pasteboard
+space goes through `Offset.insetSteps` (the spacing curves are GEO-003's `InsetSpacing`); collapsed steps are skipped.  One
+step makes one path at the input's slot; more make a group there with one path per step, outermost first -- for a negative
+distance the last step is the outermost, so the order is reversed.  Each path carries a copy of the input's stack (`Even/odd
+fill` off: results are normalized regions).  An input whose every step collapses is left alone and kept; the others are
+deleted unless kept.  One change "Inset Path".  The sheet: *Steps* (1--100), *Spacing* (disabled for one step), *Inset* by
+slider (±100) or a field in the document's unit, *Join*, *Miter limit*; the steps and inset are remembered on this Mac
+(`tools.inset.steps`, `tools.inset.distance`).  When every step of every path would collapse the sheet says "The inset is
+larger than the path: nothing would be left." and btn:[OK] is disabled.  The keep-original rule and title follow Expand
+Stroke's.  Tests: `PathOperationCommandsTests`, `PathOperationSheetsTests`.
+
 === Build tasks
 
 [[OBJ-030]]

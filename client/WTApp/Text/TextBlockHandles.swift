@@ -53,19 +53,31 @@ struct TextBlockFrame {
     let transform: WTGeometry.AffineTransform
     let overflows: Bool
 
-    /// The frame of text block `node`, nil for anything else (text on a path has no handles).
+    /// The frame of text block `node`, nil for anything else (text on a path has no handles).  In
+    /// a linked flow the block's size is its container's in the chain's layout, and only the last
+    /// block overflows -- or a block whose link was cut to break a loop, which shows the dot so
+    /// the change is seen (TYPE-007).
     init?(_ node: OpID, document: DocumentHandle) {
         let state = document.state
-        guard let text = state.textNode(node), TextLayoutReading.path(of: text, in: state) == nil, let layout = document.textLayout(for: node) else { return nil }
+        guard let text = state.textNode(node), TextLayoutReading.path(of: text, in: state) == nil else { return nil }
+        if let (layout, chain) = document.chainLayout(for: node), let index = chain.firstIndex(of: node) {
+            let size = layout.sizes[index]
+            local = Rect(x: 0, y: 0, width: max(size.width, 1), height: max(size.height, 1))
+            overflows = index == chain.count - 1 && (layout.overflows || TextChains.isCut(node, in: state))
+        } else {
+            guard let layout = document.textLayout(for: node) else { return nil }
+            local = TextFrames.frame(of: layout)
+            overflows = layout.overflows || TextChains.isCut(node, in: state)
+        }
         self.node = node
         self.text = text
-        local = TextFrames.frame(of: layout)
         transform = Objects.pasteboardTransform(of: node, in: state)
-        overflows = layout.overflows
+        isLinked = TextChains.next(node, in: state) != nil
     }
 
     var block: Wiretuner_Doc_V1_TextBlockProps { text.props.block }
-    var isLinked: Bool { text.props.hasNextLink }
+    /// Whether the block's text flows on into another (the link box's arrow).
+    let isLinked: Bool
 
     /// A handle's point, block space.
     func localPoint(_ handle: Handle) -> Point {
@@ -220,6 +232,8 @@ final class TextBlockHandles: CanvasHandleLayer {
     private(set) var dragging: (frame: TextBlockFrame, corner: TextBlockFrame.Handle)?
     /// The drag's current result (the overlay's preview).
     private(set) var preview: TextBlockResize.Result?
+    /// A drag from a link box (TYPE-007).
+    let linking = TextLinkDrag()
 
     init() {}
 
@@ -244,7 +258,11 @@ final class TextBlockHandles: CanvasHandleLayer {
             guard let hit = Self.hit(frame, at: e.viewPoint, viewport: context.viewport) else { continue }
             switch hit {
             case .linkBox:
-                if e.clickCount == 2, let command = TextBlockResize.fit(frame, document: context.document) { context.commandSink.perform(command) }
+                if e.clickCount == 2 {
+                    if let command = TextBlockResize.fit(frame, document: context.document) { context.commandSink.perform(command) }
+                } else {
+                    linking.begin(frame, at: e)
+                }
             case .handle(let handle) where handle.isCorner:
                 dragging = (frame, handle)
                 preview = nil
@@ -258,6 +276,7 @@ final class TextBlockHandles: CanvasHandleLayer {
     }
 
     func drag(_ e: CanvasEvent, context: ToolContext) {
+        linking.move(e, context: context)
         guard let dragging else { return }
         preview = TextBlockResize.result(dragging.frame, corner: dragging.corner, to: e.pasteboardPoint,
                                          shift: e.modifiers.contains(.shift), option: e.modifiers.contains(.option))
@@ -265,6 +284,7 @@ final class TextBlockHandles: CanvasHandleLayer {
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
+        linking.end(e, context: context)
         defer {
             dragging = nil
             preview = nil
@@ -277,6 +297,7 @@ final class TextBlockHandles: CanvasHandleLayer {
     func cancel(context: ToolContext) {
         dragging = nil
         preview = nil
+        linking.cancel()
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
@@ -300,6 +321,7 @@ final class TextBlockHandles: CanvasHandleLayer {
             }
             drawLinkBox(frame, in: ctx, viewport: viewport)
         }
+        linking.draw(frames(context), in: ctx, viewport: viewport, document: context.document)
         if let dragging, let preview {
             let corners = [Point(x: 0, y: 0), Point(x: preview.width, y: 0), Point(x: preview.width, y: preview.height), Point(x: 0, y: preview.height)]
             let origin = Point(x: dragging.frame.local.minX + preview.origin.x, y: dragging.frame.local.minY + preview.origin.y)

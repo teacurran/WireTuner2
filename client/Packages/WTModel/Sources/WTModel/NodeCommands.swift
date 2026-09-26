@@ -118,9 +118,14 @@ public struct DeleteNodes: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         let order = LayerOrder(state)
+        var deleted: [OpID] = []
         for node in nodes where state.isLive(node) && state.store.isCreated(node) && !Objects.isEffectivelyLocked(node, in: state, layers: order) {
             builder.append(Ops.setDeleted(node))
+            deleted.append(node)
         }
+        // Deleting a block in the middle of a linked chain closes the gap (TYPE-007).
+        let texts = Set(deleted.flatMap { TextChains.textNodes(at: $0, in: state) })
+        for op in TextChains.splice(deleting: texts, in: state) { builder.append(op) }
     }
 }
 

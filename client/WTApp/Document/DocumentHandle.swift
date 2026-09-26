@@ -100,6 +100,8 @@ final class DocumentHandle: Identifiable, CommandSink {
     private(set) var textEngine = TextLayoutEngine(fonts: .shared)
     /// Each text node's layout as of `changeCount` (the Text tool's carets, remote carets).
     private var textLayouts: [OpID: (count: Int, layout: TextLayout)] = [:]
+    /// Each linked flow's layout as of `changeCount`, by member (TYPE-007).
+    private var chainLayouts: [OpID: (count: Int, value: (layout: TextLayout, chain: [OpID])?)] = [:]
     private var opening: Task<Void, Never>?
     /// The last command, undo or redo issued: `settle` waits for it.
     private var inflight: Task<Void, Never>?
@@ -303,6 +305,7 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// resolve differently (`DocumentFontIndex.fontsChanged`, DOC-024).
     func relayout(_ nodes: Set<OpID>) {
         for node in nodes { textLayouts[node] = nil }
+        chainLayouts = [:]
         let before = builder.scene.displayList
         let (scene, summary) = builder.invalidate(nodes, state: state)
         invalidation.submit(summary, before: [before], after: [scene.displayList])
@@ -338,6 +341,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         guard engine !== textEngine else { return }
         textEngine = engine
         textLayouts = [:]
+        chainLayouts = [:]
         builder.textLayout = TextSceneLayout(engine: engine)
         let text = Set(state.store.nodes.filter { state.nodeKind($0) == .text })
         if !text.isEmpty { relayout(text) }
@@ -369,6 +373,16 @@ final class DocumentHandle: Identifiable, CommandSink {
         let layout = TextLayoutReading.layout(text, engine: textEngine, colors: ColorResolver(state), state: onPath ? state : nil)
         textLayouts[node] = (changeCount, layout)
         return layout
+    }
+
+    /// The linked flow text node `node` is in, laid out as the canvas draws it
+    /// (`TextLayoutReading.chainLayout`: the head's text through every member's container, each
+    /// in its member's own space), with the chain; nil for a block in no chain.
+    func chainLayout(for node: OpID) -> (layout: TextLayout, chain: [OpID])? {
+        if let cached = chainLayouts[node], cached.count == changeCount { return cached.value }
+        let value = TextLayoutReading.chainLayout(node, engine: textEngine, colors: ColorResolver(state), state: state)
+        for member in value?.chain ?? [node] { chainLayouts[member] = (changeCount, value) }
+        return value
     }
 
     /// The background items: `canvasBackground`'s, else the page furniture.

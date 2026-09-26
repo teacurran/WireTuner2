@@ -6,7 +6,8 @@ import WTModel
 /// panel's text-on-path commands (TYPE-017 for TYPE-041), menu:View[Perspective Grid] with the grid
 /// overlay, the Define Grids sheet and the Perspective tool (FX-043, FX-044), menu:View[Show Links]
 /// (WEB-004), the path clean-ups (Simplify, Correct Direction, Fractalize; DRAW-030, FX-031) and
-/// the Inspect panel's snippets (COLLAB-036).
+/// the Inspect panel's snippets (COLLAB-036), and Transparency, Expand Stroke and Inset Path with
+/// their sheets (OBJ-026, OBJ-029, OBJ-030).
 @MainActor
 final class ModelGlueFeatures {
     let preferences: PreferenceStore
@@ -14,6 +15,7 @@ final class ModelGlueFeatures {
     private(set) var perspective: PerspectiveFeatures?
     private(set) var links: LinkOverlayFeatures?
     private(set) var pathAlter: PathAlterFeatures?
+    private(set) var pathOperations: PathOperationFeatures?
     let inspect = InspectPanelModel()
 
     init(preferences: PreferenceStore) {
@@ -36,6 +38,9 @@ final class ModelGlueFeatures {
         let pathAlter = PathAlterFeatures(target: target, store: preferences)
         pathAlter.install(commands: commands, extensions: extensions)
         self.pathAlter = pathAlter
+        let pathOperations = PathOperationFeatures(target: target, store: preferences)
+        pathOperations.install(commands: commands, extensions: extensions)
+        self.pathOperations = pathOperations
         inspect.window = window
         panels.groupDefaults[InspectPanel.group] = panels.groupDefaults[InspectPanel.group] ?? PanelGroupDefaults(position: 12, isOpen: false)
         panels.registerIfAbsent(InspectPanel.descriptor(model: inspect))

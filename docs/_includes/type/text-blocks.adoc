@@ -298,6 +298,37 @@ with no characters that are in no linked chain and not open in a Text Editor, on
 auto-expanding block that leaves the window's selection is deleted (not the Text tool's or a Text
 Editor's); deviation: that delete is an undo step of its own ("Delete").
 
+NOTE: As built by TYPE-007 (`WTModel/TextChains.swift`, `TextLayoutReading.chainLayout`; the canvas half
+`WTApp/Text/TextLinks.swift` with `TextBlockHandles`).  Reading (`TextChains`): a link X → Y holds when X's `next_link` names
+a live text node Y other than X *and* Y's `prev_link` names X back.  This makes the two read-time rules one: a `next_link` whose
+target's `prev_link` names someone else reads unset, as a `prev_link` without a reciprocal `next_link` does, so every block
+has at most one link in and one out; cycles are then cut at their smallest member (`TextChains.isCut`).  `chain(of:)`,
+`head(of:)`, `next`, `previous` and `isDormant` read it.  Layout: `TextLayoutReading.chainLayout` lays the head's text (styles,
+inline graphics and colours resolved) through every member's container in chain order -- blocks or text inside a path, each
+with its own inset, columns, appearance, wrapping and transform -- and the scene draws each member as its container of that
+flow (`TextLayoutReading.item`); a member's own text is dormant.  A member's drawing reads every member of its chain and the
+blocks its own link registers name (`TextLayoutReading.sources`), so a merge that settles a link race redraws the loser.
+`DocumentHandle.chainLayout(for:)` caches the flow per change.  Commands: `LinkTextBlocks(from:to:)` ("Link text blocks")
+writes both registers and clears the `prev_link` of the block `from` linked to before and the `next_link` of the block that
+linked to `to` before; the target must be an empty text block (not upstream of `from`: `TextLinkError.loop`) or a path not
+already holding text, which gets a new text node at its slot flowing inside it (`on_path` mode inside) with the path moved
+under it.  `UnlinkTextBlocks` ("Unlink text blocks") clears both registers.  `DeleteNodes` (and so menu:Edit[Clear]) splices
+every run of deleted members -- directly or inside a deleted group -- linking the surviving block before the run to the one
+after it (or clearing its link); a deleted head needs no write, its successor's `prev_link` reads unset.  Canvas: a press on a
+selected block's link box followed by a drag of 3 view points or more links onto the empty block whose frame holds the
+pointer, else onto the path under it; released over an empty spot a linked block unlinks; onto anything else the status bar
+says "Link to an empty text block or a path".  The link lines run from each linked block's link box to the next block's
+top-left corner (a path's first point for text inside a path) while a member is selected.  A member's handles use its
+container's laid-out size; only the chain's last block shows the overflow dot, and so does a block whose link was cut.
+Deviations: the delete-and-splice change keeps menu:Edit[Clear]'s label ("Delete 1 object"), not "Delete text block"; a
+fixed-size start is not enforced; text inside a path has no link box, so it links onward only through the command.  Not built:
+the Text tool and the Text Editor edit the node they open on, so typing into a non-head member edits its dormant text rather
+than the flow -- editing the story from any block of the chain is left for a follow-up.  Tests: `TextChainsTests` (the
+normalizations, link, relink, unlink, the path container, delete-and-splice, a three-block chain across two pages reflowing
+when the first block's font grows, the link race and the opposing links from two replicas), `TextLinksTests`; the
+conformance vectors for `next_link`/`prev_link` written in one change are TYPE-004's (`vectors/type/link-race`, `link-loop`,
+`link-delete-middle-vs-link`).
+
 === Build tasks
 
 [[TYPE-005]]

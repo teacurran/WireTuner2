@@ -31,7 +31,7 @@ current stroke width.
 |===
 . Click btn:[OK].
 
-The result is a closed path with the original's fill color as its fill and no stroke,
+The result is a closed path filled with the color the stroke had, and no stroke,
 replacing the original -- unless *Path operations consume original paths* is off, or you
 hold kbd:[Shift] while choosing the command, in which case the original stays underneath
 (xref:combining-paths.adoc[Combining paths]).
@@ -80,6 +80,20 @@ Nothing beyond storing and relaying changes.
   `WTGeometry.Offset.strokeOutline` (GEO-003).  Dashed strokes are expanded as their dashes.
 * The sheet is an `NSAlert`-style sheet on the document window with a slider (0.1--500 pt)
   and the three stroke controls shared with the stroke inspector.
+
+NOTE: As built by OBJ-029 (`WTModel/PathOperationCommands.swift`, `ExpandStrokeCommand`; the sheet
+`WTApp/Objects/PathOperationSheets.swift`).  `ExpandStrokeCommand(nodes, width:, cap:, join:, miterLimit:, keepOriginal:)`
+takes unlocked paths, rectangles, ellipses and polygons, open or closed.  Each input's renderable contours are stroked by
+`Offset.strokeOutline` in the input's own space -- where its stroke is drawn, so a scaled object's outline matches its
+rendered stroke -- with the input's own dash, then carried to pasteboard space; the result is created at the input's slot
+with the identity transform, one Basic fill of the colour of the input's topmost visible stroke (any stroke kind's colour;
+black when it has none) and no stroke; the input is deleted unless kept.  One change "Expand Stroke" for the whole selection.
+The sheet starts from the frontmost input's stroke (`ExpandStrokeCommand.style`): *Width* by slider or a field in the
+document's unit (0.1--500 pt), *Cap* and *Join* as segmented controls, *Miter limit* (at least 1).  The item reads "Expand
+Stroke (keep original)…" when this use keeps the original (*Path operations consume original paths* inverted by kbd:[Shift]
+when the item is chosen); the results are selected.  Deviations: arrowheads are not expanded; the sheet is a SwiftUI sheet
+with its own cap, join and miter controls rather than the stroke inspector's.  Tests: `PathOperationCommandsTests` (every
+cap and join against the rendered stroke), `PathOperationSheetsTests`.
 
 === Build tasks
 

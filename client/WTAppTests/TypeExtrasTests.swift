@@ -138,7 +138,7 @@ import WTText
         #expect(handles.press(CanvasEvent(pasteboardPoint: world.window.viewport.toPasteboard(again), viewPoint: again), context: context), "a single click is taken")
         // A linked block draws the arrow; text on a path has no handles.
         let other = try #require(await world.document.addText("", at: Point(x: 400, y: 400)))
-        _ = await world.document.perform(OpsCommand("Link", ops: [Ops.set(node, [RegisterPath([130, 4])], values: .with { $0.text.nextLink.id = other.proto })])).value
+        _ = await world.document.perform(LinkTextBlocks(from: node, to: other)).value
         await world.settle()
         let linked = try #require(TextBlockFrame(node, document: world.document))
         handles.drawLinkBox(linked, in: DrawingToolTests.bitmap(), viewport: world.window.viewport)

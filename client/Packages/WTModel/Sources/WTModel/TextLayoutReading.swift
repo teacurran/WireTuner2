@@ -13,8 +13,9 @@ import WTText
 /// (`block_appearance`, TYPE-029).  With a context, text styles resolve (TYPE-034: defaults,
 /// paragraph style, the paragraph's registers, character style, marks) and small capitals take
 /// the document's *Small caps size* (TYPE-015).  With the state, text on a path (`on_path` set and
-/// a live `path` child) is laid out along or inside that path (`pathText`, TYPE-041); linked flows
-/// (TYPE-007) are laid out as ordinary blocks.
+/// a live `path` child) is laid out along or inside that path (`pathText`, TYPE-041); a linked flow
+/// (TYPE-007) is its head's text laid out through every member's container in chain order
+/// (`chainLayout`), each member drawing its own container.
 public enum TextLayoutReading {
     /// The content of `text`, colours resolved through `colors`; with `context`, styles resolved,
     /// small capitals sized and inline graphics drawn (a node referred to twice is drawn at the
@@ -141,10 +142,35 @@ public enum TextLayoutReading {
 
     /// The nodes the drawing of text node `node` reads besides itself (for the scene's dependency
     /// index): the text style nodes, the settings node (defaults, *Small caps size*) and its
-    /// inline graphic children.
+    /// inline graphic children; in a linked flow every member of its chain with their children and
+    /// wrapping objects, and the blocks its own link registers name (a merge that settles a link
+    /// race may touch only them).
     public static func sources(_ node: OpID, in state: EngineState) -> [OpID] {
         let styles = state.store.children(TextStyleFields.collection).filter { state.store.kind($0) == TextStyleFields.kind }
-        return styles + [WellKnown.settings] + state.store.children(node) + TextWrapping.wrappingObjects(for: node, in: state)
+        let chain = state.nodeKind(node) == .text ? TextChains.chain(of: node, in: state) : [node]
+        let links = [TextChains.storedNext(node, in: state), TextChains.storedPrevious(node, in: state)].compactMap { $0 }
+        let members = chain.flatMap { member in
+            (member == node ? [] : [member]) + state.store.children(member) + TextWrapping.wrappingObjects(for: member, in: state)
+        }
+        return styles + [WellKnown.settings] + members + links
+    }
+
+    /// The linked flow `node` is in, laid out (text-blocks.adoc, "Layout across a chain"): the
+    /// head's text -- styles, inline graphics and colours resolved as the scene draws them --
+    /// through each member's container in chain order (block or path, with its own inset, columns,
+    /// appearance and wrapping); with the chain, whose index is each member's container.  Nil for a
+    /// block in no chain.
+    @MainActor
+    public static func chainLayout(_ node: OpID, engine: TextLayoutEngine, colors: ColorResolver? = nil, state: EngineState) -> (layout: TextLayout, chain: [OpID])? {
+        guard state.nodeKind(node) == .text else { return nil }
+        let chain = TextChains.chain(of: node, in: state)
+        guard chain.count > 1 else { return nil }
+        let texts = chain.compactMap { TextNode($0, in: state) }
+        let containers = texts.map { text in
+            TextWrapping.wrapped(container(text, appearance: TextBlockAppearance.appearance(text.id, in: state), state: state), text: text.id, in: state)
+        }
+        let content = content(texts[0], colors: colors ?? ColorResolver.current ?? ColorResolver(state), context: TextReadingContext(texts[0].id, in: state))
+        return (engine.layout(content, in: containers), chain)
     }
 
     /// The display item drawing text node `node` of `state`: a group of the laid-out block's items
@@ -154,6 +180,12 @@ public enum TextLayoutReading {
     @MainActor
     public static func item(_ node: OpID, in state: EngineState, engine: TextLayoutEngine) -> DisplayItem? {
         guard let text = TextNode(node, in: state) else { return nil }
+        if let (layout, chain) = chainLayout(node, engine: engine, state: state), let index = chain.firstIndex(of: node) {
+            // A member draws its container of the head's flow; its own text is dormant.
+            let path = pathDrawing(text, in: state)
+            let items = path.below + layout.displayItems(forContainer: index) + path.above
+            return items.isEmpty ? nil : .group(GroupItem(children: items))
+        }
         return item(text, in: state, engine: engine)
     }
 

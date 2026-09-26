@@ -220,6 +220,21 @@ operations consume original paths* inverted by kbd:[Shift] decides whether the o
 "Union (keep originals)".  Disabled with "Select two or more closed paths" (Divide: "Select two or more paths").  The results are
 selected.
 
+NOTE: As built by OBJ-026 (`WTModel/PathOperationCommands.swift`, `TransparencyCommand`; the sheet
+`WTApp/Objects/PathOperationSheets.swift`).  menu:Modify[Combine > Transparency…] and the Path Operations toolbar's
+*Transparency…* are enabled for exactly two unlocked closed paths, rectangles, ellipses or polygons that both have a visible
+fill ("Select two filled closed paths").  The sheet's percentage (0--100, remembered on this Mac as
+`tools.transparency.percent`) is how far the mix goes from the back path's colour to the front one's -- 0 shows only the
+back colour, 100 only the front -- with a swatch of the result; when the paths do not overlap it says so and btn:[OK] is
+disabled.  btn:[OK] writes one change "Transparency": a path of the overlap (`Boolean.transparency` in pasteboard space) just
+above the frontmost input, under its parent, with the identity transform, one Basic fill of the mixed colour and no stroke;
+the inputs are always kept and the result is selected.  The colour a fill stands for is its topmost visible fill's
+(`PathOperationPaint.averageColor`): a gradient's live ramp averaged along 0--1 (flat past its end stops), a Custom fill's two
+colours averaged, a Lens, Pattern or Textured fill's colour, and white for a Tiled fill, which has none.  Deviation: "the
+document's working space" is read as the colours' own space when both share one and neither is a spot ink, else Display P3
+(the window working space's default); the working space is a window setting, not a document register.  Tests:
+`PathOperationCommandsTests`, `PathOperationSheetsTests`.
+
 === Build tasks
 
 [[OBJ-024]]
