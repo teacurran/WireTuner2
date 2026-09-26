@@ -9,12 +9,13 @@ import WTModel
 /// `Inbox/<uuid>/` and opens `wiretuner-share://inbox/<uuid>?app=<name>[&option=1]`; the app
 /// drains that folder into the frontmost document at the centre of the view, stacked by the
 /// *Keep both offset*, one change per item labelled "Add from <app>" -- or, with no document open
-/// or kbd:[Option] held, into a new document -- then deletes the folder.  Folders a crash left
-/// behind are removed at launch.
+/// or kbd:[Option] held, into the document chosen in the Library's picker (or a new one) -- then
+/// deletes the folder.  Folders a crash left behind are removed at launch.  The scheme, the group
+/// and the URL are `ShareHandoff`'s, shared with the extension.
 @MainActor
 final class ShareInbox {
-    static let scheme = "wiretuner-share"
-    static let appGroup = "group.com.villagecompute.wiretuner"
+    static let scheme = ShareHandoff.scheme
+    static let appGroup = ShareHandoff.appGroup
     /// How old an inbox folder must be to count as left behind.
     static let staleAge: TimeInterval = 24 * 3600
 
@@ -26,6 +27,9 @@ final class ShareInbox {
     var place: @MainActor ([URL], DocumentWindowController, String) async -> Int = { _, _, _ in 0 }
     /// Opens a new document (the chooser's *New Document*) and returns its window.
     var newDocument: @MainActor () -> DocumentWindowController? = { nil }
+    /// The chooser (the Library's picker) for items shared from the named app: the window of the
+    /// document chosen, nil when cancelled.  Without one, a new document is opened.
+    var choose: (@MainActor (String) async -> DocumentWindowController?)?
     var now: @MainActor () -> Date = { Date() }
 
     init(root: URL = ShareInbox.defaultRoot) {
@@ -33,22 +37,13 @@ final class ShareInbox {
     }
 
     static var defaultRoot: URL {
-        if let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) {
-            return group.appending(path: "Inbox")
-        }
-        return URL.applicationSupportDirectory.appending(path: "WireTuner").appending(path: "Inbox")
+        ShareHandoff.inboxRoot() ?? URL.applicationSupportDirectory.appending(path: "WireTuner").appending(path: "Inbox")
     }
 
     /// A hand-off URL's inbox id, source app and whether kbd:[Option] was held; nil for any
     /// other URL.
     static func parse(_ url: URL) -> (id: String, app: String, option: Bool)? {
-        guard url.scheme == scheme, url.host() == "inbox" else { return nil }
-        let id = url.lastPathComponent
-        guard !id.isEmpty, id != "/", UUID(uuidString: id) != nil else { return nil }
-        let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        let app = query.first { $0.name == "app" }?.value ?? "another app"
-        let option = query.first { $0.name == "option" }?.value == "1"
-        return (id, app, option)
+        ShareHandoff.parse(url)
     }
 
     /// Whether `url` is a share hand-off (the app then drains it).
@@ -68,7 +63,15 @@ final class ShareInbox {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
         defer { try? FileManager.default.removeItem(at: folder) }
         guard !files.isEmpty else { return 0 }
-        let target = option ? newDocument() : (window() ?? newDocument())
+        let front = option ? nil : window()
+        let target: DocumentWindowController?
+        if let front {
+            target = front
+        } else if let choose {
+            target = await choose(app)
+        } else {
+            target = newDocument()
+        }
         guard let target else { return 0 }
         return await place(files, target, app)
     }
@@ -80,6 +83,21 @@ final class ShareInbox {
         for folder in folders {
             let modified = (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
             if modified < limit { try? FileManager.default.removeItem(at: folder) }
+        }
+    }
+
+    /// The app's chooser: the Library's picker; the chosen document opens (or comes forward)
+    /// and its window is returned.
+    static func choose(from app: String, library: LibraryModel, documents: DocumentController, newDocument: @MainActor () -> DocumentWindowController?,
+                       picker: @MainActor (String, LibraryModel) async -> LibraryPickerModel.Choice = { await LibraryPicker.choose(prompt: $0, library: $1) }) async -> DocumentWindowController? {
+        switch await picker("Add the items from \(app) to", library) {
+        case .document(let document):
+            library.open([document])
+            return documents.windowControllers[document.id]
+        case .newDocument:
+            return newDocument()
+        case .cancel:
+            return nil
         }
     }
 

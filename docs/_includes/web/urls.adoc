@@ -302,7 +302,8 @@ come from `ExportScene.textLinks`, which the app fills after `capture` with
 `ExportSnapshot.textLinks(_:engine:)` (text layout is main-actor state).  The PDF writer writes the
 completed URI, `/Contents` from the link's alt text, and one annotation per line of a text-range
 link.  `WebLinks.warnings` lists invalid links for the exporters' summaries and the publisher.  The
-wrapped element's own `<title>` from the object's alt text is IO-031's, not written here.
+wrapped element's own `<title>` from the object's alt text is IO-031's (export-vector.adoc, its
+note), written inside the `<a>` after the link's.
 
 NOTE: As built by WEB-002 (`WTApp/Web/NavigationPanel.swift`, `WebFeatures.swift`).  menu:Window[Navigation]
 replaces the placeholder panel.  Each window keeps a `LinkIndex`, built from the state when the

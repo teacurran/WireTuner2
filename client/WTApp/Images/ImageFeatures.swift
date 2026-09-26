@@ -346,7 +346,12 @@ extension AppDelegate {
         images.inbox.window = { documents.activeWindowController }
         images.inbox.place = { urls, window, app in await ShareInbox.place(urls, on: window, from: app, imports: imports) }
         let library = library
-        images.inbox.newDocument = { documents.open(documents.environment.makeDocument(id: library.createDocument(name: "Shared Items").id, title: "Shared Items")) }
-        images.inbox.removeStale()
+        let newDocument: @MainActor () -> DocumentWindowController? = {
+            documents.open(documents.environment.makeDocument(id: library.createDocument(name: "Shared Items").id, title: "Shared Items"))
+        }
+        images.inbox.newDocument = newDocument
+        images.inbox.choose = { app in await ShareInbox.choose(from: app, library: library, documents: documents, newDocument: newDocument) }
+        // Tests keep off the real group container (reading it unsigned would ask for access).
+        if !launchEnvironment.isTesting { images.inbox.removeStale() }
     }
 }

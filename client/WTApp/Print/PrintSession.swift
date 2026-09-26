@@ -42,11 +42,12 @@ final class PrintSession {
     }
 
     init(document: DocumentHandle, info: NSPrintInfo, selection: Set<NodeID>?, imageStore: ImageStore?, blobs: BlobPlacement,
-         perform: @escaping @MainActor (any WTModel.Command) -> Void) {
+         fonts: PrintFontChecker? = nil, perform: @escaping @MainActor (any WTModel.Command) -> Void) {
         self.document = document
         self.info = info
         self.blobs = blobs
         let pane = PrintPaneModel(document: document, selection: selection, perform: perform)
+        pane.fontChecker = fonts
         self.pane = pane
         let paper = PrintJob.paper(info)
         self.paper = paper

@@ -18,7 +18,7 @@ public struct PrintSheetRenderer: Sendable {
     /// always draw in Preview.
     public var base: CoreGraphicsRenderer
     /// *Print text as outlines* (PRINT-014): the list with every glyph run converted to paths.
-    /// Nil prints text as text.
+    /// Nil uses `PrintTextOutlines.outline`.
     public var textOutliner: (@Sendable (DisplayList) -> DisplayList)?
     /// Polled between bands of screened and rasterized sheets.
     public var isCancelled: @Sendable () -> Bool
@@ -103,8 +103,8 @@ public struct PrintSheetRenderer: Sendable {
 
     /// The page's list as printed: text outlined when asked.
     func list(_ page: ExportPage, options: PrintOptions) -> DisplayList {
-        guard options.textAsOutlines, let textOutliner else { return page.displayList }
-        return textOutliner(page.displayList)
+        guard options.textAsOutlines else { return page.displayList }
+        return (textOutliner ?? PrintTextOutlines.outline)(page.displayList)
     }
 
     func drawArtwork(_ sheet: OutputSheet, of plan: PrintPlan, into context: CGContext) throws {

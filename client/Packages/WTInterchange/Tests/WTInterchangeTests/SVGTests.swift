@@ -64,7 +64,8 @@ final class XMLTreeParser: NSObject, XMLParserDelegate {
 }
 
 enum SVGValidator {
-    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space", "xml:lang"]
+    /// Core attributes, and the ARIA attributes SVG 2 allows on every rendered element (IO-031).
+    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space", "xml:lang", "role", "aria-labelledby", "aria-describedby", "aria-hidden"]
     static let presentation: Set<String> = [
         "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
         "stroke-dasharray", "stroke-dashoffset", "stroke-opacity", "opacity", "clip-path", "clip-rule", "mask", "filter",
@@ -80,7 +81,7 @@ enum SVGValidator {
         "dc:title": [], "dc:creator": [], "dc:description": [], "dc:subject": [], "dc:language": [],
         "path": ["d"], "rect": ["x", "y", "width", "height"], "text": ["x", "y"],
         "image": ["x", "y", "width", "height", "preserveAspectRatio", "xlink:href"],
-        "a": ["xlink:href", "target"], "title": [],
+        "a": ["xlink:href", "target"], "title": [], "desc": [],
         "linearGradient": ["gradientUnits", "x1", "y1", "x2", "y2", "gradientTransform"],
         "radialGradient": ["gradientUnits", "cx", "cy", "r", "gradientTransform"],
         "stop": ["offset"], "clipPath": ["clipPathUnits"], "mask": ["maskUnits", "x", "y", "width", "height"],

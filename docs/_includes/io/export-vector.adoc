@@ -417,6 +417,26 @@ browser harness and IMG's SVG importer.  *For IO-031*: flat nodes keep their `No
 `SVGBuild.assignNodeIDs` reserves every name id before any generated id (`wt-g1`, `st1`…), so
 `aria-labelledby` ids can be generated the same way without colliding.
 
+NOTE: As built by IO-031 (`WTInterchange/SVG/SVGAccessibility.swift`, `SVGWriter.swift`).  The writer reads
+`ExportNodeInfo.alt` and `decorative` per flat node.  A described node's element gets `role="img"`, a `<title>`
+(the first non-blank line) as its first child and a `<desc>` (the other non-blank lines, line breaks written as
+`&#10;` so re-indentation cannot add spaces to them) after it; its ids are generated as `wt-title-N` and
+`wt-desc-N` after every name id is reserved, so they never collide with *From object names* ids.  Deviations:
+*labels* -- `aria-labelledby` names the `<title>` and `aria-describedby` the `<desc>`, because a `<desc>` in
+`aria-labelledby` is read twice (as part of the name and again as the description); *root role* -- the root is
+`role="img"` only when nothing on the page is a figure, and `role="group"` when something is, because an `img`
+root makes its children presentational and the figures inside would not be read; *trigger* -- the markup is
+written when any object of the document (not only of the page) has alt text or is decorative, and then the root
+also gets `xml:lang` without *Include document info*; the root's title is Document Info's title, else the file
+name, its description Document Info's.  A decorative group hides its members with it, and a described group's
+members carry nothing (neither title nor `aria-hidden`).  Text: live `<text>` gets nothing unless it has alt
+text of its own, in which case it is wrapped in a figure `<g>` (a `<title>` inside `<text xml:space="preserve">`
+would be read as character data); text the flattener or the writer outlines is a figure titled with its
+characters (`FlatPath.readAs`), and a group holding only outlined runs of one text block is one such figure.
+Rasterized items are `<image>` elements tagged with their node, so an image, a rendered pattern or a rendered
+effect carries its object's figure; an item rendered into a group with other pieces carries it on the group.
+The VoiceOver-in-Safari run of the task's *Done when* is a manual acceptance step and has not been recorded.
+
 NOTE: As built by IO-018 (`WTInterchange/EPS`).  Each page is flattened for the `.opaque` target
 and written as DSC 3.0 EPSF (`%%BoundingBox` and `%%HiResBoundingBox` from the export bounds, one
 `%%Page`, `showpage` in the page trailer).  The prolog binds PDF's operator spellings (`m`, `l`,

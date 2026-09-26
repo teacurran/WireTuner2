@@ -90,6 +90,8 @@ final class PrintFeatures {
     var window: @MainActor () -> DocumentWindowController? = { nil }
     /// The blobs a print snapshot reads.
     var blobs = BlobPlacement()
+    /// The job's font check for a window's document (PRINT-014); nil checks nothing.
+    var fontChecker: @MainActor (DocumentWindowController) -> PrintFontChecker? = { _ in nil }
     /// The window's image store, which placed images print from.
     var imageStore: @MainActor (DocumentWindowController) -> ImageStore? = { _ in nil }
     private(set) var windows: [ObjectIdentifier: (window: DocumentWindowController, print: WindowPrint, closing: NSObjectProtocol?)] = [:]
@@ -179,7 +181,8 @@ final class PrintFeatures {
         let document = window.documentHandle
         let info = Self.printInfo(for: document)
         let selection = Set(window.selection.model.ids.map(\.node))
-        let session = PrintSession(document: document, info: info, selection: selection, imageStore: imageStore(window), blobs: blobs) { [weak window] command in
+        let session = PrintSession(document: document, info: info, selection: selection, imageStore: imageStore(window), blobs: blobs,
+                                   fonts: fontChecker(window)) { [weak window] command in
             window?.objectEditing.perform(command)
         }
         self.session = session
@@ -241,6 +244,7 @@ extension AppDelegate {
         let documents = documents!
         printing.blobs = imports.blobs
         printing.imageStore = { [images] window in images.attach(window).store }
+        printing.fontChecker = { [fonts, preferences] window in PrintFontChecker.make(fonts: fonts, preferences: preferences, document: window.documentHandle) }
         exports.outputArea = { window in OutputArea.read(window.documentHandle.state) }
         printing.install(commands: commands, tools: tools, panels: panels, selection: activeSelection) { documents.activeWindowController }
     }

@@ -102,7 +102,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>wiretuner</string>
-				<string>wiretuner-share</string>
 				</array>
 				<key>public.mime-type</key>
 				<array>
@@ -153,6 +152,8 @@
 	</array>
 	<key>WTAPIURL</key>
 	<string>$(WT_API_URL)</string>
+	<key>WTAppGroup</key>
+	<string>$(TeamIdentifierPrefix)com.villagecompute.wiretuner</string>
 	<key>WTAuthIssuer</key>
 	<string>$(WT_AUTH_ISSUER)</string>
 	<key>WTLinksURL</key>

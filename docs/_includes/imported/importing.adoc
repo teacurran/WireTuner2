@@ -340,7 +340,7 @@ decodes an image.
 * Share extension: `WireTunerShare`, an `NSExtension` of point `com.apple.share-services`
   accepting `public.image`, `com.adobe.pdf`, `public.svg-image` and file URLs of those types
   (`NSExtensionActivationRule`, at most 20 items).  The extension writes the items into the
-  app group container (`group.com.villagecompute.wiretuner`, `Inbox/<uuid>/`), then opens
+  app group container (`<team id>.com.villagecompute.wiretuner`, `Inbox/<uuid>/`), then opens
   the app with a `wiretuner-share://inbox/<uuid>` URL (custom scheme, app-internal only) and
   completes; it never links `WTModel` or `WTSync`.  The app drains the inbox through
   `ImageImporter`/the PDF and SVG converters into the frontmost document via the IMG-005
@@ -414,8 +414,38 @@ share hand-off: `wiretuner-share://inbox/<uuid>?app=<name>[&option=1]` (the sche
 the app's Info.plist) drains the app group's `Inbox/<uuid>/` into the front document, centred and
 stacked by the *Keep both offset*, one change per item labelled "Add from <app>", or into a new
 document ("Shared Items") with kbd:[Option] or no document open; the folder is removed after, and
-folders older than a day at launch.  Not built: the `WireTunerShare` extension target, its app group
-entitlement and sandbox profile, and the library window's picker.
+folders older than a day at launch.  The extension target, its entitlements and the picker are the
+IMG-026 note below.
+
+NOTE: As built by IMG-026 (`WTExtensions/Share/ShareViewController.swift`, `ShareHandoff.swift`;
+`WTApp/Library/LibraryPicker.swift`, `WTApp/Images/ShareInbox.swift`; `client/project.yml`).  `WireTunerShare` is
+an app extension embedded in the app's PlugIns, shown in Share menus as *Add to WireTuner Document*.  Its
+activation rule is a predicate: at least one extension item with 1 to 20 attachments whose registered types
+conform to `public.image`, `public.svg-image` or `com.adobe.pdf` (a Finder file registers its own type, so file
+URLs of those types qualify).  The principal class shows no interface: it copies each accepted attachment (the
+most specific accepted type, SVG before PDF before other images; a bare `public.file-url` of an accepted
+extension) into `Inbox/<uuid>/` of the app group container as `NN <name>.<ext>` (numbered in share order, the
+provider's suggested name or the file's own), opens `wiretuner-share://inbox/<uuid>?app=<frontmost app>[&option=1]`
+with `NSWorkspace` and completes the request at once, so the process ends as soon as the URL is handed over;
+with nothing accepted it cancels.  `ShareHandoff` (scheme, group, URL building and parsing, the accepted types,
+file names) is compiled into the app as well, which parses the URL with it and where its tests run.
+Entitlements: the extension has `com.apple.security.app-sandbox` and `com.apple.security.application-groups`
+(`$(TeamIdentifierPrefix)com.villagecompute.wiretuner`) and nothing else -- no network entitlement, so the sandbox
+refuses every socket; the app gained the same group entitlement.  Deviation: the page named
+`group.com.villagecompute.wiretuner`, but a `group.` identifier on macOS needs a provisioning profile, and the app
+is signed ad hoc without one until the distribution task (`Config/Signing.xcconfig`), so the build failed; the
+team-prefixed form is the macOS convention and signs either way (ad hoc it reads `com.villagecompute.wiretuner`).
+Both bundles carry the resolved identifier as `WTAppGroup` in their Info.plist, which `ShareHandoff.appGroup` reads.  `project.yml` now declares the `wiretuner-share` scheme
+(the app's Info.plist had been edited by hand) and the graphic-style and gradient-ramp types the committed
+Info.plist carried.  The chooser: with kbd:[Option] or no document window, `ShareInbox.choose` shows the
+Library's picker (`LibraryPicker`, a window of its own rather than the Library window in a mode): the recent
+documents this Mac can open and the account may edit (owner or editor), btn:[New Document], btn:[Cancel] and
+btn:[Add] (or a double-click); the chosen document opens through the library and the items are placed in its
+window, *New Document* makes the "Shared Items" document, btn:[Cancel] places nothing and still removes the
+inbox folder.  Under tests the app does not read the group container at launch (an unsigned build would be
+asked for access).  The *Done when* runs from Photos, Preview and Safari, the stub-host UI test and the
+two-Mac merge test are manual or need Automation Mode and were not recorded; the sandbox audit is the unit
+test reading the embedded extension's signed entitlements.
 
 NOTE: As built by IMG-003 (`WTModel/ImageCommands.swift`).  `NodeKind.image` (170) makes images
 objects: selected, moved, transformed, copied and deleted like any other, with `Objects.bounds` the

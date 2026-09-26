@@ -16,6 +16,17 @@ import WTProto
         return pair
     }
 
+    /// PRINT-014: *Print text as outlines* and another setting written concurrently both survive.
+    @Test func concurrentTextAsOutlinesAndBleedBothSurvive() throws {
+        var pair = try Self.pair()
+        try pair.a.perform(SetPrintSettings(.textAsOutlines(true)))
+        try pair.b.perform(SetPrintSettings(.bleed(9)))
+        pair.sync()
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        let settings = DocumentPrintSettings(pair.a.state)
+        #expect(settings.textAsOutlines && settings.bleed == 9)
+    }
+
     @Test func newDocumentsReadTheDefaults() {
         let settings = DocumentPrintSettings(EngineState())
         #expect(!settings.separations && settings.scaleMode == .uniform && settings.scaleX == 100 && settings.scaleY == 100)

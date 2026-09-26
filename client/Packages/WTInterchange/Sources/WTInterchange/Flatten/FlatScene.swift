@@ -216,14 +216,19 @@ public struct FlatPath: Hashable, Sendable {
     public var style: Style
     public var overprint: Bool
     public var node: NodeID?
+    /// The characters when the path is a glyph run written as outlines: what SVG accessibility
+    /// reads in place of the text (IO-031).
+    public var readAs: String?
 
-    public init(path: DisplayPath, transform: AffineTransform = .identity, paint: FlatPaint, style: Style = .fill(.nonZero), overprint: Bool = false, node: NodeID? = nil) {
+    public init(path: DisplayPath, transform: AffineTransform = .identity, paint: FlatPaint, style: Style = .fill(.nonZero), overprint: Bool = false, node: NodeID? = nil,
+                readAs: String? = nil) {
         self.path = path
         self.transform = transform
         self.paint = paint
         self.style = style
         self.overprint = overprint
         self.node = node
+        self.readAs = readAs
     }
 }
 

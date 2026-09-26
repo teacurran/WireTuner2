@@ -64,6 +64,8 @@ targets:
         excludes: ["Info.plist", "WireTuner.entitlements"]
       # The Quick Look extensions' package reader, compiled into the app too so its tests cover it.
       - path: WTExtensions/Shared
+      # The share extension's hand-off (IMG-026): the app parses its URL and its tests cover it.
+      - path: WTExtensions/Share/ShareHandoff.swift
     info:
       path: WTApp/Info.plist
       properties:
@@ -87,11 +89,15 @@ targets:
         WTAPIURL: $(WT_API_URL)
         # Where share links and team invitations point (the server's wt.links.base-url).
         WTLinksURL: $(WT_LINKS_URL)
+        # The app group the share extension's inbox lives in (IMG-026): team-prefixed, as macOS
+        # groups are, so signing needs no provisioning profile; read at run time by ShareHandoff.
+        WTAppGroup: $(TeamIdentifierPrefix)com.villagecompute.wiretuner
         # wiretuner://invite/<token> opens the Join Team sheet (SEC-003); the sign-in callback
         # (wiretuner://auth/callback) is taken by ASWebAuthenticationSession before it gets here.
+        # wiretuner-share://inbox/<uuid> is the share extension's hand-off (IMG-026).
         CFBundleURLTypes:
           - CFBundleURLName: com.villagecompute.wiretuner
-            CFBundleURLSchemes: [wiretuner]
+            CFBundleURLSchemes: [wiretuner, wiretuner-share]
         # Handoff between the account's Macs (saving.adoc, "Handing a document off to another Mac";
         # IO-036): the document window's activity.  No iCloud entitlement is involved.
         NSUserActivityTypes: [com.villagecompute.wiretuner.document]
@@ -114,6 +120,14 @@ targets:
           - UTTypeIdentifier: com.villagecompute.wiretuner.objects
             UTTypeDescription: WireTuner Objects
             UTTypeConformsTo: [public.data]
+          # A graphic style dragged from the Styles panel (StyleDrag) and a gradient ramp dragged
+          # from the swatch rows (GradientSwatchRows).
+          - UTTypeIdentifier: com.villagecompute.wiretuner.graphic-style
+            UTTypeDescription: WireTuner Graphic Style
+            UTTypeConformsTo: [public.data]
+          - UTTypeIdentifier: com.villagecompute.wiretuner.gradient-ramp
+            UTTypeDescription: WireTuner Gradient Ramp
+            UTTypeConformsTo: [public.data]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor
@@ -135,6 +149,9 @@ targets:
         # which writes where the save panel says.
         com.apple.security.files.user-selected.read-write: true
         com.apple.security.files.bookmarks.app-scope: true
+        # The share extension's inbox (IMG-026): the app group container both can read and write.
+        # Team-prefixed: a "group." identifier would need a provisioning profile to sign at all.
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)com.villagecompute.wiretuner]
         # Sparkle's XPC services inside the sandbox (Sparkle docs, "Sandboxing").
         com.apple.security.temporary-exception.mach-lookup.global-name:
           - $(PRODUCT_BUNDLE_IDENTIFIER)-spks
@@ -162,9 +179,11 @@ targets:
       - package: WTText
       - package: WTInterchange
       - package: Sparkle
-      # The Quick Look extensions (saving.adoc, "Client"; IO-034), embedded under PlugIns.
+      # The Quick Look extensions (saving.adoc, "Client"; IO-034) and the share extension
+      # (importing.adoc; IMG-026), embedded under PlugIns.
       - target: WireTunerThumbnail
       - target: WireTunerPreview
+      - target: WireTunerShare
 
   # Quick Look for .wiretuner packages (IO-034): sandboxed, no network, no WTModel; they read
   # the package's zip directory through WTExtensions/Shared/PackagePeek.swift.
@@ -231,6 +250,44 @@ targets:
         SKIP_INSTALL: YES
     dependencies:
       - sdk: QuickLookUI.framework
+
+  # *Add to WireTuner Document* in the Share menu (importing.adoc, "From another app's Share menu";
+  # IMG-026): sandboxed with the app group and no network, no WTModel or WTSync.  It copies the
+  # shared items into the group's Inbox and hands off to the app with wiretuner-share://.
+  WireTunerShare:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: WTExtensions/Share
+        excludes: ["Info.plist", "WireTunerShare.entitlements"]
+    info:
+      path: WTExtensions/Share/Info.plist
+      properties:
+        CFBundleDisplayName: Add to WireTuner Document
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WTAppGroup: $(TeamIdentifierPrefix)com.villagecompute.wiretuner
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # Images (SVG among them) and PDFs, as data or as files, 1 to 20 items.
+            NSExtensionActivationRule: >-
+              SUBQUERY(extensionItems, $item, SUBQUERY($item.attachments, $attachment,
+              ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.image"
+              OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.svg-image"
+              OR ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "com.adobe.pdf").@count BETWEEN {1, 20}).@count >= 1
+    entitlements:
+      path: WTExtensions/Share/WireTunerShare.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [$(TeamIdentifierPrefix)com.villagecompute.wiretuner]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.share
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
 
   WireTunerTests:
     type: bundle.unit-test

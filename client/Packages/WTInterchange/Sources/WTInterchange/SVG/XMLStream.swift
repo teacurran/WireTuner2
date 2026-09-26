@@ -79,6 +79,15 @@ struct XMLStream {
         end()
     }
 
+    /// An element holding character data whose line breaks are written as `&#10;`, so they
+    /// survive re-indentation of the fragment (a multi-line `<desc>`).
+    mutating func element(_ name: String, _ attributes: [(String, String?)] = [], lines content: String) {
+        start(name, attributes)
+        finishTag()
+        text += content.split(separator: "\n", omittingEmptySubsequences: false).map { XMLStream.escape(String($0), attribute: false) }.joined(separator: "&#10;")
+        end()
+    }
+
     /// Character data inside the open element.
     mutating func characters(_ content: String) {
         finishTag()

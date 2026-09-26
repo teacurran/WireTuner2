@@ -31,6 +31,11 @@ final class PrintPaneModel {
     private(set) var warning: String?
     /// The captured pages' lists of the current plan: the ink list's spot rows are the spots they use.
     @ObservationIgnored private(set) var lists: [DisplayList]?
+    /// The job's missing fonts (PRINT-014), checked with each plan.
+    private(set) var fonts = PrintFontWarning()
+    /// How the job's fonts are checked; nil checks nothing.
+    @ObservationIgnored var fontChecker: PrintFontChecker?
+    @ObservationIgnored private var plan: PrintPlan?
     /// Bumped on every commit: the accessory's preview key path.
     private(set) var revision = 0
     /// Called after every commit (the preview repaginates).
@@ -50,6 +55,17 @@ final class PrintPaneModel {
         sheetCount = plan.count
         warning = plan.clippingWarning
         lists = plan.request.scene.pages.map(\.displayList)
+        self.plan = plan
+        fonts = fontChecker?.check(plan) ?? PrintFontWarning()
+    }
+
+    /// A click on the missing-font warning: the substitution sheet, then the check again.
+    func showSubstitutions() {
+        fontChecker?.substitute(fonts.faces) { [weak self] in
+            guard let self, let plan = self.plan else { return }
+            self.show(plan)
+            self.changed()
+        }
     }
 
     var settings: DocumentPrintSettings {
@@ -263,6 +279,7 @@ struct PrintPaneView: View {
         let _ = model.revision
         let settings = model.settings
         Form {
+            PrintFontWarningView(model: model)
             Section("Print") {
                 Picker("Print", selection: Self.source(model)) {
                     Text(PrintSource.pages.title).tag(PrintSource.pages)

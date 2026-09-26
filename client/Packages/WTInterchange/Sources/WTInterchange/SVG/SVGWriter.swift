@@ -3,7 +3,9 @@
 // colours in `style`): paths with coordinates at the chosen precision, gradients de-duplicated
 // into `<defs>`, clips, gradient masks as luminance masks, blur/shadow/glow filters, text as
 // `<text>` or outlines (optionally with embedded font subsets), images as data URLs or linked
-// files, ids from object names, attached URLs as `<a>` links and Document Info as `<metadata>`.
+// files, ids from object names, attached URLs as `<a>` links and Document Info as `<metadata>`;
+// alt text and *Decorative* as titles, descriptions and ARIA attributes (IO-031,
+// `SVGAccessibility.swift`).
 //
 // Geometry is written in page space (the page's top-left at 0,0, one user unit per point).  An
 // element whose transform is a similarity has its coordinates transformed and its stroke scaled;
@@ -81,6 +83,17 @@ final class SVGBuild {
     /// Content-named image and font files in shared folders (`SVGWriter.linkedFiles`).
     var linkedFiles: SVGLinkedFiles?
     var outlinedFonts: [SVGOutlinedFont] = []
+    /// Whether accessibility markup is written (IO-031): some object of the document has alt
+    /// text or is decorative.  Off, the file is what it was before IO-031.
+    lazy var accessible: Bool = scene.nodes.values.contains { $0.decorative || SVGBuild.description($0.alt) != nil }
+    /// What the next element written says to assistive technology (the node being written).
+    var pending: SVGAccessibility = .none
+    /// Open figures and hidden elements: their descendants carry nothing of their own.
+    var figureDepth = 0
+    /// Figures written on this page.
+    var figures = 0
+    /// The root's `<title>` and `<desc>` ids.
+    var rootIDs: (title: String, desc: String?) = ("", nil)
     /// Pasteboard → page space.
     let toPage: AffineTransform
 
@@ -122,8 +135,11 @@ final class SVGBuild {
             ("width", options.responsive ? nil : number(width * unit) + options.sizeUnit),
             ("height", options.responsive ? nil : number(height * unit) + options.sizeUnit),
             ("viewBox", "0 0 \(number(width)) \(number(height))"),
-            ("xml:lang", options.includeDocumentInfo ? scene.info.effectiveLanguage : nil),
-        ])
+            ("xml:lang", options.includeDocumentInfo || accessible ? scene.info.effectiveLanguage : nil),
+        ] + rootAccessibility())
+        if accessible {
+            writeRootLabel(into: &out)
+        }
         if options.includeDocumentInfo && !scene.info.isEmpty {
             writeMetadata(into: &out)
         }
@@ -225,6 +241,10 @@ final class SVGBuild {
                 body.element("title", text: title)
             }
         }
+        pending = accessibility(of: node)
+        let marks = pending != .none
+        if marks { figureDepth += 1 }
+        defer { if marks { figureDepth -= 1 } }
         switch node {
         case .path(let path):
             writePath(path)
@@ -262,6 +282,7 @@ final class SVGBuild {
     /// Text-range links on this page: an anchor over each line of each range, holding an
     /// invisible rectangle that takes the click (the glyphs stay where the text writer put them).
     func writeTextLinks() {
+        pending = .none
         for node in scene.textLinks.keys.sorted() {
             for link in scene.textLinks[node]! {
                 guard let href = WebLinks.href(link.url) else { continue }
@@ -295,7 +316,7 @@ final class SVGBuild {
         if group.opacity < 1 {
             attributes += styleAttributes([("opacity", number(group.opacity))])
         }
-        body.start("g", attributes)
+        begin("g", attributes)
         for child in group.children {
             write(child)
         }
@@ -358,7 +379,7 @@ final class SVGBuild {
             properties += paintProperties(item.paint, property: "stroke", placement: place, transform: item.transform)
             properties += strokeProperties(style, scale: place.scale)
         }
-        body.element("path", [idAttribute(item.node), ("d", pathData(item.path, place.points)), ("transform", place.attribute)] + styleAttributes(properties))
+        emit("path", [idAttribute(item.node), ("d", pathData(item.path, place.points)), ("transform", place.attribute)] + styleAttributes(properties))
     }
 
     func strokeProperties(_ style: StrokeStyle, scale: Double) -> [(String, String)] {
@@ -556,6 +577,7 @@ final class SVGBuild {
         let run = text.run
         let positioned = run.glyphs.count == scalars.count && run.glyphs.allSatisfy { $0.transform == nil } && run.font.horizontalScale == 1
         guard options.text != .outlines, positioned else {
+            readAsOutlines(text.text)
             writePath(FlatPath(path: run.outline, transform: text.transform, paint: .color(text.color), node: text.node))
             if options.text != .outlines {
                 notes.append("text \"\(text.text)\" written as outlines (its glyphs do not map one to one onto characters)")
@@ -568,6 +590,7 @@ final class SVGBuild {
             guard let embedded = embeddedFamily(for: run, facts: facts) else {
                 notes.append("font \(facts.postScriptName) cannot be embedded; its text is written as outlines")
                 outlinedFonts.append(SVGOutlinedFont(postScriptName: facts.postScriptName, node: text.node, restricted: !facts.embeddable))
+                readAsOutlines(text.text)
                 writePath(FlatPath(path: run.outline, transform: text.transform, paint: .color(text.color), node: text.node))
                 return
             }
@@ -587,7 +610,7 @@ final class SVGBuild {
             properties.append(("font-style", "italic"))
         }
         properties += paint(text.color, "fill")
-        body.element("text", [idAttribute(text.node), ("transform", translationOnly ? nil : matrix(toPage)), ("x", xs), ("y", ys), ("xml:space", "preserve")] + styleAttributes(properties), text: text.text)
+        emit("text", [idAttribute(text.node), ("transform", translationOnly ? nil : matrix(toPage)), ("x", xs), ("y", ys), ("xml:space", "preserve")] + styleAttributes(properties), text: text.text)
     }
 
     /// The family name of an embedded subset holding every glyph of the fonts `run` uses, or
@@ -656,7 +679,7 @@ final class SVGBuild {
                 }
             }
         }
-        body.element("image", [
+        emit("image", [
             idAttribute(image.node),
             ("x", number(rect.minX)), ("y", number(rect.minY)), ("width", number(rect.width)), ("height", number(rect.height)),
             ("transform", translationOnly ? nil : matrix(toPage)),

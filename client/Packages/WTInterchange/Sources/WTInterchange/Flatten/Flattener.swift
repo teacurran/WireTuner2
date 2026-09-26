@@ -463,7 +463,7 @@ final class FlattenRun {
             return [.text(FlatText(text: text.text, run: run, color: text.color, transform: text.transform))]
         }
         report.outlinedRuns += 1
-        return [.path(FlatPath(path: run.outline, transform: text.transform, paint: .color(text.color)))]
+        return [.path(FlatPath(path: run.outline, transform: text.transform, paint: .color(text.color), readAs: text.text))]
     }
 
     // MARK: Groups

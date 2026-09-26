@@ -113,6 +113,30 @@ Nothing.
   pages and suggests the outlines option.
 * Preference *Warn about missing fonts before printing* (default on), category Printing.
 
+NOTE: As built by PRINT-014 (`WTInterchange/Print/PrintFonts.swift`, `PrintSheetRenderer.swift`;
+`WTApp/Print/PrintFontWarning.swift`, with hooks in `PrintPane.swift`, `PrintSession.swift` and `PrintFeatures.swift`).
+*Print text as outlines* is `PrintTextOutlines.outline`, the `PrintSheetRenderer.textOutliner` used when the caller
+gives none: every glyph run of the sheet's list (inside groups too) becomes a path filled non-zero with its glyph
+outlines (`GlyphRun.outline`) in the run's colour and overprint; a placeholder run without glyphs stays.  It is a
+list transform in WTInterchange rather than a `glyphsAsPaths` option in WTRender.  Deviation, *embedding*: WTRender's
+Core Graphics renderer already fills every glyph run as its outlines in every context (`drawGlyphs`), the print and
+PDF contexts included, so no print job and no PDF saved from the Print dialog embeds a font, with or without the
+option (the tests find no font dictionary in either), and the outlined render matches the font render exactly at
+300 dpi.  Consequently the restricted-licence note is not shown: a saved PDF cannot lack a font it never embedded.
+The missing-font check: `PrintFontCheck(plan:)` walks each printed page's list and keeps the glyph runs whose bounds
+meet a sheet's printed region -- so text on the pasteboard, or on pages outside the plan's page range, is not
+counted -- with the nearest node of each (the text node).  WTApp's `PrintFontChecker` takes the faces those nodes
+name from the document's `DocumentFontIndex` and asks its `FontManager` for the report; the faces that resolved
+through substitution are the warning, shown as a link at the top of the pane ("2 missing fonts: Univers, Garamond",
+with "(waiting for the team library)" when one of them is a library family not yet fetched).  A click opens the
+Missing Fonts sheet on the print panel over those faces: btn:[Open] applies substitutions and writes the
+replacements as one change, btn:[Cancel] keeps the substitutions and only closes the sheet; the job is checked again
+when it closes.  The check runs with every plan the dialog makes (on opening, and on every document, *Print*,
+*Selected objects only* or paper change).  The panel's own page range is not part of the plan (`NSPrintOperation`
+paginates the plan's sheets), so fonts on pages the range leaves out still warn.  *Warn about missing fonts before
+printing* off, nothing is checked.  The merge test (`text_as_outlines` toggled concurrently with another print
+setting) belongs with the other print-settings merge tests in WTModel and is proposed there, not added.
+
 === Build tasks
 
 [[PRINT-014]]
