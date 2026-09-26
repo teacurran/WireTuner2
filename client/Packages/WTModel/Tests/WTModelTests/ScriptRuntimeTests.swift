@@ -221,16 +221,23 @@ import WTRender
         let before = target.changes.count
         let (result, _) = try Self.run("""
         const objects = wt.document.objects;
+        const progress = wt.ui.progress("Numbering");
         const value = wt.document.transaction("Number them", function () {
-          for (let i = 0; i < 30000; i++) objects[i % 3].name = "n" + i;
+          for (let i = 0; i < 20001; i++) {
+            objects[i % 3].name = "n" + i;
+            if (i % 1000 === 0) progress.update(i / 20001);
+          }
           return "done";
         });
         console.log(value, objects[0].name);
-        """, target: target, limits: ScriptLimits(wallClock: 120, memory: 1 << 30))
+        """, target: target, host: Host(), limits: ScriptLimits(wallClock: 120, memory: 1 << 30))
         #expect(result.error == nil, "\(String(describing: result.error))")
+        // 20,001 writes: two full changes of 10,000 ops and one of 1.  The script shows progress, as
+        // a long script must, so the 120 s watchdog measures time between updates, not the whole
+        // loop: under a heavily loaded machine the loop alone ran past it.
         let batch = Array(target.changes[before...])
         #expect(batch.count == 3 && batch.allSatisfy { $0.label == "Script: Number them" && $0.ops.count <= 10_000 })
-        #expect(result.console.last?.text == "done n29997" || result.console.last?.text == "done n0", "\(result.console.last?.text ?? "")")
+        #expect(result.console.last?.text == "done n19998" || result.console.last?.text == "done n0", "\(result.console.last?.text ?? "")")
         target.undo()
         let names = target.current.state.liveChildren(LayerOrder(target.current.state).layers[0].id).map { target.current.state.props($0).rect.common.name }
         #expect(names == ["", "", ""], "the whole transaction is one undo step")
