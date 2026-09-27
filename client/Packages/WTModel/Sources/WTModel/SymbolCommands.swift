@@ -347,6 +347,8 @@ enum SymbolEditing {
         if case .text? = tree.props.kind, let master = tree.source, let override = overrides[OverrideKey(master: master, property: .text)],
            let element = OpID(element: override.id), state.text(instance, SymbolFields.overrideText(element)) != nil {
             tree.text = CopiedText(instance, SymbolFields.overrideText(element), in: state)
+            // The override's last paragraph settings go with its text (LIB-027).
+            if override.hasTailParagraph { tree.props.text.tailParagraph = override.tailParagraph }
         }
         tree.children = tree.children.map { overridingTexts($0, instance: instance, overrides: overrides, state: state) }
         return tree

@@ -2,7 +2,7 @@ A document can behave like a small clickable prototype: click an arrow and the n
 appears, click a logo and the company's site opens.  {product} keeps this to two things an object
 can do when clicked -- *go to a page* of the document, or *open a link* -- because those are the
 two that every output format can honor.  A PDF opens the page or the URL; an SVG or a published
-web page follows the anchor; menu:File[Preview in Browser] lets you click through before
+web page follows the anchor; menu:View[Preview in Browser] lets you click through before
 exporting.  Page links are set in the *Navigation* panel or drawn with the *Link tool*.
 
 NOTE: {product} runs no scripts on click; interactivity is limited to page links and web links,

@@ -104,7 +104,7 @@ final class InspectorRegistry {
         registry.register(InspectorSection(id: "connector", order: 50, kinds: [.connector]) { model in
             model.connector.map { AnyView(ConnectorSectionView(section: $0, model: model)) }
         })
-        registry.register(InspectorSection(id: "text", order: 60, kinds: [.text]) { model in
+        registry.register(InspectorSection(id: "text", order: 60, kinds: [.text, .instance]) { model in
             model.text.map { AnyView(TextSectionView(section: $0, model: model)) }
         })
         registry.register(InspectorSection(id: "common", order: 100, kinds: nil) { model in

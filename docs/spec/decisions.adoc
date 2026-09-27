@@ -701,7 +701,10 @@ See xref:decisions.adoc#D-068[D-068].
 [[Q-018]]
 === Q-018 Licences for bundled ML models
 The photo tracer's segmentation model and the Select Similar shape classifier need a licence
-and training-data check before shipping (IMG-029, IMG-030), as Q-008 does for profiles.
+and training-data check before shipping (IMG-029, IMG-030), as Q-008 does for profiles.  The shape
+classifier is trained only on the generated corpus of `tools/shape-classifier` -- its letterforms are
+glyph outlines of the faces macOS ships, read at training time -- and holds tree thresholds, no font
+data; whether that use of the system faces needs clearing is the open part for IMG-030.
 
 [[Q-019]]
 === Q-019 "Same as selection" matching

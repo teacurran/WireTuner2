@@ -214,6 +214,18 @@ extension NodeCopier {
         builder.append(Ops.elementInsert(node, base.child(TextFields.tabsField), positions: keys, values: values(body)))
     }
 
+    /// Writes the registers `fields` (paths below `ParagraphProps`) of `props` on newline
+    /// `newline` of TEXT field `field`, one `SetFields` (an override's paragraph settings, LIB-027).
+    static func writeParagraphFields(_ props: Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]], newline: OpID, node: OpID, field: RegisterPath,
+                                     builder: inout ChangeBuilder) {
+        var body = props
+        body.tabs = []
+        let base = field.element(newline).child(TextFields.paragraphField)
+        let bytes = Wire.field(1, Wire.field(TextFields.paragraphField, Wire.bytes { try body.serializedBytes() }))
+        let values = (try? Wiretuner_Doc_V1_NodeProps(serializedBytes: wrapped(field, bytes))) ?? .init()
+        builder.append(Ops.set(node, fields.map { $0.reduce(base) { $0.child($1) } }, values: values))
+    }
+
     /// `body` (a message's encoding) enclosed at `path` in a whole `NodeProps`: a field segment is
     /// a length-delimited record of it, an element segment an element of the SEQUENCE field before
     /// it, its id as field 1.

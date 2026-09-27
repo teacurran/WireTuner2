@@ -180,6 +180,21 @@ writes `source_profile` (unset for Document default) and turns `use_embedded` of
 writes `use_embedded` alone, so a concurrent assignment is retained under it; `SetImageIntent` writes `intent`; each is one
 change over the images.  *Other…* and an installed profile load through the shared profile blobs (`ProfileBlobGlue`).
 
+NOTE: As built by CMS-012 (`WTInterchange/Import/EmbeddedProfiles.swift`, `ImageImporter.swift`; `WTModel/ImportMapping.swift`;
+`WTApp/Import/EmbeddedProfileChoice.swift`).  The image importer reads the profile from the file's own structure --
+JPEG `APP2 ICC_PROFILE` segments joined in sequence order, PNG `iCCP` (an `sRGB` chunk reads as the bundled sRGB), TIFF
+tag 34675, the PSD image resource 0x040F -- not from ImageIO's colour space, which reports sRGB for a file without a
+profile, and registers it with the profile registry, which recognizes a bundled profile by its normalized hash
+(`ImportedImage.embeddedProfile`: the ref, and for any other profile its bytes as a blob in `ImportedScene.blobs`, which
+the app stores with the image's).  `PlaceImportedScene(embeddedProfiles:)` writes `embedded_profile` on every image that
+carries one and `use_embedded` for *Use embedded*, creating the profile asset (CMS-010's `ProfileAssets.ensure`) in the
+same change unless the profile is bundled or the document has it -- under *Ignore* too, so the Object panel can switch to
+it later.  The app reads the *Embedded image profiles* preference; *Ask* shows a sheet (btn:[Use Embedded], btn:[Use
+Document Default]) once per import for files that carry a profile.  Not added: a conformance vector for `use_embedded`
+without `embedded_profile` -- that reading is WTModel's read-time normalization (`ImageColorInfo`), which the engines do
+not see, and it is covered by WTModel's tests; the other importers' embedded images (PDF, SVG data URLs) record a profile
+only when the decoder finds one in their bytes.
+
 === Build tasks
 
 [[CMS-012]]

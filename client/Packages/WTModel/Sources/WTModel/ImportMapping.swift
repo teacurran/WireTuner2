@@ -119,13 +119,18 @@ public struct PlaceImportedScene: Command {
     public var link: ImportLink?
     /// An SVG animation's poster.
     public var poster: ImportedPoster?
+    /// What the images' embedded profiles do (CMS-012; the *Embedded image profiles* preference,
+    /// its *Ask* answered by the app).
+    public var embeddedProfiles: EmbeddedProfilePolicy
 
-    public init(_ scene: ImportedScene, placement: ImportPlacement, layer: OpID? = nil, link: ImportLink? = nil, poster: ImportedPoster? = nil) {
+    public init(_ scene: ImportedScene, placement: ImportPlacement, layer: OpID? = nil, link: ImportLink? = nil, poster: ImportedPoster? = nil,
+                embeddedProfiles: EmbeddedProfilePolicy = .useEmbedded) {
         self.scene = scene
         self.placement = placement
         self.layer = layer
         self.link = link
         self.poster = poster
+        self.embeddedProfiles = embeddedProfiles
     }
 
     public var label: String { scene.kind == .vector ? "Import \(scene.name)" : "Place \(scene.name)" }
@@ -133,6 +138,7 @@ public struct PlaceImportedScene: Command {
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         // Only a file placed whole has a link record; images inside a vector file have none.
         var writer = ImportWriter(state: state, link: scene.kind == .vector ? nil : link, poster: poster)
+        writer.embeddedProfiles = embeddedProfiles
         let target = ImportTarget.resolve(preferred: layer, in: state)
         // No layer takes it: a new one at the top ("Foreground" in a document without layers).
         let parent = try target.layer ?? writer.createLayer(name: target.fellBack ? "Imported Artwork" : "Foreground", above: nil, builder: &builder)
@@ -174,6 +180,10 @@ struct ImportWriter {
     private var assets: [Data: OpID] = [:]
     /// Keys for the assets created in this change, above the existing ones.
     private var assetKey: [UInt8]?
+    /// `PlaceImportedScene.embeddedProfiles`.
+    var embeddedProfiles = EmbeddedProfilePolicy.useEmbedded
+    /// Profile assets created in this change.
+    private var profileAssets = ProfileAssets.Pending()
 
     init(state: EngineState, link: ImportLink?, poster: ImportedPoster?) {
         self.state = state
@@ -226,7 +236,19 @@ struct ImportWriter {
             return createText(text, parent: parent, position: position, placement: placement, builder: &builder)
         case .image(let image):
             let source = try link.map { try asset(image.pixels.blob, name: $0.displayName, link: $0, builder: &builder) }
-            return builder.append(Ops.create(parent: parent, position: position, props: ImportMapping.image(image, source: source, placement: placement)))
+            var props = ImportMapping.image(image, source: source, placement: placement)
+            if let embedded = image.embeddedProfile {
+                // CMS-012: the profile is recorded on the node -- its asset created unless it is
+                // bundled or the document has one -- and read through as the preference says.
+                let profile = ColorSettings.stored(embedded.profile)
+                // One run of keys above the existing assets for every asset this change creates.
+                if let assetKey { profileAssets.lastKey = assetKey }
+                try ProfileAssets.ensure(profile, size: UInt64(embedded.blob?.data.count ?? 0), state: state, pending: &profileAssets, builder: &builder)
+                assetKey = profileAssets.lastKey ?? assetKey
+                props.image.color.embeddedProfile = profile
+                props.image.color.useEmbedded = embeddedProfiles == .useEmbedded
+            }
+            return builder.append(Ops.create(parent: parent, position: position, props: props))
         case .placed(let placed):
             return try createPlaced(placed, parent: parent, position: position, placement: placement, builder: &builder)
         }

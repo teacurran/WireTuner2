@@ -137,7 +137,7 @@ in the document, which restores the normal view.
 |kbd:[Cmd+Option+Home] / kbd:[Cmd+Option+End] |First / last frame
 |===
 
-To see the animation as a browser will show it, choose menu:File[Preview in Browser]
+To see the animation as a browser will show it, choose menu:View[Preview in Browser]
 (kbd:[Cmd+Return]); see xref:svg-animation.adoc[SVG animations and browser preview].
 
 == Exporting an animation

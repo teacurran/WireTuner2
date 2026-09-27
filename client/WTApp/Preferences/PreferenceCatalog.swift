@@ -99,7 +99,10 @@ enum PreferenceCatalog {
         static let c = PreferenceCategory.document
         static let restoreView = PreferenceKey<Bool>("document.restore_view", "Restore view when opening document", category: c, default: true, control: .toggle, help: "document-view")
         static let rememberWindow = PreferenceKey<Bool>("document.remember_window", "Remember window size and location", category: c, scope: .local, default: true, control: .toggle)
-        static let newTemplate = PreferenceKey<String>("document.new_template", "New document template", category: c, default: "", control: .chooser(placeholder: "WireTuner default"), help: "templates")
+        static let newTemplate = PreferenceKey<String>("document.new_template", "New document template", category: c, default: "", control: .templateChooser, help: "templates")
+        /// menu:File[Open Recent]'s documents across the account's Macs, newest first (DOC-020;
+        /// `RecentDocuments`): not a row of the window.
+        static let recents = PreferenceKey<[String]>("document.recents", "Recent documents", category: c, default: [], control: .hidden, help: "creating-opening")
         static let warnUnsyncedQuit = PreferenceKey<Bool>("document.warn_unsynced_quit", "Warn when quitting with unsynced changes", category: c, default: true, control: .toggle, help: "saving")
         static let searchMissingLinks = PreferenceKey<Bool>("document.search_missing_links", "Search for missing links", category: c, default: true, control: .toggle, help: "linking-embedding")
         static let missingLinksFolder = PreferenceKey<String>("document.missing_links_folder", "Missing links folder", category: c, scope: .local, default: "", control: .chooser(placeholder: "No folder"), help: "linking-embedding", pageRow: "Search for missing links")
@@ -111,7 +114,7 @@ enum PreferenceCatalog {
         static let all: [AnyPreferenceKey] = [
             restoreView.erased, rememberWindow.erased, newTemplate.erased, warnUnsyncedQuit.erased,
             searchMissingLinks.erased, missingLinksFolder.erased, viewSetsPage.erased, toolsSetPage.erased,
-            askVersionName.erased, lowResolutionWarning.erased,
+            askVersionName.erased, lowResolutionWarning.erased, recents.erased,
         ]
     }
 

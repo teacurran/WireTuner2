@@ -61,7 +61,10 @@ targets:
     platform: macOS
     sources:
       - path: WTApp
-        excludes: ["Info.plist", "WireTuner.entitlements"]
+        excludes: ["Info.plist", "WireTuner.entitlements", "Scripting/WireTuner.sdef"]
+      # The scripting dictionary (DOC-026): a resource Cocoa scripting loads, not an sdef to compile.
+      - path: WTApp/Scripting/WireTuner.sdef
+        buildPhase: resources
       # The Quick Look extensions' package reader, compiled into the app too so its tests cover it.
       - path: WTExtensions/Shared
       # The share extension's hand-off (IMG-026): the app parses its URL and its tests cover it.
@@ -101,6 +104,9 @@ targets:
         # Handoff between the account's Macs (saving.adoc, "Handing a document off to another Mac";
         # IO-036): the document window's activity.  No iCloud entitlement is involved.
         NSUserActivityTypes: [com.villagecompute.wiretuner.document]
+        # AppleScript (scripting.adoc; DOC-026): Cocoa scripting over the dictionary.
+        NSAppleScriptEnabled: true
+        OSAScriptingDefinition: WireTuner.sdef
         # The compose realm and API are plain HTTP on localhost.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true

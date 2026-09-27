@@ -8653,6 +8653,17 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tail_paragraph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphProps"
         }
       }
     },
@@ -13981,5 +13992,5 @@
       "kind_field": 1
     }
   },
-  "version": "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
+  "version": "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384"
 }

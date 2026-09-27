@@ -145,6 +145,10 @@ public struct ExportPage: Sendable {
     /// The document page number (1-based) this page is, for page links (WEB-023); nil for an
     /// output area or selection, when position + 1 is used.
     public var number: Int?
+    /// The page's top-level objects in reading order (names-notes.adoc, "Reading order"; OBJ-041's
+    /// `ReadingOrder.order`): what a tagged PDF reads first (IO-032).  Objects not listed read
+    /// after the listed ones in stacking order; empty reads everything in stacking order.
+    public var readingOrder: [NodeID] = []
 
     public init(name: String? = nil, bounds: Rect, displayList: DisplayList, background: Color? = nil, nestedNodeIDs: [[Int]: NodeID] = [:], bleed: Double = 0,
                 number: Int? = nil) {

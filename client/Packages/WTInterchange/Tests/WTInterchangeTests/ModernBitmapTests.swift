@@ -40,15 +40,16 @@ import WTRender
         let options: any ExportOptions = format == .heic ? HEICOptions(quality: 100) : AVIFOptions(quality: 100)
         let result = try BitmapTests.export(format, options, page: page)
         #expect(result.images[0].properties[kCGImagePropertyProfileName] as? String == "Display P3")
-        // The fill decodes to its Display P3 value (lossy coding: within a few steps).  WTRender still
-        // draws extended values clipped to sRGB (the IO-021 note), so that is the value expected.
+        // The fill decodes to its Display P3 value (lossy coding: within a few steps): a P3 page
+        // renders in a Display P3 working space (CMS-015), so the extended value is not clipped.
         let image = result.images[0].image
         var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
         bytes.withUnsafeMutableBytes { buffer in
             let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.displayP3)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
             context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         }
-        let expected = ColorMath.displayP3(Color(red: 1, green: 0.2, blue: 0))
+        // The renderer clips to Display P3 as it draws (it does not gamut-map).
+        let expected = WTColor.Math.clipped(WTColor.Math.rgb(Self.wide, in: .displayP3))
         let center = (75 * 200 + 100) * 4
         #expect(abs(Int(bytes[center]) - ColorMath.byte(expected.x)) <= 6)
         #expect(abs(Int(bytes[center + 1]) - ColorMath.byte(expected.y)) <= 6)

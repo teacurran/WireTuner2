@@ -69,7 +69,7 @@ final class TypeNudger {
     unowned let editing: ObjectEditing
     var pause: Duration = TypeNudger.pause
     /// The nudge adding up, its node and the live range it applies to.
-    private(set) var pending: (kind: TypeNudge.Kind, delta: Double, node: OpID, range: Range<Int>)?
+    private(set) var pending: (kind: TypeNudge.Kind, delta: Double, target: TextEditingSession.Target, range: Range<Int>)?
     private var timer: Task<Void, Never>?
     /// The change the last flush performed (tests await it).
     private(set) var written: Task<Wiretuner_Doc_V1_Change?, Never>?
@@ -81,7 +81,8 @@ final class TypeNudger {
     /// Adds `nudge` for the Text tool's selection; false without one.
     @discardableResult
     func nudge(_ nudge: TypeNudge) -> Bool {
-        guard let session = editing.textSession, let node = session.node, session.text != nil else { return false }
+        guard let session = editing.textSession, session.text != nil, session.node != nil || session.override != nil else { return false }
+        let target = session.target
         let range = session.selectedRange
         if range.isEmpty, nudge.kind != .kerning {
             // At an insertion point, baseline shift and size become the pending format of what is typed next.
@@ -90,9 +91,9 @@ final class TypeNudger {
             session.format(Self.mark(nudge.kind, pairKerning: false, values: values, delta: nudge.delta))
             return true
         }
-        if let pending, pending.kind != nudge.kind || pending.node != node || pending.range != range { flush() }
+        if let pending, pending.kind != nudge.kind || pending.target != target || pending.range != range { flush() }
         let delta = (pending?.delta ?? 0) + nudge.delta
-        pending = (nudge.kind, delta, node, range)
+        pending = (nudge.kind, delta, target, range)
         timer?.cancel()
         let pause = pause
         timer = Task { [weak self] in
@@ -108,20 +109,31 @@ final class TypeNudger {
     func flush() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         timer?.cancel()
         timer = nil
-        guard let pending, let text = editing.document.state.textNode(pending.node) else {
-            self.pending = nil
-            return nil
-        }
+        guard let pending else { return nil }
         self.pending = nil
-        guard let command = Self.command(pending.kind, delta: pending.delta, node: pending.node, range: pending.range, in: text) else { return nil }
+        let state = editing.document.state
+        let command: (any WTModel.Command)?
+        switch pending.target {
+        case .node(let node):
+            command = state.textNode(node).flatMap { Self.command(pending.kind, delta: pending.delta, node: node, range: pending.range, in: $0) }
+        case .override(let instance, let master):
+            // Inside an instance: the same marks on its text override (LIB-027).
+            command = Symbols.textNode(master, in: instance, state: state).flatMap { text in
+                Self.marks(pending.kind, delta: pending.delta, range: pending.range, in: text).map { label, marks in
+                    OverrideText(instance, master: master, edits: marks.map { .mark($0.range, $0.value) }, label: label)
+                }
+            }
+        default:
+            command = nil
+        }
+        guard let command else { return nil }
         written = editing.perform(command)
         return written
     }
 
-    /// The marks of a nudge: at an insertion point a span-1 `kerning` mark on the character before
-    /// it (kerning), or the run's value moved by `delta` over the run the caret is in (baseline
-    /// shift, size); over a selection each run's value moved by `delta`.
-    static func command(_ kind: TypeNudge.Kind, delta: Double, node: OpID, range: Range<Int>, in text: TextNode) -> (any WTModel.Command)? {
+    /// The marks `command` writes, by live range, with the label; nil when it writes nothing.
+    static func marks(_ kind: TypeNudge.Kind, delta: Double, range: Range<Int>, in text: TextNode)
+        -> (label: String, marks: [(range: Range<Int>, value: Wiretuner_Doc_V1_TextMarkValue)])? {
         guard delta != 0, text.length > 0 else { return nil }
         let label = switch kind {
         case .kerning: "Kern"
@@ -131,17 +143,22 @@ final class TypeNudger {
         if range.isEmpty {
             guard range.lowerBound > 0 else { return nil }
             let offset = range.lowerBound - 1
-            let values = text.values(at: offset)
-            let value = mark(kind, pairKerning: true, values: values, delta: delta)
-            return ApplyMark(node: node, from: text.anchor(at: offset), to: text.anchor(at: offset + 1), value: value, label: label)
+            return (label, [(offset..<offset + 1, mark(kind, pairKerning: true, values: text.values(at: offset), delta: delta))])
         }
-        let commands: [any WTModel.Command] = text.runs.compactMap { run in
+        let marks = text.runs.compactMap { run -> (range: Range<Int>, value: Wiretuner_Doc_V1_TextMarkValue)? in
             let span = run.range.clamped(to: range)
-            guard !span.isEmpty else { return nil }
-            return ApplyMark(node: node, from: text.anchor(at: span.lowerBound), to: text.anchor(at: span.upperBound),
-                             value: mark(kind, pairKerning: false, values: run.values, delta: delta), label: label)
+            return span.isEmpty ? nil : (span, mark(kind, pairKerning: false, values: run.values, delta: delta))
         }
-        return commands.isEmpty ? nil : CommandBatch(label, commands)
+        return marks.isEmpty ? nil : (label, marks)
+    }
+
+    /// The marks of a nudge: at an insertion point a span-1 `kerning` mark on the character before
+    /// it (kerning), or the run's value moved by `delta` over the run the caret is in (baseline
+    /// shift, size); over a selection each run's value moved by `delta`.
+    static func command(_ kind: TypeNudge.Kind, delta: Double, node: OpID, range: Range<Int>, in text: TextNode) -> (any WTModel.Command)? {
+        guard let (label, marks) = marks(kind, delta: delta, range: range, in: text) else { return nil }
+        let commands = marks.map { ApplyMark(node: node, from: text.anchor(at: $0.range.lowerBound), to: text.anchor(at: $0.range.upperBound), value: $0.value, label: label) }
+        return range.isEmpty ? commands[0] : CommandBatch(label, commands)
     }
 
     /// The mark value moved by `delta` from the winning value in `values`.

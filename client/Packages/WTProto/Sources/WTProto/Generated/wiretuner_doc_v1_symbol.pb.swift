@@ -383,6 +383,19 @@ public nonisolated struct Wiretuner_Doc_V1_Override: @unchecked Sendable {
   /// Clears the value of `image`. Subsequent reads from it will return its default value.
   public mutating func clearImage() {_uniqueStorage()._image = nil}
 
+  /// TEXT: the paragraph properties of the override text's last paragraph, which has no
+  /// terminating newline to carry them (as TextProps.tail_paragraph does for a block).  STRUCT:
+  /// each field its own register.  Unset reads as the master block's tail paragraph; the first
+  /// paragraph edit of that paragraph copies the master's settings here with the edit (LIB-027).
+  public var tailParagraph: Wiretuner_Doc_V1_ParagraphProps {
+    get {_storage._tailParagraph ?? Wiretuner_Doc_V1_ParagraphProps()}
+    set {_uniqueStorage()._tailParagraph = newValue}
+  }
+  /// Returns true if `tailParagraph` has been explicitly set.
+  public var hasTailParagraph: Bool {_storage._tailParagraph != nil}
+  /// Clears the value of `tailParagraph`. Subsequent reads from it will return its default value.
+  public mutating func clearTailParagraph() {_uniqueStorage()._tailParagraph = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -580,7 +593,7 @@ nonisolated extension Wiretuner_Doc_V1_InstanceProps: SwiftProtobuf.Message, Swi
 
 nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Override"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}master_node\0\u{1}property\0\u{1}text\0\u{1}fill\0\u{1}stroke\0\u{1}hidden\0\u{1}image\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{3}master_node\0\u{1}property\0\u{1}text\0\u{1}fill\0\u{1}stroke\0\u{1}hidden\0\u{1}image\0\u{3}tail_paragraph\0")
 
   fileprivate class _StorageClass {
     var _id: Wiretuner_Doc_V1_ElementId? = nil
@@ -591,6 +604,7 @@ nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftPro
     var _stroke: Wiretuner_Doc_V1_ColorRef? = nil
     var _hidden: Bool = false
     var _image: Wiretuner_Doc_V1_NodeRef? = nil
+    var _tailParagraph: Wiretuner_Doc_V1_ParagraphProps? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -609,6 +623,7 @@ nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftPro
       _stroke = source._stroke
       _hidden = source._hidden
       _image = source._image
+      _tailParagraph = source._tailParagraph
     }
   }
 
@@ -635,6 +650,7 @@ nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftPro
         case 6: try { try decoder.decodeSingularMessageField(value: &_storage._stroke) }()
         case 7: try { try decoder.decodeSingularBoolField(value: &_storage._hidden) }()
         case 8: try { try decoder.decodeSingularMessageField(value: &_storage._image) }()
+        case 9: try { try decoder.decodeSingularMessageField(value: &_storage._tailParagraph) }()
         default: break
         }
       }
@@ -671,6 +687,9 @@ nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftPro
       try { if let v = _storage._image {
         try visitor.visitSingularMessageField(value: v, fieldNumber: 8)
       } }()
+      try { if let v = _storage._tailParagraph {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 9)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -688,6 +707,7 @@ nonisolated extension Wiretuner_Doc_V1_Override: SwiftProtobuf.Message, SwiftPro
         if _storage._stroke != rhs_storage._stroke {return false}
         if _storage._hidden != rhs_storage._hidden {return false}
         if _storage._image != rhs_storage._image {return false}
+        if _storage._tailParagraph != rhs_storage._tailParagraph {return false}
         return true
       }
       if !storagesAreEqual {return false}

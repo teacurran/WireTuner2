@@ -337,6 +337,7 @@ struct ExportCapture {
                 let bounds = request.includePageBoundary ? page.bounds : union(keep) ?? page.bounds
                 var exported = self.page(keep, bounds: bounds, name: page.name, background: request.pageColor, bleed: page.bleed)
                 exported.number = index + 1
+                exported.readingOrder = readingOrder(ofPage: index, bounds: page.bounds)
                 return exported
             }
         case .area(let area):
@@ -349,6 +350,14 @@ struct ExportCapture {
             guard let bounds = union(keep) else { return [] }
             return [page(keep, bounds: bounds, name: nil, background: nil, bleed: 0)]
         }
+    }
+
+    /// The reading order (OBJ-041) of the document page at `index` with pasteboard `bounds`, for
+    /// tagged PDF (IO-032): the page whose rectangle is `bounds`, else the page at `index`.
+    func readingOrder(ofPage index: Int, bounds: Rect) -> [NodeID] {
+        let list = PageList(state)
+        guard let page = list.pages.first(where: { $0.rect == bounds }) ?? (list.pages.indices.contains(index) ? list.pages[index] : nil) else { return [] }
+        return ReadingOrder.order(of: page, in: state, pages: list).map(NodeID.init)
     }
 
     func union(_ indices: [Int]) -> Rect? {

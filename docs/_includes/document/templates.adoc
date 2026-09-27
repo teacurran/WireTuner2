@@ -125,6 +125,35 @@ clients fall back on `NOT_FOUND`.
   equivalents offline); the Library window's Templates section and context menu items are part of
   the library UI (APP-009) and this epic adds the flag handling.
 
+NOTE: As built by DOC-029 (`WTModel/StartingPoints.swift`, `WTApp/Library/TemplateGallery.swift`,
+`WTSync/TemplateDownload.swift`).  `StartingPoints.state(for:)` composes a starting point from the ordinary commands on a scratch
+document (the built-in template, then `SetPageGeometry`, `SetUnits`, `AddPages`, `AddGuides`, `NewMasterPage`,
+`ApplyMasterPage`, `SetGrid`, `SetPrintSettings`, `CreateGraphicStyle` ...), and `CreateDocument(.startingPoint(options))` writes
+it into the new document by re-issuing that state with fresh ids in one change labelled "Created from <starting point>"
+(*Blank* with its default options is exactly the built-in template, "Created").  Deviations, because the model has no such
+fields: the *color mode* picks the swatch set only (CMYK: the process defaults; RGB: those and the 216 web-safe colours);
+*Publication*'s facing pages are page origins laid out as spreads (page 1 alone on the right), not a spread setting; its folio
+text is a static "Folio" text block on the master (there is no page-number character); *Technical*'s stroke set is four graphic
+styles (Hairline 0.25 pt, Fine 0.5 pt, Medium 1 pt, Heavy 2 pt) and a 0.5 pt default stroke, and its grid is 6 pt.  *Print* is
+Letter in inches with ⅛ in bleed and crop and registration marks; *Screen* 1920 × 1080 px at 72 ppi; *Stationery* Letter,
+#10 envelope and business card pages with ½ in (card: ⅛ in) margin guides.  The gallery is a window of its own (SwiftUI grids,
+not an `NSCollectionView`) shared by menu:File[New from Template…], the Library's btn:[New from Template…] and launch; at
+launch it replaces the untitled document when no session is restored and *Show the gallery at launch* is on (test launches
+only with `-WTShowGallery`).  Library templates come from the cache after a `List` of every space's templates; an uncached
+template is dimmed offline with the reason, and the first use caches it in a local store.  Not built: the UI tests (gallery at
+launch, create from each starting point and from a library template).
+
+NOTE: As built by DOC-030 (`WTApp/Library/TemplateFeatures.swift`, `LibraryModel.setTemplate`).  menu:File[Save as Template…]
+asks for a name and *My Templates* or a team, then records a new document flagged as a template and writes the working
+document's current state into its local store as one creation change ("Created from <document>"), uploaded in the background
+once the library's `Create` has run; `SetTemplate` follows the `Create` (so offline it queues with the *Waiting to upload*
+badge).  This is the local equivalent throughout, not `DocumentService.Duplicate`, so unsent local changes are in the
+template; the copy's content equals the document's with fresh ids.  The Library window has a *Templates* section (a `List` with
+`LIST_SCOPE_TEMPLATES`), a template badge, and *Use as Template* / *Use as Document*, disabled offline with the reason.
+*New document template* is a pop-up of Built-in and the library's templates (`PreferenceControl.templateChooser`, the template's
+document id); menu:File[New] falls back to Built-in when the template is trashed or cannot be read and says so once per template
+on this Mac.
+
 === Build tasks
 
 [[DOC-028]]

@@ -34,7 +34,8 @@ extension ObjectPanelModel {
         let colors = Set(fills.map { ref -> RenderColor? in ref.map { resolver.color($0) } ?? .black })
         let strokes = Set(runs.map { values in values.contains { if case .stroke? = $0.value { true } else { false } } })
         // The section needs a block, so `nodes` is never empty.
-        let rows = TextBlockAppearance.rows(text.nodes[0], in: state)
+        // Inside an instance the block's own rows are the master's, not this section's (LIB-027).
+        let rows = editingText?.override == nil ? TextBlockAppearance.rows(text.nodes[0], in: state) : []
         return TextColorSection(nodes: text.nodes, fill: colors.count == 1 ? colors.first! : nil, fillNone: !fills.isEmpty && fills.allSatisfy { $0?.none == true },
                                 stroke: strokes.count == 1 ? strokes.first : nil, blockFill: rows.first { $0.list == .fills },
                                 blockStroke: rows.first { $0.list == .strokes })
@@ -43,6 +44,9 @@ extension ObjectPanelModel {
     /// The glyph fill: `color`, or *None*.
     @discardableResult
     func setTextFill(_ color: RenderColor?) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        if let session = editingText, session.override != nil {
+            return session.format([.with { $0.fill = color.map(ColorResolver.inline) ?? .with { $0.none = true } }], label: color == nil ? "Remove Fill" : "Fill")
+        }
         let commands = textTargets.map { target in
             color.map { TextColor.fill(node: target.node, from: target.from, to: target.to, ColorResolver.inline($0)) }
                 ?? TextColor.removeFill(node: target.node, from: target.from, to: target.to)
@@ -53,6 +57,10 @@ extension ObjectPanelModel {
     /// The glyph stroke on (1 pt black) or off.
     @discardableResult
     func setTextStroke(_ on: Bool) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        if let session = editingText, session.override != nil {
+            return session.format([on ? .with { $0.stroke = TextColor.defaultStroke } : TextMarks.cleared(.with { $0.stroke = .init() })],
+                                  label: on ? "Stroke" : "Remove Stroke")
+        }
         let commands = textTargets.map { target in
             on ? TextColor.stroke(node: target.node, from: target.from, to: target.to) : TextColor.removeStroke(node: target.node, from: target.from, to: target.to)
         }
@@ -63,7 +71,7 @@ extension ObjectPanelModel {
     /// removed from each that has it.
     @discardableResult
     func setBlockRow(_ list: AppearanceList, on: Bool) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        guard let section = textColor else { return nil }
+        guard let section = textColor, editingText?.override == nil else { return nil }
         let state = document.state
         let commands: [any WTModel.Command] = section.nodes.compactMap { node in
             let row = TextBlockAppearance.rows(node, in: state).first { $0.list == list }
@@ -105,8 +113,10 @@ struct TextColorSectionView: View {
                 Button("None", action: Self.clearing(model)).disabled(section.fillNone).accessibilityIdentifier("object.text.fillNone")
             }
             Toggle("Text stroke", isOn: Self.strokeBinding(section, model)).accessibilityIdentifier("object.text.stroke")
-            Toggle("Block background", isOn: Self.blockBinding(.fills, section.blockFill, model)).accessibilityIdentifier("object.text.blockFill")
-            Toggle("Block border", isOn: Self.blockBinding(.strokes, section.blockStroke, model)).accessibilityIdentifier("object.text.blockStroke")
+            if model.editingText?.override == nil {
+                Toggle("Block background", isOn: Self.blockBinding(.fills, section.blockFill, model)).accessibilityIdentifier("object.text.blockFill")
+                Toggle("Block border", isOn: Self.blockBinding(.strokes, section.blockStroke, model)).accessibilityIdentifier("object.text.blockStroke")
+            }
         }
     }
 }

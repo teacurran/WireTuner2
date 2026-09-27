@@ -77,6 +77,9 @@ public struct PDFOptions: ExportOptions, Hashable {
     /// *Comments as annotations* (COLLAB-033): each open comment thread as a `/Text` annotation
     /// at its pin, replies as `/Text` annotations replying to the opener.  Off by default.
     public var commentsAsAnnotations = false
+    /// *Tagged PDF (PDF/UA-1)* (IO-032): the structure tree, marked content and the PDF/UA-1
+    /// claim when the file is eligible (`PDFStructure.swift`).  On by default.
+    public var tagged = true
     /// Required to open the file; empty for none.  Never stored in a preset.
     public var openPassword: String
     /// Required to print, copy or edit beyond the permissions below; empty for none.
@@ -224,9 +227,10 @@ public struct PDFOptions: ExportOptions, Hashable {
         !openPassword.isEmpty || !permissionsPassword.isEmpty
     }
 
-    /// Whether Display P3 colours can be written with their profile (ICC v4 needs PDF 1.7).
+    /// Whether Display P3 colours can be written with their profile: PDF 1.7 and later, and PDF/X-4.
     var keepsDisplayP3: Bool {
-        embedProfiles && colors == .keep && standard == .none && (version == .v1_7 || version == .v2_0)
+        // PDF/X-4 (PDF 1.6) allows ICC v4 profiles, which PDF has read since 1.5 (CMS-015).
+        embedProfiles && colors == .keep && (standard == .pdfX4_2010 || (standard == .none && (version == .v1_7 || version == .v2_0)))
     }
 
     /// Whether optional content (layers) can be written: PDF 1.5 or later.

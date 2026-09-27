@@ -504,6 +504,33 @@ its error.  The Export sheet's *Interactive* section (links, notes, bookmarks, p
 permissions) is disabled under a PDF/X standard, and a preset stored with a password asks for it at
 export time.
 
+NOTE: As built by IO-032 (`WTInterchange/PDF/PDFStructure.swift`, `PDFWriter.swift`; `PDFOptions.tagged`, on by
+default; `ExportPage.readingOrder`, which WTModel's `ExportSnapshot` fills from OBJ-041's `ReadingOrder.order`; the
+*Tagged PDF (PDF/UA-1)* toggle in the export sheet's General section).  The stream writer marks content as it writes it,
+so ids and content cannot diverge: a node met outside any tagged sequence is a layer, an anonymous group or a group
+without alt text (its members are tagged in its place), a decorative node or content with no node (`/Artifact BMC`), a
+node with alt text (`/Figure` with `/Alt` and a `/Layout` attribute `/BBox`, one sequence around all its content), a
+text object (`/P` holding a `/Span` per glyph run, `/ActualText` where glyphs and characters do not map one to one or the
+run is outlined; a non-text leaf inside it is an artifact), or an undescribed object (`/Figure` without `/Alt`, named in
+the reasons).  A transparency group written as a form XObject gets its own marked-content ids (`/MCR` with `/Stm`, the
+form's `/StructParents`) when its members are tagged one by one; inside a tagged sequence it is not marked again.  Link
+annotations (object links, page links and text-range links) are `/Link` elements and notes and comment threads `/Annot`
+elements, each holding its `/OBJR`, placed after the elements of the object they belong to, with `/StructParent`;
+pages with annotations get `/Tabs /S`, and a tagged file's link always has `/Contents` (its alt text, else the URL, else
+"Go to page").  Each page's elements follow its reading order (listed objects first, then the others in stacking order).
+The catalog gets `/StructTreeRoot` (`/ParentTree` over every stream and annotation, `/ParentTreeNextKey`) and
+`/MarkInfo << /Marked true >>`; the claim -- XMP `pdfuaid:part 1` (the packet is written even with *Include document
+info* off, with the file name as `dc:title` when Document Info has none) and `/DisplayDocTitle` -- is made when the
+document has a language, no text is outlined (*Convert text to outlines*, or a font that cannot be embedded) and no
+object read lacks alt text; otherwise the summary says "tagged PDF without the PDF/UA-1 claim:" with each reason, naming
+the first five undescribed objects.  *Deviations*: a text object is one `/P` (the flattened scene keeps runs, not
+paragraphs), and `/H1`--`/H3` are not written (no paragraph style is marked as a heading yet); Type 3 fonts (CFF outlines)
+stay as they are and veraPDF accepts them.  Verification: veraPDF 1.30 (`brew install verapdf`) validates a two-page
+claimed fixture with `--flavour ua1` (`PDFTaggedTests`, run when `/opt/homebrew/bin/verapdf` exists); the structural
+test reads the tree back through CGPDF and checks every marked id is unique in its stream and owned by exactly one
+element; tagging the export corpus grows it by under 3%.  The Read Out Loud and VoiceOver acceptance is manual and was
+not run.
+
 === Build tasks
 
 [[IO-025]]

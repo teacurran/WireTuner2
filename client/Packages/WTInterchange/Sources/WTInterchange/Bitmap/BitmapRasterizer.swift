@@ -150,23 +150,47 @@ public struct BitmapRasterizer: Sendable {
             return ColorSetup(space: space, tag: common.embedProfile ? space : CGColorSpaceCreateDeviceCMYK(), clipped: 0)
         case .rgb:
             let wide = WideColorScan.count(in: page.displayList)
-            var p3: Bool
-            switch common.rgbSpace {
-            case .auto: p3 = wide > 0
-            case .displayP3: p3 = true
-            case .sRGB, .workingRGB: p3 = false
-            }
+            let sRGB = CGColorSpace(name: CGColorSpace.sRGB)!
             // Without an embedded profile a file reads as sRGB, so the artwork is pulled into it.
-            if !common.embedProfile {
-                p3 = false
+            guard common.embedProfile else {
+                return ColorSetup(space: sRGB, tag: CGColorSpaceCreateDeviceRGB(), clipped: wide)
             }
-            var space = CGColorSpace(name: p3 ? CGColorSpace.displayP3 : CGColorSpace.sRGB)!
-            // Working RGB from the document when it is known, unless the artwork needs Display P3.
-            if let output, common.embedProfile, common.rgbSpace == .workingRGB || (common.rgbSpace == .auto && !p3) {
-                space = output.colorSpace(model: .rgb)
+            switch common.rgbSpace {
+            case .displayP3:
+                let space = CGColorSpace(name: CGColorSpace.displayP3)!
+                return ColorSetup(space: space, tag: space, clipped: 0)
+            case .sRGB:
+                return ColorSetup(space: sRGB, tag: sRGB, clipped: wide)
+            case .workingRGB:
+                let space = output?.colorSpace(model: .rgb) ?? sRGB
+                return ColorSetup(space: space, tag: space, clipped: wide)
+            case .auto:
+                // CMS-015's rule: Working RGB, or Display P3 when the artwork reaches beyond sRGB
+                // and Working RGB does not hold Display P3.
+                let space: CGColorSpace
+                if let output {
+                    let profile = output.rgbExportSpace(widest: wide > 0 ? .displayP3 : .sRGB)
+                    space = output.registry.colorSpace(for: profile) ?? sRGB
+                } else {
+                    space = wide > 0 ? CGColorSpace(name: CGColorSpace.displayP3)! : sRGB
+                }
+                return ColorSetup(space: space, tag: space, clipped: 0)
             }
-            return ColorSetup(space: space, tag: common.embedProfile ? space : CGColorSpaceCreateDeviceRGB(), clipped: p3 ? 0 : wide)
         }
+    }
+
+    /// The renderer tiles copy their colour management from: the output context's, working in
+    /// Display P3 when the page renders into a space wider than sRGB, so a P3 colour keeps its
+    /// value instead of being clipped to sRGB on the way (CMS-015).
+    func renderer(for setup: ColorSetup) -> CoreGraphicsRenderer? {
+        let wide = common.color == .rgb && setup.space.name != CGColorSpace.sRGB && setup.space.model == .rgb
+        var renderer = base ?? output.map { CoreGraphicsRenderer().with(colorManagement: ColorManagement(cmykProfile: $0.cmykProfile, intent: $0.intent, blackPointCompensation: $0.blackPointCompensation, converter: $0.converter)) }
+        if wide {
+            var chosen = renderer ?? CoreGraphicsRenderer()
+            chosen.colorManagement.workingSpace = .displayP3
+            renderer = chosen
+        }
+        return renderer
     }
 
     /// The pixel size of `page` at `scale`.
@@ -179,6 +203,12 @@ public struct BitmapRasterizer: Sendable {
     /// `alpha` (RGB only).  The second value counts colours clipped into sRGB.
     public func render(_ page: ExportPage, scale: Double, bitsPerComponent: Int, alpha: Bool) -> (bitmap: RasterBitmap, clipped: Int) {
         let setup = colorSetup(for: page)
+        var page = page
+        if setup.clipped > 0 {
+            // Colours outside the output space are gamut-mapped by COLOR-024 rather than clipped
+            // by Core Graphics, so the pixels are the same on every Mac (CMS-015).
+            page.displayList = WTColor.OutputContext.mappedIntoSRGB(page.displayList)
+        }
         let (width, height) = pixelSize(of: page, scale: scale)
         let factor = common.antiAliasing
         let tile = max(BitmapRasterizer.tileSamples / factor, 1)
@@ -204,7 +234,7 @@ public struct BitmapRasterizer: Sendable {
             page: page, width: width, height: height, tile: tile, factor: factor, components: components,
             bitsPerComponent: bitsPerComponent, bitmapInfo: info, space: setup.space, background: background,
             pixelsPerPoint: pixelsPerPoint, overprint: common.simulateOverprint, mask: alphaChannel ? common.maskLayer : nil,
-            base: base ?? output.map { CoreGraphicsRenderer().with(colorManagement: ColorManagement(cmykProfile: $0.cmykProfile, intent: $0.intent, blackPointCompensation: $0.blackPointCompensation, converter: $0.converter)) }
+            base: renderer(for: setup)
         )
         let bitmap = RasterBitmap(
             width: width, height: height, bitsPerComponent: bitsPerComponent, components: components, hasAlpha: alphaChannel,

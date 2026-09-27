@@ -25,10 +25,12 @@ public struct ImageImporter: Importer {
         public var dpiY: Double
         /// What was changed on the way in ("downsampled to 50 MP", "rotated upright").
         public var notes: [String]
+        /// The profile the original file carries (CMS-012).
+        public var embeddedProfile: ImportedProfile?
 
         /// The image node, named `name`, at the origin.
         public func image(name: String?) -> ImportedImage {
-            ImportedImage(pixels: pixels, dpiX: dpiX, dpiY: dpiY, name: name)
+            ImportedImage(pixels: pixels, dpiX: dpiX, dpiY: dpiY, name: name, embeddedProfile: embeddedProfile)
         }
     }
 
@@ -129,7 +131,7 @@ public struct ImageImporter: Importer {
             }
         }
         let pixels = ImportedPixels(blob: blob, width: current.width, height: current.height, mode: current.mode, bitsPerChannel: current.bits, hasAlpha: current.hasAlpha)
-        return Decoded(pixels: pixels, dpiX: current.dpiX, dpiY: current.dpiY, notes: notes)
+        return Decoded(pixels: pixels, dpiX: current.dpiX, dpiY: current.dpiY, notes: notes, embeddedProfile: EmbeddedProfiles.extract(data))
     }
 
     /// A generated or extracted image (a PDF image XObject, an SVG data URL's pixels that

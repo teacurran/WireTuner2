@@ -69,6 +69,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAppleScriptEnabled</key>
+	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
@@ -103,6 +105,8 @@
 	<array>
 		<string>com.villagecompute.wiretuner.document</string>
 	</array>
+	<key>OSAScriptingDefinition</key>
+	<string>WireTuner.sdef</string>
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>

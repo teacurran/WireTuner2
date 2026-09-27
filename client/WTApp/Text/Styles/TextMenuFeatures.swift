@@ -202,7 +202,7 @@ enum TextStyleFeatures {
         registry.register(InspectorSection(id: "textStyle", order: 60, kinds: [.text]) { model in
             model.textStyle.map { AnyView(TextStyleSectionView(section: $0, model: model)) }
         })
-        registry.register(InspectorSection(id: "textColor", order: 64, kinds: [.text]) { model in
+        registry.register(InspectorSection(id: "textColor", order: 64, kinds: [.text, .instance]) { model in
             model.textColor.map { AnyView(TextColorSectionView(section: $0, model: model)) }
         })
     }

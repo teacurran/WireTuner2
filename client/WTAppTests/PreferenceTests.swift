@@ -83,17 +83,19 @@ enum PreferencesPage {
     @Test func catalogCoversEveryRowOfThePage() {
         let pageRows = PreferencesPage.rows.flatMap(\.1)
         #expect(pageRows.count == 127, "the page's tables have 127 rows")
-        let mapped = Set(PreferenceCatalog.all.map(\.pageRow))
+        // Hidden keys (the synced recents, DOC-020) are not rows of the window.
+        let shown = PreferenceCatalog.all.filter { $0.control != .hidden }
+        let mapped = Set(shown.map(\.pageRow))
         let unmapped = pageRows.filter { !mapped.contains($0) }
         #expect(unmapped.isEmpty, "rows without a key: \(unmapped)")
         let extra = mapped.subtracting(pageRows)
         #expect(extra.isEmpty, "keys citing rows the page does not have: \(extra)")
         for (category, rows) in PreferencesPage.rows {
-            let keys = PreferenceCatalog.keys(in: category)
+            let keys = PreferenceCatalog.keys(in: category).filter { $0.control != .hidden }
             #expect(Array(NSOrderedSet(array: keys.map(\.pageRow))) as? [String] == rows, "\(category) rows in page order")
         }
         // 127 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
-        #expect(PreferenceCatalog.all.count == 132)
+        #expect(shown.count == 132 && PreferenceCatalog.all.count == 133)
         for (row, ids) in PreferencesPage.compoundRows {
             #expect(PreferenceCatalog.all.filter { $0.pageRow == row }.map(\.id) == ids)
         }
@@ -359,11 +361,11 @@ final class RecordingBackend: SyncedPreferenceBackend {
         var total = 0
         for category in PreferenceCategory.allCases {
             let rows = PreferenceForm.rows(for: category)
-            #expect(rows.map(\.id) == PreferenceCatalog.keys(in: category).map(\.id))
+            #expect(rows.map(\.id) == PreferenceCatalog.keys(in: category).filter { $0.control != .hidden }.map(\.id))
             #expect(rows.allSatisfy { $0.accessibilityIdentifier == "pref.\($0.id)" && $0.title == $0.key.title })
             total += rows.count
         }
-        #expect(total == PreferenceCatalog.all.count)
+        #expect(total == PreferenceCatalog.all.filter { $0.control != .hidden }.count)
     }
 
     @Test func controlKindsFollowTheCatalog() {
@@ -374,7 +376,9 @@ final class RecordingBackend: SyncedPreferenceBackend {
         #expect(kind(PreferenceCatalog.Colors.guideColor.erased) == .color)
         #expect(kind(PreferenceCatalog.Object.defaultLineWeights.erased) == .list)
         #expect(kind(PreferenceCatalog.Typeface.previewText.erased) == .text(placeholder: "Hamburgefonstiv"))
-        #expect(kind(PreferenceCatalog.Document.newTemplate.erased) == .chooser(placeholder: "WireTuner default"))
+        #expect(kind(PreferenceCatalog.Document.newTemplate.erased) == .templateChooser)
+        #expect(kind(PreferenceCatalog.Document.recents.erased) == .hidden)
+        #expect(!PreferenceForm.rows(for: .document).contains { $0.key.id == PreferenceCatalog.Document.recents.id })
         if case let .popup(options) = kind(PreferenceCatalog.Export.bitmapResolution.erased) {
             #expect(options.map(\.title) == ["72 dpi", "144 dpi", "300 dpi"])
         } else {

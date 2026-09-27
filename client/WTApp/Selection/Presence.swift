@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import WTCRDT
 import WTGeometry
+import WTModel
 import WTRender
 
 /// A collaborator's text caret (presence.adoc, "Selections and carets"): the text block, the
@@ -10,12 +11,24 @@ struct RemoteCaret: Hashable, Sendable {
     var node: SelectionID
     var position: OpID
     var rangeEnd: OpID?
+    /// The TEXT field of the node: a block's own, or an instance's text override's (LIB-027).
+    var text: RegisterPath
 
-    init(node: SelectionID, position: OpID, rangeEnd: OpID? = nil) {
+    init(node: SelectionID, position: OpID, rangeEnd: OpID? = nil, text: RegisterPath = TextFields.text) {
         self.node = node
         self.position = position
         self.rangeEnd = rangeEnd
+        self.text = text
     }
+}
+
+/// The caret this person publishes (`TextCaret`): the node and TEXT field, the character the caret
+/// is before (zero: the end) and a selection's other end.
+struct PresenceCaret: Hashable, Sendable {
+    var node: OpID
+    var text: RegisterPath
+    var position: OpID
+    var rangeEnd: OpID?
 }
 
 /// One other person with the document open, as the canvas overlay, the avatar strip and the

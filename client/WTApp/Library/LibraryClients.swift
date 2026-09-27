@@ -19,6 +19,8 @@ protocol LibraryDocumentClient: Sendable {
     func createFolder(spaceID: String, parentFolderID: String?, name: String, accessToken: String) async throws -> LibraryFolder
     func renameFolder(folderID: String, name: String, accessToken: String) async throws -> LibraryFolder
     func deleteFolder(folderID: String, accessToken: String) async throws
+    /// `SetTemplate`: marks or unmarks a template (templates.adoc).
+    func setTemplate(documentID: String, isTemplate: Bool, accessToken: String) async throws -> LibraryDocument
 }
 
 /// `TeamService.ListTeams`, for the space switcher.
@@ -73,6 +75,7 @@ extension LibraryDocument {
             thumbnailAt: document.hasThumbnailAt ? document.thumbnailAt.date : nil,
             isTrashed: document.hasTrashedAt, isSharedWithMe: sharedWithMe
         )
+        isTemplate = document.isTemplate
     }
 }
 
@@ -162,6 +165,10 @@ extension Wiretuner_Docs_V1_MoveToFolderResponse: LibraryResponse {
     var mapped: LibraryDocument { LibraryDocument(document) }
 }
 
+extension Wiretuner_Docs_V1_SetTemplateResponse: LibraryResponse {
+    var mapped: LibraryDocument { LibraryDocument(document) }
+}
+
 extension Wiretuner_Docs_V1_SearchResponse: LibraryResponse {
     var mapped: LibrarySearchPage { LibrarySearchPage(hits: hits.map(LibrarySearchHit.init), nextCursor: nextCursor.isEmpty ? nil : nextCursor) }
 }
@@ -199,6 +206,8 @@ enum LibraryRequests {
         case .sharedWithMe:
             message.scope = .sharedWithMe
             message.spaceID = ""
+        case .templates:
+            message.scope = .templates
         }
         message.cursor = request.cursor ?? ""
         message.pageSize = UInt32(LibraryListRequest.pageSize)
@@ -212,6 +221,13 @@ enum LibraryRequests {
         message.folderID = document.folderID ?? ""
         message.name = document.name
         message.kind = .illustrationMultiPage
+        return message
+    }
+
+    static func setTemplate(documentID: String, isTemplate: Bool) -> Wiretuner_Docs_V1_SetTemplateRequest {
+        var message = Wiretuner_Docs_V1_SetTemplateRequest()
+        message.documentID = documentID
+        message.isTemplate = isTemplate
         return message
     }
 

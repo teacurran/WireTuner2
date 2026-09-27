@@ -40,11 +40,12 @@ enum DocumentOpener {
 
     /// Writes a new document's template as its first change (creating-opening.adoc; DOC-019's
     /// `CreateDocument`, "Created": one Letter page centred on the pasteboard, then the defaults of
-    /// swatches.adoc and the rest of `DocumentTemplate`): a local store opened for a document
+    /// swatches.adoc and the rest of `DocumentTemplate`; or a starting point or a template
+    /// document, DOC-029): a local store opened for a document
     /// created on this Mac.  Not an undo step; nothing is written on a document that already has
     /// content.
-    static func applyTemplate(to document: WTModel.Document) async {
-        _ = try? await document.perform(CreateDocument(.builtIn))
+    static func applyTemplate(to document: WTModel.Document, template: DocumentCreation.Template = .builtIn) async {
+        _ = try? await document.perform(CreateDocument(template))
     }
 
     /// The opener that makes memory documents.

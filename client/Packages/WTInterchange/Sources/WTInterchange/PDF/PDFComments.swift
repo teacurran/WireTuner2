@@ -28,7 +28,9 @@ extension PDFDocumentBuild {
                 if let opener {
                     entries += [("IRT", .reference(opener)), ("RT", .name("R"))]
                 }
-                let object = objects.add(.dictionary(entries))
+                let object = objects.reserve()
+                tagAnnotation(object, type: "Annot", alt: nil, top: nil, entries: &entries)
+                objects.set(object, .dictionary(entries))
                 opener = opener ?? object
                 annotations.append(.reference(object))
             }

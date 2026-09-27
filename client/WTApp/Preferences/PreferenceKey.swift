@@ -103,6 +103,12 @@ enum PreferenceControl: Hashable, Sendable {
     /// The *Font substitutions* table (font-substitution.adoc, "The substitution table"): one row
     /// per remembered substitution, each with a Remove button (DOC-024).
     case substitutionTable
+    /// A pop-up of Built-in and the library's templates (*New document template*, DOC-030),
+    /// storing the template's document id ("" for Built-in).
+    case templateChooser
+    /// Kept (and synced) but not drawn: state the app keeps with the account, such as the
+    /// recents behind menu:File[Open Recent] (DOC-020).
+    case hidden
 
     var range: ClosedRange<Double>? {
         if case let .stepper(range, _, _) = self { return range }
@@ -184,7 +190,7 @@ struct AnyPreferenceKey: Sendable, Identifiable, Hashable {
             return range.contains(number)
         case let .popup(options):
             return options.contains { $0.value == value }
-        case .toggle, .color, .text, .list, .chooser, .substitutionTable:
+        case .toggle, .color, .text, .list, .chooser, .substitutionTable, .templateChooser, .hidden:
             return true
         }
     }

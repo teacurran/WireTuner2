@@ -85,6 +85,11 @@ struct GRPCLibraryClient: LibraryDocumentClient, TeamListClient, BlobDownloadCli
         try await call(accessToken) { try await Documents(wrapping: $0).deleteFolder(.with { $0.folderID = folderID }, metadata: $1) }
     }
 
+    func setTemplate(documentID: String, isTemplate: Bool, accessToken: String) async throws -> LibraryDocument {
+        let message = LibraryRequests.setTemplate(documentID: documentID, isTemplate: isTemplate)
+        return try await call(accessToken) { try await Documents(wrapping: $0).setTemplate(message, metadata: $1) }
+    }
+
     // MARK: TeamService
 
     func listTeams(accessToken: String) async throws -> [LibrarySpace] {

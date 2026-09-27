@@ -604,11 +604,14 @@ import WTProto
         #expect(!model.isOnline)
     }
 
-    @Test func galleryCreatesFromTheBuiltInTemplate() {
+    @Test func theGalleryButtonAsksTheApp() {
         let model = model()
-        model.isShowingGallery = true
-        model.createFromGallery()
-        #expect(!model.isShowingGallery && model.cache.documents.count == 1)
+        let counter = Counter()
+        model.showGallery = { counter.bump() }
+        model.showGallery()
+        #expect(counter.count == 1)
+        model.newDocument()
+        #expect(model.cache.documents.count == 1, "no app hook: built in")
     }
 }
 
@@ -657,7 +660,7 @@ import WTProto
         model.createDocument()
         content.layoutSubtreeIfNeeded()
 
-        let gallery = NSHostingView(rootView: TemplateGalleryView(model: model))
+        let gallery = NSHostingView(rootView: TemplateGalleryView(model: TemplateGalleryModel(library: model)))
         gallery.layoutSubtreeIfNeeded()
         #expect(gallery.fittingSize.width > 0)
         controller.close()

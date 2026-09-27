@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import GRPCCore
 import Observation
+import WTModel
 
 /// What the library talks to.  Injected so tests use fakes (no network).
 struct LibraryServices: Sendable {
@@ -28,11 +29,14 @@ final class LibraryModel {
         case sharedWithMe
         /// A folder of the current space; nil is its top level.
         case folder(String?)
+        /// The current space's templates (DOC-030).
+        case templates
     }
 
     static let searchDebounce: Duration = .milliseconds(300)
     static let namesOnlyHint = "Searching names only — connect to search contents"
     static let offlineActionMessage = "You are offline. Connect to change documents in the library."
+    static let templateFlagOfflineMessage = "You are offline. Connect to change whether a document is a template."
     static let untitled = "Untitled"
     /// The personal space's id until `Me` has told us the account id (documents created
     /// before then are moved into the real space when they upload).
@@ -70,7 +74,13 @@ final class LibraryModel {
     /// Bumped when a thumbnail arrives, so the grid redraws.
     private(set) var thumbnailRevision = 0
     var selection: Set<String> = []
-    var isShowingGallery = false
+    /// Shows the template gallery (menu:File[New from Template…], btn:[New from Template…]).
+    @ObservationIgnored var showGallery: @MainActor () -> Void = {}
+    /// btn:[New]: a document from the default template (`TemplateFeatures`); nil creates from
+    /// the built-in template.
+    @ObservationIgnored var makeNewDocument: (@MainActor () -> Void)?
+    /// The recents changed on this Mac (menu:File[Open Recent] and its account sync, DOC-020).
+    @ObservationIgnored var onRecentsChange: @MainActor () -> Void = {}
     /// The team settings sheet, while shown.
     var teamSettings: TeamSettingsModel?
     /// The Join Team sheet, while shown.
@@ -123,6 +133,7 @@ final class LibraryModel {
         case .recents: cache.recentDocuments
         case .sharedWithMe: cache.documents(in: .sharedWithMe, spaceID: nil)
         case let .folder(folderID): cache.documents(in: .folder(folderID), spaceID: currentSpace.id)
+        case .templates: cache.documents(in: .templates, spaceID: currentSpace.id)
         }
     }
 
@@ -234,6 +245,7 @@ final class LibraryModel {
         case .recents: nil
         case .sharedWithMe: .sharedWithMe
         case let .folder(folderID): .folder(folderID)
+        case .templates: .templates
         }
     }
 
@@ -292,6 +304,7 @@ final class LibraryModel {
         guard !available.isEmpty else { return }
         for document in available { cache.markOpened(document, at: now()) }
         save()
+        onRecentsChange()
         onOpen(available)
     }
 
@@ -315,14 +328,54 @@ final class LibraryModel {
         return (personalSpace.id, nil)
     }
 
+    /// *Clear Menu* of menu:File[Open Recent] (DOC-020).
+    func clearRecents() {
+        guard !cache.recents.isEmpty else { return }
+        cache.recents = []
+        save()
+    }
+
+    /// btn:[New]: from the default template when the app says how, else built-in.
+    func newDocument() {
+        if let makeNewDocument { makeNewDocument() } else { createDocument() }
+    }
+
+    /// Takes the account's recents from other Macs (DOC-020): merged with this Mac's by time,
+    /// newest first, `LibraryCacheFile.recentsLimit` kept.  A document not listed here yet is
+    /// recorded by name so Open Recent can show and open it.
+    func mergeRecents(_ entries: [RecentEntry]) {
+        var byID: [String: LibraryRecent] = Dictionary(cache.recents.map { ($0.documentID, $0) }) { first, _ in first }
+        for entry in entries {
+            if let known = byID[entry.id], known.openedAt >= entry.openedAt { continue }
+            byID[entry.id] = LibraryRecent(documentID: entry.id, openedAt: entry.openedAt)
+            if cache.documents[entry.id] == nil, let space = entry.spaceID {
+                cache.documents[entry.id] = LibraryDocument(id: entry.id, spaceID: space, name: entry.name, role: nil)
+            }
+        }
+        let merged = byID.values.sorted { ($0.openedAt, $0.documentID) > ($1.openedAt, $1.documentID) }.prefix(LibraryCacheFile.recentsLimit)
+        guard Array(merged) != cache.recents else { return }
+        cache.recents = Array(merged)
+        save()
+    }
+
     /// A new document (menu:File[New], btn:[New]): recorded and opened at once with a UUIDv7,
     /// then `DocumentService.Create` runs; offline it waits with the *Waiting to upload* badge
     /// and uploads on the next refresh.
     @discardableResult
-    func createDocument(name: String = LibraryModel.untitled) -> LibraryDocument {
+    func createDocument(name: String = LibraryModel.untitled, template: DocumentCreation.Template? = nil) -> LibraryDocument {
         let document = recordDocument(name: name)
+        if let template { pendingTemplates[document.id] = template }
         open([document])
         return document
+    }
+
+    /// What a new document's first change is made from, kept until its window opens it
+    /// (`takeTemplate`); a document created without one gets the built-in template.
+    @ObservationIgnored private(set) var pendingTemplates: [String: DocumentCreation.Template] = [:]
+
+    /// The template `id` was created from, once: the window writes it as the first change.
+    func takeTemplate(for id: String) -> DocumentCreation.Template? {
+        pendingTemplates.removeValue(forKey: id)
     }
 
     /// A document not yet created on the server (IO-004's deferred creation): recorded with a
@@ -331,23 +384,18 @@ final class LibraryModel {
     /// the next refresh.  Not opened: the caller opens it (a duplicate opens without the
     /// new-document template, its content being re-issued into it).
     @discardableResult
-    func recordDocument(name: String, like source: String? = nil) -> LibraryDocument {
-        let target = source.flatMap { cache.documents[$0] }.map { (spaceID: $0.spaceID, folderID: $0.folderID) } ?? creationTarget
-        let document = LibraryDocument(
+    func recordDocument(name: String, like source: String? = nil, in destination: (spaceID: String, folderID: String?)? = nil,
+                        isTemplate: Bool = false) -> LibraryDocument {
+        let target = destination ?? source.flatMap { cache.documents[$0] }.map { (spaceID: $0.spaceID, folderID: $0.folderID) } ?? creationTarget
+        var document = LibraryDocument(
             id: makeID(), spaceID: target.spaceID, folderID: target.folderID, name: name, role: .owner, updatedAt: now(), isPendingUpload: true
         )
+        document.isTemplate = isTemplate
         cache.documents[document.id] = document
         save()
         let id = document.id
         pendingUploads[id] = Task { [weak self] in await self?.upload(id) }
         return document
-    }
-
-    /// The template gallery's choice.  Library templates arrive with DOC-019; until then the
-    /// gallery offers the built-in template only.
-    func createFromGallery() {
-        isShowingGallery = false
-        createDocument()
     }
 
     private func upload(_ id: String) async {
@@ -374,6 +422,10 @@ final class LibraryModel {
         } catch let error as RPCError where error.code == .alreadyExists {
             // An earlier Create reached the server but its answer did not reach us.
             uploaded = document
+        }
+        if document.isTemplate, !uploaded.isTemplate {
+            // Saved as a template offline (templates.adoc, "Offline behavior"): flagged once it exists.
+            uploaded = try await services.documents.setTemplate(documentID: id, isTemplate: true, accessToken: accessToken)
         }
         uploaded.isPendingUpload = false
         cache.documents[id] = uploaded
@@ -407,6 +459,43 @@ final class LibraryModel {
         guard var document = cache.documents[id], (document.keywords ?? []) != keywords else { return }
         document.keywords = keywords
         store(document)
+    }
+
+    /// *Use as Template* and *Use as Document* (templates.adoc): `SetTemplate`, which needs the
+    /// server -- offline it changes nothing and says why.  A document still waiting to upload
+    /// keeps the flag locally and is flagged after its `Create`.
+    func setTemplate(_ id: String, _ isTemplate: Bool) async {
+        guard var document = cache.documents[id], document.isTemplate != isTemplate else { return }
+        if document.isPendingUpload {
+            document.isTemplate = isTemplate
+            store(document)
+            return
+        }
+        store(await perform { try await services.documents.setTemplate(documentID: id, isTemplate: isTemplate, accessToken: $0) })
+        if !isOnline { errorMessage = Self.templateFlagOfflineMessage }
+    }
+
+    /// The gallery's library templates: *My templates* (the personal space) and each team's, from
+    /// the cache.
+    var templateGroups: [(space: LibrarySpace, templates: [LibraryDocument])] {
+        spaces.map { space in (space, cache.documents(in: .templates, spaceID: space.id)) }
+    }
+
+    /// Lists every space's templates into the cache (the gallery opening); offline the cache
+    /// stands.
+    func refreshTemplates() async {
+        do {
+            let token = try await services.accessToken()
+            for space in spaces {
+                let page = try await services.documents.list(LibraryListRequest(spaceID: space.id, scope: .templates), accessToken: token)
+                cache.apply(page, scope: .templates, spaceID: space.id, firstPage: true)
+            }
+            wentOnline()
+        } catch {
+            handle(error)
+        }
+        save()
+        await prefetchThumbnails(for: templateGroups.flatMap(\.templates))
     }
 
     func rename(_ id: String, to name: String) async {

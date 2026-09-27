@@ -23,17 +23,38 @@ final class TextEditorFeatures {
 
     static func key(_ document: DocumentHandle, _ node: OpID) -> String { "\(document.id)#\(node)" }
 
+    /// A block's key, or for a text block inside an instance the instance's and the block's.
+    static func key(_ document: DocumentHandle, _ target: TextEditingSession.Target) -> String {
+        if case .override(let instance, let master) = target { return "\(document.id)#\(instance)/\(master)" }
+        if case .node(let node) = target { return key(document, node) }
+        return "\(document.id)#"
+    }
+
     func controller(for node: OpID, in document: DocumentHandle) -> TextEditorController? {
         controllers[Self.key(document, node)]
+    }
+
+    func controller(for target: TextEditingSession.Target, in document: DocumentHandle) -> TextEditorController? {
+        controllers[Self.key(document, target)]
     }
 
     /// The block menu:Text[Editor…] edits in `window`: the Text tool's block, else the one
     /// selected text block.
     static func target(in window: DocumentWindowController) -> OpID? {
-        if let node = window.objectEditing.textSession?.node, window.objectEditing.textSession?.isLive == true { return node }
+        if case .node(let node)? = editTarget(in: window) { return node }
+        return nil
+    }
+
+    /// What menu:Text[Editor…] edits in `window`: the Text tool's block -- or its text block inside
+    /// an instance (LIB-027) -- else the one selected text block.
+    static func editTarget(in window: DocumentWindowController) -> TextEditingSession.Target? {
+        if let session = window.objectEditing.textSession, session.isLive {
+            if let node = session.node { return .node(node) }
+            if let override = session.override { return .override(instance: override.instance, master: override.master) }
+        }
         let state = window.documentHandle.state
         let texts = window.selection.selection.ids.map(\.opID).filter { state.nodeKind($0) == .text }
-        return texts.count == 1 ? texts[0] : nil
+        return texts.count == 1 ? .node(texts[0]) : nil
     }
 
     /// Opens (or brings forward) the editor of `node` in `window`; with no node, first creates an
@@ -58,13 +79,19 @@ final class TextEditorFeatures {
     /// The editor of `node` in `window`, made if needed, shown.
     @discardableResult
     func show(_ node: OpID, in window: DocumentWindowController) -> TextEditorController {
+        show(.node(node), in: window)
+    }
+
+    /// The editor of `target` -- a block, or a text block inside an instance -- in `window`.
+    @discardableResult
+    func show(_ target: TextEditingSession.Target, in window: DocumentWindowController) -> TextEditorController {
         let document = window.documentHandle
-        let key = Self.key(document, node)
+        let key = Self.key(document, target)
         if let existing = controllers[key] {
             if showsWindows { existing.window?.makeKeyAndOrderFront(nil) }
             return existing
         }
-        let model = TextEditorModel(document: document, node: node, sink: window.objectEditing)
+        let model = TextEditorModel(document: document, target: target, sink: window.objectEditing)
         let controller = TextEditorController(model: model, presence: window.presence)
         controller.onClose = { [weak self] in self?.controllers[key] = nil }
         controllers[key] = controller
@@ -80,10 +107,10 @@ final class TextEditorFeatures {
     func commands(window: @escaping Window) -> [Command] {
         [Command(id: ContextMenuCatalog.ID.textEditor, title: "Editor…", key: KeyEquivalent("e", [.command, .shift]),
                  menu: MenuPath(ContextMenuCatalog.Menu.text, section: 0), contexts: [.text], keywords: ["text editor", "edit text"],
-                 validation: { window().flatMap(Self.target(in:)) == nil ? .disabled(Self.noBlock) : .enabled },
+                 validation: { window().flatMap(Self.editTarget(in:)) == nil ? .disabled(Self.noBlock) : .enabled },
                  action: .perform { [weak self] in
-                     guard let self, let front = window(), let node = Self.target(in: front) else { return }
-                     self.open(node, in: front)
+                     guard let self, let front = window(), let target = Self.editTarget(in: front) else { return }
+                     if case .node(let node) = target { self.open(node, in: front) } else { self.show(target, in: front) }
                  })]
     }
 

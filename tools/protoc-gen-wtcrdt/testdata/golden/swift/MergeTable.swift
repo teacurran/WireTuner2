@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
+    public static let version = "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -8977,6 +8977,17 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.NodeRef"
+        },
+        "9": {
+          "element_message": null,
+          "local_only": false,
+          "name": "tail_paragraph",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "STRUCT",
+          "repeated": false,
+          "type": "message",
+          "type_name": "wiretuner.doc.v1.ParagraphProps"
         }
       }
     },
@@ -14305,7 +14316,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277"
+  "version": "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384"
 }
 """#
 
@@ -18778,6 +18789,11 @@ public enum WTMergeTable {
             8: FieldPolicy(
                 fieldNumber: 8, name: "image", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.NodeRef",
+                elementMessage: nil, oneof: nil
+            ),
+            9: FieldPolicy(
+                fieldNumber: 9, name: "tail_paragraph", policy: .structure, onDangling: .unset,
+                localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.ParagraphProps",
                 elementMessage: nil, oneof: nil
             ),
         ]

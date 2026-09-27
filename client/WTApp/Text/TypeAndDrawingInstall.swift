@@ -146,7 +146,7 @@ enum DrawingToolDelivery {
 @MainActor
 enum TypeSections {
     static func register(into registry: InspectorRegistry) {
-        registry.register(InspectorSection(id: "textParagraph", order: 65, kinds: [.text]) { model in
+        registry.register(InspectorSection(id: "textParagraph", order: 65, kinds: [.text, .instance]) { model in
             model.paragraph.map { AnyView(ParagraphSectionView(section: $0, model: model)) }
         })
     }

@@ -66,6 +66,10 @@ final class PDFDocumentBuild {
     lazy var pageNumberSet = Set(pageNumbers)
     /// Whether a page link was written: the catalog then names each page's destination.
     var writesPageDestinations = false
+    /// The structure tree being built (IO-032); nil when the file is not tagged.
+    let structure: PDFStructure?
+    /// The page being written, when the file is tagged.
+    var currentPage: PDFPageStructure?
 
     init(options: PDFOptions, scene: ExportScene, cmyk: any CMYKConverter = ProfileCMYKConverter()) {
         self.options = options
@@ -73,6 +77,7 @@ final class PDFDocumentBuild {
         self.cmyk = cmyk.resolved(for: scene)
         objects = PDFObjects(compress: options.compressContent)
         fonts = PDFFontRegistry(objects: objects, embedAll: options.fonts == .embedFull)
+        structure = options.tagged ? PDFStructure(objects: objects) : nil
         if options.encrypts {
             objects.encryption = PDFEncryption(
                 revision: options.version == .v2_0 ? .r6 : .r4, userPassword: options.openPassword, ownerPassword: options.permissionsPassword,
@@ -91,7 +96,7 @@ final class PDFDocumentBuild {
         for (index, page) in pages.enumerated() {
             let documentBleed = index < scene.pages.count ? scene.pages[index].bleed : 0
             let bleed = options.pageSize == .pagePlusBleed ? (options.useDocumentBleed ? documentBleed : options.bleedPoints) : 0
-            pageObjects.append(writePage(page, bleed: bleed, parent: pagesObject))
+            pageObjects.append(writePage(page, bleed: bleed, parent: pagesObject, readingOrder: index < scene.pages.count ? scene.pages[index].readingOrder : []))
             pageHeights.append(page.bounds.height + 2 * bleed)
         }
         fonts.finish()
@@ -105,10 +110,25 @@ final class PDFDocumentBuild {
             // `/D /pageN` in a GoTo action names the page's fit-page destination.
             catalog.append(("Dests", .dictionary(zip(pageNumbers, pageObjects).map { ("page\($0)", .array([.reference($1), .name("Fit")])) })))
         }
+        // Tagged PDF (IO-032): the structure tree, and the PDF/UA-1 claim when the file can make it.
+        var claimsUA = false
+        if let structure {
+            catalog += [("StructTreeRoot", .reference(structure.finish())), ("MarkInfo", .dictionary([("Marked", .bool(true))]))]
+            let reasons = structure.reasons(language: scene.info.effectiveLanguage, options: options, outlinedFonts: outlinedFonts)
+            claimsUA = reasons.isEmpty
+            if claimsUA {
+                catalog.append(("ViewerPreferences", .dictionary([("DisplayDocTitle", .bool(true))])))
+                notes.append("tagged PDF conforming to PDF/UA-1")
+            } else {
+                notes.append("tagged PDF without the PDF/UA-1 claim: " + reasons.joined(separator: "; "))
+            }
+        }
         var info: Int?
-        if options.includeDocumentInfo {
-            info = objects.add(infoDictionary())
-            catalog.append(("Metadata", .reference(objects.addStream([("Type", .name("Metadata")), ("Subtype", .name("XML"))], data: xmp(), raw: true))))
+        if options.includeDocumentInfo || claimsUA {
+            if options.includeDocumentInfo {
+                info = objects.add(infoDictionary(title: claimsUA))
+            }
+            catalog.append(("Metadata", .reference(objects.addStream([("Type", .name("Metadata")), ("Subtype", .name("XML"))], data: xmp(claimsUA: claimsUA), raw: true))))
         }
         if let language = scene.info.effectiveLanguage {
             catalog.append(("Lang", .string(language)))
@@ -134,6 +154,10 @@ final class PDFDocumentBuild {
         if options.standard != .none {
             let intent = PDFOutputIntent(subtype: "GTS_PDFX", identifier: cmyk.outputConditionIdentifier, condition: cmyk.name, profile: cmyk.iccProfile, components: 4)
             catalog.append(("OutputIntents", .array([intent.value(objects: objects)])))
+            if wideKept > 0 {
+                // PDF/X-4 keeps Display P3 objects tagged beside its CMYK output intent (CMS-015).
+                notes.append("\(wideKept) Display P3 color\(wideKept == 1 ? "" : "s") kept tagged with the Display P3 profile")
+            }
         } else if wideKept > 0 {
             // A PDF without a standard that keeps Display P3 objects names Display P3 as its
             // output intent, so viewers know what the document was made for.
@@ -246,12 +270,17 @@ final class PDFDocumentBuild {
 
     // MARK: Pages
 
-    func writePage(_ page: FlatPage, bleed: Double, parent: Int) -> Int {
+    func writePage(_ page: FlatPage, bleed: Double, parent: Int, readingOrder: [NodeID] = []) -> Int {
         let width = page.bounds.width + 2 * bleed
         let height = page.bounds.height + 2 * bleed
         // Pasteboard (y down) → page space (y up, origin at the media box's corner).
         let base = AffineTransform(a: 1, b: 0, c: 0, d: -1, tx: bleed - page.bounds.minX, ty: page.bounds.maxY + bleed)
+        let pageObject = objects.reserve()
         let stream = PDFStreamWriter(build: self, patternBase: base)
+        currentPage = structure?.page(pageObject, readingOrder: readingOrder)
+        defer { currentPage = nil }
+        stream.pageStructure = currentPage
+        stream.tags = structure?.streamTags(stream: nil)
         stream.content.transform(base)
         for node in page.nodes {
             if options.writesLayers, let id = node.node, scene.nodes[id]?.isLayer == true {
@@ -280,13 +309,16 @@ final class PDFDocumentBuild {
             dictionary.append(("ArtBox", .rect(box.minX, box.minY, box.maxX, box.maxY)))
         }
         dictionary += [("Resources", stream.resources.value), ("Contents", .reference(contents))]
+        if let tags = stream.tags {
+            dictionary.append(("StructParents", .int(tags.key)))
+        }
         if options.linksFromURLs {
             // Text-range links: one annotation per line of the range (WEB-005).
             for node in scene.textLinks.keys.sorted() {
                 for link in scene.textLinks[node]! {
                     guard let href = WebLinks.href(link.url) else { continue }
                     for rect in link.rects {
-                        if let box = rect.intersection(page.bounds).nonEmpty { stream.links.append((.uri(href), link.alt, box)) }
+                        if let box = rect.intersection(page.bounds).nonEmpty { stream.links.append((.uri(href), link.alt, box, node)) }
                     }
                 }
             }
@@ -308,8 +340,13 @@ final class PDFDocumentBuild {
                 ("Border", .array([.int(0), .int(0), .int(0)])),
                 ("A", action),
             ]
-            if let alt = link.alt { entries.append(("Contents", .string(alt))) }
-            return .reference(objects.add(.dictionary(entries)))
+            // A tagged file's links always say where they go (PDF/UA: a link has a description).
+            let url: String? = if case .uri(let url) = link.action { url } else { nil }
+            if let alt = link.alt ?? (structure == nil ? nil : url ?? "Go to page") { entries.append(("Contents", .string(alt))) }
+            let object = objects.reserve()
+            tagAnnotation(object, type: "Link", alt: link.alt, top: link.top, entries: &entries)
+            objects.set(object, .dictionary(entries))
+            return .reference(object)
         }
         // A note is a closed comment icon whose top-left corner is the object's.
         annotations += stream.notes.map { note -> PDFValue in
@@ -322,15 +359,23 @@ final class PDFDocumentBuild {
             if let title = note.title {
                 entries.append(("T", .string(title)))
             }
-            return .reference(objects.add(.dictionary(entries)))
+            let object = objects.reserve()
+            tagAnnotation(object, type: "Annot", alt: nil, top: note.top, entries: &entries)
+            objects.set(object, .dictionary(entries))
+            return .reference(object)
         }
         if options.commentsAsAnnotations {
             annotations += commentAnnotations(on: page.bounds, base: base)
         }
         if !annotations.isEmpty {
             dictionary.append(("Annots", .array(annotations)))
+            if structure != nil {
+                // PDF/UA: annotations are visited in structure order.
+                dictionary.append(("Tabs", .name("S")))
+            }
         }
-        return objects.add(.dictionary(dictionary))
+        objects.set(pageObject, .dictionary(dictionary))
+        return pageObject
     }
 
     // MARK: Shared objects
@@ -457,7 +502,9 @@ final class PDFDocumentBuild {
         return "D:" + formatter.string(from: date) + "Z"
     }
 
-    func infoDictionary() -> PDFValue {
+    /// The Info dictionary; `title` writes the file name as the title when Document Info has
+    /// none (PDF/X and PDF/UA need one).
+    func infoDictionary(title: Bool = false) -> PDFValue {
         let info = scene.info
         var entries: [(String, PDFValue)] = []
         let now = pdfDate(Date())
@@ -484,18 +531,18 @@ final class PDFDocumentBuild {
         case .pdfX4_2010:
             entries += [("GTS_PDFXVersion", .string("PDF/X-4")), ("Trapped", .name("False"))]
         }
-        if options.standard != .none && info.title == nil && info.metadata == nil {
+        if options.standard != .none || title, info.title == nil && info.metadata == nil {
             entries.insert(("Title", .string(scene.name)), at: 0)
         }
         return .dictionary(entries)
     }
 
-    /// The XMP packet: Dublin Core, XMP basic and PDF properties.
-    func xmp() -> Data {
+    /// The XMP packet: Dublin Core, XMP basic and PDF properties, and the PDF/UA-1 claim.
+    func xmp(claimsUA: Bool = false) -> Data {
         let info = scene.info
         func escape(_ text: String) -> String { XMLStream.escape(text, attribute: false) }
         var dc = ""
-        if let title = info.title ?? (options.standard != .none ? scene.name : nil) {
+        if let title = info.title ?? (options.standard != .none || claimsUA ? scene.name : nil) {
             dc += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">\(escape(title))</rdf:li></rdf:Alt></dc:title>"
         }
         if let author = info.author {
@@ -531,12 +578,15 @@ final class PDFDocumentBuild {
             standard += "<pdf:Trapped>False</pdf:Trapped><xmpMM:DocumentID>\(id)</xmpMM:DocumentID><xmpMM:InstanceID>\(id)</xmpMM:InstanceID>"
             standard += "<xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>"
         }
+        if claimsUA {
+            standard += "<pdfuaid:part>1</pdfuaid:part>"
+        }
         let packet = """
         <?xpacket begin="\u{FEFF}" id="W5M0MpCehiHzreSzNTczkc9d"?>
         <x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\
         <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" \
         xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/" \
-        xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">\
+        xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmlns:pdfuaid="http://www.aiim.org/pdfua/ns/id/" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">\
         <dc:format>application/pdf</dc:format>\(dc)\
         \(tool)<xmp:CreateDate>\(now)</xmp:CreateDate><xmp:ModifyDate>\(now)</xmp:ModifyDate>\
         <pdf:Producer>WireTuner PDF writer</pdf:Producer>\(standard)</rdf:Description></rdf:RDF></x:xmpmeta>
@@ -585,11 +635,18 @@ final class PDFStreamWriter {
     let resources = PDFResources()
     /// Pasteboard → this stream's default space (pattern matrices are relative to it).
     let patternBase: AffineTransform
-    /// Links (URLs completed by `WebLinks.href`, or page links), their alt text and pasteboard
-    /// bounds.
-    var links: [(action: ExportLinkAction, alt: String?, bounds: Rect)] = []
-    /// Object notes, with the object's name and pasteboard bounds.
-    var notes: [(text: String, title: String?, bounds: Rect)] = []
+    /// Links (URLs completed by `WebLinks.href`, or page links), their alt text, pasteboard
+    /// bounds and the top-level object they belong to (their place in the structure tree).
+    var links: [(action: ExportLinkAction, alt: String?, bounds: Rect, top: NodeID?)] = []
+    /// Object notes, with the object's name, pasteboard bounds and top-level object.
+    var notes: [(text: String, title: String?, bounds: Rect, top: NodeID?)] = []
+    /// The marked-content ids of this stream (IO-032); nil when nothing in it is tagged.
+    var tags: PDFStreamTags?
+    /// The page's elements, when the file is tagged.
+    var pageStructure: PDFPageStructure?
+    var tagLevel = PDFTagLevel.none
+    /// The top-level object being written (a layer's member, or an object outside layers).
+    var currentTop: NodeID?
 
     init(build: PDFDocumentBuild, patternBase: AffineTransform) {
         self.build = build
@@ -601,12 +658,24 @@ final class PDFStreamWriter {
 
     func write(_ node: FlatNode) {
         let info = build.scene.info(for: node.node)
+        let entersTop = currentTop == nil && node.node != nil && info?.isLayer != true
+        if entersTop { currentTop = node.node }
+        defer { if entersTop { currentTop = nil } }
         if options.linksFromURLs, let action = WebLinks.action(info, pages: build.pageNumberSet), let bounds = node.bounds {
-            links.append((action, info?.linkAlt, bounds))
+            links.append((action, info?.linkAlt, bounds, currentTop))
         }
         if options.notesAsComments, let note = info?.note, !note.isEmpty, let bounds = node.bounds {
-            notes.append((note, info?.name, bounds))
+            notes.append((note, info?.name, bounds, currentTop))
         }
+        if let tags, let pageStructure {
+            writeTagged(node, info: info, tags: tags, page: pageStructure)
+        } else {
+            writeContent(node)
+        }
+    }
+
+    /// `node`'s drawing operators.
+    func writeContent(_ node: FlatNode) {
         switch node {
         case .path(let path): writePath(path)
         case .text(let text): writeText(text)
@@ -940,17 +1009,28 @@ final class PDFStreamWriter {
             }
             setState(fillAlpha: group.opacity, strokeAlpha: group.opacity, softMask: mask, maskKey: mask == nil ? "" : "mask\(objects.count)")
             let form = PDFStreamWriter(build: build, patternBase: patternBase)
+            let object = objects.reserve()
+            form.currentTop = currentTop
+            if tags != nil, case .none = tagLevel, let structure = build.structure {
+                // Members tagged one by one inside the form: its own marked-content ids.
+                form.tags = structure.streamTags(stream: object)
+                form.pageStructure = pageStructure
+            }
             for child in group.children {
                 form.write(child)
             }
             links += form.links
             notes += form.notes
-            let object = objects.addStream([
+            var dictionary: [(String, PDFValue)] = [
                 ("Type", .name("XObject")), ("Subtype", .name("Form")),
                 ("BBox", .rect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY)),
                 ("Group", .dictionary([("S", .name("Transparency")), ("I", .bool(true))])),
                 ("Resources", form.resources.value),
-            ], data: form.content.data)
+            ]
+            if let formTags = form.tags {
+                dictionary.append(("StructParents", .int(formTags.key)))
+            }
+            objects.setStream(object, dictionary, data: form.content.data)
             let name = resources.name("XObject", prefix: "Fm", key: String(object)) { .reference(object) }
             content.op("/\(name) Do")
         } else {

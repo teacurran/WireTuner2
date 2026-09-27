@@ -121,6 +121,9 @@ final class ImportController {
     var runPanel: @MainActor (NSOpenPanel, NSWindow?) async -> [URL] = ModalUI.urls
     /// Shows an alert with `message` and `detail` (the test hook records it).
     var showAlert: @MainActor (String, String, NSWindow?) -> Void = ModalUI.alert
+    /// The *Embedded image profiles* preference's *Ask* sheet (CMS-012; `EmbeddedProfileChoice.swift`,
+    /// the test hook replaces it): the profile's name in, the choice out.
+    var askEmbeddedProfile: @MainActor (String, NSWindow?) async -> EmbeddedProfilePolicy = ModalUI.embeddedProfile
     /// The panel's accessory model while it is open.
     private(set) var accessory: ImportPanelAccessoryModel?
 
@@ -227,11 +230,14 @@ final class ImportController {
     private func place(_ urls: [URL], on window: DocumentWindowController, placement: (Int, ImportedScene) -> ImportPlacement) async -> ImportOutcome {
         var outcome = ImportOutcome()
         let context = context
+        // One answer to *Ask* covers every image of the import.
+        var profiles: EmbeddedProfilePolicy?
         for (index, url) in urls.enumerated() {
             do {
                 let scene = try await convert(url, context: context)
+                let policy = await embeddedProfilePolicy(for: scene, window: window.window, answered: &profiles)
                 await place(scene, named: url.lastPathComponent, link: ImportLink(fileURL: url, device: device), on: window,
-                            placement: placement(index, scene), into: &outcome)
+                            placement: placement(index, scene), profiles: policy, into: &outcome)
             } catch {
                 outcome.failures.append(Self.failure(error, name: url.lastPathComponent))
             }
@@ -242,11 +248,12 @@ final class ImportController {
 
     /// Stores `scene`'s blobs and places it by one change, recording the result in `outcome`.
     private func place(_ scene: ImportedScene, named name: String, link: ImportLink?, on window: DocumentWindowController,
-                       placement: ImportPlacement, into outcome: inout ImportOutcome) async {
+                       placement: ImportPlacement, profiles: EmbeddedProfilePolicy = .useEmbedded, into outcome: inout ImportOutcome) async {
         let document = window.documentHandle
         do {
             let poster = try await storeBlobs(of: scene, for: document)
-            let command = PlaceImportedScene(scene, placement: placement, layer: window.objectEditing.activeLayer, link: link, poster: poster)
+            let command = PlaceImportedScene(scene, placement: placement, layer: window.objectEditing.activeLayer, link: link, poster: poster,
+                                             embeddedProfiles: profiles)
             let target = ImportTarget.resolve(preferred: window.objectEditing.activeLayer, in: document.state)
             guard let change = await window.objectEditing.perform(command).value,
                   let root = PlaceImportedScene.placedRoot(of: change, in: document.state) else {

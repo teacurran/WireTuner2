@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import WTCRDT
 import WTGeometry
+import WTModel
 import WTProto
 import WTRender
 import WTSync
@@ -56,7 +57,7 @@ final class PresenceAdapter: PresenceProviding {
             cursor: source.cursor.map { Point(x: Double($0.x), y: Double($0.y)) }, tool: source.tool,
             viewport: source.viewport.map { Rect(x: Double($0.minX), y: Double($0.minY), width: Double($0.width), height: Double($0.height)) },
             zoom: source.zoom, page: source.page.map(SelectionID.init),
-            caret: source.caret.map { RemoteCaret(node: SelectionID($0.node), position: $0.position, rangeEnd: $0.rangeEnd) },
+            caret: source.caret.map { RemoteCaret(node: SelectionID($0.node), position: $0.position, rangeEnd: $0.rangeEnd, text: $0.text ?? TextFields.text) },
             role: roleTitle(source.role), branchID: source.branchID, isIdle: source.isIdle, isFrozen: source.frozen,
             spotlight: source.spotlight, followingUserID: source.followingUserID
         )

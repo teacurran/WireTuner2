@@ -406,9 +406,19 @@ final class TextEditingSession {
         if !range.isEmpty { collapse(to: text.anchor(at: range.upperBound)) } else { changed() }
     }
 
-    /// Converts a completed `{{name}}` just before the insertion point into a placeholder.
+    /// Converts a completed `{{name}}` just before the insertion point into a placeholder (inside
+    /// an instance, in its text override: LIB-027).
     private func convertTypedPlaceholder() {
-        guard let node, let text, selectedRange.isEmpty, DataPlaceholders.completed(in: text, before: focusOffset) != nil else { return }
+        guard let text, selectedRange.isEmpty, DataPlaceholders.completed(in: text, before: focusOffset) != nil else { return }
+        if let override {
+            guard let edits = DataPlaceholders.overrideConversion(in: text, before: focusOffset, state: document.state) else { return }
+            let caret = focusOffset
+            perform(OverrideText(override.instance, master: override.master, edits: edits, label: "Insert field")) { session, _ in
+                session.setSelection(anchor: caret, focus: caret)
+            }
+            return
+        }
+        guard let node else { return }
         perform(ConvertTypedPlaceholder(node: node, caret: focus))
     }
 
@@ -416,7 +426,7 @@ final class TextEditingSession {
     /// at the insertion point (over the selection), in the pending format; one change.
     func insertField(_ field: OpID) {
         enqueue { session in
-            guard let node = session.node, let text = session.text else { return }
+            guard let text = session.text, session.node != nil || session.override != nil else { return }
             let range = session.selectedRange
             if !range.isEmpty {
                 session.applyDelete(.deleteSelection)
@@ -424,7 +434,17 @@ final class TextEditingSession {
                 return
             }
             let marks = session.formatRuns.last ?? []
-            session.perform(InsertPlaceholder(node: node, at: text.anchor(at: range.lowerBound), field: field, marks: marks))
+            if let override = session.override {
+                // Inside an instance: typed into its text override (LIB-027).
+                guard let edit = DataPlaceholders.overrideInsert(field: field, at: range.lowerBound, marks: marks, in: session.document.state),
+                      case .insertMarked(let string, _, _) = edit else { return }
+                let caret = range.lowerBound + string.unicodeScalars.count
+                session.perform(OverrideText(override.instance, master: override.master, edits: [edit], label: "Insert field")) { session, _ in
+                    session.setSelection(anchor: caret, focus: caret)
+                }
+            } else if let node = session.node {
+                session.perform(InsertPlaceholder(node: node, at: text.anchor(at: range.lowerBound), field: field, marks: marks))
+            }
             session.pendingFormat = []
             session.changed()
         }
@@ -484,9 +504,16 @@ final class TextEditingSession {
     /// first edit replaces the master's characters with the override's copies).
     private func applyOverride(_ action: TextKeystroke.Action) {
         guard let override, text != nil, let result = Self.overrideEdit(action, range: selectedRange, scalars: scalars) else { return }
-        let (edit, caret) = result
+        var edit = result.0
+        let caret = result.1
+        // The pending format goes with what is typed at an insertion point (LIB-027).
+        if case .insert(let string, let offset) = edit, !pendingFormat.isEmpty { edit = .insertMarked(string, at: offset, marks: pendingFormat) }
+        let closesPlaceholder: Bool
+        if case .insert(let string) = action { closesPlaceholder = string.hasSuffix("}") } else { closesPlaceholder = false }
+        pendingFormat = []
         perform(OverrideText(override.instance, master: override.master, edit: edit)) { session, _ in
             session.setSelection(anchor: caret, focus: caret)
+            if closesPlaceholder { session.convertTypedPlaceholder() }
         }
         changed()
     }
@@ -580,6 +607,15 @@ final class TextEditingSession {
             self.drain()
         }
         return task
+    }
+
+    /// Performs an override edit that leaves the text's length as it is (formatting, paragraph
+    /// settings): once it lands the selection is read again at the same offsets, since the first
+    /// edit of an override replaces the master's characters -- which the anchors name -- with the
+    /// override's copies (LIB-027).
+    private func performOverride(_ command: OverrideText) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+        let (anchorAt, focusAt, up) = (anchorOffset, focusOffset, upstream)
+        return perform(command) { session, _ in session.setSelection(anchor: anchorAt, focus: focusAt, upstream: up) }
     }
 
     /// Waits until every change the session performed has landed and every waiting step ran.
@@ -713,6 +749,11 @@ final class TextEditingSession {
                 result = session.perform(ApplyMark(node: node, from: text.anchor(at: range.lowerBound), to: text.anchor(at: range.upperBound), value: value))
                 return
             }
+            if let override = session.override, session.text != nil, !range.isEmpty {
+                // Inside an instance: the mark goes on its text override (LIB-027).
+                result = session.performOverride(OverrideText(override.instance, master: override.master, edits: [.mark(range, value)], label: TextMarks.label(value)))
+                return
+            }
             session.pendingFormat.removeAll { Self.sameAttribute($0, value) }
             session.pendingFormat.append(value)
             session.changed()
@@ -720,19 +761,53 @@ final class TextEditingSession {
         return result
     }
 
+    /// Formats the selection with several marks in one change (at an insertion point they join
+    /// the pending format).
+    @discardableResult
+    func format(_ values: [Wiretuner_Doc_V1_TextMarkValue], label: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard !values.isEmpty else { return nil }
+        var result: Task<Wiretuner_Doc_V1_Change?, Never>?
+        enqueue { session in
+            let range = session.selectedRange
+            if range.isEmpty || session.text == nil {
+                for value in values {
+                    session.pendingFormat.removeAll { Self.sameAttribute($0, value) }
+                    session.pendingFormat.append(value)
+                }
+                session.changed()
+            } else if let override = session.override {
+                result = session.performOverride(OverrideText(override.instance, master: override.master, edits: values.map { .mark(range, $0) }, label: label))
+            } else if let node = session.node, let text = session.text {
+                let (from, to) = (text.anchor(at: range.lowerBound), text.anchor(at: range.upperBound))
+                result = session.perform(CommandBatch(label, values.map { ApplyMark(node: node, from: from, to: to, value: $0) }))
+            }
+        }
+        return result
+    }
+
     /// Aligns the paragraphs the selection touches (a new block: its first paragraph).
     @discardableResult
     func align(_ alignment: Wiretuner_Doc_V1_Alignment) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        setParagraph(.with { $0.alignment = alignment }, fields: [[1]], label: "Alignment")
+    }
+
+    /// Writes the paragraph registers `fields` from `props` on the paragraphs the selection
+    /// touches, one change: a block's (`SetParagraph`), or inside an instance its text override's
+    /// (LIB-027).  Before a new block exists only its alignment is kept, for its first paragraph.
+    @discardableResult
+    func setParagraph(_ props: Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]], label: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         var result: Task<Wiretuner_Doc_V1_Change?, Never>?
         enqueue { session in
-            guard let node = session.node, let text = session.text else {
-                session.pendingParagraph.alignment = alignment
-                session.changed()
-                return
-            }
             let range = session.selectedRange
-            result = session.perform(SetParagraph(node: node, from: text.anchor(at: range.lowerBound), to: text.anchor(at: range.upperBound),
-                                                  props: .with { $0.alignment = alignment }, fields: [[1]], label: "Alignment"))
+            if let override = session.override, session.text != nil {
+                result = session.performOverride(OverrideText(override.instance, master: override.master, edits: [.paragraph(range, props, fields: fields)], label: label))
+            } else if let node = session.node, let text = session.text {
+                result = session.perform(SetParagraph(node: node, from: text.anchor(at: range.lowerBound), to: text.anchor(at: range.upperBound),
+                                                      props: props, fields: fields, label: label))
+            } else if fields.contains([1]) {
+                session.pendingParagraph.alignment = props.alignment
+                session.changed()
+            }
         }
         return result
     }
@@ -769,12 +844,21 @@ final class TextEditingSession {
         return waiting || text?.length != 0 ? node : nil
     }
 
-    /// The anchors presence publishes (presence.adoc, `TextCaret`): the character the caret is
-    /// before (zero: the end) and, with a selection, the other end's.
-    var presenceCaret: (node: OpID, position: OpID, rangeEnd: OpID?)? {
-        guard let node, isLive, let text else { return nil }
+    /// The anchors presence publishes (presence.adoc, `TextCaret`): the node and its TEXT field,
+    /// the character the caret is before (zero: the end) and, with a selection, the other end's.
+    /// Inside an instance the node is the instance and the field its text override's (LIB-027),
+    /// once the override exists: before the first edit the text is the master's, which no remote
+    /// caret could follow into the instance.
+    var presenceCaret: PresenceCaret? {
+        guard isLive, let text else { return nil }
         let range = selectedRange
-        return (node, text.anchor(at: range.lowerBound).char, range.isEmpty ? nil : text.anchor(at: range.upperBound).char)
+        let position = text.anchor(at: range.lowerBound).char, end = range.isEmpty ? nil : text.anchor(at: range.upperBound).char
+        if let override {
+            guard let element = Symbols.resolvedArtwork(of: override.instance, in: document.state)?.texts[override.master]?.element else { return nil }
+            return PresenceCaret(node: override.instance, text: SymbolFields.overrideText(element), position: position, rangeEnd: end)
+        }
+        guard let node else { return nil }
+        return PresenceCaret(node: node, text: TextFields.text, position: position, rangeEnd: end)
     }
 
     private func changed() {

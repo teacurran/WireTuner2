@@ -58,7 +58,6 @@ struct LibraryView: View {
             }
         }
         .frame(minWidth: 640, minHeight: 420)
-        .sheet(isPresented: $model.isShowingGallery) { TemplateGalleryView(model: model) }
         .sheet(item: $model.teamSettings) { TeamSettingsView(model: $0) }
         .sheet(item: $model.joinTeam) { JoinTeamView(model: $0) }
         .alert("Rename Document", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
@@ -84,6 +83,7 @@ struct LibrarySidebar: View {
             Section("Library") {
                 row("Recents", symbol: "clock", section: .recents, identifier: "library.sidebar.recents")
                 row("Shared with Me", symbol: "person.2", section: .sharedWithMe, identifier: "library.sidebar.shared")
+                row("Templates", symbol: "doc.on.doc", section: .templates, identifier: "library.sidebar.templates")
             }
             Section("Spaces") {
                 ForEach(model.spaces) { space in
@@ -130,11 +130,11 @@ struct LibraryToolbar: View {
                 .frame(width: 200)
                 .accessibilityIdentifier("library.search")
             Menu("New") {
-                Button("New Document") { model.createDocument() }
-                Button("New from Template…") { model.isShowingGallery = true }
+                Button("New Document") { model.newDocument() }
+                Button("New from Template…") { model.showGallery() }
                 Button("New Folder") { Task { await model.createFolder(named: "New Folder") } }
             } primaryAction: {
-                model.createDocument()
+                model.newDocument()
             }
             .fixedSize()
             .accessibilityIdentifier("library.new")
@@ -159,6 +159,7 @@ struct LibraryToolbar: View {
         switch model.section {
         case .recents: return "Recents"
         case .sharedWithMe: return "Shared with Me"
+        case .templates: return "\(model.currentSpace.name) › Templates"
         case .folder: return ([model.currentSpace.name] + model.folderPath.map(\.name)).joined(separator: " › ")
         }
     }
@@ -211,6 +212,10 @@ struct LibraryDocumentTile: View {
                         .help("You were mentioned in a comment you have not seen")
                         .accessibilityIdentifier("library.document.\(document.id).mention")
                 }
+                if document.isTemplate {
+                    Image(systemName: "doc.on.doc").foregroundStyle(.secondary).help("Template")
+                        .accessibilityIdentifier("library.document.\(document.id).template")
+                }
                 if model.isOfflineAvailable(document) {
                     Image(systemName: document.isPendingUpload ? "icloud.and.arrow.up" : "laptopcomputer")
                         .foregroundStyle(.secondary)
@@ -235,6 +240,9 @@ struct LibraryDocumentTile: View {
             Button("Rename…") { renaming = document }
             Button("Duplicate") { Task { await model.duplicate(document.id) } }
             Button("Keep Available Offline") { model.keepAvailableOffline(document.id) }
+            Button(document.isTemplate ? "Use as Document" : "Use as Template") { Task { await model.setTemplate(document.id, !document.isTemplate) } }
+                .disabled(!model.isOnline && !document.isPendingUpload)
+                .help(model.isOnline || document.isPendingUpload ? "" : LibraryModel.templateFlagOfflineMessage)
             Divider()
             Button("Move to Trash") { Task { await model.trash(document.id) } }
         }
@@ -248,34 +256,5 @@ struct LibraryDocumentTile: View {
         } else {
             Image(systemName: "doc.richtext").font(.system(size: 40)).foregroundStyle(.tertiary)
         }
-    }
-}
-
-/// menu:File[New from Template…]'s gallery.  Library templates arrive with DOC-019; the
-/// gallery offers the built-in template until then.
-struct TemplateGalleryView: View {
-    let model: LibraryModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("New from Template").font(.headline)
-            HStack(spacing: 12) {
-                Image(systemName: "doc").font(.system(size: 36))
-                VStack(alignment: .leading) {
-                    Text("Built-in")
-                    Text("One Letter page with the default swatches and styles").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Text("Your library's templates appear here.").font(.caption).foregroundStyle(.secondary)
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) { model.isShowingGallery = false }
-                Button("Create") { model.createFromGallery() }
-                    .keyboardShortcut(.defaultAction)
-                    .accessibilityIdentifier("library.gallery.create")
-            }
-        }
-        .padding(20)
-        .frame(width: 380)
     }
 }

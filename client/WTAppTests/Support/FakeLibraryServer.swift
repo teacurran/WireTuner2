@@ -75,6 +75,9 @@ final class FakeLibraryServer: LibraryDocumentClient, TeamListClient, BlobDownlo
             case .sharedWithMe:
                 all = _documents.values.filter(\.isSharedWithMe)
                 folders = []
+            case .templates:
+                all = _documents.values.filter { !$0.isSharedWithMe && !$0.isTrashed && $0.spaceID == request.spaceID && $0.isTemplate }
+                folders = []
             }
             let sorted = all.sorted { $0.id < $1.id }
             let start = Int(request.cursor ?? "0") ?? 0
@@ -156,6 +159,14 @@ final class FakeLibraryServer: LibraryDocumentClient, TeamListClient, BlobDownlo
     func deleteFolder(folderID: String, accessToken: String) async throws {
         try enter("deleteFolder")
         locked { _folders[folderID] = nil }
+    }
+
+    func setTemplate(documentID: String, isTemplate: Bool, accessToken: String) async throws -> LibraryDocument {
+        try enter("setTemplate:\(isTemplate)")
+        var document = try document(documentID)
+        document.isTemplate = isTemplate
+        put(document)
+        return document
     }
 
     func listTeams(accessToken: String) async throws -> [LibrarySpace] {

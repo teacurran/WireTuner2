@@ -77,7 +77,7 @@ import Testing
         #expect(PreferenceChooserKind.kind(for: PreferenceCatalog.Object.externalEditor.id) == .application)
         #expect(PreferenceChooserKind.kind(for: PreferenceCatalog.Export.previewBrowser.id) == .application)
         #expect(PreferenceChooserKind.kind(for: PreferenceCatalog.Document.missingLinksFolder.id) == .folder)
-        guard case .file = PreferenceChooserKind.kind(for: PreferenceCatalog.Document.newTemplate.id) else { Issue.record("template"); return }
+        guard case .file = PreferenceChooserKind.kind(for: PreferenceCatalog.Colors.monitorProfile.id) else { Issue.record("profile"); return }
         let app = PreferenceBookmarks.openPanel(for: PreferenceCatalog.Object.externalEditor.erased)
         #expect(app.canChooseFiles && !app.canChooseDirectories)
         let folder = PreferenceBookmarks.openPanel(for: PreferenceCatalog.Document.missingLinksFolder.erased)

@@ -227,6 +227,22 @@ records the document with a `DocumentCreation.newDocumentID` UUIDv7 and its loca
 ("Created", not an undo step), replacing the page-then-template pair of changes.  Not built: creating from a template document
 (`.document(state, name:)`) in the template gallery.
 
+NOTE: As built by DOC-019's gallery half and DOC-020 (`WTApp/Library/TemplateGallery.swift`, `TemplateFeatures.swift`,
+`DocumentMenus.swift`).  A library template's document is made with `CreateDocument(.document(state, name:))`: the gallery (and
+menu:File[New] with a default template) gets the template's state from the window it is open in, else its local store, else the
+server at head, written into a local store on the way (`WTSync.TemplateDownload`) so the next use works offline; the new document's
+window writes it as the first change ("Created from <template>") through `LibraryModel.takeTemplate(for:)` and
+`DocumentEnvironment.makeDocument(…, template:)`.  menu:File[New] and btn:[New] use the *New document template* (DOC-030).
+menu:File[New from Template…] is kbd:[Cmd+Shift+N].  menu:File[Open Recent] lists the ten most recent documents with *Clear Menu*;
+the recents are merged by time across the account's Macs through a hidden synced preference, `document.recents` (up to 20
+entries of id, time, space and name, `PreferenceControl.hidden`), rather than an `AccountService` recents field, so a document
+another Mac opened shows (by name) before this Mac has listed it.  The Window menu's last section lists every open document
+window, the front one checked (`window.document.<n>`).  kbd:[Cmd+Shift+\]] and kbd:[Cmd+Shift+[] are alternate keys of *Show
+Next Tab* and *Show Previous Tab*.  The quit alert (IO-007's `QuitCoordinator`), *Restore view when opening* and *Remember window
+size and location* (BASIC-001, `WindowStateStore`) were already built.  The untitled document opened at launch (when no session
+is restored and the gallery is not shown) still has no library record.  Not built: DOC-020's UI tests (create, open from Recents,
+switch tabs by shortcut, close, quit with a pending outbox); the unit tests cover the models and commands.
+
 === Build tasks
 
 [[DOC-019]]

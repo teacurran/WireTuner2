@@ -13,6 +13,8 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
         case list
         case chooser(placeholder: String)
         case substitutionTable
+        case templateChooser
+        case hidden
     }
 
     let key: AnyPreferenceKey
@@ -41,6 +43,8 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
         case .list: kind = .list
         case let .chooser(placeholder): kind = .chooser(placeholder: placeholder)
         case .substitutionTable: kind = .substitutionTable
+        case .templateChooser: kind = .templateChooser
+        case .hidden: kind = .hidden
         }
     }
 }
@@ -48,7 +52,7 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
 /// Builds category forms from the catalog and converts between control values and stored ones.
 enum PreferenceForm {
     static func rows(for category: PreferenceCategory, catalog: [AnyPreferenceKey] = PreferenceCatalog.all) -> [PreferenceFormRow] {
-        catalog.filter { $0.category == category }.map(PreferenceFormRow.init(key:))
+        catalog.filter { $0.category == category && $0.control != .hidden }.map(PreferenceFormRow.init(key:))
     }
 
     /// The stored value for a number typed or stepped to `number`.
@@ -243,6 +247,15 @@ struct PreferenceRowView: View {
                     }
                 }
             }
+        case .templateChooser:
+            let current = bindings.string(row.key)
+            Picker(row.title, selection: current) {
+                ForEach(TemplateChoices.choices(current: current.wrappedValue), id: \.id) { choice in
+                    Text(choice.title).tag(choice.id)
+                }
+            }
+        case .hidden:
+            EmptyView()
         case let .chooser(placeholder):
             LabeledContent(row.title) {
                 HStack {

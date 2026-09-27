@@ -59,8 +59,9 @@ extension DocumentHandle {
         return canvasNode
     }
 
-    /// The glyph this handle's canvas draws (a glyph tab), nil on the pasteboard or a master tab.
-    var glyphCanvasNode: OpID? { masterCanvasNode == nil ? canvasNode : nil }
+    /// The glyph this handle's canvas draws (a glyph tab), nil on the pasteboard, a master tab or a
+    /// symbol window.
+    var glyphCanvasNode: OpID? { masterCanvasNode == nil && symbolCanvasNode == nil ? canvasNode : nil }
 }
 
 /// Opens master tabs and keeps them in step with their masters.  One per app.

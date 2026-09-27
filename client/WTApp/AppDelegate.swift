@@ -145,6 +145,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Master page tabs, named views, Select Similar, Combine, the canvas handles, team libraries
     /// and the Profiles sheet (commit cbda22a's app half: DOC-012, BASIC-015, OBJ-042, OBJ-025 ...).
     private(set) lazy var documentGlue = DocumentGlueFeatures(preferences: preferences) { [weak self] in self?.activeDocumentWindow }
+    /// The template gallery, New from the default template and Save as Template (DOC-019, 029, 030).
+    private(set) lazy var templates = TemplateFeatures(library: library, preferences: preferences)
+    /// Open Recent and the Window menu's documents (DOC-020).
+    private(set) lazy var documentMenus = DocumentMenuFeatures(library: library, preferences: preferences)
 
     /// - Parameters:
     ///   - layoutStore: where the panel layout persists; `nil` keeps it in memory (tests).
@@ -304,7 +308,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let library = library
         library.onOpen = { opened in
             for document in opened {
-                documents.open(documents.environment.makeDocument(id: document.id, title: document.name, isNew: document.isPendingUpload))
+                documents.open(documents.environment.makeDocument(
+                    id: document.id, title: document.name, isNew: document.isPendingUpload, template: library.takeTemplate(for: document.id)
+                ))
             }
         }
         let preferences = preferences
@@ -350,6 +356,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installTypeAndDrawingFeatures()
         colors.install(commands: commands, panels: panels, extensions: toolbars.extensions) { documents.documents }
         installDocumentGlue()
+        installDocumentMenus()
+        installScripting()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
@@ -378,7 +386,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// The last session's windows, or a new document.
     func openWindowsAtLaunch() {
-        if restoreSession().isEmpty { documents.newDocument() }
+        if restoreSession().isEmpty { openUntitledAtLaunch() }
     }
 
     /// Quitting with changes waiting shows the quit sheet (IO-007).
@@ -498,6 +506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         activeSelection.activeToolID = window?.toolManager.activeToolID
         floatingPanels.reattach()
         toolbarsDocumentsDidChange()
+        documentMenusDidChange()
     }
 
     func rebuildMainMenu() {

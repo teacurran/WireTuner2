@@ -84,6 +84,7 @@ enum ViewCommands {
                 action: .perform { target()?.resetRotation() }
             ),
             previewCommand(target: target, hooks: hooks),
+            previewCommand(target: target, hooks: hooks, allPages: true),
             Command(
                 id: ids.keyline, title: "Keyline", key: KeyEquivalent("k", .command), menu: MenuPath(menu, section: StandardCommands.Section.viewModes), keywords: ["preview", "mode"],
                 validation: { target().map { .checked($0.viewMode.isKeyline) } ?? .disabled(noDocument) },
@@ -127,16 +128,21 @@ enum ViewCommands {
     }
 
     @MainActor
-    private static func previewCommand(target: @escaping @MainActor @Sendable () -> DocumentWindowController?, hooks: Hooks) -> Command {
+    private static func previewCommand(target: @escaping @MainActor @Sendable () -> DocumentWindowController?, hooks: Hooks, allPages: Bool = false) -> Command {
         let preview = hooks.browserPreview
         let browser = hooks.previewBrowser
         return Command(
-            id: StandardCommands.ID.previewInBrowser, title: "Preview in Browser", key: KeyEquivalent("return", .command),
+            id: allPages ? StandardCommands.ID.previewAllInBrowser : StandardCommands.ID.previewInBrowser,
+            title: allPages ? "Preview All Pages in Browser" : "Preview in Browser", key: KeyEquivalent("return", allPages ? [.command, .shift] : .command),
             menu: MenuPath(StandardCommands.Menu.view, section: StandardCommands.Section.viewBrowser), keywords: ["web", "html", "svg"],
             validation: { preview?.validation(hasDocument: target() != nil) ?? .disabled(BrowserPreview.unavailableReason) },
             action: .perform {
                 guard let preview, let window = target() else { return }
-                _ = try? preview.preview(window.documentHandle, pageIndex: window.documentHandle.currentPageIndex, browser: browser())
+                _ = try? preview.preview(window.documentHandle, pageIndex: window.documentHandle.currentPageIndex, allPages: allPages, browser: browser())
+                // WEB-029: what the publisher would warn about, and what is not downloaded yet.
+                if let warnings = preview.exporter?.warnings, !warnings.isEmpty {
+                    window.statusBar.show(message: "Preview: " + warnings.joined(separator: "  "))
+                }
             }
         )
     }

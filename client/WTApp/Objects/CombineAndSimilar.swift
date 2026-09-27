@@ -43,6 +43,18 @@ final class SelectSimilarCommands {
         return outcome
     }
 
+    /// *Shape* (IMG-030): the page's objects are classified off the main actor first (the
+    /// classifier's cache then answers `run`); nil when the command is disabled.
+    @discardableResult
+    func runShape(in window: DocumentWindowController, adding: Bool) async -> SelectSimilar.Outcome? {
+        let document = window.documentHandle
+        let state = document.state
+        if let classification = classifier as? ShapeClassification, let candidates = SelectSimilar.candidates(page: Self.page(of: document), in: state) {
+            await classification.prepare(candidates, in: state)
+        }
+        return run(.shape, in: window, adding: adding)
+    }
+
     func commands() -> [Command] {
         let window = self.window
         let path = MenuPath(StandardCommands.Menu.edit, SelectionCommands.submenu, Self.submenu, section: 1, subsection: 2)
@@ -56,7 +68,12 @@ final class SelectSimilarCommands {
                 },
                 action: .perform { [weak self] in
                     guard let self, let controller = window() else { return }
-                    self.run(attribute, in: controller, adding: self.shiftDown())
+                    let adding = self.shiftDown()
+                    if attribute == .shape {
+                        Task { await self.runShape(in: controller, adding: adding) }
+                    } else {
+                        self.run(attribute, in: controller, adding: adding)
+                    }
                 }
             )
         }

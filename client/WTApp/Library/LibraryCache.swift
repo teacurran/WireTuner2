@@ -48,6 +48,7 @@ struct LibraryCacheFile: Codable, Equatable, Sendable {
         switch scope {
         case let .folder(folderID): !document.isSharedWithMe && document.spaceID == spaceID && document.folderID == folderID
         case .sharedWithMe: document.isSharedWithMe
+        case .templates: !document.isSharedWithMe && document.spaceID == spaceID && document.isTemplate
         }
     }
 

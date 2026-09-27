@@ -18,6 +18,8 @@ public enum DocumentCreation {
         case builtIn
         /// A template document's merged state (from its snapshot) and its name.
         case document(EngineState, name: String)
+        /// A built-in starting point with the gallery's options (DOC-029, `StartingPoints`).
+        case startingPoint(StartingPoints.Options)
     }
 
     /// The pasteboard's side, 222 in (workspace.adoc, "The pasteboard").
@@ -64,6 +66,7 @@ public struct CreateDocument: Command {
         switch template {
         case .builtIn: "Created"
         case .document(_, let name): name.isEmpty ? "Created" : "Created from \(name)"
+        case .startingPoint(let options): StartingPoints.label(for: options)
         }
     }
 
@@ -73,6 +76,10 @@ public struct CreateDocument: Command {
         guard [WellKnown.pages, WellKnown.masters, WellKnown.layers, WellKnown.swatches, WellKnown.symbols].allSatisfy({ state.store.children($0).isEmpty })
         else { return }
         switch template {
+        case .startingPoint(let options) where StartingPoints.isBuiltIn(options):
+            try CreateDocument(.builtIn).execute(&builder, state: state)
+        case .startingPoint(let options):
+            try CreateDocument(.document(try StartingPoints.state(for: options), name: "")).execute(&builder, state: state)
         case .builtIn:
             let page = DocumentCreation.builtInPage
             builder.append(Ops.create(parent: WellKnown.pages, position: try PathEditing.keys(between: nil, and: nil, count: 1)[0],

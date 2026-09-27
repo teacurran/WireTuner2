@@ -55,16 +55,7 @@ public enum SelectSimilar {
     public static func run(_ attribute: Attribute, selection: [OpID], page: OpID?, adding: Bool = false,
                            classifier: (any ShapeClassifying)? = nil, in state: EngineState,
                            bounds: ((OpID) -> Rect?)? = nil) -> Outcome? {
-        guard let sample = sample(selection, in: state) else { return nil }
-        let scope: AttributeQuery.Scope = page.map { .page($0) } ?? .document
-        let order = LayerOrder(state)
-        var candidates = AttributeQuery.candidates(scope, in: state).filter { !Objects.isEffectivelyLocked($0, in: state, layers: order) }
-        if let page, let rect = PageList(state)[page]?.rect {
-            let bounds = bounds ?? { AttributeQuery.bounds(of: $0, in: state) }
-            candidates = candidates.filter { bounds($0)?.intersects(rect) == true }
-        } else if page != nil {
-            return nil
-        }
+        guard let sample = sample(selection, in: state), let candidates = candidates(page: page, in: state, bounds: bounds) else { return nil }
         let matches: (OpID) -> Bool
         switch attribute {
         case .shape:

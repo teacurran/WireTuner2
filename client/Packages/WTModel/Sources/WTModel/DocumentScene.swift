@@ -124,8 +124,9 @@ public struct DocumentDisplayListBuilder: Sendable {
     public private(set) var background: [DisplayItem]
     public private(set) var scene: DocumentScene
     /// The master page or glyph whose canvas this builder draws; nil draws the main pasteboard
-    /// (`CanvasMembership`: the top-level objects placed on that canvas, FONT-003).  Set before
-    /// the first build.
+    /// (`CanvasMembership`: the top-level objects placed on that canvas, FONT-003).  A symbol
+    /// draws its artwork as the top-level objects (the symbol editing window, LIB-012).  Set
+    /// before the first build.
     public var canvasNode: OpID?
     /// Objects hidden on this Mac (menu:View[Hide Selection], selecting.adoc; OBJ-007): left out
     /// of the screen's scene -- so neither drawn, hit-tested nor selected -- but drawn by
@@ -475,6 +476,9 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// ones with `includeHidden`) and recording them in `objects`.
     private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool, output: Bool = false,
                                         objects: inout [NodeID: SceneObject]) -> (contents: [LayerContent], topLevel: [NodeID]) {
+        if let symbol = symbolCanvas(state) {
+            return symbolContents(symbol, state: state, objects: &objects)
+        }
         var contents: [LayerContent] = []
         var topLevel: [NodeID] = []
         var next = background.count
@@ -506,6 +510,35 @@ public struct DocumentDisplayListBuilder: Sendable {
             contents.append(LayerContent(layer: rendering, visible: layer.visible, items: items, bounds: bounds))
         }
         return (contents, topLevel)
+    }
+
+    /// The symbol this builder's canvas draws (`canvasNode` naming a node of kind `symbol`: the
+    /// symbol editing window, LIB-012), nil otherwise.
+    private func symbolCanvas(_ state: EngineState) -> OpID? {
+        guard let canvasNode, state.nodeKind(canvasNode) == .symbol else { return nil }
+        return canvasNode
+    }
+
+    /// A symbol's canvas (library.adoc, "Symbol editing window"): its live artwork, bottom first, as
+    /// the top-level objects of one unlocked, printing run in symbol space -- which is pasteboard
+    /// space, since the artwork keeps the coordinates it was converted at.  The objects' layer is
+    /// the symbol.  A deleted symbol draws nothing.
+    private mutating func symbolContents(_ symbol: OpID, state: EngineState, objects: inout [NodeID: SceneObject])
+        -> (contents: [LayerContent], topLevel: [NodeID]) {
+        var items: [(item: DisplayItem, node: NodeID?)] = []
+        var bounds: [Rect?] = []
+        var topLevel: [NodeID] = []
+        var next = background.count
+        let context = Placing(layer: symbol, locked: false)
+        for child in state.isLive(symbol) ? state.liveChildren(symbol) : [] {
+            guard let item = place(child, state: state, parentTransform: .identity, itemPath: [next], parent: nil, context: context,
+                                   objects: &objects) else { continue }
+            items.append((item, NodeID(child)))
+            bounds.append(objects[NodeID(child)]?.bounds)
+            topLevel.append(NodeID(child))
+            next += 1
+        }
+        return ([LayerContent(layer: LayerRendering(id: NodeID(symbol)), visible: true, items: items, bounds: bounds)], topLevel)
     }
 
     /// The symbols' artwork in symbol space (library.adoc, "Rendering"), recording each symbol's

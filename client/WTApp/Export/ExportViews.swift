@@ -157,6 +157,8 @@ struct PDFOptionsForm: View {
             Toggle("Embed WireTuner document", isOn: $model.settings.options.pdf.embedPackage)
             Toggle("Optimize for fast web view", isOn: $model.settings.options.pdf.linearize)
             Toggle("Include document info", isOn: $model.settings.options.pdf.includeDocumentInfo)
+            Toggle("Tagged PDF (PDF/UA-1)", isOn: $model.settings.options.pdf.tagged)
+                .accessibilityIdentifier("export.pdf.tagged")
         }
         Section("Compression") {
             ChoicePicker("Color images", selection: $model.settings.options.pdf.colorImages, choices: ExportChoices.pdfImages)

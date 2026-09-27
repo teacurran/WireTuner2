@@ -78,8 +78,11 @@ enum WindowTabCommands {
         let arrange = StandardCommands.Section.windowArrange
         return [
             .responder(id: ID.showTabBar, title: "Show Tab Bar", menu: MenuPath(StandardCommands.Menu.view, section: StandardCommands.Section.viewPanels), keywords: ["tabs"], selector: "toggleTabBar:"),
-            .responder(id: ID.nextTab, title: "Show Next Tab", key: KeyEquivalent("tab", .control), menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], selector: "selectNextTab:"),
-            .responder(id: ID.previousTab, title: "Show Previous Tab", key: KeyEquivalent("tab", [.control, .shift]), menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], selector: "selectPreviousTab:"),
+            // Cmd+Shift+] and Cmd+Shift+[ as well (creating-opening.adoc, "Working in several documents"; DOC-020).
+            Command(id: ID.nextTab, title: "Show Next Tab", key: KeyEquivalent("tab", .control), alternateKeys: [KeyEquivalent("]", [.command, .shift])],
+                    menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], action: .responder("selectNextTab:")),
+            Command(id: ID.previousTab, title: "Show Previous Tab", key: KeyEquivalent("tab", [.control, .shift]), alternateKeys: [KeyEquivalent("[", [.command, .shift])],
+                    menu: MenuPath(window, section: arrange), keywords: ["tab", "document"], action: .responder("selectPreviousTab:")),
             .responder(id: ID.moveTabToNewWindow, title: "Move Tab to New Window", menu: MenuPath(window, section: arrange), keywords: ["tab"], selector: "moveTabToNewWindow:"),
             .responder(id: ID.mergeAllWindows, title: "Merge All Windows", menu: MenuPath(window, section: arrange), keywords: ["tab"], selector: "mergeAllWindows:"),
         ]

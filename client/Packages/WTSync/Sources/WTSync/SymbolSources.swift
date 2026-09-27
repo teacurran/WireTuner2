@@ -28,6 +28,12 @@ public enum SymbolSources {
     /// it (all of them when the document has no snapshot).
     public static func cloudState(documentID: String, transport: any SyncTransport, token: String, schema: Schema = .generated) async throws
         -> EngineState {
+        try await cloudHead(documentID: documentID, transport: transport, token: token, schema: schema).state
+    }
+
+    /// `cloudState` and the server seq it reaches.
+    public static func cloudHead(documentID: String, transport: any SyncTransport, token: String, schema: Schema = .generated) async throws
+        -> (state: EngineState, serverSeq: UInt64) {
         var state = EngineState(schema: schema)
         var applied: UInt64 = 0
         var snapshot = Wiretuner_Sync_V1_FetchSnapshotRequest()
@@ -53,7 +59,7 @@ public enum SymbolSources {
                 applied = change.serverSeq
             }
         }
-        return state
+        return (state, applied)
     }
 
     /// The package of `symbols` (every live symbol when nil) in `state`; with `cache`, the bytes of

@@ -12,7 +12,6 @@ enum PreferenceChooserKind: Equatable, Sendable {
         switch id {
         case PreferenceCatalog.Object.externalEditor.id, PreferenceCatalog.Export.previewBrowser.id: .application
         case PreferenceCatalog.Document.missingLinksFolder.id: .folder
-        case PreferenceCatalog.Document.newTemplate.id: .file(types: [UTType(filenameExtension: "wiretuner") ?? .data])
         default: .file(types: [UTType(filenameExtension: "icc") ?? .data, UTType(filenameExtension: "icm") ?? .data])
         }
     }

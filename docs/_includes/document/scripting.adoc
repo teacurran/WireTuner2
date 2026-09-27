@@ -518,6 +518,45 @@ contents and `saveFile` a writer token, never a path; `progress` shows a sheet w
 stops the script after the current change; `wt.records.merge({ to, records, fileName })` runs the
 merge sheet's merge.  `wt.document.export` and `print` still refuse.
 
+[[as-built-dictionary]]
+==== As built (DOC-026, DOC-027)
+
+One object model:: `WTModel.ScriptObjects` is the scriptable object model every surface shares -- the collections, the
+readable properties, and the `WTModel` command each set, method and creation runs -- extracted from JavaScript's
+`ScriptEnvironment`, which now adapts it.  The AppleScript wrappers and the App Intents call the same functions, so the
+three surfaces agree; this stands in for the command-registry adapters of *One command registry*.  It adds a page's `size`
+and `master` (set: `SetPageGeometry`, `ApplyMasterPage`, nil releases), `addPages`, `findAndReplace` and the document
+`report`.
+
+AppleScript (DOC-026):: `WTApp/Scripting/WireTuner.sdef` (a bundle resource; `NSAppleScriptEnabled`,
+`OSAScriptingDefinition`) with a hand-written Standard Suite (open, close, quit, count, delete, duplicate, exists, make,
+print; get and set are key-value coding) and the WireTuner suite: `document` (name, id; pages, master pages, layers,
+graphics, text blocks, swatches, styles), `page` (id, name, index, page size, master page), `master page`, `layer` (name,
+visible, locked, graphics), `graphic` with `path`, `rectangle`, `ellipse`, `line`, `group`, `image`, `symbol instance` and
+`text block` (id, kind, name, notes, bounds, position, locked, layer, fill and stroke summaries; a text block's `contents`),
+`swatch`, `style`; commands `add page`, `go to page`, `apply master page`, `release child page`, `find and replace text`,
+`export`, `share link`.  The wrappers (`ScriptableObjects.swift`, `@objc(WTScript…)`) are addressed by `NSUniqueIDSpecifier`
+(node ids `<counter>-<replica>`); every set and command performs one command labelled `Script: <what>` ("Script: set page
+size"), one change and one undo step, and the Apple event is suspended until the change is applied.  `make` makes pages,
+rectangles, ellipses, lines and text blocks; `delete` removes pages, layers and graphics; `duplicate` copies graphics.  A
+viewer or commenter is refused (`-10004`, naming the editor role); read-only properties answer `-10003`, bad values `-50`,
+missing objects `-1728`, unsupported verbs `-1708`, offline `1001`.  Not built: the Text suite's `paragraph`, `word` and
+`character` elements with font, size, leading and colour (a text block's whole text is `contents`); making layers; printing
+with a named print preset (refused with the reason; plain `print` runs menu:File[Print…]); set grid size, units and guides
+from AppleScript; `osascript` tests -- an Apple event to the test host needs an Automation grant it cannot have, so the tests
+drive the wrappers and command objects directly, and the multi-client "visible within a second" test is not run.  The system
+Script menu folder needs nothing from the app.
+
+App Intents (DOC-027):: `WTApp/Intents/DocumentIntents.swift`: `DocumentEntity` found through the library cache (by id, by
+name, recents as suggestions; offline too), `ExportFormatEntity` and `OrientationEntity`, and the eight intents over
+`ScriptingHost`/`IntentsHost`, each change labelled `Shortcut: <intent>`.  Deviations: *Create Document* has no folder
+parameter (it goes where menu:File[New] puts it); *Add Pages* takes width and height in points and the master page by name;
+*Export Document* returns the file (Shortcuts saves it where the shortcut says) and takes no page range or options; *Get
+Document Report* returns a plain-text summary (pages and sizes, master pages, layers, objects by kind, swatches, styles);
+*Share Link* makes a new viewer link.  Failures are `IntentFailure` with localized reasons (offline, not found, needs the
+editor role).  Not built: running each intent from Shortcuts (the tests call `perform()`), and the byte-identical comparison
+of the export intent with the menu export (both go through `ExportController.perform`).
+
 === Build tasks
 
 [[DOC-026]]

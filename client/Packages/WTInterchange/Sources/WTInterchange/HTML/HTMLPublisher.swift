@@ -139,7 +139,11 @@ public struct HTMLPublisher: Sendable {
     func animatedPages(_ scene: ExportScene, options: SVGOptions, pageHrefs: [Int: String]) -> [SVGDocument]? {
         guard !settings.animationStill, settings.vectorFormat == .svg, settings.layout == .wholePages, let animation = scene.animation,
               animation.frames.first?.page == nil else { return nil }
-        let documents = try? AnimatedSVGExporter().documents(scene: scene, options: AnimatedSVGOptions(svg: options), pageHrefs: pageHrefs)
+        let documents = try? AnimatedSVGExporter().documents(scene: scene, options: {
+            var animated = AnimatedSVGOptions(svg: options)
+            animated.nestsSVGAnimations = false
+            return animated
+        }(), pageHrefs: pageHrefs)
         return documents?.count == scene.pages.count ? documents : nil
     }
 
@@ -310,10 +314,8 @@ public struct HTMLPublisher: Sendable {
         """
     }
 
-    /// A colour as CSS hex (sRGB).
+    /// A colour as CSS hex: the sRGB fallback of CMS-015's serializer (gamut-mapped by COLOR-024).
     static func css(_ color: Color) -> String {
-        let rgb = color.converted(to: .sRGB).components
-        func hex(_ value: Double) -> String { String(format: "%02x", Int((min(max(value, 0), 1) * 255).rounded())) }
-        return "#" + hex(rgb.x) + hex(rgb.y) + hex(rgb.z)
+        WTColor.CSS.serialize(color).fallback
     }
 }

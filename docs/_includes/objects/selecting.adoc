@@ -337,6 +337,28 @@ menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke] (and *Shape* when 
 chosen adding to the selection; the new selection is set and the status bar shows the count.  Disabled ("Select one object") with no
 or several objects selected.
 
+NOTE: As built by IMG-030 (`WTGeometry/ShapeFeatures.swift`, `ShapeClassifier.swift`; `WTModel/ShapeClassification.swift`;
+`WTApp/Objects/ShapeClassifierResource.swift`, `CombineAndSimilar.swift`; `tools/shape-classifier/`).  `ShapeFeatures` is the vector
+above -- 64 outline points after translation, principal-axis rotation, third-moment flips, counterclockwise order, unit RMS radius
+and a start at the rightmost point (an open outline at its left end), then corners (joints turning over 30°), convexity, aspect and
+holes -- plus three the spec did not list: the contour count, whether the outline is closed and its circularity.  The model is a
+Create ML boosted-tree classifier (depth 5, 40 rounds) trained by `swift run -c release shape-classifier` in
+`tools/shape-classifier` on a generated corpus of 16,500 paths (every class drawn the way the tools draw it and written the way SVG
+writes it, letterforms from the system faces' glyph outlines) with WTGeometry's own feature extraction; it is 237 KB and ships as
+`WTApp/Objects/Resources/ShapeClassifier.wtmodel`, the uncompiled model under an extension Xcode does not compile, compiled into the
+temporary directory once at launch (`ShapeClassifier.load`), run on the CPU through `MLModel` with a feature provider per path.  On
+the committed fixture set (`tools/shape-classifier/fixtures.txt`, 2,002 paths, 182 of each class, half tool-drawn and half from
+SVG, from another seed) it scores 99.85%.  `ShapeClassification` (Select Similar's `ShapeClassifying`) classes groups, blends,
+extrusions, envelopes, perspective objects and instances as `group`, text as `text`, images, placed files and SVG animations as
+`image` without the model, and caches each path's class with the contours it was read from (pasteboard space), so it is read
+again only when its geometry or an enclosing transform changes -- the spec's "geometry register version" by value.  `prepare`
+classifies a page off the main actor in parallel chunks before the *Shape* item runs (`SelectSimilarCommands.runShape`).  The
+300 ms budget is a `PerfBudget` in the WTGeometry and WTModel suites; it has not been measured on an idle machine yet: with a
+load average of 35 the model classified 4,004 paths in 150 ms and extracted 2,002 paths' features in 19 ms (release), and
+at a load of 144 the whole 5,000-path budget read 1.30 s -- figures the load guard would skip.
+Without the resource no classifier loads and the *Shape* item is not built; the app test counts internet sockets around loading
+and classifying and finds none.
+
 === Build tasks
 
 [[OBJ-005]]

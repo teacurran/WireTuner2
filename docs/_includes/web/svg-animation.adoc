@@ -119,8 +119,8 @@ quit.
 
 To preview in a browser:
 
-* Choose menu:File[Preview in Browser] or press kbd:[Cmd+Return] to preview the current page.
-* Choose menu:File[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) to preview the whole
+* Choose menu:View[Preview in Browser] or press kbd:[Cmd+Return] to preview the current page.
+* Choose menu:View[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) to preview the whole
   document, so page links can be followed.
 
 The browser used is set by the *Preview browser* preference (default: your default browser;
@@ -329,6 +329,29 @@ poster change, so a remote poster change repaints only the animation's tiles.  A
 draws the ordinary image placeholder rather than a hatched one.  With the scene drawing them, the
 WEB-027 section and the kind names ("SVG Animation") apply.
 
+NOTE: As built by WEB-028 (`WTInterchange/SVG/SVGWriter.swift` `writeSVGAnimation`, `Animation/AnimatedSVG.swift`).  The SVG
+exporter (`SVGWriter.nestsSVGAnimations`, set by `SVGExporter`) writes each placed animation of `ExportScene.svgAnimations`
+in place of its poster as an `<image>` of the unchanged file over its natural size mapped by the node's transform -- a
+`data:image/svg+xml` URL, or `images/animation-N.svg` beside the SVG (written once per file) when images are linked --
+carrying the object's id, alt text and link; the animated-SVG exporter does the same inside every frame
+(`AnimatedSVGOptions.nestsSVGAnimations`, on).  *Deviation*: an `<image>` rather than a nested `<svg>` with a `viewBox`
+mapping, because an SVG image plays its CSS and SMIL animation in every browser while keeping the file's ids and style
+rules from colliding with the page's; it runs no script, so a file with script adds the note "a placed SVG animation
+depends on script, which does not run inside an SVG image", and the *On the web* settings apply to HTML only.  The HTML
+publisher (which places animations over the page itself, WEB-008) and snippets keep the poster.  PDF, bitmap exports and
+printing draw the poster alone (WEB-026).  Not run: the Safari/Chrome/Firefox playback acceptance.
+
+NOTE: As built by WEB-029 over BASIC-017 (`WTApp/Document/BrowserPreview.swift`, `WTApp/Web/WebPreviewExporter.swift`,
+`WTApp/Document/ViewCommands.swift`).  Preview in Browser was built by BASIC-017 in the app, not as
+`WTInterchange.BrowserPreview`: the folder is `NSTemporaryDirectory()/WireTuner/Preview/<document id>/`, rewritten on each
+preview and removed at quit, opened with the *Preview browser* preference's application.  WEB-029 adds
+menu:View[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]; every page, opening the current one) beside
+menu:View[Preview in Browser] -- the View menu, as document-view.adoc has it, not File -- and, after a preview opens, the
+publisher's output warnings and the placed files drawn as placeholders because they are not downloaded yet ("… is not
+downloaded yet; the preview shows its placeholder"), in the window's status bar (the Publish sheet's *Show output
+warnings* is that sheet's own and is not stored, so a preview always lists them).  Not run: the two-second timing and the
+browser acceptance.
+
 === Build tasks
 
 [[WEB-024]]
@@ -394,7 +417,7 @@ Done when::
 Track:: import-export
 Depends on:: WEB-008, WEB-010, APP-005, APP-010
 Size:: S
-Delivers:: menu:File[Preview in Browser] (kbd:[Cmd+Return]) and menu:File[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) rendering to the temporary folder with the selected HTML setting, the *Preview browser* preference, warnings display, cleanup at quit.
+Delivers:: menu:View[Preview in Browser] (kbd:[Cmd+Return]) and menu:View[Preview All Pages in Browser] (kbd:[Cmd+Shift+Return]) rendering to the temporary folder with the selected HTML setting, the *Preview browser* preference, warnings display, cleanup at quit.
 Done when::
 * Preview of a page with links, a page link, a document animation and a placed SVG animation opens in the chosen browser within two seconds for a typical page and every feature works there.
 * Re-previewing writes over the same folder; quitting removes it.

@@ -120,4 +120,9 @@ message Override {
   bool hidden = 7;
   // IMAGE: an `assets` node; dangling reads as the master's image.
   NodeRef image = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];
+  // TEXT: the paragraph properties of the override text's last paragraph, which has no
+  // terminating newline to carry them (as TextProps.tail_paragraph does for a block).  STRUCT:
+  // each field its own register.  Unset reads as the master block's tail paragraph; the first
+  // paragraph edit of that paragraph copies the master's settings here with the edit (LIB-027).
+  ParagraphProps tail_paragraph = 9;
 }

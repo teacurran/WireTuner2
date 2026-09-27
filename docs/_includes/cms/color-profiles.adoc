@@ -221,6 +221,23 @@ the hash through `ProfileAssets.exportData` to a chosen `.icc` file.  The refere
 (`ProfileScanTimer`: every 10 minutes each open document's `ProfileReferenceScan`, then `RemoveUnreferencedProfiles` for what is due).
 Not built: the profile menus' *In this document* section and the image-import call.
 
+NOTE: As built by CMS-015 (`WTInterchange/Colors/WideGamutOutput.swift`).  On `WTColor.OutputContext`:
+`widestSpace(of:)` / `widestSpaceUsed(in:)` (a `GamutReach` of sRGB, Display P3 or beyond, scanned over an export
+snapshot's fills, strokes, gradient stops and text -- the snapshot is the cache; swatches and guides that draw nothing are
+not scanned and the swatch-dependents invalidation is not built), `rgbExportSpace(widest:)` (Working RGB, or Display P3
+when the artwork reaches beyond sRGB and Working RGB does not hold Display P3 -- a profile holds it when P3's primaries
+survive a round trip within 0.03), `displayP3ICC`, `clippedWarning(_:)` ("N colors outside sRGB were clipped") and
+`mappedIntoSRGB(_:)` (every colour outside sRGB mapped by COLOR-024 before rendering, so a file without a profile has the
+same pixels on every Mac); `WTColor.CSS.serialize` (the `#rrggbb` fallback, then `color(display-p3 …)`, `oklch(l c h)` or
+`lab(l a b)` by the colour's own space, ` / a` for alpha), used by the SVG writer's wide declarations and the HTML
+publisher's page colour.  The bitmap exporter's *Automatic* RGB space follows `rgbExportSpace`, a page rendered into a
+space wider than sRGB renders in a Display P3 working space (before, extended values were clipped to sRGB while drawing,
+the IO-021 note), and the untagged or sRGB pull-in uses the mapping.  The PDF helpers are the writer's (IO-025, IO-026);
+CMS-015 lets PDF/X-4 keep Display P3 objects tagged beside its CMYK output intent (ICC v4 is PDF 1.5 and later), noted
+in the summary.  Not run: the WPT serialization vectors themselves (the serializer's output is checked to read back
+through the SVG importer's CSS Color 4 parser), a headless WebKit run with CSS Color 4 disabled, and the Preview/Acrobat
+screen comparison on a P3 display.
+
 === Build tasks
 
 [[CMS-010]]

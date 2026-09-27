@@ -114,7 +114,7 @@ final class ExtrasWindowParts {
 @MainActor
 enum ExtraSections {
     static func register(into registry: InspectorRegistry) {
-        registry.register(InspectorSection(id: "textSpacing", order: 66, kinds: [.text]) { model in
+        registry.register(InspectorSection(id: "textSpacing", order: 66, kinds: [.text, .instance]) { model in
             model.spacing.map { AnyView(SpacingSectionView(section: $0, model: model)) }
         })
         registry.register(InspectorSection(id: "chartElement", order: 70, kinds: [.chart]) { model in

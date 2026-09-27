@@ -26,6 +26,12 @@ final class DocumentGlueFeatures {
     private(set) var notices: [ObjectIdentifier: MasterNotices] = [:]
     /// The *Profiles…* sheet's model while it is open.
     private(set) var profiles: ProfilesModel?
+    /// Called after commands were added to the registry (the bundled shape model loaded).
+    var onMenuChange: (@MainActor () -> Void)?
+    /// Loads the *Shape* item's classifier (IMG-030); replaceable in tests.
+    var loadShapeClassifier: @MainActor () async -> (any ShapeClassifying)? = { await ShapeClassifierResource.load() }
+    /// The classifier load under way at launch.
+    private(set) var shapeLoading: Task<Void, Never>?
 
     init(preferences: PreferenceStore, sheets: SheetPresenter = SheetPresenter(), window: @escaping @MainActor () -> DocumentWindowController?) {
         self.preferences = preferences
@@ -43,6 +49,14 @@ final class DocumentGlueFeatures {
         DocumentPanelModel.editMaster = { window, master in masters.open(master, from: window) }
         views.install(commands: commands)
         similar.install(commands: commands)
+        // The bundled shape model compiles once at launch; *Shape* joins the menu when it is ready.
+        let load = loadShapeClassifier
+        shapeLoading = Task { [weak self] in
+            guard let classifier = await load(), let self else { return }
+            self.similar.classifier = classifier
+            self.similar.install(commands: commands)
+            self.onMenuChange?()
+        }
         combine.install(commands: commands, extensions: extensions)
         ColorSettingsSheet.showProfiles = { [weak self] document in self?.showProfiles(document) }
         for (id, kind) in [("swatches", LibraryCatalog.Kind.swatch), ("styles", .style), ("library", .symbol)] {
@@ -96,6 +110,7 @@ extension AppDelegate {
     /// from `DocumentCreation` (DOC-019).
     func installDocumentGlue() {
         documentGlue.views.onMenuChange = { [weak self] in self?.rebuildMainMenu() }
+        documentGlue.onMenuChange = { [weak self] in self?.rebuildMainMenu() }
         documentGlue.install(commands: commands, panels: panels, extensions: toolbars.extensions, documents: documents)
         library.makeID = { DocumentCreation.newDocumentID() }
     }

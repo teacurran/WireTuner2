@@ -139,6 +139,22 @@ print or PDF context still holds each placed band until the page ends, so the 51
 verified.  Remaining (WTApp): the progress sheet on the document window, `canSpawnSeparateThread` with the view drawing from
 `PrintRun`, and the 200-sheet UI test.
 
+NOTE: As built by PRINT-015 (`client/Packages/WTInterchange/Tests/WTInterchangeTests/PrintCorpusTests.swift`, references in
+`Tests/WTInterchangeTests/Goldens/PrintCorpus/`).  The corpus is a suite of the package's test target rather than a test
+target of its own (it shares the export corpus and helpers; `swift test --filter PrintCorpusTests` runs it alone): one
+case per option of the Printing, Output devices and Halftones pages, each naming what it exercises (a test holds the list
+to the pages' options) -- the scale modes, offset, automatic and manual tiling with overlap and zero point, every mark,
+bleed and page boundary, emulsion and negative, separations with process and spot plates and overprint, spot as process,
+chosen plates with their angles and frequencies, *Screen in {product}* with document and object screens at a device
+resolution, *Ignore object screens*, flatness and object flatness with text as outlines, rasterized output, output area,
+selection and page range.  Each job is written through `PrintPDF.data` and every sheet rasterized by Core Graphics at 72
+ppi and held to its reference PNG (at most 0.2% of pixels beyond 24/255); a drifting sheet fails naming the case, sheet
+and sheet name and writes the fresh rendering and a difference image to `$WT_PRINT_CORPUS_OUT`.  *Deviation*: the
+references are rasterized PNGs, not PDFs and checksums -- a PDF carries its creation date and Core Graphics' anti-aliasing
+is not bit-stable across macOS releases, so a checksum would fail for no fault of the output.  The composite cases print
+`Corpus.fixture`'s pages, the display lists `PDFTests` holds screen against PDF, and their sheets are held to the canvas
+renderer's pixels too.  The CI job is proposed in the IO/PRINT handoff (`.github/` is not this task's to edit).
+
 === Build tasks
 
 [[PRINT-013]]

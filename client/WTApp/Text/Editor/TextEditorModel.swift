@@ -18,29 +18,49 @@ final class TextEditorModel {
     static let plainFont = NSFont.systemFont(ofSize: 12)
 
     @ObservationIgnored let document: DocumentHandle
+    /// The block, or for a text block inside an instance the instance.
     let node: OpID
+    /// What the window edits: a block, or a text block inside an instance -- its text override
+    /// (LIB-027).
+    let target: TextEditingSession.Target
     @ObservationIgnored let session: TextEditingSession
     var twelvePointBlack = true
     var showInvisibles = false
     var wrapToWindow = true
 
-    init(document: DocumentHandle, node: OpID, sink: any CommandSink) {
+    convenience init(document: DocumentHandle, node: OpID, sink: any CommandSink) {
+        self.init(document: document, target: .node(node), sink: sink)
+    }
+
+    init(document: DocumentHandle, target: TextEditingSession.Target, sink: any CommandSink) {
         self.document = document
-        self.node = node
-        session = TextEditingSession(document: document, sink: sink, target: .node(node))
+        self.target = target
+        if case .override(let instance, _) = target { node = instance } else if case .node(let id) = target { node = id } else { node = .zero }
+        session = TextEditingSession(document: document, sink: sink, target: target)
         session.select(anchor: 0, focus: 0)
     }
 
-    /// The node as merged now.
-    var text: TextNode? { document.state.textNode(node) }
+    /// The text as merged now (inside an instance, as the instance shows it).
+    var text: TextNode? { session.text }
 
-    /// Whether the node still exists (a remote delete closes the window).
-    var isLive: Bool { document.state.isLive(node) && text != nil }
+    /// Whether the text still exists (a remote delete closes the window; inside an instance, a
+    /// release, swap or hide of the block does).
+    var isLive: Bool { session.override == nil ? document.state.isLive(node) && text != nil : session.isLive && text != nil }
 
-    /// The window's title.
+    /// The window's title (inside an instance: the instance's name and the block's).
     var title: String {
-        let name = document.state.displayName(of: node)
-        return "Text Editor — \(name)"
+        let state = document.state
+        if let override = session.override {
+            return "Text Editor — \(state.displayName(of: override.instance)) › \(Symbols.partTitle(override.master, in: state))"
+        }
+        return "Text Editor — \(state.displayName(of: node))"
+    }
+
+    /// Whether a collaborator's caret is in this text: the block's own, or the same override.
+    func isHere(_ caret: RemoteCaret) -> Bool {
+        guard caret.node.opID == node else { return false }
+        guard let override = session.override else { return caret.text == TextFields.text }
+        return Symbols.overrideMaster(ofTextField: caret.text, in: override.instance, state: document.state) == override.master
     }
 
     /// The characters with the window's rendering attributes: 12 pt black, or each run's own
@@ -132,7 +152,7 @@ final class TextEditorModel {
         guard let text, isLive else { return [] }
         let all = Array(text.string.unicodeScalars)
         return participants.compactMap { participant in
-            guard let caret = participant.caret, caret.node.opID == node, let offset = PresenceOverlay.offset(caret.position, in: text) else { return nil }
+            guard let caret = participant.caret, isHere(caret), let offset = PresenceOverlay.offset(caret.position, in: text) else { return nil }
             let other = caret.rangeEnd.flatMap { PresenceOverlay.offset($0, in: text) } ?? offset
             let lower = TextNavigation.utf16Offset(min(offset, other), in: all)
             let upper = TextNavigation.utf16Offset(max(offset, other), in: all)

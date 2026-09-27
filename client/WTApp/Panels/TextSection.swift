@@ -28,9 +28,11 @@ extension ObjectPanelModel {
     static let defaultStyle = "Regular"
     static let defaultSize = 12.0
 
-    /// The Text tool's session when it edits one of the selected blocks.
+    /// The Text tool's session when it edits one of the selected blocks, or a text block inside the
+    /// selected instance (its text override, LIB-027).
     var editingText: TextEditingSession? {
-        guard let session = textSession, let node = session.node, selection.ids.contains(SelectionID(node)), session.isLive else { return nil }
+        guard let session = textSession, let node = session.node ?? session.override?.instance, selection.ids.contains(SelectionID(node)),
+              session.isLive else { return nil }
         return session
     }
 
@@ -39,9 +41,11 @@ extension ObjectPanelModel {
         selection.ids.compactMap { id in document.object(for: id)?.kind == .text ? id.opID : nil }
     }
 
-    /// The section, when every selected object is a text block.
+    /// The section, when every selected object is a text block, or while the Text tool edits a
+    /// text block inside the selected instance (its `nodes` then the instance).
     var text: TextSection? {
-        let nodes = textNodes
+        let override = editingText?.override
+        let nodes = override.map { [$0.instance] } ?? textNodes
         guard !nodes.isEmpty, nodes.count == selection.ids.count else { return nil }
         let runs: [[Wiretuner_Doc_V1_TextMarkValue]]
         let paragraphs: [Wiretuner_Doc_V1_ParagraphProps]

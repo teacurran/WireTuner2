@@ -4795,6 +4795,10 @@ public enum WTValidators {
             let v = m.image
             out += validate(v, path: "\(path)image.")
         }
+        if m.hasTailParagraph {
+            let v = m.tailParagraph
+            out += validate(v, path: "\(path)tail_paragraph.")
+        }
         return out
     }
 

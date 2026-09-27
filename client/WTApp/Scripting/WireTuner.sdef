@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<!-- The scripting dictionary (docs/_includes/document/scripting.adoc, "AppleScript"; DOC-026).
+     Every class is a wrapper over WTModel nodes in WTApp/Scripting/ScriptableObjects.swift, every
+     settable property and command runs a WTModel command through WTModel.ScriptObjects, labelled
+     "Script: ..." and one undo step. -->
+<dictionary title="WireTuner Terminology">
+	<suite name="Standard Suite" code="????" description="Common classes and commands for all applications.">
+		<command name="open" code="aevtodoc" description="Open a document by name or library id, or a file.">
+			<cocoa class="WTScriptOpenCommand"/>
+			<direct-parameter description="The document's name or library id, or a file." type="any"/>
+			<result description="The opened document." type="document"/>
+		</command>
+		<command name="close" code="coreclos" description="Close a document.">
+			<cocoa class="NSCloseCommand"/>
+			<direct-parameter description="the document to close" type="specifier"/>
+		</command>
+		<command name="quit" code="aevtquit" description="Quit the application.">
+			<cocoa class="NSQuitCommand"/>
+		</command>
+		<command name="count" code="corecnte" description="Return the number of elements of a particular class within an object.">
+			<cocoa class="NSCountCommand"/>
+			<access-group identifier="*"/>
+			<direct-parameter description="The objects to be counted." type="specifier"/>
+			<parameter name="each" code="kocl" type="type" optional="yes" description="The class of objects to be counted." hidden="yes">
+				<cocoa key="ObjectClass"/>
+			</parameter>
+			<result description="The count." type="integer"/>
+		</command>
+		<command name="delete" code="coredelo" description="Delete an object.">
+			<cocoa class="NSDeleteCommand"/>
+			<direct-parameter description="The object(s) to delete." type="specifier"/>
+		</command>
+		<command name="duplicate" code="coreclon" description="Copy objects on their layer.">
+			<cocoa class="WTScriptDuplicateCommand"/>
+			<direct-parameter description="The object(s) to copy." type="specifier"/>
+			<result description="The copies." type="specifier"/>
+		</command>
+		<command name="exists" code="coredoex" description="Verify that an object exists.">
+			<cocoa class="NSExistsCommand"/>
+			<direct-parameter description="The object(s) to check." type="any"/>
+			<result description="Did the object(s) exist?" type="boolean"/>
+		</command>
+		<command name="make" code="corecrel" description="Create a new object.">
+			<cocoa class="NSCreateCommand"/>
+			<parameter name="new" code="kocl" type="type" description="The class of the new object.">
+				<cocoa key="ObjectClass"/>
+			</parameter>
+			<parameter name="at" code="insh" type="location specifier" optional="yes" description="The location at which to insert the object.">
+				<cocoa key="Location"/>
+			</parameter>
+			<parameter name="with properties" code="prdt" type="record" optional="yes" description="The initial values for properties of the object.">
+				<cocoa key="KeyDictionary"/>
+			</parameter>
+			<result description="The new object." type="specifier"/>
+		</command>
+		<command name="print" code="aevtpdoc" description="Print a document.">
+			<cocoa class="WTScriptPrintCommand"/>
+			<direct-parameter description="The document to print." type="document"/>
+			<parameter name="print preset" code="WTpp" type="text" optional="yes" description="The name of a print preset.">
+				<cocoa key="Preset"/>
+			</parameter>
+		</command>
+		<class name="application" code="capp" description="The application's top-level scripting object.">
+			<cocoa class="NSApplication"/>
+			<property name="name" code="pnam" type="text" access="r" description="The name of the application."/>
+			<property name="frontmost" code="pisf" type="boolean" access="r" description="Is this the active application?">
+				<cocoa key="isActive"/>
+			</property>
+			<property name="version" code="vers" type="text" access="r" description="The version number of the application."/>
+			<element type="document" access="r">
+				<cocoa key="scriptDocuments"/>
+			</element>
+			<responds-to command="quit">
+				<cocoa method="handleQuitScriptCommand:"/>
+			</responds-to>
+		</class>
+	</suite>
+	<suite name="WireTuner Suite" code="WTnr" description="Documents, pages, master pages, layers, graphics, swatches and styles.">
+		<class name="document" code="docu" description="An open WireTuner document.">
+			<cocoa class="WTScriptDocument"/>
+			<property name="name" code="pnam" type="text" access="r" description="Its name."/>
+			<property name="id" code="ID  " type="text" access="r" description="Its library id.">
+				<cocoa key="uniqueID"/>
+			</property>
+			<element type="page"><cocoa key="scriptPages"/></element>
+			<element type="master page"><cocoa key="scriptMasterPages"/></element>
+			<element type="layer"><cocoa key="scriptLayers"/></element>
+			<element type="graphic"><cocoa key="scriptGraphics"/></element>
+			<element type="text block" access="r"><cocoa key="scriptTextBlocks"/></element>
+			<element type="swatch" access="r"><cocoa key="scriptSwatches"/></element>
+			<element type="style" access="r"><cocoa key="scriptStyles"/></element>
+			<responds-to command="close"><cocoa method="handleCloseScriptCommand:"/></responds-to>
+		</class>
+		<class name="page" code="WTpg" description="A page, in page order.">
+			<cocoa class="WTScriptPage"/>
+			<property name="id" code="ID  " type="text" access="r" description="The page's node id."><cocoa key="uniqueID"/></property>
+			<property name="name" code="pnam" type="text" description="The page's name."><cocoa key="scriptName"/></property>
+			<property name="index" code="pidx" type="integer" access="r" description="Its number in page order."><cocoa key="scriptIndex"/></property>
+			<property name="page size" code="WTsz" description="Width and height in points.">
+				<type type="real" list="yes"/>
+				<cocoa key="scriptPageSize"/>
+			</property>
+			<property name="master page" code="WTmp" type="master page" description="The master page it follows, if any."><cocoa key="scriptMaster"/></property>
+		</class>
+		<class name="master page" code="WTms" plural="master pages" description="A master page.">
+			<cocoa class="WTScriptMasterPage"/>
+			<property name="id" code="ID  " type="text" access="r" description="The master page's node id."><cocoa key="uniqueID"/></property>
+			<property name="name" code="pnam" type="text" description="Its name."><cocoa key="scriptName"/></property>
+			<property name="page size" code="WTsz" access="r" description="Width and height in points.">
+				<type type="real" list="yes"/>
+				<cocoa key="scriptPageSize"/>
+			</property>
+		</class>
+		<class name="layer" code="WTly" description="A layer.">
+			<cocoa class="WTScriptLayer"/>
+			<property name="id" code="ID  " type="text" access="r" description="The layer's node id."><cocoa key="uniqueID"/></property>
+			<property name="name" code="pnam" type="text" description="Its name."><cocoa key="scriptName"/></property>
+			<property name="visible" code="pvis" type="boolean" description="Whether it is shown."><cocoa key="scriptVisible"/></property>
+			<property name="locked" code="WTlk" type="boolean" description="Whether it is locked."><cocoa key="scriptLocked"/></property>
+			<element type="graphic" access="r"><cocoa key="scriptGraphics"/></element>
+		</class>
+		<class name="graphic" code="WTgr" description="An object on a layer.">
+			<cocoa class="WTScriptGraphic"/>
+			<property name="id" code="ID  " type="text" access="r" description="The object's node id, stable across runs."><cocoa key="uniqueID"/></property>
+			<property name="kind" code="WTkd" type="text" access="r" description="path, rectangle, ellipse, group, text, image, instance, ..."><cocoa key="scriptKind"/></property>
+			<property name="name" code="pnam" type="text" description="Its name."><cocoa key="scriptName"/></property>
+			<property name="notes" code="WTnt" type="text" description="Its notes."><cocoa key="scriptNotes"/></property>
+			<property name="bounds" code="pbnd" access="r" description="{left, top, width, height} in points.">
+				<type type="real" list="yes"/>
+				<cocoa key="scriptBounds"/>
+			</property>
+			<property name="position" code="posn" description="{left, top} in points.">
+				<type type="real" list="yes"/>
+				<cocoa key="scriptPosition"/>
+			</property>
+			<property name="locked" code="WTlk" type="boolean" description="Whether it is locked."><cocoa key="scriptLocked"/></property>
+			<property name="layer" code="WTly" type="layer" description="The layer it is on."><cocoa key="scriptLayer"/></property>
+			<property name="fill" code="WTfl" type="text" access="r" description="A summary of its fills."><cocoa key="scriptFill"/></property>
+			<property name="stroke" code="WTst" type="text" access="r" description="A summary of its strokes."><cocoa key="scriptStroke"/></property>
+		</class>
+		<class name="path" code="WTph" inherits="graphic" description="A path."><cocoa class="WTScriptPath"/></class>
+		<class name="rectangle" code="WTrc" inherits="graphic" description="A rectangle."><cocoa class="WTScriptRectangle"/></class>
+		<class name="ellipse" code="WTel" inherits="graphic" description="An ellipse."><cocoa class="WTScriptEllipse"/></class>
+		<class name="line" code="WTln" inherits="graphic" description="A straight line (made as a path)."><cocoa class="WTScriptLine"/></class>
+		<class name="group" code="WTgp" inherits="graphic" description="A group."><cocoa class="WTScriptGroup"/></class>
+		<class name="image" code="WTim" inherits="graphic" description="A placed image."><cocoa class="WTScriptImage"/></class>
+		<class name="symbol instance" code="WTsi" inherits="graphic" description="An instance of a symbol."><cocoa class="WTScriptSymbolInstance"/></class>
+		<class name="text block" code="WTtb" inherits="graphic" description="A text block.">
+			<cocoa class="WTScriptTextBlock"/>
+			<property name="contents" code="pcnt" type="text" description="Its text."><cocoa key="scriptContents"/></property>
+		</class>
+		<class name="swatch" code="WTsw" description="A swatch.">
+			<cocoa class="WTScriptSwatch"/>
+			<property name="id" code="ID  " type="text" access="r" description="The swatch's node id."><cocoa key="uniqueID"/></property>
+			<property name="name" code="pnam" type="text" description="Its name."><cocoa key="scriptName"/></property>
+		</class>
+		<class name="style" code="WTsy" description="A graphic style.">
+			<cocoa class="WTScriptStyle"/>
+			<property name="id" code="ID  " type="text" access="r" description="The style's node id."><cocoa key="uniqueID"/></property>
+			<property name="name" code="pnam" type="text" access="r" description="Its name."><cocoa key="scriptName"/></property>
+		</class>
+		<command name="add page" code="WTnrAdPg" description="Add pages after the last page. One change, one undo step.">
+			<cocoa class="WTScriptAddPageCommand"/>
+			<direct-parameter description="The document." type="document"/>
+			<parameter name="count" code="WTct" type="integer" optional="yes" description="How many (1 when omitted)."><cocoa key="Count"/></parameter>
+			<parameter name="page size" code="WTsz" optional="yes" description="{width, height} in points.">
+				<type type="real" list="yes"/>
+				<cocoa key="Size"/>
+			</parameter>
+			<parameter name="master page" code="WTmp" type="master page" optional="yes" description="The master page the pages follow."><cocoa key="Master"/></parameter>
+		</command>
+		<command name="go to page" code="WTnrGoPg" description="Show a page in the document's window.">
+			<cocoa class="WTScriptGoToPageCommand"/>
+			<direct-parameter description="The page." type="page"/>
+		</command>
+		<command name="apply master page" code="WTnrApMs" description="Make pages follow a master page.">
+			<cocoa class="WTScriptApplyMasterCommand"/>
+			<direct-parameter description="The master page." type="master page"/>
+			<parameter name="to" code="WTto" type="specifier" description="The page or pages."><cocoa key="Pages"/></parameter>
+		</command>
+		<command name="release child page" code="WTnrRlPg" description="Stop a page following its master page, keeping its content.">
+			<cocoa class="WTScriptReleaseCommand"/>
+			<direct-parameter description="The page or pages." type="specifier"/>
+		</command>
+		<command name="find and replace text" code="WTnrFdRp" description="Replace every match in the document's text. Returns the number replaced.">
+			<cocoa class="WTScriptFindReplaceCommand"/>
+			<direct-parameter description="The document." type="document"/>
+			<parameter name="find" code="WTfd" type="text" description="The text to find."><cocoa key="Find"/></parameter>
+			<parameter name="replacing with" code="WTrw" type="text" description="The replacement."><cocoa key="Replace"/></parameter>
+			<parameter name="whole word" code="WTww" type="boolean" optional="yes" description="Match whole words only."><cocoa key="WholeWord"/></parameter>
+			<parameter name="match case" code="WTmc" type="boolean" optional="yes" description="Match case."><cocoa key="MatchCase"/></parameter>
+			<result description="How many matches were replaced." type="integer"/>
+		</command>
+		<command name="export" code="WTnrExpt" description="Export the document in a format.">
+			<cocoa class="WTScriptExportCommand"/>
+			<direct-parameter description="The document." type="document"/>
+			<parameter name="as" code="WTfm" type="text" description="The format: pdf, svg, png, jpeg, tiff, eps."><cocoa key="Format"/></parameter>
+			<parameter name="to" code="WTfi" type="file" description="Where to write it."><cocoa key="File"/></parameter>
+		</command>
+		<command name="share link" code="WTnrShLk" description="The document's share link (needs a connection).">
+			<cocoa class="WTScriptShareLinkCommand"/>
+			<direct-parameter description="The document." type="document"/>
+			<result description="The link." type="text"/>
+		</command>
+	</suite>
+</dictionary>

@@ -57,6 +57,8 @@ final class SymbolLibraryModel {
     /// Presents and dismisses the Remove sheet; replaceable in tests.
     @ObservationIgnored var present: @MainActor (SymbolLibraryModel) -> Void = { _ in }
     @ObservationIgnored var dismiss: @MainActor () -> Void = {}
+    /// Opens a symbol's editing window (LIB-012, `SymbolEditingWindows`); nothing in tests.
+    @ObservationIgnored var edit: @MainActor (OpID) -> Void = { _ in }
 
     init(selection: ActiveSelection) {
         self.selection = selection
@@ -268,7 +270,23 @@ final class SymbolLibraryModel {
         return perform(MoveSymbolsToFolder(ids, to: folder))
     }
 
-    /// Double-click: rename in place.
+    /// *Edit*, and a double-click on the preview or a symbol's icon: the selected symbol's
+    /// editing window.  Returns whether one was asked for.
+    @discardableResult
+    func editSelected() -> Bool {
+        guard let symbol = selectedSymbol else { return false }
+        edit(symbol)
+        return true
+    }
+
+    /// Double-click on a symbol's icon: selects it and opens its editing window.
+    func editRow(_ id: OpID) {
+        guard rows.first(where: { $0.id == id })?.kind == .symbol else { return }
+        click(id)
+        editSelected()
+    }
+
+    /// Double-click on the name: rename in place.
     func beginRename(_ id: OpID) {
         guard rows.first(where: { $0.id == id })?.kind != .master else { return }
         renaming = id
@@ -312,6 +330,7 @@ final class SymbolLibraryModel {
             PanelMenuItem(title: "Duplicate", isEnabled: rows.contains { $0.kind == .symbol }) { [weak self] in self?.duplicate() },
             PanelMenuItem(title: "Remove", isEnabled: !rows.isEmpty) { [weak self] in self?.remove() },
             PanelMenuItem(title: "Swap", isEnabled: symbol && objects) { [weak self] in self?.swap() },
+            PanelMenuItem(title: "Edit", isEnabled: symbol) { [weak self] in self?.editSelected() },
             PanelMenuItem(title: "Place", isEnabled: symbol) { [weak self] in self?.place() },
             PanelMenuItem(title: "Replace Artwork", isEnabled: symbol && objects) { [weak self] in self?.replaceArtwork() },
             PanelMenuItem(title: "Move to Top Level", isEnabled: rows.contains { $0.folder != nil }) { [weak self] in self?.move(to: nil) },

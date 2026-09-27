@@ -126,10 +126,8 @@ extension ObjectPanelModel {
     /// an insertion point, else every selected block whole.
     @discardableResult
     func formatText(_ values: [Wiretuner_Doc_V1_TextMarkValue], label: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        if let session = editingText, session.selectedRange.isEmpty {
-            var result: Task<Wiretuner_Doc_V1_Change?, Never>?
-            for value in values { result = session.format(value) }
-            return result
+        if let session = editingText, session.selectedRange.isEmpty || session.override != nil {
+            return session.format(values, label: label)
         }
         let targets = textTargets
         guard !targets.isEmpty, !values.isEmpty else { return nil }

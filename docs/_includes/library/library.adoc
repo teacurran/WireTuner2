@@ -141,8 +141,11 @@ To override text on the canvas:
 
 * With the Text tool, click into a text block inside the instance and type.  Only this
   instance changes; the caret, selection and everything else about editing text work as in any
-  block (xref:editing-text.adoc[Editing text]).  If you delete all of the text and finish
-  editing, the block shows the symbol's text again.
+  block (xref:editing-text.adoc[Editing text]): format the selection from the Object panel's
+  Text, Paragraph, Spacing and color rows, insert data fields, nudge size and kerning from the
+  keyboard, or open the Text Editor with menu:Text[Editor…].  Collaborators see your caret in
+  the instance.  If you delete all of the text and finish editing, the block shows the symbol's
+  text again.
 
 To reset an override:
 
@@ -168,11 +171,14 @@ Editing a symbol changes every instance of it in the document, wherever it is.
 
 To edit a symbol:
 
-. Double-click the symbol in the Library list or its preview, or select an instance on the
-  canvas and choose menu:Modify[Symbol > Edit Symbol].
-. A symbol editing window opens with the symbol's artwork on its own canvas, and every panel
-  works as usual.  Edits appear on the instances as you make them.
-. Close the window (kbd:[Cmd+W]) or click btn:[Done] when you are finished.
+. Double-click the symbol's icon in the Library list or its preview, choose *Edit* from the
+  options menu, or select an instance on the canvas and choose menu:Modify[Symbol > Edit Symbol].
+. A symbol editing window, titled "Symbol:" and the symbol's name, opens with the symbol's
+  artwork on its own canvas; a small red cross marks the symbol's origin, the point an
+  instance is placed by.  Every tool and panel works as usual, and whatever you draw goes into
+  the symbol.  Edits appear on the instances as you make them.
+. Close the window (kbd:[Cmd+W]) or click btn:[Done] when you are finished.  Closing it in the
+  middle of a drag keeps what you were drawing.
 
 NOTE: Edits to a symbol are live, for you and for everyone else in the document, so there is
 nothing to apply.  If you want to try something without affecting the instances, edit a
@@ -396,6 +402,7 @@ message Override {
   ColorRef stroke = 6 [(wt.crdt.field).merge = MERGE_ATOMIC];   // STROKE: color of the node's basic strokes
   bool hidden = 7;                                            // HIDDEN: true hides the node's subtree
   NodeRef image = 8 [(wt.crdt.field).on_dangling = REF_FALLBACK_UNSET];  // IMAGE: an `assets` node
+  ParagraphProps tail_paragraph = 9;   // TEXT: the override text's last paragraph (STRUCT; LIB-027)
 }
 
 enum OverrideProperty {
@@ -449,6 +456,11 @@ displayed at the top level by read-time normalization.
 |`InstanceProps.overrides`
 |SEQUENCE of STRUCT elements; `text` MERGE_TEXT inside
 |Insert, delete and the value registers are independent.  Cases below.
+
+|`Override.tail_paragraph`
+|STRUCT
+|Each paragraph setting of the override text's last paragraph is its own register: two people
+setting different ones both keep theirs; the same one is LWW (*same register*).
 |===
 
 Why overrides are a sequence and not a map::
@@ -682,10 +694,13 @@ on the active layer; name the single object's own or the first free "Symbol N"),
 basic fills and strokes recoloured; image and text overrides are not baked), `SetOverride`
 ("Override fill", "Override stroke", "Hide <name>" / "Show <name>", "Override image": the live
 element's register, or a new element) and `ResetOverrides` ("Reset override", "Reset all
-overrides").  `Symbols.instanceIndex` computes the instance index on read.  Not yet built: Copy to
-Symbol, Duplicate, Replace artwork, Remove with Release or Delete instances, folder commands, a
-public `resolvedArtwork(of:)`, and the nesting-cycle cut at the smallest instance id (WTRender cuts
-at the second visit of a symbol).  Dirty rects: the builder keeps the `DependencyIndex` (a symbol
+overrides").  `Symbols.instanceIndex` computes the instance index on read.  What this note once
+listed as not built -- Copy to Symbol, Duplicate, Replace artwork, Remove with Release or Delete
+instances, the folder commands, the nesting-cycle cut at the smallest instance id and a public
+`resolvedArtwork(of:)` -- is built: the commands and the cut by LIB-009 (`SymbolLibraryCommands.swift`;
+`Symbols.cutInstances`, applied by WTModel before WTRender sees the artwork, so WTRender's cut at the
+second visit of a symbol is only a backstop), `Symbols.resolvedArtwork(of:in:)` by LIB-025 (notes
+below; checked again by the sym batch).  Dirty rects: the builder keeps the `DependencyIndex` (a symbol
 from its master nodes and nested symbols through `SymbolLibrary.addDependencies`, an instance from
 its symbol id even while it dangles, a chart from its pictograph nodes), rebuilt with each scene;
 `apply` rebuilds the touched nodes and their dependents and names every one in the summary, so a
@@ -752,7 +767,7 @@ using them (not renamed or removed from the Library); a symbol dragged onto the 
 (through the objects pasteboard type the canvas takes); canvas objects dropped on the list make a symbol, on a symbol row
 the Replace sheet asks before `ReplaceSymbolArtwork`; rows dropped on a folder move into it and an kbd:[Option]-drag
 duplicates.  A drag from the canvas starts only once it leaves the window, so it reaches a floating Library panel, not a
-docked one.  *Not built yet*: *Edit* (LIB-012), *Import…* and *Export…* (LIB-013) and opening a master page (DOC-011).
+docked one.  *Edit* is LIB-012's (below).  *Not built yet*: *Import…* and *Export…* (LIB-013) and opening a master page (DOC-011).
 
 NOTE: As built by LIB-013 (`WTModel/SymbolTransfer.swift`, `WTSync/SymbolSources.swift`).  A
 `SymbolPackage` is a set of symbols with everything their artwork references, transitively -- nodes in
@@ -802,15 +817,51 @@ range in one change.  The Text tool hit-tests the text blocks of unlocked instan
 `textBlocks` through `Symbols.pasteboardTransform(ofMaster:in:state:)`; the topmost block of the topmost object wins, ordinary
 blocks included); the session's target `.override(instance:master:)` edits with `OverrideText` (typing, the deletes, typing over a
 selection), re-reads the insertion point by offset once each edit lands, and draws the frame, caret and selection at the
-instance's placement; ending editing with the override emptied resets it.  Not built (LIB-027): formatting, paragraph settings,
-placeholders and the Text Editor inside an instance (the session has no `node`, so those commands do nothing there) and presence
-carets on an override.  Merge tests (`SymbolTextOverrideSceneTests`): concurrent override typing vs. a master reword (the override
+instance's placement; ending editing with the override emptied resets it.  Formatting, paragraph settings, placeholders, the
+Text Editor and presence carets inside an instance are LIB-027's (below).  Merge tests (`SymbolTextOverrideSceneTests`): concurrent override typing vs. a master reword (the override
 keeps the words it copied, the other instances take the new ones, both replicas draw the same), concurrent typing into one
 override.  Reference render `symbolTextOverrides` (goldens and Metal parity).
 
-NOTE: LIB-025's app half is still not built: editing a text block inside an instance with the Text tool (`OverrideText`) waits for
-instances to draw their text overrides, which is a change to the scene builder and the symbol renderer (WTModel, WTRender), not
-glue: until then an override typed on the canvas would not show.
+NOTE: As built by LIB-012 (`WTModel/SymbolCanvas.swift`, `DocumentScene.swift`; `WTApp/Library/Symbols/SymbolEditingWindows.swift`).
+The window is a `DocumentWindowController` over a `DocumentHandle` sharing the document's model with `canvasNode` = the symbol
+(handle id `<document>#symbol-<symbol>`, which `GlyphCanvas.documentID(ofTab:)` maps back, so it shares the document's session and
+presence as master and glyph tabs do).  Its builder draws the symbol's live artwork as the top-level objects of one unlocked,
+printing run whose layer is the symbol, in symbol space -- which is pasteboard space, since Convert to Symbol keeps the artwork's
+coordinates -- over a white pasteboard with a red hairline cross at `SymbolProps.origin` (`Symbols.canvasBackground`); it opens
+fitted to the artwork (`Symbols.canvasBounds`).  Commands performed there go through `SymbolPlacedCommand`, which runs the command
+and moves every top-level object it creates on a layer into the symbol, above its artwork, in the same change (op ids unchanged, so
+undo and `createdObjects` work; objects created inside another keep their parent), so every tool, paste and panel command draws into
+the symbol without knowing about it.  The window is its own window (not a tab: tabbing off), titled "Symbol: <name>" and following
+renames, with btn:[Done] in the title bar, no page controls, and it closes when the symbol is removed.  It opens from
+menu:Modify[Symbol > Edit Symbol] (one instance selected), the Library panel's *Edit*, and a double-click on the preview or on a
+symbol's icon -- a double-click on the name still renames, so the guide says "the symbol's icon".  Closing any document window
+mid-drag now ends the drag where the pointer was (`ToolManager.finishDrag`, from `windowWillClose`) instead of dropping it.  The
+main window's instances repaint in the same change as an edit in the symbol window (the main handle's builder expands the touched
+master nodes through its `DependencyIndex`).  Merge tests: two replicas drawing into one symbol converge to one display list (WTModel);
+a remote edit appears live in the window, and closing the window mid-drag keeps the rectangle (app tests, not XCUITest).
+
+NOTE: As built by LIB-027 (`WTModel/SymbolOverrides.swift`, `SymbolOverrideRows.swift`; `WTApp/Library/Symbols/OverridesSection.swift`,
+`Text/TextEditingSession.swift`, `Text/Editor/`, `Collaboration/PresenceOverlay.swift`).  *Overrides section*: registered for
+`instance` nodes; `Symbols.overrideRows` walks the artwork depth-first bottom first, stopping at nested instances; rows are named by
+`Symbols.partTitle` ("Text: Buy now", else the kind); text rows commit with `OverrideTextValue` (typing over the whole text of every
+selected instance in one change; an emptied field resets, as on the canvas), colour wells and *Visible* with `SetOverride`,
+btn:[Choose…] stores the picture through the import pipeline's blob placement and then `OverrideImage` makes the asset (or reuses
+the one holding those bytes) and the override in one change; reset arrows, btn:[Reset All Overrides] and btn:[Detach]
+("Detach instance").  A remote reset leaves the row (it lists parts, not overrides) showing the symbol's value; the field being
+edited keeps its typing (APP-007) and a later commit writes a new element.  *Formatting inside an instance*: `OverrideText` now takes
+several edits in one change -- `.insertMarked`, `.mark` and `.paragraph` besides typing -- each in the offsets the one before left;
+the session's `format`, `setParagraph` (and `align`), `insertField` and typed-placeholder conversion use them, and the Object
+panel's Text, Paragraph, Spacing and colour sections show for the selected instance while its block is edited (their `kinds` gain
+`instance`; the colour section hides the block background and border, which are the master's).  Type nudges accumulate per
+target and flush as one `OverrideText`.  The last paragraph of an override had nowhere to keep its settings, so the schema gains
+`Override.tail_paragraph` (STRUCT; vector `library/override-tail-paragraph`): `Symbols.textNode` reads it in place of the master's,
+the first write copies the master's tail settings with the edit, and *Release Instance* bakes it with the override's text.  *Text Editor*: `TextEditorModel` takes a session target, so
+menu:Text[Editor…] opens on the Text tool's override (keyed per instance and block).  *Remote carets*: the published `TextCaret`
+names the instance and the override element's text field (`SymbolFields.overrideText`) once the element exists -- before the first
+edit the text is the master's and nothing is published -- and `PresenceOverlay.caretText` resolves such a caret through
+`Symbols.overrideMaster(ofTextField:in:)` to the master block laid out as the instance draws it.  The UI tests of *Done when* are
+app tests (`SymbolOverrideEditingTests`), as elsewhere in this book.  Not built: the Text tool's kbd:[Option]-click opening the Text
+Editor on a block inside an instance (the menu command does) and text styles applied to an override.
 
 === Build tasks
 

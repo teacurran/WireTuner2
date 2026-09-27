@@ -20,6 +20,14 @@ struct SymbolLibraryPanelBody: View {
         { model.sort(by: column) }
     }
 
+    static func editing(_ model: SymbolLibraryModel) -> () -> Void {
+        { model.editSelected() }
+    }
+
+    static func editing(_ id: OpID, _ model: SymbolLibraryModel) -> () -> Void {
+        { model.editRow(id) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if model.showsPreview {
@@ -31,6 +39,8 @@ struct SymbolLibraryPanelBody: View {
                     }
                 }
                 .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 120)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2, perform: Self.editing(model))
                 .accessibilityIdentifier("library.preview")
             }
             HStack {
@@ -75,6 +85,7 @@ struct SymbolLibraryRowView: View {
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: row.kind == .folder ? "folder" : row.kind == .master ? "doc.richtext" : "star.square")
+                .onTapGesture(count: 2, perform: SymbolLibraryPanelBody.editing(row.id, model))
             if model.renaming == row.id {
                 TextField("Name", text: $model.renameText)
                     .onSubmit(ColorAction.run(model.commitRename))
@@ -189,5 +200,16 @@ extension AppDelegate {
         ReplaceArtworkSheet.connect(presenter: SheetPresenter())
         let layout = layout
         SymbolLibraryFeatures.install(commands: commands, panels: panels, model: model) { layout.showPanel("library") }
+        // The symbol editing window (LIB-012): menu:Modify[Symbol > Edit Symbol] and the panel's *Edit*.
+        let documents = documents!
+        let windows = SymbolEditingWindows()
+        windows.documents = documents
+        model.edit = { symbol in
+            if let window = documents.activeWindowController { windows.open(symbol, from: window) }
+        }
+        commands.replace(windows.command { documents.activeWindowController })
+        // The Object panel's Overrides section (LIB-027): chosen pictures go through the import pipeline's blob placement.
+        let blobs = imports.blobs
+        InspectorRegistry.standard.register(OverridesSection.section { blob, document in try await blobs.store([blob], for: document) })
     }
 }

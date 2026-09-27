@@ -47,6 +47,15 @@ struct LibraryDocument: Codable, Equatable, Hashable, Sendable, Identifiable {
     var isSharedWithMe: Bool
     /// The Document Info keywords as last seen on this Mac, for the offline search (IO-011).
     var keywords: [String]? = nil
+    /// Stored only when set, so caches written before templates (DOC-029) still decode.
+    var template: Bool? = nil
+
+    /// A template (`Document.is_template`; templates.adoc): listed in the Templates section and
+    /// the gallery.  On a document waiting to upload, `SetTemplate` follows its `Create`.
+    var isTemplate: Bool {
+        get { template ?? false }
+        set { template = newValue ? true : nil }
+    }
 
     init(
         id: String, spaceID: String, folderID: String? = nil, name: String, role: Role? = .owner, updatedAt: Date? = nil,
@@ -82,6 +91,8 @@ struct LibraryListRequest: Equatable, Sendable {
         /// A folder of the space; nil is the top level.
         case folder(String?)
         case sharedWithMe
+        /// The space's templates, whatever folder they are in (DOC-030).
+        case templates
     }
 
     static let pageSize = 100

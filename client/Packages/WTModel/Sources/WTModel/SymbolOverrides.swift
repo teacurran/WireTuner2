@@ -12,6 +12,11 @@ extension SymbolFields {
     public static func overrideText(_ element: OpID) -> RegisterPath { override(element).child(4) }
 }
 
+extension SymbolFields {
+    /// `Override.tail_paragraph` of override element `element` (STRUCT; LIB-027).
+    public static func overrideTailParagraph(_ element: OpID) -> RegisterPath { override(element).child(9) }
+}
+
 /// One edit of an instance's text override, in live offsets of the text as the instance shows it.
 public enum OverrideTextEdit: Hashable, Sendable {
     /// Types `string` at `offset`.
@@ -20,27 +25,48 @@ public enum OverrideTextEdit: Hashable, Sendable {
     case delete(Range<Int>)
     /// Types `string` over the characters in `range` (typing over a selection; one change).
     case replace(Range<Int>, with: String)
+    /// Types `string` at `offset` under `marks` (a placeholder under its field's mark; typing in
+    /// the pending format).
+    case insertMarked(String, at: Int, marks: [Wiretuner_Doc_V1_TextMarkValue])
+    /// One mark over the characters in `range`, as `ApplyMark` writes it (a cleared value removes
+    /// the attribute; an empty range writes nothing) (LIB-027).
+    case mark(Range<Int>, Wiretuner_Doc_V1_TextMarkValue)
+    /// The paragraph registers `fields` (paths below `ParagraphProps`) from `props` on every
+    /// paragraph `range` touches -- the caret's for an empty range -- as `SetParagraph` writes
+    /// them: on a newline's own registers, and for the last paragraph on `Override.tail_paragraph`
+    /// (the master's tail paragraph copied there with the first such write) (LIB-027).
+    case paragraph(Range<Int>, Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]])
 }
 
-/// Typing into a text block of an instance (the Text tool inside an instance; library.adoc, "Text
-/// tool inside an instance").  When the instance has no live `TEXT` override for the block, the
-/// same change creates the element and inserts a copy of the master's characters and marks as
-/// fresh inserts into it, then applies the edit to the copy; afterwards edits go to the element's
-/// text, which merges as text always does.  "Override text"; typing coalesces as typing does.
+/// Editing a text block of an instance (the Text tool inside an instance; library.adoc, "Text tool
+/// inside an instance"; LIB-025, formatting LIB-027).  When the instance has no live `TEXT`
+/// override for the block, the same change creates the element and inserts a copy of the master's
+/// characters, marks and newline paragraph registers as fresh inserts into it, then applies the
+/// edits to the copy; afterwards edits go to the element's text, which merges as text always does.
+/// Several edits are one change, applied in order, each in the offsets the one before left.
+/// "Override text" unless given; a single insert coalesces as typing does.
 public struct OverrideText: Command {
     public var instance: OpID
     public var master: OpID
-    public var edit: OverrideTextEdit
-    public var label: String { "Override text" }
+    public var edits: [OverrideTextEdit]
+    public let label: String
 
     public init(_ instance: OpID, master: OpID, edit: OverrideTextEdit) {
-        self.instance = instance
-        self.master = master
-        self.edit = edit
+        self.init(instance, master: master, edits: [edit])
     }
 
+    public init(_ instance: OpID, master: OpID, edits: [OverrideTextEdit], label: String = "Override text") {
+        self.instance = instance
+        self.master = master
+        self.edits = edits
+        self.label = label
+    }
+
+    /// The first edit (the only one for typing).
+    public var edit: OverrideTextEdit { edits[0] }
+
     public var coalescing: UndoCoalescing {
-        guard case .insert(let string, _) = edit else { return .none }
+        guard edits.count == 1, case .insert(let string, _) = edit else { return .none }
         let endsWord = string.unicodeScalars.contains { scalar in
             switch scalar.properties.generalCategory {
             case .spaceSeparator, .lineSeparator, .paragraphSeparator, .control, .connectorPunctuation, .dashPunctuation, .openPunctuation,
@@ -57,50 +83,169 @@ public struct OverrideText: Command {
         guard let symbol = Symbols.symbol(of: instance, in: state), Symbols.artworkNodes(of: symbol, in: state).contains(master),
               let source = TextNode(master, in: state) else { throw SymbolError.notOverridable(master) }
         let key = OverrideKey(master: master, property: .text)
+        var editor: Editor
         if let existing = Symbols.liveOverrides(of: instance, in: state)[key], let element = OpID(element: existing.id) {
             let field = SymbolFields.overrideText(element)
             let sequence = state.text(instance, field) ?? TextSequence()
-            try Self.apply(edit, node: instance, field: field, chars: sequence.liveChars,
-                           origins: { state.insertionOrigins(instance, field, at: $0, stableSeq: 0) }, builder: &builder)
-            return
+            var newlines: Set<OpID> = []
+            for char in sequence.liveChars where sequence.codepoint(char) == 0x0A { newlines.insert(char) }
+            editor = Editor(node: instance, element: element, field: field, chars: sequence.liveChars, newlines: newlines,
+                            hasTail: existing.hasTailParagraph, masterTail: source.props.tailParagraph)
+            editor.stableOrigins = { state.insertionOrigins(instance, field, at: $0, stableSeq: 0) }
+        } else {
+            // First edit: the element, then the master's text copied into it, then the edits.
+            var created = Wiretuner_Doc_V1_Override()
+            created.masterNode = master.proto
+            created.property = .text
+            var values = Wiretuner_Doc_V1_NodeProps()
+            values.instance.overrides = [created]
+            let last = state.liveElements(instance, SymbolFields.overrides).last.flatMap { state.position(instance, SymbolFields.overrides, $0) }
+            let element = builder.append(Ops.elementInsert(instance, SymbolFields.overrides, positions: try PathEditing.keys(between: last, and: nil, count: 1),
+                                                           values: values))
+            let field = SymbolFields.overrideText(element)
+            let copied = TextCopying.copy(source.string, runs: source.runs, paragraphs: source.paragraphs.compactMap { $0.terminator == nil ? nil : $0.props },
+                                          into: instance, field: field, builder: &builder)
+            let newlines = Set(zip(copied, source.string.unicodeScalars).filter { $0.1 == "\n" }.map(\.0))
+            editor = Editor(node: instance, element: element, field: field, chars: copied, newlines: newlines, hasTail: false,
+                            masterTail: source.props.tailParagraph)
         }
-        // First edit: the element, then the master's text copied into it, then the edit.
-        var created = Wiretuner_Doc_V1_Override()
-        created.masterNode = master.proto
-        created.property = .text
-        var values = Wiretuner_Doc_V1_NodeProps()
-        values.instance.overrides = [created]
-        let last = state.liveElements(instance, SymbolFields.overrides).last.flatMap { state.position(instance, SymbolFields.overrides, $0) }
-        let element = builder.append(Ops.elementInsert(instance, SymbolFields.overrides, positions: try PathEditing.keys(between: last, and: nil, count: 1),
-                                                       values: values))
-        let field = SymbolFields.overrideText(element)
-        let copied = TextCopying.copy(source.string, runs: source.runs, paragraphs: source.paragraphs.compactMap { $0.terminator == nil ? nil : $0.props },
-                                      into: instance, field: field, builder: &builder)
-        try Self.apply(edit, node: instance, field: field, chars: copied, origins: { offset in
-            (offset > 0 ? copied[offset - 1] : .zero, offset < copied.count ? copied[offset] : .zero)
-        }, builder: &builder)
+        for edit in edits { try editor.apply(edit, builder: &builder) }
     }
 
-    /// Appends `edit` against live characters `chars` of the TEXT field.
-    static func apply(_ edit: OverrideTextEdit, node: OpID, field: RegisterPath, chars: [OpID], origins: (Int) -> (left: OpID, right: OpID),
-                      builder: inout ChangeBuilder) throws {
-        switch edit {
-        case .insert(let string, let offset):
-            guard (0...chars.count).contains(offset) else { throw TextEditError.invalidValue("offset") }
-            guard !string.isEmpty else { return }
-            let (left, right) = origins(offset)
-            builder.append(Ops.textInsert(node, field, string, left: left, right: right))
-        case .delete(let range):
-            guard range.lowerBound >= 0, range.upperBound <= chars.count else { throw TextEditError.invalidValue("range") }
-            for op in TextCopying.deletes(node, field, Array(chars[range])) { builder.append(op) }
-        case .replace(let range, let string):
-            guard range.lowerBound >= 0, range.upperBound <= chars.count else { throw TextEditError.invalidValue("range") }
-            // Typed after the replaced characters (their tombstones keep the place), then they go.
-            if !string.isEmpty {
-                let (left, right) = origins(range.upperBound)
-                builder.append(Ops.textInsert(node, field, string, left: left, right: right))
+    /// The override's live characters as the change so far leaves them, and how each edit is
+    /// written against them.
+    struct Editor {
+        let node: OpID
+        let element: OpID
+        let field: RegisterPath
+        var chars: [OpID]
+        var newlines: Set<OpID>
+        /// Whether the element already carries tail paragraph registers.
+        var hasTail: Bool
+        let masterTail: Wiretuner_Doc_V1_ParagraphProps
+        /// The engine's origins for an insert at an offset of the state before the change; used
+        /// for the change's first insert into an existing override.
+        var stableOrigins: ((Int) -> (left: OpID, right: OpID))?
+
+        mutating func origins(at offset: Int) -> (left: OpID, right: OpID) {
+            if let stable = stableOrigins {
+                stableOrigins = nil
+                return stable(offset)
             }
+            return (offset > 0 ? chars[offset - 1] : .zero, offset < chars.count ? chars[offset] : .zero)
+        }
+
+        func check(_ range: Range<Int>) throws {
+            guard range.lowerBound >= 0, range.upperBound <= chars.count else { throw TextEditError.invalidValue("range") }
+        }
+
+        mutating func insert(_ string: String, at offset: Int, marks: [Wiretuner_Doc_V1_TextMarkValue], builder: inout ChangeBuilder) {
+            let scalars = Array(string.unicodeScalars)
+            guard !scalars.isEmpty else { return }
+            let (left, right) = origins(at: offset)
+            let first = builder.append(Ops.textInsert(node, field, string, left: left, right: right))
+            let ids = (0..<scalars.count).map { OpID(counter: first.counter + UInt64($0), replica: first.replica) }
+            for (id, scalar) in zip(ids, scalars) where scalar == "\n" { newlines.insert(id) }
+            for value in marks {
+                builder.append(TextEditing.mark(node, value, first: ids[0], last: ids[ids.count - 1], next: right, field: field))
+            }
+            chars.insert(contentsOf: ids, at: offset)
+        }
+
+        mutating func delete(_ range: Range<Int>, builder: inout ChangeBuilder) {
             for op in TextCopying.deletes(node, field, Array(chars[range])) { builder.append(op) }
+            chars.removeSubrange(range)
+        }
+
+        mutating func apply(_ edit: OverrideTextEdit, builder: inout ChangeBuilder) throws {
+            switch edit {
+            case .insert(let string, let offset), .insertMarked(let string, let offset, _):
+                guard (0...chars.count).contains(offset) else { throw TextEditError.invalidValue("offset") }
+                var marks: [Wiretuner_Doc_V1_TextMarkValue] = []
+                if case .insertMarked(_, _, let given) = edit { marks = given }
+                insert(string, at: offset, marks: marks, builder: &builder)
+            case .delete(let range):
+                try check(range)
+                delete(range, builder: &builder)
+            case .replace(let range, let string):
+                try check(range)
+                // Typed after the replaced characters (their tombstones keep the place), then they go.
+                insert(string, at: range.upperBound, marks: [], builder: &builder)
+                delete(range, builder: &builder)
+            case .mark(let range, let value):
+                try check(range)
+                guard value.value != nil else { throw TextEditError.invalidValue("value") }
+                guard !range.isEmpty else { return }
+                let next = range.upperBound < chars.count ? chars[range.upperBound] : .zero
+                builder.append(TextEditing.mark(node, value, first: chars[range.lowerBound], last: chars[range.upperBound - 1], next: next, field: field))
+            case .paragraph(let range, let props, let fields):
+                try check(range)
+                guard !fields.isEmpty, fields.allSatisfy({ !$0.isEmpty && $0[0] != TextFields.tabsField }) else { throw TextEditError.invalidValue("fields") }
+                writeParagraphs(range, props, fields: fields, builder: &builder)
+            }
+        }
+
+        /// The paragraphs `range` touches, as the newlines ending them (nil: the last paragraph),
+        /// by `TextNode.paragraphs(touching:)`'s rule.
+        func terminators(_ range: Range<Int>) -> [OpID?] {
+            var paragraphs: [(end: Int, terminator: OpID?)] = []
+            for (offset, char) in chars.enumerated() where newlines.contains(char) { paragraphs.append((offset + 1, char)) }
+            paragraphs.append((chars.count, nil))
+            func index(_ offset: Int) -> Int { paragraphs.firstIndex { offset < $0.end } ?? paragraphs.count - 1 }
+            let first = index(range.lowerBound)
+            let last = range.isEmpty ? first : index(range.upperBound - 1)
+            return paragraphs[first...last].map(\.terminator)
+        }
+
+        mutating func writeParagraphs(_ range: Range<Int>, _ props: Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]], builder: inout ChangeBuilder) {
+            for terminator in terminators(range) {
+                if let newline = terminator {
+                    NodeCopier.writeParagraphFields(props, fields: fields, newline: newline, node: node, field: field, builder: &builder)
+                    continue
+                }
+                var written = props
+                var paths = fields
+                if !hasTail {
+                    // The first write of the last paragraph's settings takes the master's with it.
+                    written = Self.laid(props, fields: fields, over: masterTail)
+                    let own = TextEditing.presentFields(masterTail).filter { $0 != TextFields.tabsField }.map { [$0] }
+                    paths = own.filter { path in !fields.contains { $0.starts(with: path) || path.starts(with: $0) } } + fields
+                    hasTail = true
+                }
+                var element = Wiretuner_Doc_V1_Override()
+                element.tailParagraph = written
+                var values = Wiretuner_Doc_V1_NodeProps()
+                values.instance.overrides = [element]
+                let base = SymbolFields.overrideTailParagraph(self.element)
+                builder.append(Ops.set(node, paths.map { $0.reduce(base) { $0.child($1) } }, values: values))
+            }
+        }
+
+        /// `base` with the registers `fields` taken from `props` (a top-level field whole).
+        static func laid(_ props: Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]], over base: Wiretuner_Doc_V1_ParagraphProps) -> Wiretuner_Doc_V1_ParagraphProps {
+            var result = base
+            result.tabs = []
+            for top in Set(fields.map { $0[0] }) {
+                switch top {
+                case 1: result.alignment = props.alignment
+                case 2: result.raggedWidth = props.raggedWidth
+                case 3: result.flushZone = props.flushZone
+                case 4: result.leftIndent = props.leftIndent
+                case 5: result.rightIndent = props.rightIndent
+                case 6: result.firstLineIndent = props.firstLineIndent
+                case 7: result.spaceAbove = props.spaceAbove
+                case 8: result.spaceBelow = props.spaceBelow
+                case 10: result.hyphenation = props.hyphenation
+                case 11: result.rule = props.rule
+                case 12: result.hangPunctuation = props.hangPunctuation
+                case 13: result.keepLines = props.keepLines
+                case 14: result.keepWithNext = props.keepWithNext
+                case 15: result.wordSpacing = props.wordSpacing
+                case 16: result.letterSpacing = props.letterSpacing
+                default: result.style = props.style
+                }
+            }
+            return result
         }
     }
 }
@@ -210,13 +355,15 @@ extension Symbols {
 
     /// Text block `master` as `instance` shows it, for layout and editing (LIB-025, "Text tool
     /// inside an instance"): the characters, marks and paragraph registers of its live `TEXT`
-    /// override where there is one, else the master's own; the master's block, inset, columns,
-    /// tail paragraph and transform either way (its `id` is the master's).  Nil when `master` is
+    /// override where there is one -- with the override's tail paragraph when it has one (LIB-027)
+    /// -- else the master's own; the master's block, inset, columns and transform either way (its
+    /// `id` is the master's).  Nil when `master` is
     /// not a text block the instance draws.
     public static func textNode(_ master: OpID, in instance: OpID, state: EngineState) -> TextNode? {
         guard let symbol = symbol(of: instance, in: state), artworkNodes(of: symbol, in: state).contains(master) else { return nil }
         if let override = liveOverrides(of: instance, in: state)[OverrideKey(master: master, property: .text)], let element = OpID(element: override.id),
-           let text = TextNode(master, text: instance, field: SymbolFields.overrideText(element), in: state) {
+           let text = TextNode(master, text: instance, field: SymbolFields.overrideText(element),
+                               tailParagraph: override.hasTailParagraph ? override.tailParagraph : nil, in: state) {
             return text
         }
         return TextNode(master, in: state)
@@ -324,5 +471,41 @@ public final class ResolvedArtworkCache: Sendable {
                 !instances.contains(instance) && !(entry.symbol.map(symbols.contains) ?? false)
             }
         }
+    }
+}
+
+extension DataPlaceholders {
+    /// *Insert Field* inside an instance (LIB-027): the edit typing `{{name}}` of `field` at live
+    /// offset `offset` of a text override under the field's mark and the formats in `marks`, as
+    /// `InsertPlaceholder` types it in a block; nil when `field` is not a field.
+    public static func overrideInsert(field: OpID, at offset: Int, marks: [Wiretuner_Doc_V1_TextMarkValue], in state: EngineState) -> OverrideTextEdit? {
+        guard let info = DataModel(state).field(field) else { return nil }
+        return .insertMarked("{{\(info.name)}}", at: offset, marks: formats(marks) + [mark(field)])
+    }
+
+    /// A completed `{{name}}` typed just before `caret` in `text` (an instance's text as it shows
+    /// it) retyped under its field's mark, as `ConvertTypedPlaceholder` does in a block (LIB-027);
+    /// nil when there is none.
+    public static func overrideConversion(in text: TextNode, before caret: Int, state: EngineState) -> [OverrideTextEdit]? {
+        guard let found = completed(in: text, before: caret) else { return nil }
+        let field = DataModel(state).field(named: found.name)
+        return [.delete(found.range), .insertMarked("{{\(field?.name ?? found.name)}}", at: found.range.lowerBound,
+                                                    marks: formats(text.values(at: found.range.lowerBound)) + [mark(field?.id)])]
+    }
+
+    /// `marks` without a `field` mark.
+    static func formats(_ marks: [Wiretuner_Doc_V1_TextMarkValue]) -> [Wiretuner_Doc_V1_TextMarkValue] {
+        marks.filter { if case .field? = $0.value { return false } else { return true } }
+    }
+}
+
+extension Symbols {
+    /// The master text block whose override `field` names (`SymbolFields.overrideText` of one of
+    /// `instance`'s override elements, a remote caret's TEXT field; LIB-027); nil for any other
+    /// field or an element the instance does not hold.
+    public static func overrideMaster(ofTextField field: RegisterPath, in instance: OpID, state: EngineState) -> OpID? {
+        guard field.segments.count == 4, case .element(let element) = field.segments[2], field == SymbolFields.overrideText(element),
+              state.nodeKind(instance) == .instance else { return nil }
+        return state.props(instance).instance.overrides.first { OpID(element: $0.id) == element }.map { OpID($0.masterNode) }
     }
 }

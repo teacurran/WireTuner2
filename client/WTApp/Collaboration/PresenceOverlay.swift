@@ -4,6 +4,7 @@ import WTCRDT
 import WTGeometry
 import WTModel
 import WTRender
+import WTText
 
 /// The three display switches (presence.adoc, "Display options"), read at each draw.
 struct PresenceDisplayOptions: Equatable, Sendable {
@@ -140,6 +141,23 @@ struct PresenceOverlay {
         }
     }
 
+    /// The text a remote caret is in, its layout and its placement: a block's own, or -- when the
+    /// caret names an instance's text override (LIB-027) -- the master block holding the
+    /// override's text, laid out as the instance draws it.  Nil when the caret's node holds no
+    /// such text.
+    static func caretText(_ caret: RemoteCaret, in document: DocumentHandle) -> (text: TextNode, layout: TextLayout, toPasteboard: WTGeometry.AffineTransform)? {
+        let node = caret.node.opID
+        let state = document.state
+        if caret.text == TextFields.text {
+            guard let text = state.textNode(node), let layout = document.textLayout(for: node) else { return nil }
+            return (text, layout, Objects.pasteboardTransform(of: node, in: state))
+        }
+        guard let master = Symbols.overrideMaster(ofTextField: caret.text, in: node, state: state),
+              let text = Symbols.textNode(master, in: node, state: state),
+              let toPasteboard = Symbols.pasteboardTransform(ofMaster: master, in: node, state: state) else { return nil }
+        return (text, TextEditingSession.layout(text, document: document), toPasteboard)
+    }
+
     /// The live offset a caret's character stands for in `text`: before it (a tombstone: where it
     /// was), the end for zero; nil for a character the text does not hold.
     static func offset(_ char: OpID, in text: TextNode) -> Int? {
@@ -149,11 +167,9 @@ struct PresenceOverlay {
     /// A remote caret's ends and its selection's quads, in view points; nil when the block has
     /// no layout to place it in.
     func caretGeometry(_ caret: RemoteCaret) -> (top: Point, bottom: Point, selection: [[Point]])? {
-        let node = caret.node.opID
-        let state = document.state
-        guard let text = state.textNode(node), text.length > 0, let layout = document.textLayout(for: node),
+        guard let (text, layout, toPasteboard) = Self.caretText(caret, in: document), text.length > 0,
               let offset = Self.offset(caret.position, in: text), let placed = layout.caret(atOffset: offset) else { return nil }
-        let toView = Objects.pasteboardTransform(of: node, in: state).concatenating(viewport.pasteboardToView)
+        let toView = toPasteboard.concatenating(viewport.pasteboardToView)
         var selection: [[Point]] = []
         if let end = caret.rangeEnd, let other = Self.offset(end, in: text), other != offset {
             selection = layout.selection(from: offset, to: other).map { $0.corners.map { toView.apply($0) } }

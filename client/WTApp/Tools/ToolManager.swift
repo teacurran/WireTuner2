@@ -34,6 +34,8 @@ final class ToolManager {
     var handleLayers: [any CanvasHandleLayer] = CanvasHandleLayers.standard()
     /// The layer whose handle is being dragged.
     private(set) var handleDrag: (any CanvasHandleLayer)?
+    /// The handle drag's latest event (where `finishDrag` releases it).
+    private var handleEvent: CanvasEvent?
     /// The focus whose changes redraw the overlay (the handles follow the Object panel's row).
     private let focus: InspectorFocus
     private var focusObservation: UUID?
@@ -130,6 +132,7 @@ final class ToolManager {
     func mouseDown(_ event: CanvasEvent) {
         if handlesApply, let layer = handleLayers.first(where: { $0.applies(to: activeToolID) && $0.press(event, context: context) }) {
             handleDrag = layer
+            handleEvent = event
             publishInfo(event)
             context.host.setNeedsOverlayDisplay()
             return
@@ -154,6 +157,7 @@ final class ToolManager {
 
     func mouseDragged(_ event: CanvasEvent) {
         if let handleDrag {
+            handleEvent = event
             handleDrag.drag(event, context: context)
             publishInfo(event)
             context.host.setNeedsOverlayDisplay()
@@ -272,6 +276,18 @@ final class ToolManager {
         }
         perform(machine.spaceChanged(down: false))
         return true
+    }
+
+    /// The window is closing mid-drag (library.adoc, "Symbol editing window"): the drag ends where
+    /// the pointer last was, as the mouse-up there would end it, so the change it was making is
+    /// kept rather than lost with the window.  Nothing happens between drags.
+    func finishDrag() {
+        if handleDrag != nil, let handleEvent {
+            mouseUp(handleEvent)
+        } else if let lastEvent {
+            mouseUp(lastEvent)
+        }
+        handleEvent = nil
     }
 
     /// Esc: the tool abandons its gesture; the rest of a drag is swallowed.

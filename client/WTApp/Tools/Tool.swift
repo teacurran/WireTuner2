@@ -245,7 +245,7 @@ struct ToolContext {
     var text: @MainActor () -> TextToolSettings = { TextToolSettings() }
     /// The Text tool's insertion point moved: the block, the character it is before (zero: the
     /// end) and a selection's other end; nil when editing ends (outgoing presence).
-    var textCaretChanged: @MainActor ((node: OpID, position: OpID, rangeEnd: OpID?)?) -> Void = { _ in }
+    var textCaretChanged: @MainActor (PresenceCaret?) -> Void = { _ in }
     /// The Page tool's kbd:[Option]-double-click: the *Modify Page* sheet on the page; nil outside
     /// a window.
     var modifyPage: (@MainActor (OpID) -> Void)?

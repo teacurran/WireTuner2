@@ -104,8 +104,12 @@ public struct ImportedImage: Hashable, Sendable {
     public var transform: AffineTransform
     /// `CommonProps.name` / `ImageProps.source_name`.
     public var name: String?
+    /// The profile the file carries (CMS-012): `ImageColorSettings.embedded_profile`.
+    public var embeddedProfile: ImportedProfile?
 
-    public init(pixels: ImportedPixels, dpiX: Double = 72, dpiY: Double = 72, transform: AffineTransform = .identity, name: String? = nil) {
+    public init(pixels: ImportedPixels, dpiX: Double = 72, dpiY: Double = 72, transform: AffineTransform = .identity, name: String? = nil,
+                embeddedProfile: ImportedProfile? = nil) {
+        self.embeddedProfile = embeddedProfile
         self.pixels = pixels
         self.dpiX = dpiX > 0 ? dpiX : 72
         self.dpiY = dpiY > 0 ? dpiY : 72
@@ -492,7 +496,7 @@ public struct ImportedScene: Hashable, Sendable {
         func visit(_ node: ImportedNode) {
             var found: [ImportedBlob] = []
             switch node {
-            case .image(let image): found = [image.pixels.blob]
+            case .image(let image): found = [image.pixels.blob] + (image.embeddedProfile?.blob.map { [$0] } ?? [])
             case .placed(let placed): found = [placed.blob] + (placed.preview.map { [$0.blob] } ?? [])
             case .group(let group): group.children.forEach(visit)
             case .path, .text: break

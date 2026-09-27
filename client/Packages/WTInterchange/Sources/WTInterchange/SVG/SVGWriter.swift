@@ -44,11 +44,16 @@ public struct SVGWriter: Sendable {
     /// The HTML publisher's shared folders (WEB-008): when set, images and embedded fonts are
     /// written as content-named files there instead of as `options.images` and data URLs say.
     public var linkedFiles: SVGLinkedFiles?
+    /// Placed SVG animations (`ExportScene.svgAnimations`) are written as themselves, nested at
+    /// the object's bounds, instead of their posters (WEB-028): the SVG exporter's choice.  The
+    /// HTML publisher places them itself and snippets keep the poster.
+    public var nestsSVGAnimations = false
 
-    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:], linkedFiles: SVGLinkedFiles? = nil) {
+    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:], linkedFiles: SVGLinkedFiles? = nil, nestsSVGAnimations: Bool = false) {
         self.options = options
         self.pageHrefs = pageHrefs
         self.linkedFiles = linkedFiles
+        self.nestsSVGAnimations = nestsSVGAnimations
     }
 
     /// `page` as SVG; linked images go in `resourceFolder` (relative to the SVG).
@@ -56,6 +61,7 @@ public struct SVGWriter: Sendable {
         let build = SVGBuild(options: options, page: page, scene: scene, resourceFolder: resourceFolder)
         build.pageHrefs = pageHrefs
         build.linkedFiles = linkedFiles
+        build.nestsSVGAnimations = nestsSVGAnimations
         return build.document()
     }
 }
@@ -83,6 +89,10 @@ final class SVGBuild {
     /// Content-named image and font files in shared folders (`SVGWriter.linkedFiles`).
     var linkedFiles: SVGLinkedFiles?
     var outlinedFonts: [SVGOutlinedFont] = []
+    /// `SVGWriter.nestsSVGAnimations`.
+    var nestsSVGAnimations = false
+    /// Placed animations written as files, by content (`.link` images).
+    var animationFiles: [Data: String] = [:]
     /// Whether accessibility markup is written (IO-031): some object of the document has alt
     /// text or is decorative.  Off, the file is what it was before IO-031.
     lazy var accessible: Bool = scene.nodes.values.contains { $0.decorative || SVGBuild.description($0.alt) != nil }
@@ -245,15 +255,19 @@ final class SVGBuild {
         let marks = pending != .none
         if marks { figureDepth += 1 }
         defer { if marks { figureDepth -= 1 } }
-        switch node {
-        case .path(let path):
-            writePath(path)
-        case .text(let text):
-            writeText(text)
-        case .image(let image):
-            writeImage(image)
-        case .group(let group):
-            writeGroup(group)
+        if nestsSVGAnimations, let id = node.node, let animation = scene.svgAnimations[id] {
+            writeSVGAnimation(animation, node: id)
+        } else {
+            switch node {
+            case .path(let path):
+                writePath(path)
+            case .text(let text):
+                writeText(text)
+            case .image(let image):
+                writeImage(image)
+            case .group(let group):
+                writeGroup(group)
+            }
         }
         if link != nil {
             body.end()
@@ -431,10 +445,12 @@ final class SVGBuild {
     /// its Display P3 form as a second declaration, which CSS Color 4 viewers use and others skip.
     func paint(_ color: Color, _ property: String) -> [(String, String)] {
         var result = [(property, ColorMath.hex(color))]
-        if ColorMath.isWide(color) {
+        // The wide value in CSS Color 4 (CMS-015's serializer); its alpha is the opacity property's.
+        var opaque = color
+        opaque.alpha = 1
+        if let wide = WTColor.CSS.serialize(opaque).wide {
             wideColors += 1
-            let p3 = ColorMath.displayP3(color)
-            result.append(("~" + property, "color(display-p3 \(Numbers.format(p3.x, places: 4)) \(Numbers.format(p3.y, places: 4)) \(Numbers.format(p3.z, places: 4)))"))
+            result.append(("~" + property, wide))
         }
         if color.alpha < 1 {
             result.append(("\(property)-opacity", number(max(color.alpha, 0))))
@@ -683,6 +699,37 @@ final class SVGBuild {
             idAttribute(image.node),
             ("x", number(rect.minX)), ("y", number(rect.minY)), ("width", number(rect.width)), ("height", number(rect.height)),
             ("transform", translationOnly ? nil : matrix(toPage)),
+            ("preserveAspectRatio", "none"),
+            ("xlink:href", reference),
+        ])
+    }
+
+    /// A placed SVG animation in place of its poster (WEB-028): an `<image>` of the file, unchanged,
+    /// over its natural size mapped by the node's transform -- embedded as a data URL, or a file
+    /// beside the SVG when images are linked.  An SVG image plays its CSS and SMIL animation in
+    /// every browser, isolated from the page (its ids and styles cannot collide with the page's)
+    /// and without running script.
+    func writeSVGAnimation(_ animation: ExportSVGAnimation, node: NodeID) {
+        let reference: String
+        switch options.images {
+        case .embed:
+            reference = ImageEncoding.dataURL(animation.data, mime: "image/svg+xml")
+        case .link, .linkOriginals:
+            if let existing = animationFiles[animation.data] {
+                reference = existing
+            } else {
+                reference = "\(resourceFolder)/animation-\(animationFiles.count + 1).svg"
+                animationFiles[animation.data] = reference
+                resources.append((reference, animation.data))
+            }
+        }
+        if animation.script {
+            notes.append("a placed SVG animation depends on script, which does not run inside an SVG image")
+        }
+        emit("image", [
+            idAttribute(node),
+            ("width", number(animation.width)), ("height", number(animation.height)),
+            ("transform", matrix(animation.transform.concatenating(toPage))),
             ("preserveAspectRatio", "none"),
             ("xlink:href", reference),
         ])

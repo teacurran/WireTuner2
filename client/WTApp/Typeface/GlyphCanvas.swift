@@ -151,9 +151,10 @@ enum GlyphCanvas {
     /// The id a glyph tab's handle goes by: its document's, the glyph's.
     static func tabID(document: String, glyph: OpID) -> String { "\(document)#glyph-\(glyph)" }
 
-    /// The document id a glyph tab's (or a master tab's, `MasterCanvas`) handle id names.
+    /// The document id a glyph tab's (or a master tab's, `MasterCanvas`, or a symbol window's,
+    /// `SymbolWindowCanvas`) handle id names.
     static func documentID(ofTab id: String) -> String {
-        (id.range(of: "#glyph-") ?? id.range(of: MasterCanvas.marker)).map { String(id[..<$0.lowerBound]) } ?? id
+        (id.range(of: "#glyph-") ?? id.range(of: MasterCanvas.marker) ?? id.range(of: SymbolWindowCanvas.marker)).map { String(id[..<$0.lowerBound]) } ?? id
     }
 }
 

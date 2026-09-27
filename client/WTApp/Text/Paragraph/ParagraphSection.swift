@@ -64,10 +64,8 @@ extension ObjectPanelModel {
     @discardableResult
     func setParagraph(_ props: Wiretuner_Doc_V1_ParagraphProps, fields: [[UInt32]], label: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         guard let section = text, !fields.isEmpty else { return nil }
-        if let session = editingText, let node = session.node, let text = session.text {
-            let range = session.selectedRange
-            return perform(SetParagraph(node: node, from: text.anchor(at: range.lowerBound), to: text.anchor(at: range.upperBound),
-                                        props: props, fields: fields, label: label))
+        if let session = editingText, session.text != nil {
+            return session.setParagraph(props, fields: fields, label: label)
         }
         return perform(CommandBatch(label, section.nodes.map { SetParagraph(node: $0, from: .start, to: .end, props: props, fields: fields, label: label) }))
     }

@@ -68,12 +68,13 @@ struct DocumentEnvironment {
     var writeSelectionPDF: (@MainActor (DocumentWindowController, URL) async -> Bool)?
 
     /// A document `id` titled `title` whose model `openModel` opens.  A document created on
-    /// this Mac (`isNew`) gets the new-document template as its first change.
-    func makeDocument(id: String = UUID().uuidString, title: String, isNew: Bool = false) -> DocumentHandle {
+    /// this Mac (`isNew`) gets `template` (the built-in template when nil, DOC-019/DOC-029) as its
+    /// first change.
+    func makeDocument(id: String = UUID().uuidString, title: String, isNew: Bool = false, template: DocumentCreation.Template? = nil) -> DocumentHandle {
         let open = openModel
         return DocumentHandle(id: id, title: title) {
             let model = try await open(id)
-            if isNew { await DocumentOpener.applyTemplate(to: model) }
+            if isNew { await DocumentOpener.applyTemplate(to: model, template: template ?? .builtIn) }
             return model
         }
     }
@@ -1046,6 +1047,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     func windowWillClose(_ notification: Notification) {
+        // A drag in progress ends where it was, so closing the window mid-drag keeps its change.
+        toolManager.finishDrag()
         // Editing ends with the window: the canvas stops being a text input client first.
         let input = canvas.inputContext
         (toolManager.activeTool as? TextTool)?.endEditing(revert: false)

@@ -164,8 +164,8 @@ public struct BitmapExporter: Exporter {
             try write(rendered.bitmap, options: options, pixelsPerInch: common.ppi * scale, metadata: scene.info.metadataWriter(documentName: scene.name), to: url)
             summary.files.append(url)
         }
-        if clipped > 0 {
-            summary.notes.append("\(clipped) color\(clipped == 1 ? "" : "s") outside sRGB pulled into sRGB")
+        if let warning = WTColor.OutputContext.clippedWarning(clipped) {
+            summary.notes.append(warning)
         }
         if let avif = options as? AVIFOptions, avif.speed != AVIFOptions.defaults.speed {
             summary.notes.append("AVIF speed is chosen by macOS's encoder; the Speed setting has no effect")

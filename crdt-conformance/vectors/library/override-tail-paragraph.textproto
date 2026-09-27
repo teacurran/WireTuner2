@@ -1,0 +1,42 @@
+# crdt-conformance/vectors/library/override-tail-paragraph.textproto (LIB-027; schema: crdt-conformance/schema/vector.proto)
+name: "library/override-tail-paragraph"
+description: "Override.tail_paragraph is STRUCT: two replicas set paragraph settings of the same TEXT override's last paragraph concurrently; different fields (alignment, space above) both survive, the same field (left indent) goes to the greater OpId (6:2) with replica 1's write retained as the losing one."
+setup {
+  change {
+    replica: 7 seq: 1 start_counter: 1 label: "Symbol with an instance"
+    ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } visible: true printing: true } } } }
+    ops { create { parent { counter: 7 } position: "\x80" props { symbol { common { name: "Button" } } } } }
+    ops { create { parent { counter: 2 replica: 7 } position: "\x80" props { text { } } } }
+    ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { instance { symbol { id { counter: 2 replica: 7 } } } } } }
+  }
+  change {
+    replica: 7 seq: 2 start_counter: 5 label: "Override text"
+    ops { element_insert { node { counter: 4 replica: 7 } sequence { segments { field: 153 } segments { field: 3 } } positions: ["\x80"] values { instance { overrides { master_node { counter: 3 replica: 7 } property: OVERRIDE_PROPERTY_TEXT } } } } }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1 seq: 1 start_counter: 6 base_server_seq: 2 label: "Alignment"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 1 } } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 4 } } values { instance { overrides { tail_paragraph { alignment: ALIGNMENT_CENTER left_indent: 4 } } } } } }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2 seq: 1 start_counter: 6 base_server_seq: 2 label: "Space Above"
+    ops { set { node { counter: 4 replica: 7 } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 7 } } paths { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 4 } } values { instance { overrides { tail_paragraph { space_above: 6 left_indent: 9 } } } } } }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "de9c46a47933592c17af35e802224da9fb342c6de1d01e035855ac19a2284527"
+  snapshot_hash: "9c9b3186f30f2a3ef07c57af23334aab472034cc5e27e1016443588dee0df12d"
+  node {
+    id { counter: 4 replica: 7 }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 1 } } value { instance { overrides { tail_paragraph { alignment: ALIGNMENT_CENTER } } } } op { counter: 6 replica: 1 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 7 } } value { instance { overrides { tail_paragraph { space_above: 6 } } } } op { counter: 6 replica: 2 } }
+    register { path { segments { field: 153 } segments { field: 3 } segments { element { counter: 5 replica: 7 } } segments { field: 9 } segments { field: 4 } } value { instance { overrides { tail_paragraph { left_indent: 9 } } } } op { counter: 6 replica: 2 } losing { counter: 6 replica: 1 } }
+  }
+}

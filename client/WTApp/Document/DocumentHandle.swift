@@ -114,8 +114,9 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var previewScene: DocumentScene?
     /// The nodes the preview draws differently: repainted when it changes or ends.
     private var previewTouched: Set<NodeID> = []
-    /// The glyph whose canvas this handle draws, nil for the pasteboard: a glyph tab's handle
-    /// shares the document's model (FONT-003, `GlyphCanvas`).
+    /// The glyph, master page or symbol whose canvas this handle draws, nil for the pasteboard: a
+    /// glyph tab's, master tab's or symbol window's handle shares the document's model (FONT-003,
+    /// `GlyphCanvas`; DOC-012, `MasterCanvas`; LIB-012, `SymbolWindowCanvas`).
     private(set) var canvasNode: OpID?
     /// What a glyph canvas draws instead of the page furniture (its metric lines and em box).
     var canvasBackground: (@MainActor (EngineState) -> [DisplayItem])?
@@ -419,7 +420,9 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// selection, an invalid value) is logged and performs nothing.
     @discardableResult
     func perform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        let command = GlyphCanvas.placing(commandTransform?(command) ?? command, on: canvasNode)
+        let transformed = commandTransform?(command) ?? command
+        // A symbol's canvas creates into the symbol (LIB-012); a glyph's or master's onto its canvas.
+        let command = symbolCanvasNode.map { SymbolPlacedCommand.placing(transformed, in: $0) } ?? GlyphCanvas.placing(transformed, on: canvasNode)
         return run { model in try await model.perform(command) }
     }
 

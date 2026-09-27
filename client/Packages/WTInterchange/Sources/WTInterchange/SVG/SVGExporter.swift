@@ -22,7 +22,7 @@ public struct SVGExporter: Exporter {
         let flattener = SVGExporter.flattener(options: options, scene: scene)
         return scene.pages.enumerated().map { index, page in
             let flat = flattener.flatten(page, scene: scene)
-            var document = SVGWriter(options: options, pageHrefs: pageHrefs).write(flat.page, scene: scene, resourceFolder: resourceFolder(index))
+            var document = SVGWriter(options: options, pageHrefs: pageHrefs, nestsSVGAnimations: true).write(flat.page, scene: scene, resourceFolder: resourceFolder(index))
             document.notes = flat.report.notes + document.notes
             return document
         }

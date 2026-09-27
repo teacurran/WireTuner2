@@ -196,7 +196,7 @@ final class TypefaceFeatures {
             return targetGlyphs(in: controller).isEmpty ? .disabled(Self.noGlyph) : .enabled
         }
         let needsGlyphCanvas: @MainActor @Sendable () -> CommandValidation = {
-            window()?.documentHandle.canvasNode == nil ? .disabled(Self.noGlyphCanvas) : .enabled
+            window()?.documentHandle.glyphCanvasNode == nil ? .disabled(Self.noGlyphCanvas) : .enabled
         }
         func convert(_ kind: DocumentKind) -> @MainActor @Sendable () -> CommandValidation {
             {
@@ -247,7 +247,7 @@ final class TypefaceFeatures {
 
     /// The glyphs a Glyph menu command acts on: a glyph tab's glyph, else the grid's selection.
     func targetGlyphs(in controller: DocumentWindowController) -> [OpID] {
-        if let glyph = controller.documentHandle.canvasNode { return [glyph] }
+        if let glyph = controller.documentHandle.glyphCanvasNode { return [glyph] }
         return mode(of: controller)?.grid?.model.selection ?? []
     }
 
@@ -402,7 +402,7 @@ final class TypefaceFeatures {
                                         "The artwork drawn on it is removed too.  You can undo this.") {
             return nil
         }
-        if controller.documentHandle.canvasNode != nil { controller.window?.close() }
+        if controller.documentHandle.glyphCanvasNode != nil { controller.window?.close() }
         return document.perform(RemoveGlyphs(glyphs, in: state))
     }
 
@@ -410,7 +410,7 @@ final class TypefaceFeatures {
     /// place of this tab.
     @discardableResult
     func stepGlyph(by offset: Int) -> DocumentWindowController? {
-        guard let controller = window(), let glyph = controller.documentHandle.canvasNode else { return nil }
+        guard let controller = window(), let glyph = controller.documentHandle.glyphCanvasNode else { return nil }
         let index = GlyphIndex(controller.documentHandle.state)
         guard let position = index.glyphs.firstIndex(where: { $0.id == glyph }) else { return nil }
         let next = index.glyphs[(position + offset + index.glyphs.count) % index.glyphs.count]
@@ -423,7 +423,7 @@ final class TypefaceFeatures {
     /// menu:Glyph[Components and Anchors…] in a glyph tab.
     @discardableResult
     func presentGlyphParts() -> NSWindow? {
-        guard let controller = window(), let glyph = controller.documentHandle.canvasNode else { return nil }
+        guard let controller = window(), let glyph = controller.documentHandle.glyphCanvasNode else { return nil }
         let model = GlyphPartsModel(document: controller.documentHandle, glyph: glyph, perform: controller.typefacePerform)
         return present("sheet.glyphParts", on: controller.window) { close in GlyphPartsSheet(model: model, close: close) }
     }

@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "79dc628df79ea2b08e52c55b54da1d027603727d9b86fb1b9b875b63c21a2277";
+  public static final String VERSION = "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -1929,7 +1929,8 @@ public final class MergeTable {
             Map.entry(5, new FieldPolicy(5, "fill", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
             Map.entry(6, new FieldPolicy(6, "stroke", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ColorRef", null, null)),
             Map.entry(7, new FieldPolicy(7, "hidden", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
-            Map.entry(8, new FieldPolicy(8, "image", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null))
+            Map.entry(8, new FieldPolicy(8, "image", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.NodeRef", null, null)),
+            Map.entry(9, new FieldPolicy(9, "tail_paragraph", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.ParagraphProps", null, null))
         ));
   }
 

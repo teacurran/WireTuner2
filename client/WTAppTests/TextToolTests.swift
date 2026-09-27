@@ -40,7 +40,7 @@ extension DocumentHandle {
         let tool = TextTool()
         var settings = TextToolSettings()
         private(set) var selectedTools: [ToolID] = []
-        private(set) var carets: [(node: OpID, position: OpID, rangeEnd: OpID?)?] = []
+        private(set) var carets: [PresenceCaret?] = []
         let pasteboard = NSPasteboard(name: NSPasteboard.Name("WireTunerTests.text.\(UUID().uuidString)"))
 
         init(revert: Bool = true, autoExpand: Bool = true) {

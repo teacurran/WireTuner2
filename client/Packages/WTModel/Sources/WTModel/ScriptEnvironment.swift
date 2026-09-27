@@ -146,41 +146,14 @@ final class ScriptEnvironment: @unchecked Sendable {
 
     /// What `kind` reads for node `id`.
     static func kindName(_ id: OpID, in state: EngineState) -> String {
-        kindNames[state.store.kind(id)] ?? "unknown"
+        ScriptObjects.kindName(id, in: state)
     }
 
-    /// The `kind` names by stored kind number.
-    static let kindNames: [UInt32: String] = [
-        NodeKind.path.rawValue: "path", NodeKind.rect.rawValue: "rectangle", NodeKind.ellipse.rawValue: "ellipse",
-        NodeKind.polygon.rawValue: "polygon", NodeKind.chart.rawValue: "chart", NodeKind.connector.rawValue: "connector",
-        NodeKind.group.rawValue: "group", NodeKind.text.rawValue: "text", NodeKind.barcode.rawValue: "barcode",
-        NodeKind.instance.rawValue: "instance", NodeKind.placedFile.rawValue: "placedFile", NodeKind.blend.rawValue: "blend",
-        NodeKind.extrude.rawValue: "extrude", NodeKind.layer.rawValue: "layer", PageFields.kind: "page",
-        MasterPageFields.kind: "masterPage", SwatchFields.kind: "swatch", ScriptFields.kind: "script", ImageKind.kind: "image", 154: "style",
-    ]
-
     func list(_ name: String) throws -> [OpID] {
-        let state = writer.state()
-        switch name {
-        case "pages": return PageList(state).pages.filter { !$0.isSynthesized }.map(\.id)
-        case "masterPages": return PageList(state).masters.map(\.id)
-        case "layers": return LayerOrder(state).layers.filter { !$0.isDeleted }.map(\.id)
-        case "objects":
-            var result: [OpID] = []
-            func visit(_ node: OpID) {
-                for child in state.liveChildren(node) where Objects.isObject(child, in: state) || state.store.kind(child) == ImageKind.kind {
-                    result.append(child)
-                    visit(child)
-                }
-            }
-            for layer in LayerOrder(state).layers where !layer.isDeleted { visit(layer.id) }
-            return result
-        case "swatches": return SwatchList(state).swatches.map(\.id)
-        case "styles": return state.liveChildren(OpID.wellKnown(6))
-        case "scripts": return DocumentScript.list(state).map(\.id)
-        case "selection": return writer.target.selection.filter(state.isLive)
-        default: throw ScriptUnavailable(call: "wt.document.\(name)")
+        guard let ids = ScriptObjects.list(name, in: writer.state(), selection: writer.target.selection) else {
+            throw ScriptUnavailable(call: "wt.document.\(name)")
         }
+        return ids
     }
 
     private func node(_ text: String, in state: EngineState) throws -> OpID {
@@ -188,170 +161,37 @@ final class ScriptEnvironment: @unchecked Sendable {
         return id
     }
 
-    static func rect(_ rect: Rect) -> [String: Any] {
-        ["x": rect.minX, "y": rect.minY, "width": rect.width, "height": rect.height]
-    }
+    static func rect(_ rect: Rect) -> [String: Any] { ScriptObjects.rect(rect) }
 
     func get(_ text: String, _ property: String) throws -> Any? {
         let state = writer.state()
         guard let id = Self.id(text), state.store.exists(id) else { return nil }
-        let kind = Self.kindName(id, in: state)
-        let props = state.props(id)
-        let common: Wiretuner_Doc_V1_CommonProps? = {
-            if case .image(let image)? = props.kind { return image.common }
-            if case .script(let script)? = props.kind { return script.common }
-            if case .swatch(let swatch)? = props.kind { return swatch.common }
-            return NodeValues.common(props)
-        }()
-        switch (kind, property) {
-        case (_, "kind"): return kind
-        case ("page", "name"), ("masterPage", "name"):
-            let list = PageList(state)
-            return list.pages.first { $0.id == id }?.name ?? list.masters.first { $0.id == id }?.name
-        case ("page", "number"): return PageList(state).number(of: id)
-        case ("page", "bounds"): return PageList(state).pages.first { $0.id == id }.map { Self.rect($0.rect) }
-        case ("layer", "visible"): return LayerOrder(state).layer(id)?.visible
-        case ("layer", "locked"): return LayerOrder(state).layer(id)?.locked
-        case ("layer", "name"): return LayerOrder(state).layer(id)?.name
-        case ("swatch", "name"): return SwatchList(state).swatches.first { $0.id == id }?.name
-        case ("script", "source"): return props.script.source
-        case ("script", "description"): return props.script.description_p
-        case (_, "name"): return common?.name
-        case (_, "notes"): return common?.note
-        case (_, "locked"): return common?.locked
-        case (_, "visible"): return state.isLive(id)
-        case (_, "url"): return common?.url
-        case (_, "bounds"): return Objects.bounds(of: id, in: state).map(Self.rect)
-        case (_, "position"): return Objects.bounds(of: id, in: state).map { ["x": $0.minX, "y": $0.minY] }
-        case (_, "size"): return Objects.bounds(of: id, in: state).map { ["width": $0.width, "height": $0.height] }
-        case ("text", "text"): return TextNode(id, in: state)?.string
-        case ("barcode", "value"): return props.barcode.value
-        case ("barcode", "symbology"): return props.barcode.symbology == .code128 ? "code128" : "qr"
-        case (_, "layer"): return LayerOrder(state).layer(of: id, in: state).map(Self.string)
-        case (_, "page"):
-            return Objects.bounds(of: id, in: state).flatMap { PageList(state).page(ofBounds: $0) }.map { Self.string($0.id) }
-        case (_, "binding"):
-            return DataModel(state).binding(of: id, in: state).map { binding in
-                ["field": binding.resolved?.displayName ?? "missing", "kind": binding.kind.rawValue] as [String: Any]
-            }
-        case (_, "fill"), (_, "stroke"):
-            // Summaries only in version 1.
-            return NodeValues.appearance(props).map { stack in
-                property == "fill" ? "\(stack.fills.count) fill\(stack.fills.count == 1 ? "" : "s")" : "\(stack.strokes.count) stroke\(stack.strokes.count == 1 ? "" : "s")"
-            }
-        default: return nil
-        }
+        let value = ScriptObjects.get(id, property, in: state)
+        // Node references (`layer`, `page`, `master`) read as id strings.
+        if let node = value as? OpID { return Self.string(node) }
+        return value
     }
 
     // MARK: Writing
 
-    struct ReadOnly: Error, CustomStringConvertible {
-        var property: String
-        var kind: String
-        var description: String { "The \(property) of a \(kind) cannot be set by a script in version 1" }
-    }
-
     func set(_ text: String, _ property: String, _ value: Any?) throws {
         let state = writer.state()
         let id = try node(text, in: state)
-        let kind = Self.kindName(id, in: state)
-        switch (kind, property) {
-        case ("layer", "name"): try writer.write(RenameLayer(id, to: try string(value)))
-        case ("layer", "visible"): try writer.write(SetLayerFlag([id], .visible, try bool(value)))
-        case ("layer", "locked"): try writer.write(SetLayerFlag([id], .locked, try bool(value)))
-        case ("page", "name"), ("masterPage", "name"): try writer.write(RenamePage(id, to: try string(value), in: state))
-        case ("swatch", "name"): try writer.write(RenameSwatch(id, to: try string(value)))
-        case ("script", "name"): try writer.write(RenameScript(id, to: try string(value)))
-        case ("script", "source"):
-            let script = DocumentScript.script(id, in: state)
-            try writer.write(SaveScript(id, name: script?.name ?? "", source: try string(value)))
-        case ("page", _), ("masterPage", _), ("layer", _), ("swatch", _), ("script", _), ("style", _):
-            throw ReadOnly(property: property, kind: kind)
-        case (_, "name"): try writer.write(SetNameOrNote([id], .name, try string(value)))
-        case (_, "notes"): try writer.write(SetNameOrNote([id], .note, try string(value)))
-        case (_, "locked"): try writer.write(SetLocked([id], locked: try bool(value)))
-        case (_, "url"): try writer.write(ScriptSetURL([id], url: try string(value)))
-        case (_, "position"):
-            guard let point = value as? [String: Any], let x = (point["x"] as? NSNumber)?.doubleValue, let y = (point["y"] as? NSNumber)?.doubleValue,
-                  let bounds = Objects.bounds(of: id, in: state) else { throw DataEditError.invalidValue("position") }
-            try writer.write(MoveObjects([id], by: Vector(dx: x - bounds.minX, dy: y - bounds.minY)))
-        case (_, "layer"):
-            guard let layer = Self.id(try string(value)) else { throw DataEditError.invalidValue("layer") }
-            try writer.write(MoveObjectsToLayer([id], to: layer))
-        case ("text", "text"):
-            guard let node = TextNode(id, in: state) else { throw TextEditError.notText(id) }
-            let formats = node.length > 0 ? node.values(at: 0).filter { if case .field? = $0.value { return false } else { return true } } : []
-            let replace = CompositeCommand("Script", [DeleteText(node: id, from: .start, to: .end), InsertText(node: id, text: try string(value), at: .start, marks: formats)])
-            try writer.write(replace, immediate: true)
-        case ("barcode", "value"): try writer.write(SetBarcodeFields([id], .init(value: try string(value))))
-        case ("barcode", "symbology"):
-            try writer.write(SetBarcodeFields([id], .init(symbology: try string(value).lowercased() == "code128" ? .code128 : .qr)))
-        default:
-            throw ReadOnly(property: property, kind: kind)
-        }
+        let edit = try ScriptObjects.setting(id, property, to: value, in: state)
+        try writer.write(edit.command, immediate: edit.immediate)
     }
 
     func call(_ text: String, _ method: String, _ argument: Any?) throws -> Any? {
         let state = writer.state()
         let id = try node(text, in: state)
-        let kind = Self.kindName(id, in: state)
-        switch (kind, method) {
-        case ("layer", "remove"): try writer.write(RemoveLayers([id]))
-        case ("page", "remove"): try writer.write(RemovePages([id], in: state))
-        case ("script", "remove"): try writer.write(DeleteScript(id))
-        case (_, "remove"): try writer.write(DeleteNodes([id]))
-        case (_, "duplicate"):
-            let change = try writer.write(DuplicateObjects.duplicate([id]), immediate: true)
-            return change?.createdObjects.first.map(Self.string)
-        case (_, "moveTo"):
-            guard let layer = Self.id(try string(argument)) else { throw DataEditError.invalidValue("layer") }
-            try writer.write(MoveObjectsToLayer([id], to: layer))
-        case (_, "bringToFront"): try writer.write(Arrange([id], .bringToFront))
-        case (_, "sendToBack"): try writer.write(Arrange([id], .sendToBack))
-        default: throw ScriptUnavailable(call: method)
-        }
-        return nil
+        let edit = try ScriptObjects.calling(id, method, argument, in: state)
+        let change = try writer.write(edit.command, immediate: edit.immediate)
+        return edit.returnsCreated ? change?.createdObjects.first.map(Self.string) : nil
     }
 
     func create(_ kind: String, _ options: [String: Any]) throws -> Any? {
-        func number(_ key: String, _ fallback: Double) -> Double { (options[key] as? NSNumber)?.doubleValue ?? fallback }
-        let layer = (options["layer"] as? String).flatMap(Self.id)
-        let x = number("x", 0)
-        let y = number("y", 0)
-        let command: any Command
-        switch kind {
-        case "rectangle":
-            command = CreateShape(.rectangle(CornerRadii()), size: Size(width: number("width", 100), height: number("height", 100)),
-                                  transform: .translation(x: x, y: y), layer: layer)
-        case "ellipse":
-            command = CreateShape(.ellipse, size: Size(width: number("width", 100), height: number("height", 100)), transform: .translation(x: x, y: y), layer: layer)
-        case "line":
-            command = CreatePath(label: "Line", contours: [NewContour(points: [VectorPoint(anchor: Point(x: number("x1", 0), y: number("y1", 0))),
-                                                                                VectorPoint(anchor: Point(x: number("x2", 100), y: number("y2", 0)))])])
-        case "text":
-            command = CreateTextBlock(.point(Point(x: x, y: y)), text: options["text"] as? String ?? "", layer: layer)
-        case "barcode":
-            command = InsertBarcode(options["value"] as? String ?? "", symbology: (options["kind"] as? String)?.lowercased() == "code128" ? .code128 : .qr,
-                                    at: Point(x: x, y: y), layer: layer)
-        default:
-            throw ScriptUnavailable(call: "wt.document.\(kind == "image" ? "placeImage" : "create")")
-        }
-        let change = try writer.write(command, immediate: true)
+        let change = try writer.write(try ScriptObjects.creating(kind, options), immediate: true)
         return change?.createdObjects.first.map(Self.string)
-    }
-
-    private func string(_ value: Any?) throws -> String {
-        switch value {
-        case let text as String: return text
-        case let number as NSNumber: return number.stringValue
-        case nil: return ""
-        default: throw DataEditError.invalidValue("value")
-        }
-    }
-
-    private func bool(_ value: Any?) throws -> Bool {
-        guard let number = value as? NSNumber else { throw DataEditError.invalidValue("value") }
-        return number.boolValue
     }
 
     // MARK: fetch and records
