@@ -12,10 +12,13 @@ import WTModel
 /// installs, against the same window.
 extension ScriptingSurfaces {
     @Suite @MainActor struct ScriptingExportTests {
-        /// The PDF writer stamps the time and a fresh XMP id; the rest must match byte for byte.
+        /// The PDF writer stamps the time, a fresh XMP id and a file `/ID` that Core Graphics derives
+        /// from the time (two exports in different seconds differ there, same length); the rest must
+        /// match byte for byte.
         static func masked(_ data: Data) -> Data {
             var text = String(decoding: data, as: UTF8.self)
-            for pattern in [#"D:\d{14}Z"#, #"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ"#, #"uuid:[0-9a-f-]{36}"#] {
+            for pattern in [#"D:\d{14}(?:Z|[+-]\d\d'\d\d'?)?"#, #"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)?"#,
+                            #"uuid:[0-9a-fA-F-]{36}"#, #"/ID\s*\[\s*<[0-9A-Fa-f]*>\s*<[0-9A-Fa-f]*>\s*\]"#] {
                 text = text.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
             }
             return Data(text.utf8)
