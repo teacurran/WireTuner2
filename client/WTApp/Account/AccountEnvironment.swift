@@ -17,7 +17,11 @@ struct LaunchEnvironment: Equatable, Sendable {
         isUnitTesting = environment["XCTestConfigurationFilePath"] != nil
         auditsSockets = SocketMonitor.isRequested(arguments: arguments)
         restoresSession = !(isUITesting || isUnitTesting) || arguments.contains(Self.restoreSessionArgument)
+        asksForGallery = arguments.contains(Self.showGalleryArgument)
     }
+
+    /// The launch passed `-WTShowGallery` (DOC-029's launch test).
+    var asksForGallery: Bool
 
     /// Whether launch reopens the last session's windows; test launches start clean unless
     /// they ask.

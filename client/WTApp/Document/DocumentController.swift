@@ -11,7 +11,8 @@ final class DocumentController {
     static let maximumViews = 8
     static let tooManyViews = "A document can have at most eight views"
 
-    let environment: DocumentEnvironment
+    /// What the windows are made with; tests swap the model opener.
+    var environment: DocumentEnvironment
     /// Builds a document's window; replaceable in tests.
     var makeWindowController: @MainActor (DocumentHandle, DocumentEnvironment, ToolID, DocumentWindowState?) -> DocumentWindowController = {
         DocumentWindowController(document: $0, environment: $1, initialTool: $2, initialState: $3)

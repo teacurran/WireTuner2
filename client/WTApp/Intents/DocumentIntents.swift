@@ -241,7 +241,7 @@ struct PrintDocumentIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let handle = try IntentsHost.shared.handle(for: document)
-        if let message = ScriptingHost.shared.print(handle, preset) { throw IntentFailure.failed(message) }
+        if let message = ScriptingHost.shared.print(handle, preset, "Shortcut: Print Document") { throw IntentFailure.failed(message) }
         return .result()
     }
 }

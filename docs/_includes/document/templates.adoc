@@ -140,8 +140,11 @@ Letter in inches with ⅛ in bleed and crop and registration marks; *Screen* 192
 not an `NSCollectionView`) shared by menu:File[New from Template…], the Library's btn:[New from Template…] and launch; at
 launch it replaces the untitled document when no session is restored and *Show the gallery at launch* is on (test launches
 only with `-WTShowGallery`).  Library templates come from the cache after a `List` of every space's templates; an uncached
-template is dimmed offline with the reason, and the first use caches it in a local store.  Not built: the UI tests (gallery at
-launch, create from each starting point and from a library template).
+template is dimmed offline with the reason, and the first use caches it in a local store.  The UI tests are app-hosted tests over a whole
+`AppDelegate` (`WTAppTests/DocumentFlowTests.swift`) rather than XCUITest: the gallery at launch (`-WTShowGallery`, which
+`LaunchEnvironment` now keeps from its own arguments), a document from each starting point (pages, masters, units and
+swatches as `StartingPoints.state` makes them) and one from a library template (its pages, with fresh ids); the new documents open over an empty model, as a new
+local store is, since a test launch's memory documents already hold the built-in template.
 
 NOTE: As built by DOC-030 (`WTApp/Library/TemplateFeatures.swift`, `LibraryModel.setTemplate`).  menu:File[Save as Template…]
 asks for a name and *My Templates* or a team, then records a new document flagged as a template and writes the working

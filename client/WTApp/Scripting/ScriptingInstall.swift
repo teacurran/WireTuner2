@@ -59,22 +59,16 @@ extension AppDelegate {
             window.goToPage(number - 1)
             return true
         }
-        host.export = { [weak self] handle, format, url in
-            guard let self, let window = documents.views(of: handle.id).first else { return "The document has no window" }
-            var settings = ExportSettings()
-            settings.format = format
-            switch await exports.perform(settings, to: url, from: window) {
-            case .exported: return nil
-            case .cancelled: return "The export was cancelled"
-            case let .failed(message): return message
+        host.export = ScriptingHost.exporting(through: exports) { documents.views(of: $0.id).first }
+        host.print = { [weak self] handle, preset, label in
+            let show: @MainActor () -> String? = { [weak self] in
+                guard let window = documents.views(of: handle.id).first else { return "The document has no window" }
+                window.showWindow(nil)
+                window.window?.makeKeyAndOrderFront(nil)
+                return self?.menuTarget?.perform(StandardCommands.ID.print) == true ? nil : "Print is not available for this document"
             }
-        }
-        host.print = { [weak self] handle, preset in
-            guard preset == nil else { return "Printing with a named print preset is not available to scripts yet" }
-            guard let window = documents.views(of: handle.id).first else { return "The document has no window" }
-            window.showWindow(nil)
-            window.window?.makeKeyAndOrderFront(nil)
-            return self?.menuTarget?.perform(StandardCommands.ID.print) == true ? nil : "Print is not available for this document"
+            guard let preset else { return show() }
+            return ScriptPrinting.print(handle, preset: preset, label: label, show: show)
         }
         let intents = IntentsHost.shared
         intents.libraryDocuments = {

@@ -115,7 +115,7 @@ final class WTScriptPrintCommand: NSScriptCommand {
             ScriptRun.fail(ScriptFailure(ScriptFailure.noSuchObject, "Print needs a document"))
             return nil
         }
-        if let message = ScriptingHost.shared.print(handle, evaluatedArguments?["Preset"] as? String) {
+        if let message = ScriptingHost.shared.print(handle, evaluatedArguments?["Preset"] as? String, "Script: apply print preset") {
             ScriptRun.fail(ScriptFailure(ScriptFailure.notHandled, message))
         }
         return nil

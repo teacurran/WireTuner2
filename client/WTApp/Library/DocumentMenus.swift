@@ -271,7 +271,7 @@ extension LaunchEnvironment {
     static let showGalleryArgument = "-WTShowGallery"
 
     /// Whether this launch may show the gallery at launch: always outside tests.
-    func showsGalleryAtLaunch(arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {
-        !isTesting || arguments.contains(Self.showGalleryArgument)
+    func showsGalleryAtLaunch(arguments: [String]? = nil) -> Bool {
+        !isTesting || (arguments.map { $0.contains(Self.showGalleryArgument) } ?? asksForGallery)
     }
 }

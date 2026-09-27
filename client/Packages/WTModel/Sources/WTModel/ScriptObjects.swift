@@ -234,8 +234,9 @@ public enum ScriptObjects {
         }
     }
 
-    /// The command making a new `kind` (`rectangle`, `ellipse`, `line`, `text`, `barcode`) with
-    /// `options` (`x`, `y`, `width`, `height`, `x1`...`y2`, `text`, `value`, `kind`, `layer`).
+    /// The command making a new `kind` (`rectangle`, `ellipse`, `line`, `text`, `barcode`, `layer`)
+    /// with `options` (`x`, `y`, `width`, `height`, `x1`...`y2`, `text`, `value`, `kind`, `layer`,
+    /// a layer's `name`).  A layer goes on top of the stack.
     public static func creating(_ kind: String, _ options: [String: Any]) throws -> any Command {
         func number(_ key: String, _ fallback: Double) -> Double { (options[key] as? NSNumber)?.doubleValue ?? fallback }
         let layer = options["layer"] as? OpID ?? (options["layer"] as? String).flatMap(ScriptObjects.id)
@@ -252,6 +253,9 @@ public enum ScriptObjects {
                                                                              VectorPoint(anchor: Point(x: number("x2", 100), y: number("y2", 0)))])])
         case "text":
             return CreateTextBlock(.point(Point(x: x, y: y)), text: options["text"] as? String ?? "", layer: layer)
+        case "layer":
+            let name = (options["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Layer"
+            return CreateLayer(name: name)
         case "barcode":
             return InsertBarcode(options["value"] as? String ?? "", symbology: (options["kind"] as? String)?.lowercased() == "code128" ? .code128 : .qr,
                                  at: Point(x: x, y: y), layer: layer)

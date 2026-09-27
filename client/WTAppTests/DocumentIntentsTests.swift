@@ -126,7 +126,7 @@ extension ScriptingSurfaces {
             let text = try String(contentsOf: folder.appending(path: "Brochure Report.txt"), encoding: .utf8)
             #expect(text.hasPrefix("Document: Brochure"))
 
-            ScriptingHost.shared.print = { _, preset in preset == nil ? nil : "no presets" }
+            ScriptingHost.shared.print = { _, preset, _ in preset == nil ? nil : "no presets" }
             let print = PrintDocumentIntent()
             print.document = entity
             _ = try await print.perform()

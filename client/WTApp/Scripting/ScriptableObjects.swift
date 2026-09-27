@@ -36,11 +36,30 @@ final class ScriptingHost {
     /// Shows page number `index` (1-based) in the document's window.
     var goToPage: @MainActor (DocumentHandle, Int) -> Bool = { _, _ in false }
     var export: @MainActor (DocumentHandle, ExportFormat, URL) async -> String? = { _, _, _ in "Export is not available" }
-    var print: @MainActor (DocumentHandle, String?) -> String? = { _, _ in "Printing is not available" }
+    /// Prints a document, with the named print preset when given; `label` names the change a
+    /// preset's settings are written in.  Returns the reason it cannot, or nil.
+    var print: @MainActor (DocumentHandle, _ preset: String?, _ label: String) -> String? = { _, _, _ in "Printing is not available" }
     var shareLink: @MainActor (DocumentHandle) async throws -> String = { _ in throw ScriptFailure(ScriptFailure.offline, "Share Link needs a connection") }
 
     /// The wrapper of an open document.
     func document(_ handle: DocumentHandle) -> WTScriptDocument { WTScriptDocument(handle: handle) }
+
+    /// `export` and *Export Document* through menu:File[Export…]'s pipeline
+    /// (`ExportController.perform`, the format's default options, the document's window): the
+    /// same file the menu writes for the same settings.
+    static func exporting(through exports: ExportController, window: @escaping @MainActor (DocumentHandle) -> DocumentWindowController?)
+        -> @MainActor (DocumentHandle, ExportFormat, URL) async -> String? {
+        { handle, format, url in
+            guard let window = window(handle) else { return "The document has no window" }
+            var settings = ExportSettings()
+            settings.format = format
+            switch await exports.perform(settings, to: url, from: window) {
+            case .exported: return nil
+            case .cancelled: return "The export was cancelled"
+            case let .failed(message): return message
+            }
+        }
+    }
 }
 
 /// A specifier carried out of `MainActor.assumeIsolated` (Cocoa scripting asks on the main thread).
@@ -73,6 +92,7 @@ struct ScriptFailure: Error, Equatable {
         case let readOnly as ScriptObjects.ReadOnly: self.init(Self.notModifiable, readOnly.description)
         case let invalid as ScriptObjects.InvalidValue: self.init(Self.invalidParameter, invalid.description)
         case let unavailable as ScriptUnavailable: self.init(Self.notHandled, "\(unavailable)")
+        case let missing as ScriptObjects.NoSuchObject: self.init(Self.noSuchObject, missing.description)
         default: self.init(Self.invalidParameter, String(describing: error))
         }
     }
@@ -108,13 +128,12 @@ enum ScriptRun {
             return nil
         }
         let task = handle.perform(ScriptLabelled(command, label: "Script: \(label)"))
-        if let command = NSScriptCommand.current() {
-            command.suspendExecution()
-            let event = ScriptEvent(command: command)
-            Task { @MainActor in
-                let change = await task.value
-                event.command.resumeExecution(withResult: result(change))
-            }
+        // The result also binds a made object to its node, so it runs outside an Apple event too.
+        let event = NSScriptCommand.current().map(ScriptEvent.init)
+        event?.command.suspendExecution()
+        Task { @MainActor in
+            let value = result(await task.value)
+            event?.command.resumeExecution(withResult: value)
         }
         return task
     }
@@ -359,10 +378,15 @@ final class WTScriptMasterPage: WTScriptNode {
 @MainActor
 final class WTScriptLayer: WTScriptNode {
     override class var containerKey: String { "scriptLayers" }
+    /// `make new layer with properties {name: …}` before it exists.
+    var pendingName: String?
 
     @objc var scriptName: String {
-        get { read("name") as? String ?? "" }
-        set { write("name", newValue, name: "layer name") }
+        get { read("name") as? String ?? pendingName ?? "" }
+        set {
+            guard node != nil else { return pendingName = newValue }
+            write("name", newValue, name: "layer name")
+        }
     }
 
     @objc var scriptVisible: Bool {

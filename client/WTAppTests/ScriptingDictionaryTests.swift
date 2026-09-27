@@ -214,7 +214,7 @@ extension ScriptingSurfaces {
             let (handle, document) = document()
             let host = ScriptingHost.shared
             var printed: [String?] = []
-            host.print = { _, preset in
+            host.print = { _, preset, _ in
                 printed.append(preset)
                 return preset == nil ? nil : "no presets"
             }

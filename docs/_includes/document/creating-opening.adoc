@@ -243,8 +243,11 @@ another Mac opened shows (by name) before this Mac has listed it.  The Window me
 window, the front one checked (`window.document.<n>`).  kbd:[Cmd+Shift+\]] and kbd:[Cmd+Shift+[] are alternate keys of *Show
 Next Tab* and *Show Previous Tab*.  The quit alert (IO-007's `QuitCoordinator`), *Restore view when opening* and *Remember window
 size and location* (BASIC-001, `WindowStateStore`) were already built.  The untitled document opened at launch (when no session
-is restored and the gallery is not shown) still has no library record.  Not built: DOC-020's UI tests (create, open from Recents,
-switch tabs by shortcut, close, quit with a pending outbox); the unit tests cover the models and commands.
+is restored and the gallery is not shown) still has no library record.  DOC-020's UI tests are app-hosted tests over a whole
+`AppDelegate` (`WTAppTests/DocumentFlowTests.swift`) rather than XCUITest, which the build machine does not run: menu:File[New]
+through its kbd:[Cmd+N] menu item, open from Recents after closing, kbd:[Cmd+Shift+\]] / kbd:[Cmd+Shift+[] through the active
+shortcut set (alternate keys are bindings, not menu items) to `selectNextTab:` / `selectPreviousTab:` on the front
+window (the tab group's selection is checked when the test host is the active app: AppKit moves it only then), kbd:[Cmd+W], and quitting with a session's changes waiting (the quit sheet, Cancel).
 
 === Build tasks
 

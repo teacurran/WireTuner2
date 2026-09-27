@@ -540,12 +540,33 @@ visible, locked, graphics), `graphic` with `path`, `rectangle`, `ellipse`, `line
 size"), one change and one undo step, and the Apple event is suspended until the change is applied.  `make` makes pages,
 rectangles, ellipses, lines and text blocks; `delete` removes pages, layers and graphics; `duplicate` copies graphics.  A
 viewer or commenter is refused (`-10004`, naming the editor role); read-only properties answer `-10003`, bad values `-50`,
-missing objects `-1728`, unsupported verbs `-1708`, offline `1001`.  Not built: the Text suite's `paragraph`, `word` and
-`character` elements with font, size, leading and colour (a text block's whole text is `contents`); making layers; printing
-with a named print preset (refused with the reason; plain `print` runs menu:File[Print…]); set grid size, units and guides
-from AppleScript; `osascript` tests -- an Apple event to the test host needs an Automation grant it cannot have, so the tests
-drive the wrappers and command objects directly, and the multi-client "visible within a second" test is not run.  The system
-Script menu folder needs nothing from the app.
+missing objects `-1728`, unsupported verbs `-1708`, offline `1001`.  The system Script menu folder needs nothing from the app.
+
+Text suite, setup and layers (DOC-026's rest):: The Text suite (`ScriptableText.swift` over `ScriptObjectsText.swift`) is a
+`text range` class with `paragraph`, `word` and `character` subclasses, elements of a `text block` (addressed by index,
+`NSIndexSpecifier`, and found again from the text on every read), each with `contents`, `font` (the family), `size`,
+`leading` (points) and `color` (`{red, green, blue}`, 0-65535, sRGB); the text block itself carries the same four for its
+whole text.  A paragraph is read without its closing return; a word is a run of letters and digits (an apostrophe between
+letters stays in it); a character is a Unicode scalar, as the text model counts.  A read takes the element's first
+character (an empty one the character before it); a character without a font mark reads *Helvetica*, without a size 12 pt,
+without leading 120 %.  Sets are the Text panel's commands over the element's range -- `ApplyMark` (font, size, fixed
+leading), `TextColor.fill`, and a delete and insert keeping the first character's marks for `contents` -- one change
+"Script: set size" and one undo step each.  The document has `units` (a built-in unit's name or abbreviation, or a custom
+unit's name; `SetUnits`) and `grid size` (`SetGrid`); a `page` and a `master page` have `guide` elements (`orientation`,
+`position` in points from the top or left edge; `make new guide` is `AddGuides`, a set of `position` `MoveGuide`, `delete`
+`DeleteGuides`, the orientation is fixed after making); `make new layer [with properties {name: …}]` is `CreateLayer` on top
+of the stack (the `master page` element is read-only: masters are made in the app).  `print … print preset "…"` looks the
+preset up in the Print dialog's own store (`com.apple.print.custompresets`, the printer's domain first,
+`ScriptPrinting`), writes its `WTPrint*` settings to the document as one `ApplyPrintPreset` ("Script: apply print preset";
+*Print Document* labels it "Shortcut: Print Document") when they differ from the document's, then opens
+menu:File[Print…]; the preset's paper and printer are the panel's to apply, and a preset saved from another application
+only opens the dialog.  Deviations: the words and characters of a paragraph are not elements of the paragraph (use a text
+block's words); these properties are not yet in JavaScript's `wt` (they are in `ScriptObjects`, which `wt` adapts).  Tests:
+no `osascript` -- an Apple event to the test host needs an Automation grant it cannot have -- so the tests drive the
+wrappers and command objects directly, validate `WireTuner.sdef` against the system's sdef DTD, check every class and
+command code is registered with Cocoa scripting, every property key and writable element has its accessors, and every
+`WTScript…` class and command the app implements is in the dictionary (`ScriptingTextSuiteTests`); the multi-client
+"visible within a second" test is not run.
 
 App Intents (DOC-027):: `WTApp/Intents/DocumentIntents.swift`: `DocumentEntity` found through the library cache (by id, by
 name, recents as suggestions; offline too), `ExportFormatEntity` and `OrientationEntity`, and the eight intents over
@@ -554,8 +575,10 @@ parameter (it goes where menu:File[New] puts it); *Add Pages* takes width and he
 *Export Document* returns the file (Shortcuts saves it where the shortcut says) and takes no page range or options; *Get
 Document Report* returns a plain-text summary (pages and sizes, master pages, layers, objects by kind, swatches, styles);
 *Share Link* makes a new viewer link.  Failures are `IntentFailure` with localized reasons (offline, not found, needs the
-editor role).  Not built: running each intent from Shortcuts (the tests call `perform()`), and the byte-identical comparison
-of the export intent with the menu export (both go through `ExportController.perform`).
+editor role).  The export intent writes the same bytes as menu:File[Export…] with the same format: both run
+`ExportController.perform` on the document's window (`ScriptingHost.exporting`), and `ScriptingExportTests` compares the
+files for SVG, PNG, TIFF and JPEG byte for byte and for PDF but its timestamps and XMP id (the PDF writer stamps the time, so
+two menu exports differ there too).  Not built: running each intent from the Shortcuts app (the tests call `perform()`).
 
 === Build tasks
 
