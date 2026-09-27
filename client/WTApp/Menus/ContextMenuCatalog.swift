@@ -84,6 +84,9 @@ enum ContextMenuCatalog {
         static let spelling: CommandID = "text.spelling"
         static let runAround: CommandID = "text.runAround"
         static func size(_ points: Int) -> CommandID { CommandID("text.size.\(points)") }
+        static let sizeSmaller: CommandID = "text.size.smaller"
+        static let sizeLarger: CommandID = "text.size.larger"
+        static let sizeOther: CommandID = "text.size.other"
         static func style(_ name: String) -> CommandID { CommandID("text.style.\(name)") }
         static func align(_ name: String) -> CommandID { CommandID("text.align.\(name)") }
         static func leading(_ name: String) -> CommandID { CommandID("text.leading.\(name)") }
@@ -304,7 +307,11 @@ enum ContextMenuCatalog {
     }
 
     static let fontSubmenu = ContextMenuEntry.submenu("Font", commands(ID.fontOther))
-    static let sizeSubmenu = ContextMenuEntry.submenu("Size", textSizes.map { .command(ID.size($0)) })
+    /// The presets, then *Smaller*, *Larger* and *Other…* (`FontCommands`; the families of Font ▸
+    /// are read when it opens, `FontMenus`).
+    static let sizeSubmenu = ContextMenuEntry.submenu(
+        "Size", textSizes.map { .command(ID.size($0)) } + [.separator, .command(ID.sizeSmaller), .command(ID.sizeLarger), .command(ID.sizeOther)]
+    )
     static let styleSubmenu = ContextMenuEntry.submenu("Style", textStyles.map { .command(ID.style($0.0)) })
     static let alignEntries: [ContextMenuEntry] = textAlignments.map { .command(ID.align($0.0)) }
     static let arrangeSubmenu = ContextMenuEntry.submenu("Arrange", commands(ID.bringToFront, ID.bringForward, ID.sendBackward, ID.sendToBack))

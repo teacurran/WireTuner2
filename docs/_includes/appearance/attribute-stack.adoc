@@ -9,7 +9,7 @@ xref:gradients.adoc[Gradients], xref:live-effects.adoc[Live effects]).
 
 == The Attributes list
 
-Open the Object panel with menu:Window[Object] (kbd:[Cmd+F3]).  With an object selected, the
+Open the Object panel with menu:Window[Object].  With an object selected, the
 upper part of the panel lists its attributes; the lower part edits whichever attribute is
 selected in the list.  Select the object's own row at the top of the list to edit the object
 itself (its dimensions, name and so on; see xref:object-panel.adoc[The Object panel]).

@@ -62,6 +62,10 @@ final class ToolbarController {
 
     /// Runs a button's command as its menu item would; returns whether it ran.
     var perform: @MainActor (CommandID) -> Bool = { _ in false }
+    /// The commands drawn as their own control rather than a button, with the control's maker.
+    var controls: [CommandID: @MainActor () -> any ToolbarControl] = [:] {
+        didSet { notify() }
+    }
     /// A button clicked while customizing selects its command in the Customize window.
     var onSelectCommand: (@MainActor (CommandID) -> Void)?
 

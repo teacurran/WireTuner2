@@ -14,6 +14,9 @@ final class ToolbarView: NSView {
     let toolbar: ToolbarID
     let stack = NSStackView()
     private(set) var buttons: [ToolbarButton] = []
+    /// What the stack shows for each button: the button, or the command's own control
+    /// (`ToolbarController.controls`: the Text toolbar's font family, style and size).
+    private(set) var arranged: [NSView] = []
     /// The Info toolbar's readout, before its buttons.
     private(set) var readout: NSHostingView<InfoReadoutView>?
     private var token: ToolbarController.ObservationToken?
@@ -59,10 +62,13 @@ final class ToolbarView: NSView {
     /// Rebuilds the buttons from the controller and refreshes their states.
     func reload() {
         let items = controller.items(toolbar)
-        if buttons.map(\.command) != items {
-            for button in buttons { button.removeFromSuperview() }
+        // Rebuilt when the items change, or when a command gained or lost its own control.
+        let stale = zip(buttons, arranged).contains { button, view in (controller.controls[button.command] == nil) != (view === button) }
+        if buttons.map(\.command) != items || stale {
+            for view in arranged { view.removeFromSuperview() }
             buttons = items.map { ToolbarButton(command: $0, toolbarView: self) }
-            for button in buttons { stack.addArrangedSubview(button) }
+            arranged = buttons.map { button in controller.controls[button.command].map { $0() } ?? button }
+            for view in arranged { stack.addArrangedSubview(view) }
         }
         refreshStates()
     }
@@ -76,6 +82,7 @@ final class ToolbarView: NSView {
             button.toolTip = validation.isEnabled ? controller.tooltip(for: button.command) : validation.reason
             button.isHighlightedForCustomizing = controller.highlighted == button.command
         }
+        for case let control as any ToolbarControl in arranged { control.refresh() }
     }
 
     /// Row when wider than tall.
@@ -103,8 +110,8 @@ final class ToolbarView: NSView {
     /// The button index a drop at `point` (this view's coordinates) inserts before.
     func insertionIndex(at point: NSPoint) -> Int {
         let horizontal = stack.orientation == .horizontal
-        for (index, button) in buttons.enumerated() {
-            let frame = convert(button.bounds, from: button)
+        for (index, view) in arranged.enumerated() {
+            let frame = convert(view.bounds, from: view)
             if horizontal ? point.x < frame.midX : point.y > frame.midY { return index }
         }
         return buttons.count
@@ -127,6 +134,13 @@ final class ToolbarView: NSView {
         let point = convert(sender.draggingLocation, from: nil)
         return controller.drop(payload, on: toolbar, at: insertionIndex(at: point), modifiers: KeyEquivalentResolver.modifiers(NSEvent.modifierFlags))
     }
+}
+
+/// A toolbar item drawn as its own control instead of a button (the Text toolbar's font family,
+/// style and size); it re-reads the selection after every window update, as buttons revalidate.
+@MainActor
+protocol ToolbarControl: NSView {
+    func refresh()
 }
 
 /// One toolbar button: its command's symbol (or title), a tooltip with the shortcut, and the

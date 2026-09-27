@@ -48,6 +48,12 @@ enum MainMenuBuilder {
     static let windowMenuTitle = "Window"
     static let helpMenuTitle = "Help"
 
+    /// The delegate of the menu at a path of titles (`["Text", "Font"]`, a context menu's
+    /// `["Context", "Font"]`) whose items are read when it opens -- menu:Text[Font]'s families --
+    /// or nil for the menus the tree fully describes.  The delegate must outlive the menu
+    /// (`NSMenu.delegate` is weak).
+    static var dynamicMenus: @MainActor ([String]) -> (any NSMenuDelegate)? = { _ in nil }
+
     static func accessibilityIdentifier(for commandID: CommandID) -> String {
         "menu.\(commandID.rawValue)"
     }
@@ -72,15 +78,17 @@ enum MainMenuBuilder {
         menuBar(from: MenuTreeBuilder.build(registry: registry, shortcuts: shortcuts), registry: registry, target: target)
     }
 
-    static func menu(title: String, nodes: [MenuNode], registry: CommandRegistry, target: CommandMenuTarget) -> NSMenu {
+    static func menu(title: String, nodes: [MenuNode], registry: CommandRegistry, target: CommandMenuTarget, path: [String] = []) -> NSMenu {
         let menu = NSMenu(title: title)
+        let path = path + [title]
+        menu.delegate = dynamicMenus(path)
         for node in nodes {
             switch node {
             case .separator:
                 menu.addItem(.separator())
             case let .submenu(title, items):
                 let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-                item.submenu = self.menu(title: title, nodes: items, registry: registry, target: target)
+                item.submenu = self.menu(title: title, nodes: items, registry: registry, target: target, path: path)
                 menu.addItem(item)
             case let .item(node):
                 menu.addItem(menuItem(for: node, registry: registry, target: target))

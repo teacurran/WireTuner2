@@ -13,6 +13,7 @@ extension AppDelegate {
         var all = SpecialCharacterFeatures.commands(window: window)
         all += TextBlockFeatures.commands(window: window)
         all += FontStyleCommands.commands(window: window)
+        all += installFontControls(window: window)
         all += TextAttributeClipboard.commands(edit: editMenu, window: window)
         all.append(installShare(window: window))
         all += ChartPictographs.commands(commands, window: window)

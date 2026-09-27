@@ -199,8 +199,9 @@ where it gives them, `menu:Modify[Combine > Union]` and the like) and in Edit, F
 Collaborators submenu; *Add Page* and the View ▸ magnifications work.  The pasteboard menu's View ▸
 levels below 25% and above 800% are commands without a menu item (the palette and the context menu
 reach them), because the View menu table keeps Magnification at 25%--800%.  Where this page names
-only a submenu (Font ▸, Size ▸, Style ▸, Align ▸, Leading ▸, Special Characters ▸, Spelling ▸,
-Convert Case ▸) its items are placeholders until the type epic.  `MenuContext` gained
+only a submenu its items are the Text menu's: Font ▸ lists the families (read when it opens), Size ▸
+the presets, Smaller, Larger and Other…, Style ▸ the four styles and the family's other faces
+(TYPE-017's note on xref:type-tools.adoc[Type tools]); Align ▸ and Leading ▸ are still placeholders.  `MenuContext` gained
 `importedGraphic`, `swatchesArea` (the Swatches panel's empty area) and `colorBox`.  Hit targets:
 the display list tells paths, text, bitmaps, groups and clipping groups apart; the other kinds are
 stub targets in tests until their nodes exist; guides and presence markers resolve through

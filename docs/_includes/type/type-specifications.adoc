@@ -9,28 +9,40 @@ xref:type-tools.adoc[The type adjustment tools]; this page is what each one mean
 
 To choose a font for selected text, do one of the following:
 
-* Choose menu:Text[Font] and pick a family.
-* Pick from the *Font* pop-up in the Character section of the Object panel or in the Text
-  toolbar.  Hovering a family name previews it on the selection (turn this off with the
-  *Display font preview* preference).
-* Start typing a family name into the Object panel's font field to filter the list.
+* Choose menu:Text[Font] and pick a family.  The families you used most recently are at the
+  top, then any font the document uses that is missing on your Mac (in brackets, with a
+  warning icon), then every installed family; the families the document uses are marked.
+* Choose menu:Text[Font > Other…] to search: type part of a name to filter the list, pick a
+  family and a face, and click btn:[OK].
+* Type or pick a family in the *Font Family* box of the Text toolbar.  The box completes the
+  name as you type; its list has your recent families first.
+* Pick from the *Font* pop-up in the Text section of the Object panel.
 
 To set the size:
 
-* Choose menu:Text[Size] and a preset, *Smaller* or *Larger* for 1-point steps, or *Other…* to
-  type any size from 1 to 10,000 points.
-* Type a value in the *Size* field of the Object panel or Text toolbar and press kbd:[Return].
+* Choose menu:Text[Size] and a preset (9 to 72 points), *Smaller* (kbd:[Cmd+Shift+,]) or
+  *Larger* (kbd:[Cmd+Shift+.]) for 1-point steps, or *Other…* to type any size from 1 to
+  10,000 points.
+* Type a value in the *Font Size* box of the Text toolbar (or pick a preset from its list) and
+  press kbd:[Return].
+* Type a value in the *Size* field of the Object panel's Text section and press kbd:[Return].
 
 To choose a face:
 
-* Choose menu:Text[Font Style] and a face (Plain, Bold, Italic, Bold Italic, and the family's
-  other faces such as Light or Condensed).
-* Pick from the *Style* pop-up in the Object panel or the Text toolbar.
+* Choose menu:Text[Style] and a face: Plain, Bold, Italic, Bold Italic, then the family's other
+  faces such as Light or Condensed.
+* Pick from the *Font Style* pop-up in the Text toolbar or the *Style* pop-up in the Object
+  panel.
+
+Each of these applies to the characters selected with the Text tool, or to every character of
+the blocks selected with the Pointer tool, as one change you can undo.  When the selection
+holds several fonts or sizes, the toolbar boxes and the Object panel show *Mixed*, and the
+menus mark each value the selection holds with a dash instead of a check.  Right-clicking text
+offers the same Font ▸, Size ▸ and Style ▸ submenus.
 
 Fonts are any that macOS can load, including variable fonts, whose named instances appear as
 faces.  Bold and Italic applied to a family that lacks that face are synthesized (a heavier
-stroke, a slant) and shown with a warning icon in the Object panel, since synthesized faces
-print poorly.  A font the document uses that is missing on your Mac is substituted and listed
+stroke, a slant); synthesized faces print poorly, so prefer a family that has the face.  A font the document uses that is missing on your Mac is substituted and listed
 in the Missing Fonts sheet (xref:font-substitution.adoc[Font substitution]).
 
 NOTE: macOS no longer supports PostScript Type 1 fonts, so {product} does not offer them; a
@@ -43,8 +55,8 @@ drawn as gray bars to keep scrolling fast; selected text is always drawn in full
 
 A variable font carries a whole range of designs in one file -- weight from hairline to black,
 width from condensed to extended -- along *axes* you can set anywhere in their range, not only
-at the named faces.  When the chosen font is variable, an *Axes* group appears in the Character
-section with a slider and a value field for each axis the font offers:
+at the named faces.  When the chosen font is variable, an *Axes* group appears in the Object panel,
+below the Text section, with a slider and a value field for each axis the font offers:
 
 [cols="1,3"]
 |===
@@ -74,18 +86,18 @@ default, or pick a named instance to return every axis.  Axis settings apply to 
 like any other setting, spread as you type, and can be part of a text style
 (xref:text-styles.adoc[Text styles]).
 
-For a variable font with a weight axis, menu:Text[Font Style > Bold] moves the weight axis to
+For a variable font with a weight axis, menu:Text[Style > Bold] moves the weight axis to
 the font's bold instance instead of synthesizing a bold, so no warning icon appears.  If a
 collaborator lacks the font, their substitute ignores the axes it does not have; your settings
 stay in the document.
 
-// TODO screenshot: Character section with the Axes group open for a variable font
+// TODO screenshot: the Object panel with the Axes group open for a variable font
 
 == OpenType features
 
 Many fonts hold alternate glyphs and behaviors -- ligatures, small capitals, old-style figures,
-swashes -- that are switched on and off with OpenType *features*.  The *Features* group of the
-Character section lists the features the chosen font actually offers, so you never see a
+swashes -- that are switched on and off with OpenType *features*.  The *Features* group, below
+the Text section of the Object panel, lists the features the chosen font actually offers, so you never see a
 checkbox that would do nothing:
 
 [cols="1,3"]
@@ -137,8 +149,8 @@ draws scaled capitals instead and works with any font.
 
 == Alignment
 
-Left, center, right or justified, per paragraph, from menu:Text[Align], the alignment buttons
-in the Character section, or the Text toolbar.  Alignment is a paragraph setting and is
+Left, center, right or justified, per paragraph, from the *Alignment* pop-up in the Object
+panel's Text section.  Alignment is a paragraph setting and is
 described with the rest of them on xref:paragraphs.adoc[Paragraphs].
 
 == Leading
@@ -197,9 +209,9 @@ xref:paragraphs.adoc[Paragraphs].
 
 == Text effects and text styles
 
-The bottom of the Character section has the *Effect* pop-up (highlight, inline, shadow,
+Below the Text section, the Object panel has the *Effect* pop-up (highlight, inline, shadow,
 strikethrough, underline, zoom -- xref:text-effects.adoc[Text effects, inline graphics and
-text wrap]) and the *Style* pop-up, which applies a text style from the Styles panel
+text wrap]) and a text style section, which applies a text style from the Styles panel
 (xref:text-styles.adoc[Text styles]).
 
 == How settings spread as you type
@@ -472,6 +484,14 @@ both groups go to the pending format.  menu:Text[Style > Plain, Bold, Italic, Bo
 on a family with a `wght` axis the named instance's `axes` go with its `font_style`.  The Style
 Behavior sheet has a field per axis (empty is *No selection* for the whole tuple) and a pop-up per
 offered feature (*No selection*, Default, On, Off).
+
+NOTE: menu:Text[Font] (recent, missing and all families, *Other…*), menu:Text[Size] (presets,
+*Smaller*, *Larger*, *Other…*), menu:Text[Style]'s other faces and the Text toolbar's font family,
+style and size controls are built by TYPE-017 (its note on xref:type-tools.adoc[Type tools]); the
+guide above describes them as built.  *Deviations* from this page's design: the face menu is
+menu:Text[Style], not *Font Style*; there is no hover preview (*Display font preview* is not wired);
+type-to-filter is in the toolbar's family box and the *Other…* sheet rather than the Object panel's
+Font pop-up; a synthesized face shows no warning icon (TYPE-020).
 
 === Build tasks
 
