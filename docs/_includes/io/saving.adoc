@@ -759,19 +759,14 @@ the Library window with a message.  Unit-test launches index nothing (`NoSpotlig
 snapshot-time rebuild is IO-035's rest: every *Snapshot interval* (`SpotlightIndexer.startRefreshing`, from the
 preference the stores write their snapshots by) the open documents' items are rebuilt from their in-memory state,
 each only when its digest changed -- deviation: a timer at the stores' interval rather than a hook on each store's
-write.  Not built: the `WireTunerSpotlightImporter`
-extension for packages on disk: it needs the snapshot's zstd and protobuf decoding in an extension
-that otherwise links nothing but the zip reader, and is left for a later task.
+write.  The `WireTunerSpotlightImporter` extension for packages on disk is IO-035's rest (below).
 +
 NOTE: As built by IO-035's package half (`WTModel/PackageSpotlight.swift`).
 `PackageSpotlightAttributes.read(_:)` is what the importer calls: the manifest's title, and -- for a
 package of at most 64 MiB (`decodeLimit`) -- the snapshot decoded through `DocumentPackage`, giving
 `SpotlightContent` (description, keywords, text of every live text node) and the page count; a larger
-package answers the title alone, at once.  Not built: the `WireTunerSpotlightImporter` target itself
-(`client/WTExtensions` and `project.yml`, a `CSImportExtension` mapping these attributes onto
-`kMDItemTitle`, `kMDItemDescription`, `kMDItemKeywords`, `kMDItemTextContent` and
-`kMDItemNumberOfPages`); since the reader needs `WTModel`, the extension links it rather than only the
-zip reader.  *Remove Local Copy* and the snapshot-time rebuild are IO-035's rest (below and above).
+package answers the title alone, at once.  *Remove Local Copy*, the snapshot-time rebuild and the importer
+extension are IO-035's rest (below and above).
 +
 NOTE: As built by IO-035's *Remove Local Copy* (`WTSync/LocalCopies.swift`, `LocalStore.unsentChangeCount` and
 `pendingCallCount`; `WTApp/Library/LocalCopyRemoval.swift`, `DocumentSessions.released` and `state(of:)`).
@@ -784,6 +779,18 @@ deletes its directory only when nothing waits for the cloud -- no unacknowledged
 no image in `blobs_pending`, no queued call in `pending_calls` -- else it keeps the copy and says what waits ("1 change and
 1 image have not reached the cloud yet.").  A removed copy leaves Spotlight (`SpotlightIndexer.remove`) and loses its
 offline badge (`LibraryModel.forgetLocalCopy`).  Tests: `LocalCopiesTests` (WTSync), `LocalCopyRemovalTests`.
++
+NOTE: As built by IO-035's rest (`client/WTExtensions/Spotlight/`, target `WireTunerSpotlightImporter` in
+`project.yml`, embedded under the app's `PlugIns` beside the Quick Look extensions).  A `CSImportExtension`
+(`ImportExtension`, extension point `com.apple.spotlight.import`, `CSSupportedContentTypes` the package UTI),
+sandboxed with no network; `SpotlightImport.update(_:forFileAt:)` reads the package with
+`PackageSpotlightAttributes.read(contentsOf:)` and sets `title` and `displayName` (`kMDItemTitle`,
+`kMDItemDisplayName`), `contentDescription`, `keywords` and `textContent` when not empty, and `pageCount`
+(`kMDItemNumberOfPages`) unless the package was over the decode limit.  `SpotlightImport.swift` is compiled
+into the app too, so the app's tests cover it (`SpotlightImporterTests`).  Unlike the Quick Look extensions
+the importer links `WTModel` (the snapshot's zstd and protobuf decoding), so it carries the model and its
+dependencies statically.  Not measured here: `mdimport -t -d2` against the installed importer (the
+extension must be registered with the system from a signed, installed app) and the 100 MiB / 3 s figure.
 +
 NOTE: As built by IO-034 (`client/WTExtensions/`, targets `WireTunerThumbnail` and `WireTunerPreview`
 in `project.yml`, embedded under the app's `PlugIns`).  Both are sandboxed with no network entitlement

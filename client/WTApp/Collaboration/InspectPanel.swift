@@ -12,7 +12,11 @@ import WTRender
 /// window's selection -- one object, or several as one group -- and shows its *Layout* (position of
 /// the top-left corner on its page and size), the *Code* tabs (SVG, CSS, Swift from WTInterchange's
 /// snippets, each with btn:[Copy]) and btn:[PNG 1×] / btn:[PNG 2×] / btn:[PNG 3×], with the
-/// *Notation*, *Unit* and *Scale* pop-ups every value follows.
+/// *Notation*, *Unit* and *Scale* pop-ups every value follows -- *Unit* and *Scale* are the
+/// *Inspect unit* and *Inspect scale* preferences once `attach(preferences:)` ran.  A row whose value
+/// a collaborator's change altered flashes in their colour (the attribution pulse of the object,
+/// with the row as a second target), and `remote` points the panel at a collaborator's selection
+/// (COLLAB-037's rest).
 @MainActor
 @Observable
 final class InspectPanelModel {
@@ -24,6 +28,9 @@ final class InspectPanelModel {
     }
 
     static let scales: [Double] = [1, 2, 3]
+    /// The *Unit* choices: the document's own unit, then the fixed ones (`SnippetUnit` raw values).
+    static let unitChoices: [(String, String)] = [(documentUnit, "Document units")] + units.map { ($0.0.rawValue, $0.1) }
+    static let documentUnit = "document"
     static let notations: [(SnippetNotation, String)] = [(.hex, "Hex"), (.rgb, "rgb()"), (.displayP3, "Display P3"), (.oklch, "OKLCH"), (.cmyk, "CMYK")]
     static let units: [(SnippetUnit, String)] = [(.points, "Points"), (.pixels, "Pixels"), (.millimeters, "Millimeters"), (.centimeters, "Centimeters"),
                                                   (.inches, "Inches")]
@@ -39,11 +46,19 @@ final class InspectPanelModel {
     /// Whether kbd:[Option] is held (a PNG button saves instead of copying).
     @ObservationIgnored var optionDown: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.option) }
     var notation: SnippetNotation = .hex
-    var unit: SnippetUnit = .pixels {
-        didSet { defaults?.set(unit.rawValue, forKey: Self.unitKey) }
+    /// The *Unit* pop-up: a `SnippetUnit` raw value or `documentUnit`.  Remembered in `defaults`
+    /// until `attach(preferences:)` hands it to the *Inspect unit* preference.
+    var unitChoice: String = SnippetUnit.pixels.rawValue {
+        didSet {
+            guard unitChoice != oldValue else { return }
+            if let preferences { preferences.set(unitChoice, for: PreferenceCatalog.Sync.inspectUnit) } else { defaults?.set(unitChoice, forKey: Self.unitKey) }
+        }
     }
     var scale: Double = 1 {
-        didSet { defaults?.set(scale, forKey: Self.scaleKey) }
+        didSet {
+            guard scale != oldValue else { return }
+            if let preferences { preferences.set(scale, for: PreferenceCatalog.Sync.inspectScale) } else { defaults?.set(scale, forKey: Self.scaleKey) }
+        }
     }
 
     /// A custom factor typed in the scale field, kept between 0.1× and 16×.
@@ -61,19 +76,187 @@ final class InspectPanelModel {
     private(set) var revision = 0
     /// What the last copy put on the pasteboard ("Copied CSS").
     private(set) var copied: String?
+    /// Rows flashing after a collaborator's change, by row label ("Width", "Code").
+    private(set) var flashing: [String: RowFlash] = [:]
+    /// Whose selection the panel reads instead of the window's.
+    let remote = RemoteSelectionInspection()
+    @ObservationIgnored private(set) var preferences: PreferenceStore?
+    @ObservationIgnored private var preferenceToken: UUID?
+    /// The rows last shown and whose they were, to see which a change altered.
+    @ObservationIgnored private var shownRows: [String: String] = [:]
+    @ObservationIgnored private var shownNodes: [SelectionID] = []
+    @ObservationIgnored var now: @MainActor () -> Date = { Date() }
+    /// How long the flashed rows stay marked; zero clears them on the next read.
+    @ObservationIgnored var flashClearDelay: Duration = .milliseconds(1500)
+    @ObservationIgnored private var clearing: Task<Void, Never>?
 
-    /// `defaults` remembers the unit and scale (COLLAB-037's rest); nil keeps them for the panel's
-    /// life only.
+    /// One flashing row: the author's presence colour and when the flash began.
+    struct RowFlash: Equatable {
+        var colorIndex: Int
+        var started: Date
+        var color: SwiftUI.Color {
+            let color = PresencePalette.color(at: colorIndex)
+            return SwiftUI.Color(red: color.red, green: color.green, blue: color.blue)
+        }
+    }
+
+    /// `defaults` remembers the unit and scale (COLLAB-037's rest) until `attach(preferences:)` hands
+    /// them to the preferences; nil keeps them for the panel's life only.
     init(defaults: UserDefaults? = nil) {
         self.defaults = defaults
-        if let raw = defaults?.string(forKey: Self.unitKey), let stored = SnippetUnit(rawValue: raw) { unit = stored }
+        if let raw = defaults?.string(forKey: Self.unitKey), raw == Self.documentUnit || SnippetUnit(rawValue: raw) != nil { unitChoice = raw }
         if let stored = defaults?.object(forKey: Self.scaleKey) as? Double, stored > 0 { scale = stored }
+    }
+
+    /// The unit every value reads in: the chosen one, or the document's (picas and kyus read as
+    /// points and millimetres, a custom unit as points).
+    var unit: SnippetUnit {
+        get {
+            if let fixed = SnippetUnit(rawValue: unitChoice) { return fixed }
+            return window().map { Self.snippetUnit(for: $0.documentHandle.units) } ?? .points
+        }
+        set { unitChoice = newValue.rawValue }
+    }
+
+    static func snippetUnit(for unit: LengthUnit) -> SnippetUnit {
+        switch unit {
+        case .pixels: .pixels
+        case .inches, .decimalInches: .inches
+        case .millimeters, .kyus: .millimeters
+        case .centimeters: .centimeters
+        default: .points
+        }
+    }
+
+    /// The *Scale* pop-up's entries: 1×, 2×, 3× and a custom factor set in Preferences.
+    var scaleChoices: [Double] { Self.scales.contains(scale) ? Self.scales : Self.scales + [scale] }
+
+    /// Backs *Unit* and *Scale* with the *Inspect unit* and *Inspect scale* preferences (local to
+    /// this Mac; the Preferences window's rows), following changes made there.  From then on the
+    /// preferences, not `defaults`, remember them.
+    func attach(preferences: PreferenceStore) {
+        if let preferenceToken { self.preferences?.stopObserving(preferenceToken) }
+        self.preferences = nil
+        unitChoice = preferences[PreferenceCatalog.Sync.inspectUnit]
+        scale = preferences[PreferenceCatalog.Sync.inspectScale]
+        self.preferences = preferences
+        preferenceToken = preferences.observe { [weak self] change in
+            guard let self, let preferences = self.preferences else { return }
+            if change.id == PreferenceCatalog.Sync.inspectUnit.id {
+                let value = preferences[PreferenceCatalog.Sync.inspectUnit]
+                if value != self.unitChoice { self.unitChoice = value }
+            } else if change.id == PreferenceCatalog.Sync.inspectScale.id {
+                let value = preferences[PreferenceCatalog.Sync.inspectScale]
+                if value != self.scale { self.scale = value }
+            }
+        }
     }
 
     /// The selection or the document changed: the panel reads again.
     func touch() {
         revision += 1
         copied = nil
+    }
+
+    /// The window's selection changed: the panel reads it (a collaborator's selection being
+    /// inspected gives way to it) without flashing.
+    func selectionDidChange() {
+        remote.stop()
+        touch()
+        rememberRows()
+    }
+
+    /// The document changed: the panel reads again, and once the change has been applied
+    /// everywhere (the attribution pulses included) the rows it altered flash.
+    func documentDidChange() {
+        touch()
+        Task { @MainActor [weak self] in self?.rowsMayHaveChanged() }
+    }
+
+    /// Presence changed: a collaborator's selection being inspected is followed, or given up when
+    /// they left.
+    func presenceDidChange() {
+        guard remote.isActive, let window = window() else { return }
+        remote.presenceDidChange(window.presence.participants)
+        touch()
+        rememberRows()
+    }
+
+    /// Inspects `participant`'s selection in `window` (the name tag or the command).
+    func inspect(_ participant: RemoteParticipant) {
+        remote.start(participant)
+        touch()
+        rememberRows()
+    }
+
+    /// Back to the window's own selection.
+    func stopInspectingRemote() {
+        guard remote.stop() else { return }
+        touch()
+        rememberRows()
+    }
+
+    /// The ids the panel reads: the inspected collaborator's selection, else the window's.
+    var inspectedIDs: [SelectionID] {
+        _ = revision
+        guard let window = window() else { return [] }
+        if remote.isActive { return remote.participant(in: window.presence.participants)?.selection ?? [] }
+        return window.selection.selection.ids
+    }
+
+    /// A collaborator's selection names objects this Mac has not received yet (*Waiting for object…*).
+    var isWaitingForRemote: Bool {
+        guard remote.isActive, let window = window() else { return false }
+        let ids = inspectedIDs
+        return !ids.isEmpty && !ids.contains { window.documentHandle.state.isLive($0.opID) }
+    }
+
+    /// The rows compared for the flash: the layout values and the current Code tab.
+    func rowValues(_ object: SnippetObject) -> [String: String] {
+        var rows = Dictionary(uniqueKeysWithValues: layout(object).map { ($0.label, $0.value) })
+        rows["Code"] = code(tab, for: object)
+        return rows
+    }
+
+    private func rememberRows() {
+        shownNodes = inspectedIDs
+        shownRows = object.map(rowValues) ?? [:]
+    }
+
+    /// Compares the rows with the ones last shown: those a change by a collaborator altered on
+    /// the same objects flash in that collaborator's colour.
+    func rowsMayHaveChanged() {
+        let nodes = inspectedIDs
+        let rows = object.map(rowValues) ?? [:]
+        defer {
+            shownNodes = nodes
+            shownRows = rows
+        }
+        guard nodes == shownNodes, let window = window() else { return }
+        let changed = rows.filter { row in shownRows[row.key].map { $0 != row.value } ?? false }.map(\.key).sorted()
+        guard !changed.isEmpty else { return }
+        let wanted = Set(nodes)
+        guard let pulse = window.collaboration.flashes.active().first(where: { wanted.contains($0.node) }) else { return }
+        let at = now()
+        for row in changed { flashing[row] = RowFlash(colorIndex: pulse.colorIndex, started: at) }
+        scheduleClear()
+    }
+
+    /// The flash on `row`, nil when it is not flashing.
+    func flash(_ row: String) -> RowFlash? {
+        guard let flash = flashing[row], now().timeIntervalSince(flash.started) < AttributionFlashController.duration else { return nil }
+        return flash
+    }
+
+    private func scheduleClear() {
+        clearing?.cancel()
+        let delay = flashClearDelay
+        clearing = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            let at = self.now()
+            self.flashing = self.flashing.filter { at.timeIntervalSince($0.value.started) < AttributionFlashController.duration }
+        }
     }
 
     var options: SnippetOptions { SnippetOptions(notation: notation, unit: unit, scale: scale) }
@@ -85,7 +268,7 @@ final class InspectPanelModel {
         _ = revision
         guard let window = window() else { return nil }
         let document = window.documentHandle
-        let nodes = window.selection.selection.ids.map(\.opID)
+        let nodes = inspectedIDs.map(\.opID)
         let objects = nodes.compactMap { ExportSnapshot.snippetObject($0, scene: document.scene, state: document.state, blob: blob) }
         guard let first = objects.first else { return nil }
         guard objects.count > 1 else { return first }
@@ -218,22 +401,41 @@ struct InspectPanelBody: View {
         }
     }
 
+    /// A row's background: the flashing author's colour, else nothing.
+    static func flashBackground(_ model: InspectPanelModel, _ row: String) -> SwiftUI.Color {
+        model.flash(row)?.color.opacity(0.35) ?? .clear
+    }
+
+    static func stopRemote(_ model: InspectPanelModel) -> () -> Void { { model.stopInspectingRemote() } }
+
+    @ViewBuilder var remoteHeader: some View {
+        if model.remote.isActive {
+            HStack {
+                Circle().fill(InspectPanelModel.RowFlash(colorIndex: model.remote.colorIndex, started: .distantPast).color).frame(width: 8, height: 8)
+                Text(model.remote.title).font(.callout.weight(.medium))
+                Spacer()
+                Button("Stop", action: Self.stopRemote(model)).controlSize(.small)
+            }
+            .accessibilityIdentifier("inspect.remote")
+        }
+    }
+
     var body: some View {
         if let object = model.object {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
+                    remoteHeader
                     HStack {
                         Picker("Notation", selection: $model.notation) {
                             ForEach(InspectPanelModel.notations, id: \.0) { Text($0.1).tag($0.0) }
                         }
                         .accessibilityIdentifier("inspect.notation")
-                        Picker("Unit", selection: $model.unit) {
-                            ForEach(InspectPanelModel.units, id: \.0) { Text($0.1).tag($0.0) }
+                        Picker("Unit", selection: $model.unitChoice) {
+                            ForEach(InspectPanelModel.unitChoices, id: \.0) { Text($0.1).tag($0.0) }
                         }
                         .accessibilityIdentifier("inspect.unit")
                         Picker("Scale", selection: $model.scale) {
-                            ForEach(InspectPanelModel.scales, id: \.self) { Text("\(Int($0))×").tag($0) }
-                            if !InspectPanelModel.scales.contains(model.scale) { Text(InspectPanelModel.scaleTitle(model.scale)).tag(model.scale) }
+                            ForEach(model.scaleChoices, id: \.self) { Text(InspectPanelModel.scaleTitle($0)).tag($0) }
                         }
                         .accessibilityIdentifier("inspect.scale")
                         // A custom factor (inspect.adoc, "Units and scale").
@@ -250,6 +452,7 @@ struct InspectPanelBody: View {
                                 Spacer()
                                 Text(row.value).monospacedDigit()
                             }
+                            .background(Self.flashBackground(model, row.label))
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("inspect.layout.\(row.label)")
@@ -292,6 +495,7 @@ struct InspectPanelBody: View {
                         .font(.system(size: 11, design: .monospaced))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Self.flashBackground(model, "Code"))
                         .accessibilityIdentifier("inspect.code")
                     Button("Copy", action: Self.copyingCode(model, model.tab)).accessibilityIdentifier("inspect.copy")
                     Text("Export").font(.headline)
@@ -306,8 +510,15 @@ struct InspectPanelBody: View {
                 }
                 .padding()
             }
+        } else if model.isWaitingForRemote {
+            VStack(alignment: .leading, spacing: 10) {
+                remoteHeader
+                Text("Waiting for object…").font(.callout).foregroundStyle(.secondary).accessibilityIdentifier("inspect.waiting")
+            }
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
-            Text("Select an object to inspect it.")
+            Text(model.remote.isActive ? "\(model.remote.name) has nothing selected." : "Select an object to inspect it.")
                 .font(.callout).foregroundStyle(.secondary).padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .accessibilityIdentifier("inspect.empty")

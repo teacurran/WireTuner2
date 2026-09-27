@@ -69,6 +69,8 @@ targets:
       - path: WTExtensions/Shared
       # The share extension's hand-off (IMG-026): the app parses its URL and its tests cover it.
       - path: WTExtensions/Share/ShareHandoff.swift
+      # The Spotlight importer's mapping (IO-035), compiled into the app so its tests cover it.
+      - path: WTExtensions/Spotlight/SpotlightImport.swift
     info:
       path: WTApp/Info.plist
       properties:
@@ -162,6 +164,14 @@ targets:
             NSMessage: addToDocument
             NSPortName: WireTuner
             NSSendTypes: [public.image, com.adobe.pdf, public.svg-image, public.rtf, public.utf8-plain-text]
+        # A UFO font source (font-export.adoc, "UFO packages"; FONT-024): a folder
+        # package no app on the Mac declares, imported here so the Open panel and the Finder know it.
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: org.unifiedfontobject.ufo
+            UTTypeDescription: UFO Font Source
+            UTTypeConformsTo: [com.apple.package, public.directory]
+            UTTypeTagSpecification:
+              public.filename-extension: [ufo]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor
@@ -183,6 +193,12 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [com.adobe.pdf, com.adobe.encapsulated-postscript]
+          # A UFO opens as a typeface document (FONT-024); other font editors own the type.
+          - CFBundleTypeName: UFO Font Source
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSTypeIsPackage: true
+            LSItemContentTypes: [org.unifiedfontobject.ufo]
     entitlements:
       path: WTApp/WireTuner.entitlements
       properties:
@@ -204,6 +220,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner
         PRODUCT_NAME: WireTuner
+        # The Help Book phase above (BASIC-007).
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         # The Keycloak realm (issuer) and the API.  Defaults: the compose stack (keycloak on
         # host port 8180, api on 8080); override per configuration or on the command line.
         WT_AUTH_ISSUER: http://localhost:8180/realms/wiretuner
@@ -213,6 +231,29 @@ targets:
         # App only: a hardened XCUITest runner refuses to load an ad-hoc-signed test bundle
         # ("different Team IDs"), so the test targets are not hardened.
         ENABLE_HARDENED_RUNTIME: YES
+    # The Help Book (BASIC-007; building.adoc, "Help Book"): `make help-book` renders the guide into
+    # client/build/HelpBook, and this phase copies it into Resources/HelpBook, where the Help panel
+    # loads a page by slug.  Without it (a plain local build) the panel shows its catalog pages and
+    # any copy left from an earlier build is removed.
+    # The phase copies a folder whose files are not known when the project is generated, which a
+    # sandboxed script may not read, so script sandboxing is off for this target (its only script).
+    postBuildScripts:
+      - name: Help Book
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/HelpBook
+        script: |
+          set -eu
+          book="${SRCROOT}/build/HelpBook"
+          dest="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/HelpBook"
+          rm -rf "$dest"
+          if [ -f "$book/index.html" ]; then
+            mkdir -p "$dest"
+            cp -R "$book/" "$dest/"
+            echo "Help Book: $(ls "$dest" | wc -l | tr -d ' ') files"
+          else
+            echo "Help Book: none (run make help-book); the Help panel uses its catalog pages"
+          fi
     dependencies:
       - package: WTProto
       - package: WTCRDT
@@ -228,6 +269,8 @@ targets:
       - target: WireTunerThumbnail
       - target: WireTunerPreview
       - target: WireTunerShare
+      # The Spotlight importer for packages on disk (saving.adoc, "Client"; IO-035).
+      - target: WireTunerSpotlightImporter
 
   # Quick Look for .wiretuner packages (IO-034): sandboxed, no network, no WTModel; they read
   # the package's zip directory through WTExtensions/Shared/PackagePeek.swift.
@@ -332,6 +375,40 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES
+
+  # Spotlight for .wiretuner packages on disk (IO-035): a CSImportExtension, sandboxed with no
+  # network.  Unlike the Quick Look extensions it links WTModel: the attributes come from the
+  # snapshot, decoded with the app's zstd and protobuf reader (WTModel/PackageSpotlight.swift).
+  WireTunerSpotlightImporter:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: WTExtensions/Spotlight
+        excludes: ["Info.plist", "WireTunerSpotlightImporter.entitlements"]
+    info:
+      path: WTExtensions/Spotlight/Info.plist
+      properties:
+        CFBundleDisplayName: WireTuner Spotlight Importer
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.spotlight.import
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ImportExtension
+          NSExtensionAttributes:
+            CSSupportedContentTypes: [com.villagecompute.wiretuner.package]
+    entitlements:
+      path: WTExtensions/Spotlight/WireTunerSpotlightImporter.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.spotlight-importer
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    dependencies:
+      - package: WTModel
+      - sdk: CoreSpotlight.framework
 
   WireTunerTests:
     type: bundle.unit-test

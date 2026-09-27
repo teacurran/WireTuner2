@@ -163,7 +163,7 @@ final class DocumentHandle: Identifiable, CommandSink {
 
     private func attach(_ model: WTModel.Document) {
         self.model = model
-        pageList = PageList(model.state)
+        pageList = canvasPages(model.state)
         builder.rebuild(model.state)
         _ = builder.setBackground(backgroundItems(model.state), state: model.state)
         modelObservation = model.observe { [weak self] event in self?.modelDidChange(event) }
@@ -245,7 +245,7 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// page in page order.
     private func readPages(_ state: EngineState) -> (furniture: Bool, structure: Bool) {
         let old = pageList
-        let next = PageList(state)
+        let next = canvasPages(state)
         guard next != old else { return (false, false) }
         pageList = next
         selectedPageIDs.removeAll { next[$0] == nil }
@@ -254,6 +254,14 @@ final class DocumentHandle: Identifiable, CommandSink {
             activePageID = next.pages[min(index, next.pages.count - 1)].id
         }
         return (old.frames() != next.frames(), true)
+    }
+
+    /// The pages this handle's canvas reads: a master tab reads its master as the one page at the
+    /// canvas origin, so the Document panel, rulers, guides and the Page tool act on the master
+    /// (DOC-012, `PageList.onMasterCanvas`); every other canvas reads the document's pages.
+    private func canvasPages(_ state: EngineState) -> PageList {
+        let pages = PageList(state)
+        return canvasNode.flatMap { pages.onMasterCanvas($0) } ?? pages
     }
 
     // MARK: Preview (COLOR-017)

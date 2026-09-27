@@ -68,6 +68,15 @@ deterministically, so the committed file is compared byte for byte:
   `make docs-check` runs it, and the client workflow runs it before the package tests, as the
   proto workflow fails on generated-Swift drift.
 
+[[help-book]]
+=== Help Book
+
+The Help panel shows the rendered guide when the app carries it (BASIC-007): `make help-book`
+(`tools/help/help-book.sh`, which needs the asciidoctor CLI) renders every guide page to
+`client/build/HelpBook/<slug>.html` and checks each catalog slug has one, and the app target's *Help
+Book* build phase copies the folder into the bundle's `Resources/HelpBook`.  Run it before a release
+build; without it the panel falls back to pages generated from the catalog.
+
 == Reporting a task
 
 The report names: the task id; files created and changed; the exact verify commands run and

@@ -313,8 +313,18 @@ at the nearest join, the Kern field, btn:[−10] / btn:[+10], *Class* (writes `S
 two glyphs' classes), btn:[Remove Pair], btn:[Remove All Kerning] and the list of pairs.  The
 compiled preview is `FontGeneration.snapshot` → `FontCompiler.quickCompile` →
 `CTFontCreateWithGraphicsFont`, on demand rather than debounced.  Not built: drags on the setting
-(width, LSB, kern), text history and presets, editing values in the table, the Features pop-up
-(there is no feature compile), and the Spacing Overview.  The Kerning Classes editor and Auto Kern came with FONT-021.
+(width, LSB, kern), text history and presets, editing values in the table, and the Spacing Overview.
+
+NOTE: As built by FONT-020's rest (`WTModel/PreviewFeatures.swift`, `WTApp/Typeface/MetricsWindow.swift`).  The
+*Features* pop-up beside btn:[Preview Compiled Font] lists, once the preview has compiled, the automatic features the
+generator writes for the font (kern, mark, mkmk, liga, marked *automatic*) and then the tags of the user's feature file
+in file order -- a tag also generated is listed once -- when the file checks clean (`FeatureChecker`, the same glyph
+names and generated tags `FontCompiler` uses); otherwise a warning under the pop-up says only the automatic features can
+be previewed.  Each is a switch: the automatic ones and the features text engines apply by default (ccmp, locl, rlig,
+liga, clig, calt, kern, mark, mkmk, curs, rclt) start on, the rest (smcp, swsh, ssNN…) off; a switch reshapes the preview
+at once (`CTFontCreateCopyWithAttributes` with `kCTFontFeatureSettingsAttribute`, each listed tag set to 1 or 0) without
+compiling again, and the choices survive later compiles.  Deviation: the compile is still on demand (the button), not
+debounced on every change.  The Kerning Classes editor and Auto Kern came with FONT-021.
 
 NOTE: As built by FONT-021 (`WTApp/Typeface/KerningClassesSheet.swift`, `TypefaceTools.swift`;
 `WTModel/AutoKern.swift`, a new file).  menu:Font[Kerning Classes…] (kbd:[Cmd+Option+K]) opens the

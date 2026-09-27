@@ -392,6 +392,60 @@ final class ReviewSheetModel {
         return command.map { context.perform($0) }
     }
 
+    /// The choices under a *Same text* paragraph: mine, theirs or both for a text block
+    /// (reconcile.adoc, "Paragraph choices"); yours, theirs or the merged text for a line of the
+    /// feature file (opentype-features.adoc, "Working with others"; FONT-022), where a second copy
+    /// of a rule would only be another thing to tidy.
+    enum ParagraphChoice: Equatable, Sendable {
+        case mine, theirs, both, merged
+
+        var title: String {
+            switch self {
+            case .mine: "Use mine"
+            case .theirs: "Use theirs"
+            case .both: "Keep both"
+            case .merged: "Keep merged"
+            }
+        }
+    }
+
+    /// Whether `paragraph` is a line of the typeface's feature file (the settings node's
+    /// `FontProps.features`).
+    func isFeatureFile(_ paragraph: ParagraphRow) -> Bool {
+        selectedRow?.entry?.node == WellKnown.settings && paragraph.field == FontFields.features
+    }
+
+    func paragraphChoices(_ paragraph: ParagraphRow) -> [ParagraphChoice] {
+        isFeatureFile(paragraph) ? [.mine, .theirs, .merged] : [.mine, .theirs, .both]
+    }
+
+    /// "Feature file, line 4" over a feature-file paragraph (its line in the merged text); nil for a
+    /// text block's.
+    func paragraphTitle(_ paragraph: ParagraphRow) -> String? {
+        guard isFeatureFile(paragraph), let entry = selectedRow?.entry, let text = merged.store.text(entry.node, paragraph.field),
+              let first = paragraph.ids.first(where: { !text.isDeleted($0) }) ?? paragraph.ids.first else { return nil }
+        let newline = UInt32(("\n" as Unicode.Scalar).value)
+        let line = text.order.prefix { $0 != first }.filter { !text.isDeleted($0) && text.codepoint($0) == newline }.count + 1
+        return "Feature file, line \(line)"
+    }
+
+    /// A paragraph choice by name: *Use theirs* on a feature-file line rewrites it to the others'
+    /// text, *Keep merged* writes nothing; the rest as `perform(_:paragraph:)`.
+    @discardableResult
+    func perform(_ choice: ParagraphChoice, paragraph: ParagraphRow) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        switch choice {
+        case .mine: return perform(.useMine, paragraph: paragraph)
+        case .both: return perform(.keepBoth, paragraph: paragraph)
+        case .theirs where !isFeatureFile(paragraph): return perform(.useTheirs, paragraph: paragraph)
+        case .theirs, .merged:
+            guard allowsChoices, let row = selectedRow, let entry = row.entry, let text = merged.store.text(entry.node, paragraph.field) else { return nil }
+            reviewed.insert(paragraph.id)
+            guard choice == .theirs else { return nil }
+            return ParagraphChoices.useTheirs(node: entry.node, field: paragraph.field, text: text, ids: paragraph.ids, sides: sides, name: row.name)
+                .map { context.perform($0) }
+        }
+    }
+
     func isReviewed(_ id: String) -> Bool { reviewed.contains(id) }
 
     // MARK: Data-merge rows (DATA-023)

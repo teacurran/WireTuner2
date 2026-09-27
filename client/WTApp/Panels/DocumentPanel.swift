@@ -58,6 +58,11 @@ struct DocumentPanelModel {
     /// master's).
     var followsMaster: Bool { pages.allSatisfy(\.isChild) }
 
+    /// A master page's tab is in front (DOC-012): the page controls read and write the master; it
+    /// follows no master and page order does not apply.
+    var isMasterTab: Bool { document.pageList.isMasterCanvas }
+    static let masterTabHelp = "A master page follows no master"
+
     // MARK: Page size
 
     /// The title the Page Size pop-up item custom is shown with.
@@ -137,6 +142,7 @@ struct DocumentPanelModel {
     /// The Master Page pop-up: a master applies to the selected pages ("Apply master page"); *None*
     /// detaches them keeping their size ("Detach from master page").
     func chooseMaster(_ id: OpID?) {
+        guard !isMasterTab else { return }
         if let id {
             let pending = pages.filter { $0.master != id }.map(\.id)
             guard !pending.isEmpty else { return }
@@ -156,6 +162,11 @@ struct DocumentPanelModel {
         let document = self.document
         let page = document.activePage
         let pageCount = document.pageList.pages.count
+        // On a master's tab the page commands (order, duplicates, masters, release) do not apply.
+        guard !isMasterTab else {
+            return ["Add Pages…", "Duplicate", "Remove", "Move Page…", "New Master Page", "Convert to Master Page", "Release Child Page"]
+                .map { PanelMenuItem(title: $0, isEnabled: false) {} }
+        }
         return [
             PanelMenuItem(title: "Add Pages…") { window.presentAddPagesSheet() },
             PanelMenuItem(title: "Duplicate") { window.objectEditing.perform(DuplicatePage(page.id)) },
@@ -285,6 +296,8 @@ struct DocumentPanelControls: View {
                     Text(DocumentPanelModel.noMaster).tag(OpID?.none)
                     ForEach(model.masters) { Text(Self.masterName($0)).tag(OpID?.some($0.id)) }
                 }
+                .disabled(model.isMasterTab)
+                .help(model.isMasterTab ? DocumentPanelModel.masterTabHelp : "")
                 .accessibilityIdentifier("document.master")
                 Button("Edit", action: Self.editMaster(model))
                     .disabled(MasterTabs.editableMaster(in: model.window) == nil)

@@ -48,12 +48,18 @@ public struct SVGWriter: Sendable {
     /// the object's bounds, instead of their posters (WEB-028): the SVG exporter's choice.  The
     /// HTML publisher places them itself and snippets keep the poster.
     public var nestsSVGAnimations = false
+    /// The `target` of a link that does not open a new tab: nil (the file's own window) for a
+    /// standalone SVG, `_top` for a page the HTML publisher embeds with `<object>`, so a click
+    /// navigates the page rather than the object's frame (WEB-008).
+    public var sameTabTarget: String?
 
-    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:], linkedFiles: SVGLinkedFiles? = nil, nestsSVGAnimations: Bool = false) {
+    public init(options: SVGOptions = .defaults, pageHrefs: [Int: String] = [:], linkedFiles: SVGLinkedFiles? = nil, nestsSVGAnimations: Bool = false,
+                sameTabTarget: String? = nil) {
         self.options = options
         self.pageHrefs = pageHrefs
         self.linkedFiles = linkedFiles
         self.nestsSVGAnimations = nestsSVGAnimations
+        self.sameTabTarget = sameTabTarget
     }
 
     /// `page` as SVG; linked images go in `resourceFolder` (relative to the SVG).
@@ -62,6 +68,7 @@ public struct SVGWriter: Sendable {
         build.pageHrefs = pageHrefs
         build.linkedFiles = linkedFiles
         build.nestsSVGAnimations = nestsSVGAnimations
+        build.sameTabTarget = sameTabTarget
         return build.document()
     }
 }
@@ -91,6 +98,8 @@ final class SVGBuild {
     var outlinedFonts: [SVGOutlinedFont] = []
     /// `SVGWriter.nestsSVGAnimations`.
     var nestsSVGAnimations = false
+    /// `SVGWriter.sameTabTarget`.
+    var sameTabTarget: String?
     /// Placed animations written as files, by content (`.link` images).
     var animationFiles: [Data: String] = [:]
     /// Whether accessibility markup is written (IO-031): some object of the document has alt
@@ -289,7 +298,7 @@ final class SVGBuild {
             href = info.url.flatMap(WebLinks.href)
         }
         guard let href else { return nil }
-        let target = info.linkTarget == .newTab && info.pageLink.flatMap({ pageHrefs[$0] }) == nil ? "_blank" : nil
+        let target = info.linkTarget == .newTab && info.pageLink.flatMap({ pageHrefs[$0] }) == nil ? "_blank" : sameTabTarget
         return ([("xlink:href", href), ("target", target)], info.linkAlt)
     }
 

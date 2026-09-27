@@ -231,6 +231,15 @@ switches) is built.  The Features editor window waited for `FeatureChecker` and 
 which FONT-019 built later (`FeatureChecker.swift`, `FeatureCompiler.swift`); the window came with
 FONT-022's editor note at the end of this page.
 
+NOTE: As built by FONT-022's rest (`WTApp/Review/ReviewSheetModel.swift`, `ReviewSides.swift`, `ReviewSheetView.swift`).
+Feature text both sides edited in one line offline is the settings node's *Same text* row (FONT-029); its paragraphs are
+the file's lines, each shown under "Feature file, line N" (its line in the merged text) with the character diff and the
+choices this page names: btn:[Use mine] and btn:[Use theirs] rewrite the line to that side's text (`ParagraphChoices`:
+characters only the other side has deleted, runs the chosen side kept typed again in place; "Use my text for …", "Use
+their text for …"), btn:[Keep merged] writes nothing and marks the line reviewed.  A text block's paragraphs keep *Use
+mine*, *Use theirs* (nothing written) and *Keep both*.  Deviation: the choice is per line (the merge semantics' paragraph),
+not per feature block.  Not built: the Features editor window itself.
+
 NOTE: As built by FONT-019 (`WTInterchange/Fonts/Features/`: `FeatureSyntax.swift`,
 `FeatureChecker.swift`, `FeatureGenerator.swift`, `FeatureCompiler.swift`, `FeatureTables.swift`;
 `WTModel/FeatureFileRename.swift`).  This supersedes the FONT-018 deviation above: the feature file

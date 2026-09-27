@@ -56,7 +56,7 @@ enum PreferencesPage {
             "Sync preferences with my account", "Undo levels", "Auto-merge below", "Ask when overlap exceeds",
             "Ask when overlap share exceeds", "Always ask when anything overlaps", "Suggest review after", "Keep both offset",
             "Show my cursor and selection to others", "Show others' cursors", "Show others' selections",
-            "Offline snapshot interval", "Show names on collaborators' cursors", "Show Pins", "Show Resolved Pins", "Pins Follow Filter",
+            "Offline snapshot interval", "Show names on collaborators' cursors", "Show Pins", "Show Resolved Pins", "Pins Follow Filter", "Inspect unit", "Inspect scale",
         ]),
         (.automation, ["Highlight data fields", "Embed sample records", "Show script console on error"]),
         (.printing, ["Warn about missing fonts before printing"]),
@@ -75,14 +75,14 @@ enum PreferencesPage {
     static let localRows: Set<String> = [
         "Default image editor", "Remember window size and location", "Paste formats", "Clipboard formats", "Open exported file with",
         "Preview browser", "Smart guide color", "Color management", "Monitor, composite and separations profiles",
-        "Sync preferences with my account", "Offline snapshot interval", "Highlight data fields", "Show script console on error",
+        "Sync preferences with my account", "Offline snapshot interval", "Inspect unit", "Inspect scale", "Highlight data fields", "Show script console on error",
     ]
 }
 
 @Suite @MainActor struct PreferenceCatalogTests {
     @Test func catalogCoversEveryRowOfThePage() {
         let pageRows = PreferencesPage.rows.flatMap(\.1)
-        #expect(pageRows.count == 127, "the page's tables have 127 rows")
+        #expect(pageRows.count == 129, "the page's tables have 129 rows")
         // Hidden keys (the synced recents, DOC-020) are not rows of the window.
         let shown = PreferenceCatalog.all.filter { $0.control != .hidden }
         let mapped = Set(shown.map(\.pageRow))
@@ -94,8 +94,8 @@ enum PreferencesPage {
             let keys = PreferenceCatalog.keys(in: category).filter { $0.control != .hidden }
             #expect(Array(NSOrderedSet(array: keys.map(\.pageRow))) as? [String] == rows, "\(category) rows in page order")
         }
-        // 127 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
-        #expect(shown.count == 132 && PreferenceCatalog.all.count == 133)
+        // 129 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
+        #expect(shown.count == 134 && PreferenceCatalog.all.count == 135)
         for (row, ids) in PreferencesPage.compoundRows {
             #expect(PreferenceCatalog.all.filter { $0.pageRow == row }.map(\.id) == ids)
         }

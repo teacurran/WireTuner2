@@ -127,8 +127,9 @@ enum InspectModeError: Error, Equatable {
     case readOnly
 }
 
-/// The pointer in Inspect mode: hovering measures, a click selects (to measure from it),
-/// kbd:[Shift] freezes the overlay, kbd:[Esc] leaves the mode.
+/// The pointer in Inspect mode: hovering measures, a click selects (to measure from it) -- or, on
+/// a collaborator's name tag, inspects their selection --, kbd:[Shift] freezes the overlay,
+/// kbd:[Esc] leaves the mode.
 @MainActor
 final class InspectTool: Tool, PointerTracking {
     static let id: ToolID = "inspect"
@@ -145,7 +146,7 @@ final class InspectTool: Tool, PointerTracking {
     func deactivate() { context = nil }
 
     func mouseDown(_ e: CanvasEvent) {
-        guard let context else { return }
+        guard let context, !inspectsNameTag(at: e.viewPoint) else { return }
         context.selection.click(at: e.viewPoint, viewport: context.host.viewport, modifiers: e.modifiers, subselect: false)
         controller?.hover(e)
     }

@@ -296,9 +296,22 @@ window stamps every pointer, viewport, page and selection write with its master 
 clears it, so the shared frame says which space the cursor is in; each window draws only the collaborators on its own canvas,
 the hover card reads "On Master A" (or "Editing Logo on Master A"), and Follow applies a followed view only when it is on the
 window's canvas.  The server relays the field as it relays the rest of the frame.  A master row's double-click in the Library
-panel opens the master in its tab (`SymbolLibraryModel.editMaster`, through the Document panel's btn:[Edit] route).  Not built:
-the Document panel, rulers, guides and Page tool acting on the master while its tab is frontmost.  When
+panel opens the master in its tab (`SymbolLibraryModel.editMaster`, through the Document panel's btn:[Edit] route).  When
 DOC-013's `ReleaseReview`/`UpdateReleasedCopies` land in WTSync, `MasterRelease` and `UpdateReleaseCopies` should give way to them.
+
+NOTE: As built by DOC-012's rest (`WTModel/MasterCanvasPages.swift`; `DocumentHandle.canvasPages`, `DocumentPanel.swift`,
+`PageTool.swift`).  A master tab's handle reads its pages through `PageList.onMasterCanvas`: the master as the one page -- its
+id, name, geometry, bleed and guides, at the canvas origin, the zero point at its bottom-left corner -- with the document's
+masters and settings.  Everything that reads the handle's pages therefore acts on the master while its tab is in front, sending
+the master's id to commands that already take a master page: the Document panel's *Page Size*, orientation and *Bleed*
+(`SetPageGeometry`, `SetPageOrientation`, `SetBleed`), the rulers (their zero point is the master's), guides dragged from the
+rulers or moved (`AddGuides`, `MoveGuide`, `DeleteGuides` on the master's `guides`), and the Page tool's handles.  On a master tab
+the *Master Page* pop-up and btn:[Edit] are disabled (a master follows no master) and the Options menu's page commands are
+disabled; the Page tool selects the master and resizes it from any handle keeping its top-left corner at the origin (size only),
+turns it in place with `SetPageOrientation` (a master has no centre on the pasteboard for `RotatePages`), and refuses to move,
+copy or remove it ("A master page has no place on the pasteboard…").  Deviations: the zero point cannot be moved on a master
+(`MasterPageProps` has no ruler origin; the drop fails harmlessly); *Modify Page* (kbd:[Option]-double-click) is not offered on a
+master tab.
 
 === Build tasks
 

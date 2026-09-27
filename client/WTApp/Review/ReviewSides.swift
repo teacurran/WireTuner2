@@ -194,11 +194,27 @@ struct KeepBothCopies: WTModel.Command {
 /// The paragraph choices of a *Same text* row (reconcile.adoc): *Use mine* rewrites the merged
 /// paragraph to the local text (deleting what only the others added, re-typing what they
 /// deleted); *Keep both* adds the local text as a paragraph after the merged one.  *Use theirs*
-/// writes nothing.
+/// writes nothing for a text block; for the feature file, whose review offers yours, theirs or the
+/// merged text (opentype-features.adoc, "Working with others"; FONT-022), `useTheirs` rewrites the
+/// line to the others' text the same way.
 enum ParagraphChoices {
     static func useMine(node: OpID, field: RegisterPath, text: TextSequence, ids: [OpID], sides: ChangeSides, name: String) -> OpsCommand? {
+        rewrite(node: node, field: field, text: text, ids: ids, label: "Use my text for \(name)") {
+            ParagraphDiff.presence($0, in: text, sides: sides)?.mine ?? false
+        }
+    }
+
+    static func useTheirs(node: OpID, field: RegisterPath, text: TextSequence, ids: [OpID], sides: ChangeSides, name: String) -> OpsCommand? {
+        rewrite(node: node, field: field, text: text, ids: ids, label: "Use their text for \(name)") {
+            ParagraphDiff.presence($0, in: text, sides: sides)?.theirs ?? false
+        }
+    }
+
+    /// The paragraph `ids` rewritten to the characters `keeps` says the chosen side has: live characters
+    /// it lacks deleted, deleted runs it has typed again in place.
+    private static func rewrite(node: OpID, field: RegisterPath, text: TextSequence, ids: [OpID], label: String,
+                                keeps: (OpID) -> Bool) -> OpsCommand? {
         let order = text.order
-        func inMine(_ id: OpID) -> Bool { ParagraphDiff.presence(id, in: text, sides: sides)?.mine ?? false }
         func neighbour(_ id: OpID, _ step: Int) -> OpID {
             guard let index = order.firstIndex(of: id), order.indices.contains(index + step) else { return .zero }
             return order[index + step]
@@ -207,14 +223,14 @@ enum ParagraphChoices {
         var index = 0
         while index < ids.count {
             let id = ids[index]
-            if !text.isDeleted(id), !inMine(id) {
+            if !text.isDeleted(id), !keeps(id) {
                 ops.append(Ops.textDelete(node, field, first: id, count: 1))
                 index += 1
-            } else if text.isDeleted(id), inMine(id) {
-                // A run the others deleted that the local side kept: typed again in place.
+            } else if text.isDeleted(id), keeps(id) {
+                // A deleted run the chosen side kept: typed again in place.
                 var end = index
                 var run = ""
-                while end < ids.count, text.isDeleted(ids[end]), inMine(ids[end]) {
+                while end < ids.count, text.isDeleted(ids[end]), keeps(ids[end]) {
                     run += ParagraphDiff.character(ids[end], in: text)
                     end += 1
                 }
@@ -224,7 +240,7 @@ enum ParagraphChoices {
                 index += 1
             }
         }
-        return ops.isEmpty ? nil : OpsCommand("Use my text for \(name)", ops: ops)
+        return ops.isEmpty ? nil : OpsCommand(label, ops: ops)
     }
 
     static func keepBoth(node: OpID, field: RegisterPath, text: TextSequence, ids: [OpID], sides: ChangeSides, name: String) -> OpsCommand? {

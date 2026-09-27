@@ -14,7 +14,8 @@ import WTRender
 /// centre); just outside them the page rotates, snapping between portrait and landscape at 45°.
 /// A child of a master shows dimmed handles and refuses both.  kbd:[Delete] removes the selected
 /// pages (asking first when they hold objects); kbd:[Option]-double-click opens *Modify Page*.
-/// Every gesture is one change and one undo step.
+/// Every gesture is one change and one undo step.  On a master page's tab (DOC-012) the tool
+/// resizes and turns the master, which has no place on the pasteboard to move, copy or remove.
 @MainActor
 final class PageTool: Tool {
     static let id: ToolID = "page"
@@ -27,6 +28,7 @@ final class PageTool: Tool {
     static let statusMessage = "Click a page to select it; drag to move it with its objects (Cmd: the page alone, Option: a copy); drag a handle to resize"
     static let childMessage = "This page follows a master page: change the master instead"
     static let lastPageMessage = "A document keeps at least one page"
+    static let masterMessage = "A master page has no place on the pasteboard: resize or turn it here, or change its pages in the document"
 
     static var descriptor: ToolDescriptor {
         ToolCatalog.all.first { $0.id == id }!.delivering { PageTool() }
@@ -119,6 +121,13 @@ final class PageTool: Tool {
             gesture = .marquee
             return
         }
+        if document.pageList.isMasterCanvas {
+            document.selectPages([page.id])
+            gesture = nil
+            context.host.showStatusMessage(Self.masterMessage)
+            context.host.setNeedsOverlayDisplay()
+            return
+        }
         if e.clickCount >= 2, e.modifiers.contains(.option) {
             gesture = nil
             context.modifyPage?(page.id)
@@ -168,10 +177,12 @@ final class PageTool: Tool {
             }
         case .resize(let id, let anchor):
             guard isDragging, let page = document.pageList[id], let rect = resizedRect(page, anchor: anchor, to: e) else { return }
-            context.commandSink.perform(Self.resizeCommand(page, to: rect))
+            context.commandSink.perform(Self.resizeCommand(page, to: rect, isMaster: document.pageList.isMasterCanvas))
         case .rotate(let id):
             guard isDragging, let start, let page = document.pageList[id], Self.rotates(page.rect.center, from: start.pasteboardPoint, to: e.pasteboardPoint) else { return }
-            context.commandSink.perform(RotatePages([id]))
+            // A master turns in place (it has no centre on the pasteboard to turn about).
+            context.commandSink.perform(document.pageList.isMasterCanvas
+                ? SetPageOrientation([id], to: page.geometry.orientation == .portrait ? .landscape : .portrait) : RotatePages([id]))
         }
     }
 
@@ -187,7 +198,7 @@ final class PageTool: Tool {
         let document = context.document
         let pages = document.selectedPages
         guard pages.count < document.pageList.pages.count else {
-            context.host.showStatusMessage(Self.lastPageMessage)
+            context.host.showStatusMessage(document.pageList.isMasterCanvas ? Self.masterMessage : Self.lastPageMessage)
             return
         }
         let state = document.state
@@ -260,10 +271,11 @@ final class PageTool: Tool {
 
     /// The change a resize to `rect` writes: the geometry (now *Custom*), and the origin when the
     /// top or left edge moved -- one change, "Change page size".
-    static func resizeCommand(_ page: Page, to rect: Rect) -> any WTModel.Command {
+    static func resizeCommand(_ page: Page, to rect: Rect, isMaster: Bool = false) -> any WTModel.Command {
         let geometry = SetPageGeometry([page.id], to: PageGeometry(width: rect.width, height: rect.height))
         let moved = Vector(dx: rect.minX - page.rect.minX, dy: rect.minY - page.rect.minY)
-        guard moved != .zero else { return geometry }
+        // A master keeps its top-left corner at its canvas origin: only its size changes.
+        guard moved != .zero, !isMaster else { return geometry }
         return CommandBatch(geometry.label, [MovePage(page.id, by: moved, withContents: false), geometry])
     }
 

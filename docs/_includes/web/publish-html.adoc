@@ -446,10 +446,40 @@ with script under *Allow scripts* is written to `animations/<hash>.svg` and embe
 autoplay or until `:hover` for *Play on hover*, `animation-iteration-count` infinite or 1 for *Loop*
 and *Once* (CSS animations only; SMIL timelines play as the file says).  Deviations: the animations
 sit above the whole page picture, so an object stacked above a placed animation is drawn beneath it;
-posters are not written to `animations/` (the page no longer draws them).  The WTModel
+posters are not written to `animations/` (the page no longer draws them).  The corpus
+(`WTInterchangeTests/HTMLPublishCorpusTests.swift`, `HTMLWebKitRenderTests.swift`): twenty documents
+-- the export corpus's eight fixtures, links with a page link, placed bitmaps, three pages, two
+layers, text in two faces with a text-range link, Display P3 and OKLab fills, a fractional page
+size, a 400-point page, a coloured page background, pages of two sizes, an empty page and a title
+and names that need escaping -- each published under all eight layout × page mode × vector
+format combinations.  Every HTML file passes an in-process HTML5 checker
+(`Support/HTML5Checker.swift`: doctype, `html`/`head`/`body`, `meta charset` first, one non-empty
+`title`, the elements and attributes the publisher may write, img `src` and `alt`, integer
+`width`/`height`, `usemap` naming a map, `area` inside a `map` with `alt` and well-formed `coords`,
+unique ids and map names, no bare `&`, no obsolete markup, every referenced file in the bundle);
+every SVG file parses as XML and passes the SVG 1.1 element and attribute tables the SVG exporter's
+tests use, with its images, fonts and page links present; republishing is byte-identical.  When
+HTML Tidy is installed it runs over every page too (offline), and no error is allowed.  Each page of
+each bundle is then loaded from disk into a headless `WKWebView` (package tests, macOS only) and its
+`<section>` snapshotted and compared with the Core Graphics renderer's render of the page at the
+snapshot's scale: at most 2% of pixels may differ by more than 40 in a channel (3% for text and
+3.5% for the half-pixel edges of a fractional page, 6% for the sampled paints and raster effects
+SVG filters approximate).  Found and fixed by it: fractional page sizes were written as `width` and
+`height` on `<img>` and `<object>`, which HTML requires to be integers (now rounded, the style sheet
+sizing the picture to the page's exact size); an SVG page's page links named `page-2.html` or
+`#page-2` from inside `pages/` or `objects/` and navigated only the `<object>`'s frame (now
+`../page-2.html` or `../index.html#page-2` with `target="_top"`, and same-tab links `_top` too:
+`SVGWriter.sameTabTarget`); PNG pages ignored *Page background* White (drawn over the page
+colour); and in Positioned objects each object's PNG was painted over the page colour, hiding the
+objects beneath it (object PNGs are now transparent).  Deviations: the validator is not the W3C's
+(vnu needs Java and a download; none runs in CI), and the CSS Color 4 on/off rendering of a P3 fill
+is not compared (a `WKWebView` offers no switch for it); the P3 and OKLab fills are compared as
+rendered.  Known issue, recorded in the render test: PNG pages draw placed images as their
+placeholders, because the package's bitmap exporter has no `ImageStore` (as every bitmap export
+from the package does); SVG pages carry the images.  The WebKit comparison takes about ten minutes
+in a Debug `swift test` under load, most of it the PNG pages' rendering.  The WTModel
 half that fills `ExportScene.svgAnimations` from `svg_animation` nodes is `ExportSnapshot`'s (WEB-024's
-`SvgAnimationInfo` and the asset blobs).  *Not built yet:* HTML5 validation and the headless WebKit comparison of
-the corpus.
+`SvgAnimationInfo` and the asset blobs).
 
 NOTE: As built by WEB-010, in part (`WTInterchange/Export/ExportWarnings.swift`).  `ExportWarnings`
 is the sink: `ExportWarning(kind, node:, page:, message)`, duplicates dropped, a stable order (page,

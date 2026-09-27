@@ -258,12 +258,18 @@ enum PreferenceCatalog {
         static let showCommentPins = PreferenceKey<Bool>("sync.comments_show_pins", "Show Pins", category: c, default: true, control: .toggle, help: "comments")
         static let showResolvedPins = PreferenceKey<Bool>("sync.comments_show_resolved", "Show Resolved Pins", category: c, default: false, control: .toggle, help: "comments")
         static let pinsFollowFilter = PreferenceKey<Bool>("sync.comments_follow_filter", "Pins Follow Filter", category: c, default: false, control: .toggle, help: "comments")
+        // The Inspect panel's *Unit* and *Scale* pop-ups (inspect.adoc, "Units and scale"; COLLAB-037), local to this Mac.
+        static let inspectUnit = PreferenceKey<String>("sync.inspect_unit", "Inspect unit", category: c, scope: .local, default: "document", control: choices([
+            ("document", "Document units"), ("points", "Points"), ("pixels", "Pixels"), ("millimeters", "Millimeters"), ("centimeters", "Centimeters"),
+            ("inches", "Inches"),
+        ]), help: "inspect")
+        static let inspectScale = PreferenceKey<Double>("sync.inspect_scale", "Inspect scale", category: c, scope: .local, default: 1, control: steps(0.1...16, step: 0.1, "×"), help: "inspect")
 
         static let all: [AnyPreferenceKey] = [
             enabled.erased, undoLevels.erased, autoMergeBelow.erased, askOverlapCount.erased, askOverlapShare.erased,
             alwaysAsk.erased, suggestReviewAfterHours.erased, keepBothOffset.erased, sharePresence.erased,
             showCursors.erased, showSelections.erased, snapshotIntervalMinutes.erased, showCursorNames.erased,
-            showCommentPins.erased, showResolvedPins.erased, pinsFollowFilter.erased,
+            showCommentPins.erased, showResolvedPins.erased, pinsFollowFilter.erased, inspectUnit.erased, inspectScale.erased,
         ]
     }
 

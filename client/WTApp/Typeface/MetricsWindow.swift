@@ -61,7 +61,9 @@ struct MetricsSetting: Hashable {
 /// line set from the glyphs with their kerning; clicking between two glyphs selects the pair, whose
 /// kerning is typed or nudged (by 10 units, 1 with Option); *Class* kerns the two glyphs' classes
 /// instead.  The table lists every kerning pair, and the preview line shapes the same text with
-/// Core Text from a quick compile of the font (`FontCompiler.quickCompile`).
+/// Core Text from a quick compile of the font (`FontCompiler.quickCompile`), with the features the
+/// *Features* pop-up turns on or off (`PreviewFeatures`: the automatic ones, then the feature
+/// file's once it checks clean, else a warning).
 @MainActor
 @Observable
 final class MetricsModel {
@@ -93,6 +95,13 @@ final class MetricsModel {
     /// The compiled preview font, once a quick compile finished.
     private(set) var previewFont: CTFont?
     private(set) var previewStatus = ""
+    /// The *Features* pop-up: what it lists (read with each compile) and which are on.
+    private(set) var features = PreviewFeatures()
+    private(set) var enabledFeatures: Set<String> = []
+    /// The features someone turned on or off in the pop-up, kept across compiles.
+    @ObservationIgnored private var chosenFeatures: [String: Bool] = [:]
+    /// The compiled font before the features are applied.
+    @ObservationIgnored private var compiledFont: CTFont?
     /// The preview's compile: a quick compile of the font (replaced in tests).
     @ObservationIgnored var compile: @Sendable (FontSource) async throws -> Data = { try await FontCompiler().quickCompile($0).data }
 
@@ -204,24 +213,48 @@ final class MetricsModel {
         return task
     }
 
-    /// The preview: a quick compile of the font, loaded with Core Text.
+    /// The preview: a quick compile of the font, loaded with Core Text and shaped with the
+    /// features the pop-up has on.
     @discardableResult
     func compilePreview() -> Task<Bool, Never> {
         let snapshot = FontGeneration.snapshot(document.state)
         let size = pointSize
         let compile = compile
         previewStatus = "Compiling…"
+        setFeatures(PreviewFeatures.of(snapshot.source))
         return Task { [weak self] in
             guard let data = try? await compile(snapshot.source),
                   let provider = CGDataProvider(data: data as CFData), let font = CGFont(provider) else {
                 self?.previewStatus = "The font does not compile yet"
+                self?.compiledFont = nil
                 self?.previewFont = nil
                 return false
             }
-            self?.previewFont = CTFontCreateWithGraphicsFont(font, size, nil, nil)
+            self?.compiledFont = CTFontCreateWithGraphicsFont(font, size, nil, nil)
+            self?.applyFeatures()
             self?.previewStatus = ""
             return true
         }
+    }
+
+    /// Lists `features`, each on as someone chose it or else as it is by default.
+    private func setFeatures(_ features: PreviewFeatures) {
+        self.features = features
+        enabledFeatures = Set(features.items.filter { chosenFeatures[$0.tag] ?? $0.isOnByDefault }.map(\.tag))
+    }
+
+    /// A feature turned on or off in the pop-up: the preview reshapes at once, without compiling.
+    func setFeature(_ tag: String, on: Bool) {
+        guard features.items.contains(where: { $0.tag == tag }) else { return }
+        chosenFeatures[tag] = on
+        if on { enabledFeatures.insert(tag) } else { enabledFeatures.remove(tag) }
+        applyFeatures()
+    }
+
+    func isFeatureOn(_ tag: String) -> Bool { enabledFeatures.contains(tag) }
+
+    private func applyFeatures() {
+        previewFont = compiledFont.map { features.font($0, enabled: enabledFeatures) }
     }
 
     /// The setting as paths in view space for a view `height` tall: each glyph scaled to
@@ -282,7 +315,11 @@ struct MetricsView: View {
             if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red) }
             HStack {
                 Button("Preview Compiled Font", action: model.previewButton)
+                MetricsFeaturesMenu(model: model)
                 Text(model.previewStatus).font(.caption).foregroundStyle(.secondary)
+            }
+            if let warning = model.features.warning {
+                Text(warning).font(.caption).foregroundStyle(.orange).accessibilityIdentifier("metrics.featuresWarning")
             }
             if let font = model.previewFont {
                 Text(model.text).font(Font(font)).lineLimit(1).accessibilityIdentifier("metrics.preview")
@@ -313,6 +350,30 @@ extension MetricsModel {
     func removePairButton() { removePair() }
     func removeAllButton() { removeAll() }
     func previewButton() { compilePreview() }
+}
+
+/// The *Features* pop-up: a switch per feature the preview can shape with (FONT-020); empty until
+/// the preview has compiled once.
+struct MetricsFeaturesMenu: View {
+    let model: MetricsModel
+
+    var body: some View {
+        Menu("Features") {
+            if model.features.items.isEmpty {
+                Text("Preview the compiled font to list its features")
+            }
+            ForEach(model.features.items) { item in
+                Toggle(item.isAutomatic ? "\(item.tag) (automatic)" : item.tag, isOn: binding(item.tag))
+            }
+            if let warning = model.features.warning { Text(warning) }
+        }
+        .fixedSize()
+        .accessibilityIdentifier("metrics.features")
+    }
+
+    func binding(_ tag: String) -> Binding<Bool> {
+        Binding(get: { model.isFeatureOn(tag) }, set: { model.setFeature(tag, on: $0) })
+    }
 }
 
 /// The setting line of the Metrics window, drawn in AppKit.

@@ -43,11 +43,21 @@ final class ModelGlueFeatures {
         pathOperations.install(commands: commands, extensions: extensions)
         self.pathOperations = pathOperations
         inspect.window = window
+        inspect.attach(preferences: preferences)
         panels.groupDefaults[InspectPanel.group] = panels.groupDefaults[InspectPanel.group] ?? PanelGroupDefaults(position: 12, isOpen: false)
         panels.registerIfAbsent(InspectPanel.descriptor(model: inspect))
+        // Inspecting a collaborator's selection (COLLAB-037): the command and the name-tag click.
+        let inspect = inspect
+        let inspectRemote: @MainActor (DocumentWindowController, RemoteParticipant) -> Void = { window, participant in
+            window.environment.layout.showPanel(InspectPanel.id)
+            inspect.inspect(participant)
+        }
+        commands.replace(RemoteSelectionInspection.command(window: window, inspect: inspectRemote))
+        InspectTool.nameTagClicked = inspectRemote
     }
 
-    /// A document window opened: the grid overlay, the link overlay and the Inspect panel follow it.
+    /// A document window opened: the grid overlay, the link overlay and the Inspect panel follow it
+    /// (its selection, its document's changes, its collaborators' presence).
     func attach(_ window: DocumentWindowController) {
         perspective?.attach(window)
         links?.attach(window)
@@ -55,9 +65,10 @@ final class ModelGlueFeatures {
         let previous = window.onSelectionChange
         window.onSelectionChange = { window in
             previous?(window)
-            inspect.touch()
+            inspect.selectionDidChange()
         }
-        window.documentHandle.observe { _ in inspect.touch() }
+        window.documentHandle.observe { _ in inspect.documentDidChange() }
+        window.presence.observe { inspect.presenceDidChange() }
     }
 }
 

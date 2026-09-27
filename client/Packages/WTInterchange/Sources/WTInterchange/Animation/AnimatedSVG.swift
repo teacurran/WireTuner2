@@ -30,6 +30,8 @@ public struct AnimatedSVGOptions: ExportOptions, Hashable {
     /// Placed SVG animations keep playing inside every frame (WEB-028); the HTML publisher, which
     /// places them over the page itself, turns it off.
     public var nestsSVGAnimations = true
+    /// `SVGWriter.sameTabTarget`: `_top` from the HTML publisher, whose pages sit in `<object>`.
+    public var sameTabTarget: String?
 
     public init(svg: SVGOptions = .defaults, fps: Double? = nil, loop: Bool? = nil, autoplay: Bool? = nil, background: ExportAnimation.Background? = nil,
                 pages: Set<Int>? = nil) {
@@ -143,6 +145,7 @@ public struct AnimatedSVGExporter: Sendable {
         let build = SVGBuild(options: options.svg, page: FlatPage(bounds: area, background: background, nodes: []), scene: scene, resourceFolder: "images")
         build.pageHrefs = pageHrefs
         build.nestsSVGAnimations = options.nestsSVGAnimations
+        build.sameTabTarget = options.sameTabTarget
         let backgroundNodes = shared.isEmpty ? [] : flat(shared, over: area)
         let frameNodes = zip(frames, areas).map { frame, rect in flat(Set(frame.layers).subtracting(shared), over: rect) }
         let timing = AnimatedSVGTiming(holds: frames.map(\.hold), fps: options.fps ?? animation.fps)

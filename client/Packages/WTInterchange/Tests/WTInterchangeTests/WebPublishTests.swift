@@ -220,7 +220,10 @@ import WTRender
                 #expect(SVGValidator.problems(root).isEmpty, "\(file.path)")
             }
             let all = svgs.map { String(decoding: $0.data, as: UTF8.self) }.joined()
-            #expect(all.contains("xlink:href=\"https://shop.example.com\"") && all.contains("xlink:href=\"\(pageLink)\""))
+            // SVGs sit in pages/ or objects/ inside an <object>: page links name the HTML file from
+            // there and, like same-tab links, open in the top window.
+            let svgPageLink = mode == .stacked ? "../index.html#page-2" : "../page-2.html"
+            #expect(all.contains("xlink:href=\"https://shop.example.com\"") && all.contains("xlink:href=\"\(svgPageLink)\" target=\"_top\""))
             #expect(index.contains("<object data="))
         case .png:
             #expect(index.contains("<map name=\"map-1"))

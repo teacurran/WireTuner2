@@ -23,6 +23,9 @@ struct ReviewSheetView: View {
     static func paragraph(_ model: ReviewSheetModel, _ action: ReviewAction, _ row: ReviewSheetModel.ParagraphRow) -> () -> Void {
         { model.perform(action, paragraph: row) }
     }
+    static func paragraph(_ model: ReviewSheetModel, choice: ReviewSheetModel.ParagraphChoice, _ row: ReviewSheetModel.ParagraphRow) -> () -> Void {
+        { model.perform(choice, paragraph: row) }
+    }
     static func document(_ model: ReviewSheetModel, _ action: ReviewModel.DocumentAction) -> () -> Void { { model.perform(action) } }
     static func rescaleAll(_ model: ReviewSheetModel) -> () -> Void { { model.performRescaleAll() } }
     static func done(_ model: ReviewSheetModel) -> () -> Void { { Task { await model.done() } } }
@@ -112,12 +115,15 @@ struct ReviewSheetView: View {
             }
             ForEach(model.paragraphRows) { paragraph in
                 VStack(alignment: .leading, spacing: 4) {
+                    if let title = model.paragraphTitle(paragraph) {
+                        Text(title).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("review.paragraph.title")
+                    }
                     Self.diffText(paragraph.diff).accessibilityIdentifier("review.diff")
                     if model.allowsChoices {
                         HStack {
-                            Button("Use mine", action: Self.paragraph(model, .useMine, paragraph))
-                            Button("Use theirs", action: Self.paragraph(model, .useTheirs, paragraph))
-                            Button("Keep both", action: Self.paragraph(model, .keepBoth, paragraph))
+                            ForEach(model.paragraphChoices(paragraph), id: \.title) { choice in
+                                Button(choice.title, action: Self.paragraph(model, choice: choice, paragraph))
+                            }
                         }
                         .controlSize(.small)
                     }

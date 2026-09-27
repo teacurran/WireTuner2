@@ -256,6 +256,8 @@ others see of you.
 |Show Pins |On |Draws comment pins on the canvas; also menu:View[Comments]. xref:comments.adoc#showing-hiding[Comments]
 |Show Resolved Pins |Off |Draws the pins of resolved threads too, in gray.
 |Pins Follow Filter |Off |Draws only the pins of the threads the Comments panel lists.
+|Inspect unit |Document units |The unit the Inspect panel's measurements and snippets read in; the panel's *Unit* pop-up (local). xref:inspect.adoc#units[Inspect mode]
+|Inspect scale |1× |The factor for pixel measurements and PNG copies in the Inspect panel; the panel's *Scale* pop-up, or any factor from 0.1 to 16 here (local).
 |===
 
 A team can set a floor for the review thresholds; when it has, the fields show the team's

@@ -368,7 +368,9 @@ ATOMIC, at most 1 MiB; `FontFields.ufoLibPassthrough`) by one more change when o
 to write back.  Deviations: the field is on `FontProps` (`SettingsProps.font`), where the rest of the font's
 settings live; like the feature file it is written only when opening -- importing into an existing
 typeface keeps that typeface's own, and the report says so, as it does for a lib over 1 MiB.  The app glue came later (the next
-note but one).
+note but one).  The app declares the type (`client/project.yml`): `UTImportedTypeDeclarations`
+`org.unifiedfontobject.ufo` ("UFO Font Source", conforming to `com.apple.package` and `public.directory`, extension `ufo`) and a
+`CFBundleDocumentTypes` entry, role Editor, rank Alternate, `LSTypeIsPackage`, so the Finder opens a UFO in the app.
 
 NOTE: As built by FONT-023 (`WTInterchange/Fonts/UFOWriter.swift`, `WTModel/UFOExport.swift`,
 `WTApp/Typeface/ExportUFOSheet.swift`).  `UFOWriter` writes a UFO 3 package from a neutral

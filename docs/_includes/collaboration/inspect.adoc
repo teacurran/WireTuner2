@@ -355,9 +355,30 @@ a colour, a gradient's kind and stops, or the paint's kind), *Effects* (shadows 
 colour; blur with its radius; any other by name), *Typography* (per run: font, style, size, leading, tracking, colour) and
 *Text* (btn:[Copy Text]); a click on any value copies it.  The unit and scale are remembered on this Mac under
 `inspect.unit` and `inspect.scale` (the preferences' own defaults); kbd:[Option]-click on btn:[PNG 1×] … btn:[PNG 3×]
-saves the PNG to a chosen file; a field beside the *Scale* pop-up takes a custom factor (0.1× to 16×).  Deviation: the two are not rows of the Preferences window yet (the preferences page is a
-shared page; the rows are proposed).  *Not built yet*: the attribution flash on changed rows and remote-selection
-inspection (menu:View[Collaborators > Inspect Selection]).  Tests: `ModelGlueFeaturesTests`, `WTModelTests/ExportSnapshotGlueTests`.
+saves the PNG to a chosen file; a field beside the *Scale* pop-up takes a custom factor (0.1× to 16×).  The Preferences
+rows, the attribution flash and remote-selection inspection came after (the next note).  Tests: `ModelGlueFeaturesTests`,
+`WTModelTests/ExportSnapshotGlueTests`.
+
+NOTE: As built by COLLAB-037's preference rows, flash and remote inspection (`WTApp/Collaboration/InspectPanel.swift`,
+`RemoteSelectionInspection.swift`; `PreferenceCatalog.Sync.inspectUnit` / `inspectScale`).  *Unit* and *Scale* are the
+preferences *Inspect unit* (*Document units* -- the document's unit, picas and kyus reading as points and millimetres -- then
+Points, Pixels, Millimeters, Centimeters, Inches; default Document units) and *Inspect scale* (default 1, 0.1--16, a factor
+other than 1, 2 or 3 added to the pop-up), local rows of *Sync and collaboration*; the pop-ups and the custom field write them
+and follow the Preferences window (`attach(preferences:)`; before it, as in a panel made in a test, the `inspect.unit` and
+`inspect.scale` defaults keys remember them).  Deviation: the preference ids are `sync.inspect_unit` and
+`sync.inspect_scale`, not `inspect.unit` / `inspect.scale`, because a preference id starts with its category
+(preferences.adoc).  The attribution flash: after a document
+change the panel compares its rows (the Layout values and the current Code tab) with the ones it last showed for the same
+objects; the changed rows flash in the author's colour for the pulse's 1.5 s when the window's attribution pulse
+(`AttributionFlashController`, COLLAB-001) is running on one of the inspected objects -- a change of one's own, or one nobody is
+credited with, flashes nothing, and *Flash changes by others* off turns both off.  The comparison runs on the main actor's next
+turn after the change, once the pulse is recorded; the panel is a panel and takes no focus.  Inspecting a collaborator's
+selection: menu:View[Collaborators > Inspect <name>'s Selection] (the collaborator the context menu was opened on, else the
+first present, as *Follow*) or a click on the name tag of their selection outline in Inspect mode (`InspectTool`; outside it a
+click selects as always) shows the panel on their `selection`, headed "Priya's selection" with a btn:[Stop], *Waiting for
+object…* while it names nothing received yet; it follows their presence as it changes (the panel observes the window's
+presence) and stops when the local selection changes, they leave, or btn:[Stop].  Not measured: the 200 ms simulator
+figure (the following is immediate on each presence change).  Tests: `InspectPanelLiveTests`.
 
 NOTE: As built by COLLAB-038 (`WTModel/DeepLink.swift`, `WTApp/Collaboration/DeepLinks.swift`,
 `api/.../links/DeepLinkRedirect.java`).  `DeepLink` formats and parses the three `wiretuner://doc/…`

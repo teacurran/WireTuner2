@@ -69,13 +69,16 @@ public struct HTMLPublisher: Sendable {
         for number in numbers {
             pageHrefs[number] = settings.pageMode == .stacked ? "#page-\(number)" : (number == numbers[0] ? "index.html" : "page-\(number).html")
         }
+        // An SVG page sits in `pages/` or `objects/` inside an `<object>`: its page links name the
+        // HTML file from there and open in the top window (`SVGWriter.sameTabTarget`).
+        let svgPageHrefs = pageHrefs.mapValues { $0.hasPrefix("#") ? "../index.html" + $0 : "../" + $0 }
         var files: [(String, Data)] = []
         var warnings = ExportWarnings()
         var bodies: [String] = []
         let svgOptions = SVGOptions(precision: 2, text: textMode, ids: .fromNames, styling: .presentationAttributes, responsive: true,
                                     pageBackground: false, minify: true, includeDocumentInfo: false)
         let flattener = SVGExporter.flattener(options: svgOptions, scene: scene)
-        let animated = animatedPages(scene, options: svgOptions, pageHrefs: pageHrefs)
+        let animated = animatedPages(scene, options: svgOptions, pageHrefs: svgPageHrefs)
         var animationRules: [String]?
         for index in scene.pages.indices {
             let number = numbers[index]
@@ -93,9 +96,10 @@ public struct HTMLPublisher: Sendable {
             switch settings.layout {
             case .wholePages:
                 body = try wholePage(page, flat: flat.page, number: number, scene: scene, svgOptions: svgOptions, pageHrefs: pageHrefs,
-                                     animated: animated?[index], files: &files, warnings: &warnings)
+                                     svgPageHrefs: svgPageHrefs, animated: animated?[index], files: &files, warnings: &warnings)
             case .positionedObjects:
-                body = try positionedObjects(page, number: number, scene: scene, svgOptions: svgOptions, pageHrefs: pageHrefs, files: &files, warnings: &warnings)
+                body = try positionedObjects(page, number: number, scene: scene, svgOptions: svgOptions, pageHrefs: pageHrefs, svgPageHrefs: svgPageHrefs,
+                                             files: &files, warnings: &warnings)
             }
             bodies.append("<section id=\"page-\(number)\" class=\"page\" style=\"width:\(HTMLText.number(size.width))px;height:\(HTMLText.number(size.height))px\">\(body)\(overlay.elements.joined())</section>")
         }
@@ -142,6 +146,7 @@ public struct HTMLPublisher: Sendable {
         let documents = try? AnimatedSVGExporter().documents(scene: scene, options: {
             var animated = AnimatedSVGOptions(svg: options)
             animated.nestsSVGAnimations = false
+            animated.sameTabTarget = "_top"
             return animated
         }(), pageHrefs: pageHrefs)
         return documents?.count == scene.pages.count ? documents : nil
@@ -175,14 +180,16 @@ public struct HTMLPublisher: Sendable {
     // MARK: Whole pages
 
     func wholePage(_ page: ExportPage, flat: FlatPage, number: Int, scene: ExportScene, svgOptions: SVGOptions, pageHrefs: [Int: String],
-                   animated: SVGDocument?, files: inout [(String, Data)], warnings: inout ExportWarnings) throws -> String {
+                   svgPageHrefs: [Int: String], animated: SVGDocument?, files: inout [(String, Data)], warnings: inout ExportWarnings) throws -> String {
         let alt = HTMLText.escape("\(scene.name), page \(number)")
         let size = page.bounds.size
-        let dimensions = "width=\"\(HTMLText.number(size.width))\" height=\"\(HTMLText.number(size.height))\""
+        // HTML's `width` and `height` are integers; the style sheet sizes the picture to the
+        // page's exact CSS size.
+        let dimensions = "width=\"\(Int(size.width.rounded()))\" height=\"\(Int(size.height.rounded()))\""
         switch settings.vectorFormat {
         case .svg:
             let path = "pages/page-\(number).svg"
-            let document = animated ?? SVGWriter(options: svgOptions, pageHrefs: pageHrefs, linkedFiles: linkedFiles).write(flat, scene: scene)
+            let document = animated ?? SVGWriter(options: svgOptions, pageHrefs: svgPageHrefs, linkedFiles: linkedFiles, sameTabTarget: "_top").write(flat, scene: scene)
             files.append((path, Data(document.text.utf8)))
             addLinkedFiles(document, page: number, files: &files, warnings: &warnings)
             // `<img>` follows no anchors and loads no other file: a page with links, images or
@@ -202,8 +209,10 @@ public struct HTMLPublisher: Sendable {
         }
     }
 
-    /// `page` rendered as PNG at *Scale*, clamped to 16,384 pixels on a side.
-    func png(_ page: ExportPage, scene: ExportScene, number: Int, warnings: inout ExportWarnings) throws -> Data {
+    /// `page` rendered as PNG at *Scale*, clamped to 16,384 pixels on a side, over *Page
+    /// background* -- or over nothing for an object file, which must not hide what lies beneath it
+    /// on the page (`object`).
+    func png(_ page: ExportPage, scene: ExportScene, number: Int, object: Bool = false, warnings: inout ExportWarnings) throws -> Data {
         var scale = Double(settings.scale)
         let side = max(page.bounds.width, page.bounds.height) * scale
         if side > Self.maxPixels {
@@ -212,8 +221,13 @@ public struct HTMLPublisher: Sendable {
         }
         var single = scene
         single.pages = [page]
-        let transparent = settings.background == .transparent
-        let options = PNGOptions(common: BitmapCommonOptions(scales: [scale], background: transparent ? .transparent : .pageColor))
+        let background: BitmapCommonOptions.Background = switch settings.background {
+        case _ where object: .transparent
+        case .transparent: .transparent
+        case .white: .white
+        case .document: .pageColor
+        }
+        let options = PNGOptions(common: BitmapCommonOptions(scales: [scale], background: background))
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("wt-publish-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -226,7 +240,7 @@ public struct HTMLPublisher: Sendable {
 
     /// One file per top-level object of `page`, placed with CSS in stacking order.
     func positionedObjects(_ page: ExportPage, number: Int, scene: ExportScene, svgOptions: SVGOptions, pageHrefs: [Int: String],
-                           files: inout [(String, Data)], warnings: inout ExportWarnings) throws -> String {
+                           svgPageHrefs: [Int: String], files: inout [(String, Data)], warnings: inout ExportWarnings) throws -> String {
         var elements: [String] = []
         var stack = 0
         let flattener = SVGExporter.flattener(options: svgOptions, scene: scene)
@@ -255,14 +269,14 @@ public struct HTMLPublisher: Sendable {
                 let alt = HTMLText.escape(scene.info(for: nested[[0]])?.alt ?? "")
                 switch settings.vectorFormat {
                 case .svg:
-                    let document = SVGWriter(options: svgOptions, pageHrefs: pageHrefs, linkedFiles: linkedFiles).write(flat, scene: scene)
+                    let document = SVGWriter(options: svgOptions, pageHrefs: svgPageHrefs, linkedFiles: linkedFiles, sameTabTarget: "_top").write(flat, scene: scene)
                     files.append((name + ".svg", Data(document.text.utf8)))
                     addLinkedFiles(document, page: number, files: &files, warnings: &warnings)
                     let tag = document.text.contains("<a ") || !document.resources.isEmpty ? "<object data=\"\(name).svg\" type=\"image/svg+xml\" style=\"\(style)\" aria-label=\"\(alt)\"></object>"
                         : "<img src=\"\(name).svg\" style=\"\(style)\" alt=\"\(alt)\">"
                     elements.append(tag)
                 case .png:
-                    files.append((name + ".png", try png(objectPage, scene: scene, number: number, warnings: &warnings)))
+                    files.append((name + ".png", try png(objectPage, scene: scene, number: number, object: true, warnings: &warnings)))
                     let areas = HTMLImageMap.areas(flat, scene: scene, pageHrefs: pageHrefs)
                     if areas.isEmpty {
                         elements.append("<img src=\"\(name).png\" style=\"\(style)\" alt=\"\(alt)\">")
@@ -307,7 +321,7 @@ public struct HTMLPublisher: Sendable {
         return """
         body{margin:0;padding:24px 0;background:#e6e6e6}
         .page{position:relative;margin:0 auto 24px;background:\(background);overflow:hidden}
-        .page>img,.page>object{display:block}
+        .page>img,.page>object{display:block;width:100%;height:100%}
         .page img[style],.page object[style]{position:absolute;display:block}
         nav{text-align:center;font:14px -apple-system,sans-serif}
 

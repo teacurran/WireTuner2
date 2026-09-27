@@ -1,4 +1,4 @@
-.PHONY: docs docs-guide docs-spec docs-check docs-clean help-catalog help-catalog-check
+.PHONY: docs docs-guide docs-spec docs-check docs-clean help-catalog help-catalog-check help-book
 
 # Full render through Maven (the CI path; same plugin pair as dissipate-server).
 docs:
@@ -29,6 +29,12 @@ help-catalog:
 
 help-catalog-check:
 	tools/help/help-catalog.py --check
+
+# The Help Book (BASIC-007; docs/spec/building.adoc, "Help Book"): the guide rendered one page per
+# slug into client/build/HelpBook, which the app build copies into Resources/HelpBook when present.
+# Run it before building the app for release; CI runs it before the app tests.
+help-book:
+	tools/help/help-book.sh
 
 .PHONY: proto-lint proto-gen proto-plugins
 
