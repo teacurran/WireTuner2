@@ -643,6 +643,50 @@ extend); WTRender must be able to render a document or a single glyph to a bitma
 the main thread (it already does for export); and provenance fields should allow a source post as
 well as a source document.
 
+[[D-076]]
+=== D-076 Edits never wait on storage; the document records intent, not input events
+Found in use (2026-09-27): dragging a Bezier handle and typing each performed one command per
+input event, and every command waited, in a serial queue, for a SQLite transaction, a state read
+back, a scene rebuild and a tile re-render before the next.  The queue drained slower than events
+arrived, so the canvas replayed old positions seconds behind the cursor, and every write dropped
+the object's tiles to grey.  The rules, for every tool, panel and command:
+
+* *The UI never waits on persistence.*  A local command is applied to the in-memory engine state
+  and the scene on the main actor and is on screen in the same frame.  Writing it to the local
+  store and outbox happens off the main actor, in batches: pending changes are written together
+  in one transaction at most every 250 ms, and at once when the app deactivates or quits, a
+  document closes, or the sync client is about to push.  A crash loses at most the unwritten
+  batch (at most 250 ms of work); that is accepted.
+* *Gestures write intent.*  A continuous gesture -- dragging points, handles, objects, guides or
+  sliders, scrubbing a field, nudging with the arrow keys -- previews in the overlay and emits
+  one change when it ends (the rule `Tool.swift` already states).  Typing is applied to the text
+  immediately and written as one change per word or pause (the undo grouping of TYPE-003), not
+  per key.
+* *Batches collapse.*  Inside a batch not yet written, consecutive writes to the same register
+  keep only the latest (a register is last-writer-wins, and the earlier values were never seen
+  by anyone else), and sequence edits of one text node go into one change.  The outbox's
+  coalescing before upload (SYNC-002) still applies on top.
+* *Rendering never shows a hole.*  An edit keeps an object's old tiles on screen until their
+  replacements are drawn; the pasteboard colour never shows through an edited object.
+
+[[D-077]]
+=== D-077 Panels take the macOS 26 design: Liquid Glass tabs, resizable groups, dock and float
+The panel framework (xref:panels.adoc[Panels]) keeps FreeHand's model -- tabbed groups that dock
+at an edge or float, panels dragged between groups to make one's own tab sets, named layouts --
+and takes the look and behaviour of a current Mac app:
+
+* A group's tabs are a Liquid Glass tab strip (the system glass effect on a segmented control of
+  tabs), not filled buttons: the selected tab is marked by the glass selection, the others read
+  as unselected tabs, and VoiceOver reads them as a tab group.  Control-dense panels use the same
+  strip for their inner sections (Transform's Move, Rotate, Scale, Skew, Reflect).
+* The dock is a sidebar on the window's glass layer (the system inspector/sidebar treatment);
+  floating groups are panels with the system glass background.  Content inside a panel stays on
+  standard materials -- glass is for the navigation and control layer, as the HIG asks.
+* Docked groups share the dock's height through draggable dividers; a group's body scrolls when
+  its content is taller than its share, and content never draws over the next group's title.
+* Dragging a tab out of a strip makes a floating group; dropping a tab or a group on another
+  strip joins it; tabs reorder by dragging.  Every arrangement is part of the saved layout.
+
 == Open questions
 
 [[Q-001]]
