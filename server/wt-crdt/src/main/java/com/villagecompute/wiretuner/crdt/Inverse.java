@@ -25,6 +25,9 @@ import java.util.function.Predicate;
  */
 public record Inverse(List<Step> steps) {
 
+    /** The label before a byte value in the steps' {@code toString}. */
+    private static final String VALUE_LABEL = ", value=";
+
     /**
      * This inverse followed by {@code later}: the inverse of this change and then {@code later}
      * applied as one unit, which {@link Engine#undoChange} undoes together.
@@ -169,7 +172,7 @@ public record Inverse(List<Step> steps) {
                     + ", text=" + text
                     + ", mark=" + mark
                     + ", key=" + key
-                    + ", value=" + Bytes.show(value)
+                    + VALUE_LABEL + Bytes.show(value)
                     + ", prior=" + prior + "]";
         }
     }
@@ -228,7 +231,7 @@ public record Inverse(List<Step> steps) {
         @Override
         public String toString() {
             return "ParagraphRegister[suffix=" + suffix
-                    + ", value=" + Bytes.show(value) + "]";
+                    + VALUE_LABEL + Bytes.show(value) + "]";
         }
     }
 
@@ -255,7 +258,7 @@ public record Inverse(List<Step> steps) {
         @Override
         public String toString() {
             return "PriorFormat[character=" + character
-                    + ", value=" + Bytes.show(value) + "]";
+                    + VALUE_LABEL + Bytes.show(value) + "]";
         }
     }
 

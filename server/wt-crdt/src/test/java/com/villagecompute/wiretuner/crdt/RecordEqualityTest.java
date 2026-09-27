@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.protobuf.ByteString;
 import com.villagecompute.wiretuner.doc.v1.SnapshotHeader;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -32,50 +33,68 @@ class RecordEqualityTest {
     }
 
     /**
-     * {@code make} builds equal records from fresh arrays; each of {@code variants} differs from them in
-     * one component. The record prints {@code shown}.
+     * What keeps records built by {@code make} (from fresh arrays) from comparing, hashing and printing by
+     * content: empty when they are equal and hash alike, differ from each of {@code variants} (each differs
+     * in one component) and print {@code shown}.
      */
     @SafeVarargs
-    static <T> void byContent(Supplier<T> make, String shown, T... variants) {
+    static <T> List<String> contentProblems(Supplier<T> make, String shown, T... variants) {
         T one = make.get();
         T two = make.get();
         Object text = "x";
-        assertThat(one).isEqualTo(one).isEqualTo(two).hasSameHashCodeAs(two).isNotEqualTo(text).isNotEqualTo(null);
-        assertThat(one.toString()).contains(shown).isEqualTo(two.toString());
-        for (T variant : variants) {
-            assertThat(one).isNotEqualTo(variant);
+        List<String> problems = new ArrayList<>();
+        if (!one.equals(two)) {
+            problems.add("records built from equal arrays differ: " + one + " / " + two);
         }
+        if (one.hashCode() != two.hashCode()) {
+            problems.add("records built from equal arrays hash differently");
+        }
+        if (one.equals(text)) {
+            problems.add("equal to a string");
+        }
+        if (!one.toString().contains(shown)) {
+            problems.add("toString lacks " + shown + ": " + one);
+        }
+        if (!one.toString().equals(two.toString())) {
+            problems.add("toString differs between equal records");
+        }
+        for (T variant : variants) {
+            if (one.equals(variant)) {
+                problems.add("equal to a variant differing in one component: " + variant);
+            }
+        }
+        return problems;
     }
 
     @Test
     void inverseStepsCompareTheirBytes() {
-        byContent(() -> new Inverse.MemberAdded(A, PATH, bytes(0xab), B, true, FIELD), "member=ab",
+        assertThat(contentProblems(() -> new Inverse.MemberAdded(A, PATH, bytes(0xab), B, true, FIELD), "member=ab",
                 new Inverse.MemberAdded(B, PATH, bytes(0xab), B, true, FIELD),
                 new Inverse.MemberAdded(A, OTHER_PATH, bytes(0xab), B, true, FIELD),
                 new Inverse.MemberAdded(A, PATH, bytes(0xac), B, true, FIELD),
                 new Inverse.MemberAdded(A, PATH, bytes(0xab), A, true, FIELD),
                 new Inverse.MemberAdded(A, PATH, bytes(0xab), B, false, FIELD),
-                new Inverse.MemberAdded(A, PATH, bytes(0xab), B, true, OTHER_FIELD));
-        byContent(() -> new Inverse.MemberRemoved(A, PATH, bytes(1, 2), FIELD), "member=0102",
+                new Inverse.MemberAdded(A, PATH, bytes(0xab), B, true, OTHER_FIELD))).isEmpty();
+        assertThat(contentProblems(() -> new Inverse.MemberRemoved(A, PATH, bytes(1, 2), FIELD), "member=0102",
                 new Inverse.MemberRemoved(B, PATH, bytes(1, 2), FIELD),
                 new Inverse.MemberRemoved(A, OTHER_PATH, bytes(1, 2), FIELD),
                 new Inverse.MemberRemoved(A, PATH, bytes(1), FIELD),
-                new Inverse.MemberRemoved(A, PATH, bytes(1, 2), OTHER_FIELD));
+                new Inverse.MemberRemoved(A, PATH, bytes(1, 2), OTHER_FIELD))).isEmpty();
         List<Inverse.PriorFormat> prior = List.of(new Inverse.PriorFormat(A, null));
-        byContent(() -> new Inverse.TextMarked(A, PATH, B, KEY, bytes(7), prior), "value=07",
+        assertThat(contentProblems(() -> new Inverse.TextMarked(A, PATH, B, KEY, bytes(7), prior), "value=07",
                 new Inverse.TextMarked(B, PATH, B, KEY, bytes(7), prior),
                 new Inverse.TextMarked(A, OTHER_PATH, B, KEY, bytes(7), prior),
                 new Inverse.TextMarked(A, PATH, A, KEY, bytes(7), prior),
                 new Inverse.TextMarked(A, PATH, B, new MarkKey(9), bytes(7), prior),
                 new Inverse.TextMarked(A, PATH, B, KEY, bytes(8), prior),
-                new Inverse.TextMarked(A, PATH, B, KEY, bytes(7), List.of()));
+                new Inverse.TextMarked(A, PATH, B, KEY, bytes(7), List.of()))).isEmpty();
         List<RegisterPath.Segment> suffix = List.of(RegisterPath.Segment.field(2));
-        byContent(() -> new Inverse.ParagraphRegister(suffix, bytes(0x10)), "value=10",
+        assertThat(contentProblems(() -> new Inverse.ParagraphRegister(suffix, bytes(0x10)), "value=10",
                 new Inverse.ParagraphRegister(List.of(), bytes(0x10)),
-                new Inverse.ParagraphRegister(suffix, bytes(0x11)));
-        byContent(() -> new Inverse.PriorFormat(A, bytes(0xff)), "value=ff",
+                new Inverse.ParagraphRegister(suffix, bytes(0x11)))).isEmpty();
+        assertThat(contentProblems(() -> new Inverse.PriorFormat(A, bytes(0xff)), "value=ff",
                 new Inverse.PriorFormat(B, bytes(0xff)),
-                new Inverse.PriorFormat(A, null));
+                new Inverse.PriorFormat(A, null))).isEmpty();
         assertThat(new Inverse.PriorFormat(A, null)).hasToString("PriorFormat[character=" + A + ", value=null]");
         // An inverse compares its steps, so two inverses of the same change are equal.
         assertThat(new Inverse(List.of(new Inverse.MemberRemoved(A, PATH, bytes(1), FIELD))))
@@ -85,32 +104,32 @@ class RecordEqualityTest {
     @Test
     void moveLogEntriesCompareTheirPosition() {
         Placement old = new Placement(A, bytes(0x80), B);
-        byContent(() -> new MoveLogEntry(A, B, A, bytes(0x40), true, old, true), "position=40",
+        assertThat(contentProblems(() -> new MoveLogEntry(A, B, A, bytes(0x40), true, old, true), "position=40",
                 new MoveLogEntry(B, B, A, bytes(0x40), true, old, true),
                 new MoveLogEntry(A, A, A, bytes(0x40), true, old, true),
                 new MoveLogEntry(A, B, B, bytes(0x40), true, old, true),
                 new MoveLogEntry(A, B, A, bytes(0x41), true, old, true),
                 new MoveLogEntry(A, B, A, bytes(0x40), false, old, true),
                 new MoveLogEntry(A, B, A, bytes(0x40), true, null, true),
-                new MoveLogEntry(A, B, A, bytes(0x40), true, old, false));
+                new MoveLogEntry(A, B, A, bytes(0x40), true, old, false))).isEmpty();
     }
 
     @Test
     void snapshotPartsCompareTheirBytes() {
         List<NodeStore.SetAddition> adds = List.of(new NodeStore.SetAddition(A, 1));
         List<NodeStore.SetRemoval> removes = List.of(new NodeStore.SetRemoval(B, 2, 1));
-        byContent(() -> new NodeStore.MemberEntry(bytes(5), adds, removes), "member=05",
+        assertThat(contentProblems(() -> new NodeStore.MemberEntry(bytes(5), adds, removes), "member=05",
                 new NodeStore.MemberEntry(bytes(6), adds, removes),
                 new NodeStore.MemberEntry(bytes(5), List.of(), removes),
-                new NodeStore.MemberEntry(bytes(5), adds, List.of()));
-        byContent(() -> new PathResolver.Assignment(PATH, bytes(9), false), "value=09",
+                new NodeStore.MemberEntry(bytes(5), adds, List.of()))).isEmpty();
+        assertThat(contentProblems(() -> new PathResolver.Assignment(PATH, bytes(9), false), "value=09",
                 new PathResolver.Assignment(OTHER_PATH, bytes(9), false),
                 new PathResolver.Assignment(PATH, null, false),
-                new PathResolver.Assignment(PATH, bytes(9), true));
+                new PathResolver.Assignment(PATH, bytes(9), true))).isEmpty();
         SnapshotHeader header = SnapshotHeader.newBuilder().setStateHash(ByteString.copyFrom(bytes(1))).build();
-        byContent(() -> new SnapshotTransfer.Assembled(header, bytes(1, 2, 3)), "snapshot=3 bytes",
+        assertThat(contentProblems(() -> new SnapshotTransfer.Assembled(header, bytes(1, 2, 3)), "snapshot=3 bytes",
                 new SnapshotTransfer.Assembled(SnapshotHeader.getDefaultInstance(), bytes(1, 2, 3)),
-                new SnapshotTransfer.Assembled(header, bytes(1, 2)));
+                new SnapshotTransfer.Assembled(header, bytes(1, 2)))).isEmpty();
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.villagecompute.wiretuner.api.library;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -16,8 +18,8 @@ class FoundEqualityTest {
         UUID team = UUID.randomUUID();
         Listed listed = new Listed(doc, team, "Brand", true, 3, team, 4, 5, null);
         Listed other = new Listed(doc, team, "Other", true, 3, team, 4, 5, null);
-        RecordContent.byContent(() -> new ColorLibraryGrpcService.Found(listed, new byte[] {1, 2}), "colors=2 bytes",
+        assertThat(RecordContent.contentProblems(() -> new ColorLibraryGrpcService.Found(listed, new byte[] {1, 2}), "colors=2 bytes",
                 new ColorLibraryGrpcService.Found(other, new byte[] {1, 2}),
-                new ColorLibraryGrpcService.Found(listed, new byte[] {1, 3}));
+                new ColorLibraryGrpcService.Found(listed, new byte[] {1, 3}))).isEmpty();
     }
 }

@@ -1,6 +1,6 @@
 package com.villagecompute.wiretuner.api.data;
 
-import static com.villagecompute.wiretuner.api.RecordContent.byContent;
+import static com.villagecompute.wiretuner.api.RecordContent.contentProblems;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.net.URI;
@@ -35,21 +35,21 @@ class RecordEqualityTest {
 
     @Test
     void cidrsCompareTheirPrefix() {
-        byContent(() -> new AddressPolicy.Cidr(bytes(10, 0, 0, 0), 8), "prefix=0a000000",
+        assertThat(contentProblems(() -> new AddressPolicy.Cidr(bytes(10, 0, 0, 0), 8), "prefix=0a000000",
                 new AddressPolicy.Cidr(bytes(11, 0, 0, 0), 8),
-                new AddressPolicy.Cidr(bytes(10, 0, 0, 0), 16));
+                new AddressPolicy.Cidr(bytes(10, 0, 0, 0), 16))).isEmpty();
     }
 
     @Test
     void requestsCompareTheirBodyAndPrintNoCredential() {
         Map<String, String> headers = Map.of("authorization", "Bearer secret-token");
-        byContent(() -> new Egress.Request("POST", URL, headers, bytes(1, 2), SECOND, 10), "body=2 bytes",
+        assertThat(contentProblems(() -> new Egress.Request("POST", URL, headers, bytes(1, 2), SECOND, 10), "body=2 bytes",
                 new Egress.Request("PUT", URL, headers, bytes(1, 2), SECOND, 10),
                 new Egress.Request("POST", OTHER_URL, headers, bytes(1, 2), SECOND, 10),
                 new Egress.Request("POST", URL, Map.of(), bytes(1, 2), SECOND, 10),
                 new Egress.Request("POST", URL, headers, bytes(1, 3), SECOND, 10),
                 new Egress.Request("POST", URL, headers, bytes(1, 2), Duration.ofSeconds(2), 10),
-                new Egress.Request("POST", URL, headers, bytes(1, 2), SECOND, 11));
+                new Egress.Request("POST", URL, headers, bytes(1, 2), SECOND, 11))).isEmpty();
         Egress.Request get = new Egress.Request("GET", URL, headers, null, SECOND, 10);
         assertThat(get.toString()).contains("headers=[authorization]", "body=null").doesNotContain("secret-token");
     }
@@ -57,33 +57,33 @@ class RecordEqualityTest {
     @Test
     void repliesCompareTheirBody() {
         List<Map.Entry<String, String>> headers = List.of(Map.entry("set-cookie", "session=secret"));
-        byContent(() -> new Egress.Reply(200, headers, bytes(4, 5, 6), URL), "body=3 bytes",
+        assertThat(contentProblems(() -> new Egress.Reply(200, headers, bytes(4, 5, 6), URL), "body=3 bytes",
                 new Egress.Reply(404, headers, bytes(4, 5, 6), URL),
                 new Egress.Reply(200, List.of(), bytes(4, 5, 6), URL),
                 new Egress.Reply(200, headers, bytes(4, 5), URL),
-                new Egress.Reply(200, headers, bytes(4, 5, 6), OTHER_URL));
+                new Egress.Reply(200, headers, bytes(4, 5, 6), OTHER_URL))).isEmpty();
         assertThat(new Egress.Reply(200, headers, bytes(), URL).toString()).contains("headers=[set-cookie]")
                 .doesNotContain("secret");
     }
 
     @Test
     void sealedSecretsCompareTheirBytesAndPrintOnlyLengths() {
-        byContent(() -> new Envelope.Sealed("k1", bytes(1, 2), bytes(3, 4, 5)), "ciphertext=3 bytes",
+        assertThat(contentProblems(() -> new Envelope.Sealed("k1", bytes(1, 2), bytes(3, 4, 5)), "ciphertext=3 bytes",
                 new Envelope.Sealed("k2", bytes(1, 2), bytes(3, 4, 5)),
                 new Envelope.Sealed("k1", bytes(1, 9), bytes(3, 4, 5)),
-                new Envelope.Sealed("k1", bytes(1, 2), bytes(3, 4, 9)));
+                new Envelope.Sealed("k1", bytes(1, 2), bytes(3, 4, 9)))).isEmpty();
         assertThat(new Envelope.Sealed("k1", bytes(0x7f), bytes(0x7e))).hasToString(
                 "Sealed[keyId=k1, wrappedKey=1 bytes, ciphertext=1 bytes]");
     }
 
     @Test
     void encodedSnapshotsCompareTheirObject() {
-        byContent(() -> new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "ab", 10, 2), "object=4 bytes",
+        assertThat(contentProblems(() -> new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "ab", 10, 2), "object=4 bytes",
                 new Snapshots.Encoded("other", bytes(1, 2, 3, 4), "ab", 10, 2),
                 new Snapshots.Encoded("key", bytes(1, 2, 3), "ab", 10, 2),
                 new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "cd", 10, 2),
                 new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "ab", 11, 2),
-                new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "ab", 10, 3));
+                new Snapshots.Encoded("key", bytes(1, 2, 3, 4), "ab", 10, 3))).isEmpty();
     }
 
     @Test
@@ -91,7 +91,7 @@ class RecordEqualityTest {
         UUID team = UUID.randomUUID();
         UUID uploader = UUID.randomUUID();
         UUID other = UUID.randomUUID();
-        byContent(() -> new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "s"),
+        assertThat(contentProblems(() -> new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "s"),
                 "faces=1 bytes",
                 new TeamFontRepository.Font("sha2", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "s"),
                 new TeamFontRepository.Font("sha", other, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "s"),
@@ -101,6 +101,6 @@ class RecordEqualityTest {
                 new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), other, 5, 6, "s"),
                 new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 7, 6, "s"),
                 new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 7, "s"),
-                new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "t"));
+                new TeamFontRepository.Font("sha", team, "a.ttf", "font/ttf", bytes(1), uploader, 5, 6, "t"))).isEmpty();
     }
 }
