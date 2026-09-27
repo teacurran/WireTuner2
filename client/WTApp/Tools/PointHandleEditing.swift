@@ -8,8 +8,10 @@ import WTRender
 /// DRAW-025): the handles of the selected points and the near handles of their two neighbours
 /// can be dragged.  How the other handle answers is the point type's (`SetHandles` linked): a
 /// curve point's handles pivot together, a corner's move alone, a connector's only lengthens
-/// along its line; kbd:[Option] during the drag moves the one handle alone.  A drag writes on
-/// every drag event inside one undo group, so it is one undo step.
+/// along its line; kbd:[Option] during the drag moves the one handle alone.  The drag previews in
+/// the overlay -- the path with the handle moved, the handle's line and knob, stroked like a point
+/// drag's preview -- and writes one `SetHandles` on mouse-up (D-076: gestures write intent, not
+/// input events); kbd:[Esc] clears the preview and writes nothing.
 @MainActor
 final class PointHandleLayer: CanvasHandleLayer {
     /// How near a handle's end (view points) a press takes it.
@@ -33,7 +35,19 @@ final class PointHandleLayer: CanvasHandleLayer {
     }
 
     private(set) var dragging: Grab?
-    private var wrote = false
+    /// The command the drag would write now (the last drag event's), nil before the first.
+    private(set) var pending: SetHandles?
+    /// The preview of the drag just written, drawn until its change has rendered (D-076).
+    private(set) var lingering: Preview?
+    private var lingerGeneration = 0
+
+    /// What a handle drag previews (pasteboard space).
+    struct Preview {
+        var path: DisplayPath
+        var anchor: Point
+        var ends: [Point]
+        var dragged: Point
+    }
 
     init() {}
 
@@ -87,39 +101,82 @@ final class PointHandleLayer: CanvasHandleLayer {
         // A press nearer the point than its handle's end is the point's.
         guard let hit = hits.first(where: { viewport.toView($0.transform.apply($0.anchor)).distance(to: e.viewPoint) > Self.radius }) else { return false }
         dragging = hit
-        wrote = false
-        context.document.beginGroup()
+        pending = nil
+        lingering = nil
         return true
     }
 
+    /// Previews the handle under the pointer; nothing is written.
     func drag(_ e: CanvasEvent, context: ToolContext) {
         guard let dragging else { return }
-        wrote = true
-        context.commandSink.perform(Self.command(dragging: dragging, to: e))
+        pending = Self.command(dragging: dragging, to: e)
+        context.host.setNeedsOverlayDisplay()
     }
 
+    /// Writes the one change of the drag.
     func release(_ e: CanvasEvent, context: ToolContext) {
+        guard dragging != nil else { return }
         drag(e, context: context)
-        finish(context, undo: false)
+        let command = pending
+        let shown = preview(context)
+        finish(context)
+        guard let command else { return }
+        lingerGeneration += 1
+        let generation = lingerGeneration
+        lingering = shown
+        context.commandSink.perform(command)
+        context.host.whenTilesCatchUp { [weak self] in
+            guard let self, self.lingerGeneration == generation, self.lingering != nil else { return }
+            self.lingering = nil
+            context.host.setNeedsOverlayDisplay()
+        }
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        finish(context)
     }
 
-    private func finish(_ context: ToolContext, undo: Bool) {
+    private func finish(_ context: ToolContext) {
         guard dragging != nil else { return }
         dragging = nil
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        pending = nil
+        context.host.setNeedsOverlayDisplay()
+    }
+
+    /// What the drag in progress previews: the path with the dragged point's handles as the
+    /// command sets them (pasteboard space), the point's anchor and its two handle ends.
+    func preview(_ context: ToolContext) -> Preview? {
+        guard let grab = dragging, let command = pending, let object = context.document.object(for: SelectionID(grab.node)),
+              var path = object.path, let c = path.contours.firstIndex(where: { $0.id == grab.contour }),
+              let p = path.contours[c].points.firstIndex(where: { $0.id == grab.point }) else { return nil }
+        let handles = SetHandles.resolved(path.contours[c], point: grab.point, in: command.inHandle, out: command.outHandle, linked: command.linked)
+        if let inHandle = handles.in { path.contours[c].points[p].inHandle = inHandle }
+        if let outHandle = handles.out { path.contours[c].points[p].outHandle = outHandle }
+        let point = path.contours[c].points[p]
+        let transform = object.transform
+        let outline = PointEditing.preview(path, moved: [grab.point], smoother: PointEditing.smoother()).applying(transform)
+        let ends = [point.inHandle, point.outHandle].filter { $0 != .zero }.map { transform.apply(point.anchor + $0) }
+        let dragged = transform.apply(point.anchor + (grab.out ? point.outHandle : point.inHandle))
+        return Preview(path: outline, anchor: transform.apply(point.anchor), ends: ends, dragged: dragged)
     }
 
     /// The neighbours' near handles (the selected points' own come with the selection outline).
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
+        if let preview = preview(context) ?? lingering {
+            ctx.saveGState()
+            ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+            ctx.setLineWidth(1)
+            let outline = CGMutablePath()
+            SelectionOverlay.add(preview.path, transform: viewport.pasteboardToView, to: outline)
+            ctx.addPath(outline)
+            ctx.strokePath()
+            let anchor = viewport.toView(preview.anchor)
+            for end in preview.ends {
+                ctx.strokeLineSegments(between: [anchor.cgPoint, viewport.toView(end).cgPoint])
+            }
+            CanvasHandleLayers.drawHandle(viewport.toView(preview.dragged), size: Self.size, hollow: false, in: ctx)
+            ctx.restoreGState()
+        }
         let neighbours = Self.grabs(context).filter(\.neighbour)
         guard !neighbours.isEmpty else { return }
         ctx.saveGState()

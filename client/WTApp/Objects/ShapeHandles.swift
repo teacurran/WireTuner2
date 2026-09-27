@@ -90,8 +90,8 @@ final class ClipContentsHandle: CanvasHandleLayer {
 /// stars"; DRAW-010's app half): drawn with the Subselect tool on each selected polygon
 /// (`PolygonHandles.positions`).  Dragging the diamond moves every vertex -- its distance from the
 /// centre the radius, its angle the rotation -- and the circle every inner point; kbd:[Shift]
-/// keeps the angle.  Each move writes `SetPolygonFields` inside one undo group, so the drag is one
-/// undo step; kbd:[Esc] undoes it.
+/// keeps the angle.  The drag previews on the canvas and writes one `SetPolygonFields` on mouse-up
+/// (D-076), so it is one undo step; kbd:[Esc] drops the preview.
 @MainActor
 final class PolygonShapeHandles: CanvasHandleLayer {
     static let size = 9.0
@@ -100,7 +100,8 @@ final class PolygonShapeHandles: CanvasHandleLayer {
     /// The window's active tool (the handles show with the Subselect tool).
     var activeTool: @MainActor () -> ToolID? = { nil }
     private(set) var dragging: (node: OpID, handle: PolygonHandles.Handle)?
-    private var wrote = false
+    /// The drag's preview and its one change (D-076).
+    private var edit: GestureEdit?
 
     init() {}
 
@@ -116,8 +117,7 @@ final class PolygonShapeHandles: CanvasHandleLayer {
         for node in polygons(context) {
             if let handle = PolygonHandles.hit(e.pasteboardPoint, on: node, tolerance: tolerance, in: context.document.state) {
                 dragging = (node, handle)
-                wrote = false
-                context.document.beginGroup()
+                edit = GestureEdit(document: context.document)
                 return true
             }
         }
@@ -128,29 +128,24 @@ final class PolygonShapeHandles: CanvasHandleLayer {
         guard let dragging,
               let command = PolygonHandles.drag(dragging.handle, of: dragging.node, to: e.pasteboardPoint, keepAngle: e.modifiers.contains(.shift),
                                                 in: context.document.state) else { return }
-        wrote = true
-        context.commandSink.perform(command)
+        edit?.update(command)
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
         drag(e, context: context)
-        finish(context, undo: false)
+        edit?.commit()
+        finish(context)
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish(context)
     }
 
-    /// Ends the drag's undo group once its writes have landed; a cancelled drag is undone.
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    /// Ends the drag: the change was written (or the preview dropped) already.
+    private func finish(_ context: ToolContext) {
         dragging = nil
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
@@ -159,7 +154,7 @@ final class PolygonShapeHandles: CanvasHandleLayer {
         ctx.setLineWidth(1.5)
         let half = Self.size / 2
         for node in polygons(context) {
-            guard let positions = PolygonHandles.positions(of: node, in: context.document.state) else { continue }
+            guard let positions = PolygonHandles.positions(of: node, in: context.document.shownState) else { continue }
             let peak = viewport.toView(positions.peak)
             let diamond = CGMutablePath()
             diamond.addLines(between: [CGPoint(x: peak.x, y: peak.y - half), CGPoint(x: peak.x + half, y: peak.y), CGPoint(x: peak.x, y: peak.y + half),

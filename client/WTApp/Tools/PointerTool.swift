@@ -80,6 +80,10 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     private(set) var cycleName: String?
     /// The Info toolbar's name of the object under the pointer (names-notes.adoc; OBJ-021).
     private(set) var hoverName: String?
+    /// The outlines of the move or transform just written, drawn until its change has rendered
+    /// (D-076), and the gesture they belong to.
+    private(set) var lingering: [DisplayPath] = []
+    private var lingerGeneration = 0
 
     init(subselect: Bool = false) {
         alwaysSubselects = subselect
@@ -249,6 +253,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     // MARK: Events
 
     func mouseDown(_ e: CanvasEvent) {
+        endLinger()
         start = e
         current = e
         gesture = .marquee
@@ -344,9 +349,11 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         let subselect = subselects(e.modifiers)
         switch gesture {
         case .handles(let zone):
+            linger(handlePreview, context: context)
             finishHandles(zone, start: start, end: e, context: context)
         case .move, .movePoints:
             if let delta = moveDelta {
+                linger(movePreview, context: context)
                 commitMove(delta, copy: e.modifiers.contains(.option) && context.optionDragCopies() && gesture == .move)
             } else if gesture == .movePoints, !selectedOnPress, let toggle = PointEditing.toggleCommand(at: start, context: context) {
                 context.commandSink.perform(toggle)
@@ -437,6 +444,27 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             guard let created = await task.value?.createdRoots, !created.isEmpty else { return }
             model.set(Selection(created.map { SelectionID($0) }))
         }
+    }
+
+    // MARK: Lingering preview (D-076)
+
+    /// Keeps `outlines` drawn until the tiles show the change about to be written.
+    private func linger(_ outlines: [DisplayPath], context: ToolContext) {
+        guard !outlines.isEmpty else { return }
+        lingerGeneration += 1
+        let generation = lingerGeneration
+        lingering = outlines
+        context.host.whenTilesCatchUp { [weak self] in
+            guard let self, self.lingerGeneration == generation else { return }
+            self.endLinger()
+        }
+    }
+
+    private func endLinger() {
+        guard !lingering.isEmpty else { return }
+        lingering = []
+        lingerGeneration += 1
+        context?.host.setNeedsOverlayDisplay()
     }
 
     // MARK: Cycling (OBJ-007)
@@ -554,7 +582,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
             if case .handles(.center) = gesture, isDragging, let current { shown.center = current.pasteboardPoint }
             shown.draw(in: ctx, viewport: viewport, color: NSColor.controlAccentColor.cgColor)
         }
-        let preview = movePreview + handlePreview
+        let preview = movePreview + handlePreview + lingering
         if let context {
             SmartGuideLink.shared.draw(context.document.id, in: ctx, viewport: viewport)
             Self.drawMeasurements(context, in: ctx, viewport: viewport)

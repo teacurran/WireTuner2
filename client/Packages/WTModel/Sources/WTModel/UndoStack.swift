@@ -103,6 +103,12 @@ public struct UndoStack: Sendable, Hashable {
         return .push(UndoEntry(label: label, inverse: inverse, updatedAt: now, openKey: open), limit: limit)
     }
 
+    /// Whether a change joining under `key` at `now` would join the top step (`recording`).
+    public func accepts(_ key: CoalesceKey, now: Date) -> Bool {
+        guard let top = undo.last, top.openKey == key else { return false }
+        return joins(top, key: key, now: now)
+    }
+
     private func joins(_ top: UndoEntry, key: CoalesceKey, now: Date) -> Bool {
         switch key {
         case .typing, .text:

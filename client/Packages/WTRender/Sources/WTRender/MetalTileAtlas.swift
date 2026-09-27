@@ -1,7 +1,9 @@
 // The tile atlas (REND-006; docs/spec/client.adoc, "Metal tile renderer", *Tile atlas*):
 // rasterized tiles live in slots of one array texture, a tile key maps to a slot, and slots are
 // reused least recently used first.  A tile is drawable once the command buffer that rendered
-// it has completed.
+// it has completed.  A tile an edit invalidated is *retired*, not freed (D-076, "Rendering never
+// shows a hole"): its slot keeps the old pixels, drawn until the replacement -- rendered into a
+// slot of its own -- is ready, and only then freed.
 //
 // The atlas is a `texture2DArray` of 256 × 256 slices rather than 4096² sheets: a multisample
 // resolve can target a slice but not a sub-rectangle, so slices let a tile be resolved straight
@@ -17,6 +19,9 @@ struct TileSlots {
     private var free: [Int]
     /// Keys whose tile has finished rendering.
     private(set) var ready: Set<TileKey> = []
+    /// Retired tiles: the slot still holding each key's previous pixels while its replacement
+    /// renders (`retire`).
+    private(set) var stale: [TileKey: Int] = [:]
 
     init(capacity: Int) {
         self.capacity = max(capacity, 1)
@@ -37,6 +42,35 @@ struct TileSlots {
         slots.contains(key)
     }
 
+    /// The slot holding `key`'s previous pixels while its replacement renders.
+    func staleSlot(for key: TileKey) -> Int? {
+        stale[key]
+    }
+
+    /// Retires `key`'s tile: a drawable one keeps its slot as `key`'s stale tile (replacing an
+    /// older stale one) until the replacement is ready; one still rendering loses its slot (its
+    /// batch cannot mark it ready) and any older stale tile stays.
+    mutating func retire(_ key: TileKey) {
+        guard let slot = slots.peek(key) else { return }
+        if ready.contains(key) {
+            _ = slots.remove(key)
+            ready.remove(key)
+            if let older = stale.updateValue(slot, forKey: key) { free.append(older) }
+        } else {
+            remove(key)
+        }
+    }
+
+    /// Retires every tile whose key satisfies `predicate`; returns the retired keys.
+    @discardableResult
+    mutating func retireAll(where predicate: (TileKey) -> Bool) -> [TileKey] {
+        let victims = slots.keys.filter(predicate)
+        for key in victims {
+            retire(key)
+        }
+        return victims
+    }
+
     /// A slot for `key`, taking a free one or evicting the least recently used key that is not
     /// in `protected`; nil when every slot holds a protected key.  The tile is not ready until
     /// `markReady`.
@@ -45,10 +79,17 @@ struct TileSlots {
             return existing
         }
         if free.isEmpty {
-            guard let victim = slots.keysByRecency.first(where: { !protected.contains($0) }) else {
+            // A stale tile nobody sees goes first, then the least recently used tile nobody sees,
+            // and only then another visible key's stale pixels.
+            if let old = stale.keys.first(where: { !protected.contains($0) }) {
+                free.append(stale.removeValue(forKey: old)!)
+            } else if let victim = slots.keysByRecency.first(where: { !protected.contains($0) }) {
+                remove(victim)
+            } else if let old = stale.keys.first(where: { $0 != key }) ?? stale.keys.first {
+                free.append(stale.removeValue(forKey: old)!)
+            } else {
                 return nil
             }
-            remove(victim)
         }
         let slot = free.removeLast()
         slots.insert(slot, for: key)
@@ -59,10 +100,11 @@ struct TileSlots {
     mutating func markReady(_ key: TileKey) {
         if slots.contains(key) {
             ready.insert(key)
+            if let old = stale.removeValue(forKey: key) { free.append(old) }
         }
     }
 
-    /// Frees `key`'s slot.
+    /// Frees `key`'s slot (its stale tile stays, `discard` frees that too).
     mutating func remove(_ key: TileKey) {
         if let slot = slots.remove(key) {
             free.append(slot)
@@ -70,14 +112,20 @@ struct TileSlots {
         ready.remove(key)
     }
 
+    /// Frees `key`'s slot and its stale tile.
+    mutating func discard(_ key: TileKey) {
+        remove(key)
+        if let old = stale.removeValue(forKey: key) { free.append(old) }
+    }
+
     /// Frees every slot whose key satisfies `predicate`; returns the removed keys.
     @discardableResult
     mutating func removeAll(where predicate: (TileKey) -> Bool) -> [TileKey] {
-        let victims = slots.keys.filter(predicate)
+        let victims = Set(slots.keys.filter(predicate)).union(stale.keys.filter(predicate))
         for key in victims {
-            remove(key)
+            discard(key)
         }
-        return victims
+        return Array(victims)
     }
 }
 

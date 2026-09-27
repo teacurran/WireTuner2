@@ -158,7 +158,9 @@ struct OverridesSectionView: View {
     }
 
     static func color(_ row: OverrideRow, _ model: OverridesSectionModel, value: OverrideRowValue?) -> Binding<CGColor> {
-        Binding(get: { model.color(value) }, set: { model.setColor(row, $0) })
+        // The colour panel streams changes while its colour is dragged: previewed, written once it
+        // settles (D-076).
+        Binding(get: { model.color(value) }, set: { color in ContinuousInput.settle { model.setColor(row, color) } })
     }
 
     static func visible(_ row: OverrideRow, _ model: OverridesSectionModel, value: OverrideRowValue?) -> Binding<Bool> {

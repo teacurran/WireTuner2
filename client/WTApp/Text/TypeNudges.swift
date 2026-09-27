@@ -57,8 +57,11 @@ final class TypeNudger {
 
     /// The nudger of `editing` (one per window).
     static func nudger(for editing: ObjectEditing) -> TypeNudger {
+        // A nudger outlives nothing: one whose window went away is dropped (an identifier can be
+        // reused by the next window's editing state).
+        nudgers = nudgers.filter { $0.value.editing != nil }
         let key = ObjectIdentifier(editing)
-        if let existing = nudgers[key] { return existing }
+        if let existing = nudgers[key], existing.editing === editing { return existing }
         let nudger = TypeNudger(editing: editing)
         nudgers[key] = nudger
         return nudger
@@ -66,7 +69,8 @@ final class TypeNudger {
 
     static let pause: Duration = .seconds(1)
 
-    unowned let editing: ObjectEditing
+    /// The window's editing state; weak, since the pause timer may fire after the window closed.
+    private(set) weak var editing: ObjectEditing?
     var pause: Duration = TypeNudger.pause
     /// Waits out the pause (tests replace it to end the pause themselves).
     var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -83,7 +87,7 @@ final class TypeNudger {
     /// Adds `nudge` for the Text tool's selection; false without one.
     @discardableResult
     func nudge(_ nudge: TypeNudge) -> Bool {
-        guard let session = editing.textSession, session.text != nil, session.node != nil || session.override != nil else { return false }
+        guard let session = editing?.textSession, session.text != nil, session.node != nil || session.override != nil else { return false }
         let target = session.target
         let range = session.selectedRange
         if range.isEmpty, nudge.kind != .kerning {
@@ -113,6 +117,7 @@ final class TypeNudger {
         timer = nil
         guard let pending else { return nil }
         self.pending = nil
+        guard let editing else { return nil }
         let state = editing.document.state
         let command: (any WTModel.Command)?
         switch pending.target {

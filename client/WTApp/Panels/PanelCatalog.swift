@@ -37,10 +37,12 @@ enum PanelCatalog {
 
     /// Properties expanded, Assets and Mixer and Tints collapsed, Layers open, Help collapsed;
     /// Align and Transform, Find & Replace and Select, Navigation and Halftones closed; the
-    /// Tools panel at the left edge.
+    /// Tools panel at the left edge.  Properties asks for more of the dock's height than the
+    /// others, so the Object panel's editor shows under its properties list at the default window
+    /// size.
     static let groupDefaults: [String: PanelGroupDefaults] = [
         Group.tools: PanelGroupDefaults(position: 0, keepsName: true, edge: .left),
-        Group.properties: PanelGroupDefaults(position: 1, keepsName: true),
+        Group.properties: PanelGroupDefaults(position: 1, keepsName: true, height: 600),
         Group.assets: PanelGroupDefaults(position: 2, isCollapsed: true, keepsName: true),
         Group.mixer: PanelGroupDefaults(position: 3, isCollapsed: true),
         Group.alignTransform: PanelGroupDefaults(position: 4, isOpen: false),

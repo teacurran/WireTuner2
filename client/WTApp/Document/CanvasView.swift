@@ -371,6 +371,14 @@ final class CanvasView: NSView, CanvasHost {
         overlay.setNeedsDisplay()
     }
 
+    func whenTilesCatchUp(_ body: @escaping @MainActor () -> Void) {
+        let tiles = tiles
+        Task { @MainActor in
+            await tiles.settle()
+            body()
+        }
+    }
+
     func toolCursorDidChange() {
         window?.invalidateCursorRects(for: self)
         if let cursor = toolManager?.cursor, window?.isKeyWindow == true { cursor.set() }

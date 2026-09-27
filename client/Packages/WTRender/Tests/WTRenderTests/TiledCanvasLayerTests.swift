@@ -96,8 +96,9 @@ import Testing
 
         let layout = canvas.update(displayList: Corpus.ellipse, viewport: viewport)
         #expect(canvas.pendingTileCount == 0, "requests wait for the invalidation to reach the cache")
+        // D-076: the old images stay up, marked out of date, until the new ones land.
         for placement in layout.placements {
-            #expect(!canvas.hasContents(for: placement.key))
+            #expect(canvas.hasContents(for: placement.key) && canvas.isStale(placement.key))
         }
         await canvas.settle()
         #expect(await canvas.cache.renders == 12)
@@ -116,13 +117,13 @@ import Testing
         // The top-left tile covers pasteboard (0...128, 0...128) at 100% on a 2× display.
         canvas.invalidate(pasteboardRect: Rect(x: 10, y: 10, width: 20, height: 20))
         let topLeft = layout.placements.first { $0.key.column == 0 && $0.key.row == 0 }!.key
-        #expect(!canvas.hasContents(for: topLeft))
+        #expect(canvas.hasContents(for: topLeft) && canvas.isStale(topLeft), "the old image stays up until the new one lands")
         let others = layout.keys.subtracting([topLeft])
         for key in others {
-            #expect(canvas.hasContents(for: key))
+            #expect(canvas.hasContents(for: key) && !canvas.isStale(key))
         }
         await canvas.settle()
-        #expect(canvas.hasContents(for: topLeft))
+        #expect(canvas.hasContents(for: topLeft) && !canvas.isStale(topLeft))
         #expect(await canvas.cache.renders == 7)
 
         // A rect nowhere near the view invalidates nothing.

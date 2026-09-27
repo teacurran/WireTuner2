@@ -188,11 +188,11 @@ struct TransformPanelBody: View {
         let _ = TransformCenterLink.shared.revision
         let center = Self.center(state.model, selection: selection)
         VStack(alignment: .leading, spacing: 10) {
-            Picker("Transform", selection: $state.model.tab) {
-                ForEach(TransformPanelModel.Tab.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("transform.tab")
+            PanelSectionTabs(
+                label: "Transform", options: TransformPanelModel.Tab.allCases.map { ($0, $0.id, $0.title) }, selection: $state.model.tab,
+                identifier: "transform.tab"
+            )
+            .frame(height: PanelTabStrip.height)
             Form {
                 switch state.model.tab {
                 case .move:

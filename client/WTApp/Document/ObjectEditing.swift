@@ -65,12 +65,16 @@ final class ObjectEditing: CommandSink {
     /// The block the Text tool is editing, if any (the Object panel's Text section formats its
     /// selection; Edit menu commands act on its text).
     var textSession: TextEditingSession?
-    /// Groups a burst of nudges into one undo step: ended after this long without one.
+    /// A burst of nudges (key repeat) previews and is written as one change once this long
+    /// passes without one (D-076).
     var nudgePause: Duration = .milliseconds(500)
     private(set) var duplicateMemory: DuplicateMemory?
     private(set) var lastTransform: LastTransform?
     private var nudgeEnd: Task<Void, Never>?
     private(set) var isNudging = false
+    /// The burst's distance so far and its preview.
+    private var nudgeTotal = Vector.zero
+    private lazy var nudgeEdit = GestureEdit(document: document)
 
     init(document: DocumentHandle, selection: SelectionController, pasteboard: any ObjectPasteboard = SystemObjectPasteboard()) {
         self.document = document
@@ -315,16 +319,16 @@ final class ObjectEditing: CommandSink {
         return NamedChange.move(MoveOffGrid.command(movable, by: delta, in: document.state), nodes: movable, state: document.state)
     }
 
-    /// An arrow press: nudges by `delta`, grouping a burst of presses (key repeat) into one undo
-    /// step until `nudgePause` passes without one.
+    /// An arrow press: nudges by `delta`.  A burst of presses (key repeat) previews the move so
+    /// far on the canvas and is written as one change -- one undo step -- once `nudgePause`
+    /// passes without a press (D-076: gestures write intent, not input events).
     @discardableResult
     func nudge(by delta: Vector) -> Bool {
-        guard let command = nudgeCommand(delta) else { return false }
-        if !isNudging {
-            isNudging = true
-            document.beginGroup()
-        }
-        perform(command)
+        let total = (isNudging ? nudgeTotal : .zero) + delta
+        guard let command = nudgeCommand(total) else { return false }
+        isNudging = true
+        nudgeTotal = total
+        nudgeEdit.update(command)
         nudgeEnd?.cancel()
         let pause = nudgePause
         nudgeEnd = Task { @MainActor [weak self] in
@@ -335,16 +339,17 @@ final class ObjectEditing: CommandSink {
         return true
     }
 
-    /// Closes the nudge burst's undo group (after the pause; tests call it directly).
-    func endNudging() {
-        guard isNudging else { return }
+    /// Writes the nudge burst as one change (after the pause; tests call it directly).
+    @discardableResult
+    func endNudging() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard isNudging else { return nil }
         isNudging = false
+        nudgeTotal = .zero
         nudgeEnd?.cancel()
         nudgeEnd = nil
-        Task { @MainActor [document] in
-            await document.settle()
-            document.endGroup()
-        }
+        guard let command = nudgeEdit.command else { return nil }
+        nudgeEdit.cancel()
+        return perform(command)
     }
 
     /// The nudge for an arrow key code (123 left, 124 right, 125 down, 126 up) at `distance`.

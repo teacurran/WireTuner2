@@ -52,9 +52,11 @@ left as it was.  The design-point document opens in 0.77 s (release, M-series; s
 
 == Outbox and coalescing
 
-A local change is appended to `changes` in the same transaction that applies it to the
-in-memory state.  Nothing can be lost between "I saw it on screen" and "it is queued".  What is
-appended is the change without its local-only writes (xref:crdt-model.adoc#local-only[Local-only
+A local change is applied to the in-memory state at once and appended to `changes` in the next
+batch: every change applied since the last write goes into one transaction, at most 250 ms after
+the first of them and at once before the outbox is read or sent, before any other write, and
+when the app deactivates or quits or the document closes (xref:decisions.adoc#D-076[D-076]).  A
+crash loses at most that unwritten batch.  What is appended is the change without its local-only writes (xref:crdt-model.adoc#local-only[Local-only
 fields]); the registers those wrote go to `view` in the same transaction (`LocalOnlyRows`: node and
 op ids, the `FieldPath`, the value or unset) and are restored on top of the state whenever the
 store loads or replaces it -- opening, `installSnapshot`, and the reset `beginSalvage` and
@@ -90,6 +92,32 @@ tombstones locally; the rule is implemented (a node whose last `deleted` write i
 With the standard rules an engine fed the coalesced outbox has the raw outbox's state hash; a
 minute of dragging (3,600 one-register changes) sends one substantive op, and a 20,000-op outbox
 coalesces and encodes in 16 ms (release).
+
+NOTE: As built by D-076 (`WTModel.DocumentEngine`, `WTSync.LocalStore`).  The merge state is one
+`DocumentCore` in a lock shared by the `Document` façade and the store actor: the façade applies a
+local command, undo or redo to it synchronously on the main actor, and the outcome waits in the
+engine's queue until the store writes it (`Options.batchInterval`, 250 ms; `flush()`).  Every other
+store operation that writes -- a received change, an acknowledgement, a rotation, a snapshot, a
+salvage -- takes the queue in the same locked step as its own mutation and writes it first in its
+transaction, so the file holds the changes in the order the state applied them; reads of the
+outbox, counts, history and branch export write the queue first.  The disk is never touched under
+the lock.  Within a batch an earlier `SetFields` a later change of the batch writes again becomes a
+`Noop` (`Coalescer.Rules.registers`, every change keeping its seq and label).  Typing that joins the
+open undo step (TYPE-003's grouping: a word, or up to a one-second pause) extends one *open* change
+-- the same seq, its ops appended -- instead of taking a seq per key (`DocumentCore.open`); its row
+is rewritten as it grows, and it is sealed when the word ends, any other change is made or received,
+an undo or redo runs, the replica rotates or a snapshot is written.  `pendingUpload` does not send
+a change that is still open until the typing has paused for a second (it is then sealed), so a
+change never grows after leaving the Mac.  `LocalStore.perform`, `undo` and `redo` (the actor
+calls) still write before returning.  A batch whose write fails leaves the store diverged, as a
+failed write always did, and reopening restores what was written.  Because a stored change can now
+hold only `Noop`s, two rules follow it: the divergence measure counts a local `Noop` as an op of the
+user's (the edit it replaced was made), so review thresholds see the same volume as before, and
+salvage re-issues a change of `Noop`s only as it is instead of dropping it, so its label stays in the
+history.  `Simulation.copyStore` writes the batch before copying, as a backup of a quiescent store
+would be.  Batched and unbatched edits give
+the same state hash locally, after a relaunch and on a replica that receives the uploads
+(`LocalStoreBatchingTests`, `DocumentBatchingTests`).
 
 == Reconnecting with a backlog
 

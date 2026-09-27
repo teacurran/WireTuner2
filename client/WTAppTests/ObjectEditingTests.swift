@@ -227,6 +227,8 @@ final class EditingBox {
         #expect(!manager.nudge(keyCode: 124, modifiers: .command), "Command+arrow is a shortcut")
         #expect(!manager.nudge(keyCode: 12, modifiers: []))
         #expect(manager.keyDown(TestEvents.key("\u{F703}", keyCode: 124)))
+        // D-076: the burst previews and is written once it ends.
+        _ = await f.editing.endNudging()?.value
         await f.document.settle()
         let after = f.bounds(f.selection.a)!
         #expect(abs(after.minX - before.minX - 4) < 1e-9 && abs(after.minY - before.minY - 20) < 1e-9)

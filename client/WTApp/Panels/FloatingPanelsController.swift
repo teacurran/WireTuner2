@@ -44,11 +44,16 @@ final class FloatingPanelsController {
             window.close()
             windows[id] = nil
         }
+        let appearance = interaction.appearance()
         for (id, floater) in floating {
             let window = windows[id] ?? FloatingPanelWindow(groupID: id, layout: layoutController)
             windows[id] = window
-            let groupView = interaction.makeGroupView(floater.group, floating: true, body: body(for:))
-            window.show(groupView, frame: floater.frame, parent: parentWindow())
+            if let current = window.contentView as? PanelGroupView, current.canShow(floater.group, appearance: appearance) {
+                current.show(floater.group, body: body(for:))
+                window.show(current, frame: floater.frame, parent: parentWindow())
+            } else {
+                window.show(interaction.makeGroupView(floater.group, floating: true, body: body(for:)), frame: floater.frame, parent: parentWindow())
+            }
         }
     }
 
@@ -59,9 +64,14 @@ final class FloatingPanelsController {
     }
 }
 
-/// One floating group's window.  Moving or resizing it writes the frame into the layout.
+/// One floating group's window: a utility panel on the system glass (D-077) -- the window
+/// itself is clear and the group view draws the glass -- without the standard title bar
+/// buttons (the group's title bar has its own close button and moves the window).  Moving or
+/// resizing it writes the frame into the layout.
 @MainActor
 final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
+    static let cornerRadius: CGFloat = 14
+
     let groupID: PanelGroup.ID
     let layoutController: PanelLayoutController
     private var isApplyingLayout = false
@@ -69,12 +79,20 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
     init(groupID: PanelGroup.ID, layout: PanelLayoutController) {
         self.groupID = groupID
         self.layoutController = layout
-        super.init(contentRect: NSRect(x: 0, y: 0, width: 260, height: 320), styleMask: [.utilityWindow, .titled, .resizable, .nonactivatingPanel], backing: .buffered, defer: true)
+        super.init(
+            contentRect: NSRect(x: 0, y: 0, width: 260, height: 320), styleMask: [.utilityWindow, .titled, .resizable, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered, defer: true
+        )
         isFloatingPanel = true
         hidesOnDeactivate = true
         isReleasedWhenClosed = false
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
+        minSize = NSSize(width: 180, height: PanelGroupView.titleHeight)
+        for button in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] { standardWindowButton(button)?.isHidden = true }
         identifier = NSUserInterfaceItemIdentifier("floating-group.\(groupID)")
         setAccessibilityIdentifier("floating-group.\(groupID)")
         delegate = self
@@ -84,8 +102,14 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
     func show(_ groupView: PanelGroupView, frame: LayoutRect, parent: NSWindow?) {
         isApplyingLayout = true
         defer { isApplyingLayout = false }
-        contentView = groupView
-        setFrame(NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height), display: false)
+        if contentView !== groupView { contentView = groupView }
+        var rect = NSRect(x: frame.x, y: frame.y, width: frame.width, height: frame.height)
+        if groupView.isCollapsed {
+            // A collapsed floating group is its title bar; its stored frame keeps the full size.
+            rect.origin.y = rect.maxY - PanelGroupView.titleHeight
+            rect.size.height = PanelGroupView.titleHeight
+        }
+        setFrame(rect, display: false)
         attach(to: parent)
         orderFront(nil)
     }
@@ -103,7 +127,14 @@ final class FloatingPanelWindow: NSPanel, NSWindowDelegate {
     /// The user moved or resized the panel.
     func frameDidChange() {
         guard !isApplyingLayout else { return }
-        let frame = layoutFrame
+        var frame = layoutFrame
+        if (contentView as? PanelGroupView)?.isCollapsed == true,
+            case let .floating(index)? = layoutController.layout.location(of: groupID)
+        {
+            // Collapsed, the window is the title bar: keep the stored height, move the top edge.
+            let stored = layoutController.layout.floating[index].frame.height
+            frame = LayoutRect(x: frame.x, y: frame.maxY - stored, width: frame.width, height: stored)
+        }
         layoutController.update { $0.setFrame(frame, floatingGroup: groupID) }
     }
 

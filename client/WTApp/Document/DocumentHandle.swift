@@ -29,7 +29,9 @@ enum Pasteboard {
 
 /// Where tools emit changes (client.adoc, "Tools": a `CommandSink` in the `ToolContext`).  A tool
 /// previews during a drag and performs exactly one command on mouse-up (one per placed point for
-/// the Pen); the returned task finishes once the change is applied and drawn.
+/// the Pen; D-076: gestures write intent, not input events).  Once the model is open and nothing
+/// is queued before it, the change is applied and the scene rebuilt before `perform` returns
+/// (D-076); the returned task answers the change.
 @MainActor
 protocol CommandSink: AnyObject {
     @discardableResult
@@ -105,6 +107,9 @@ final class DocumentHandle: Identifiable, CommandSink {
     private var opening: Task<Void, Never>?
     /// The last command, undo or redo issued: `settle` waits for it.
     private var inflight: Task<Void, Never>?
+    /// Queued calls not finished yet: while there are any a command queues behind them, else it
+    /// is applied at once.
+    private var queued = 0
     private var modelObservation: WTModel.Document.ObservationToken?
     private var observers: [UUID: @MainActor (ContentChange) -> Void] = [:]
     private var structureObservers: [UUID: @MainActor () -> Void] = [:]
@@ -112,6 +117,8 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// The command the canvases show as if performed (`preview`), and the scene drawn with it.
     private(set) var previewCommand: (any WTModel.Command)?
     private var previewScene: DocumentScene?
+    /// The state the preview is drawn from (the command applied to a copy), nil without one.
+    private(set) var previewState: EngineState?
     /// The nodes the preview draws differently: repainted when it changes or ends.
     private var previewTouched: Set<NodeID> = []
     /// The glyph, master page or symbol whose canvas this handle draws, nil for the pasteboard: a
@@ -212,6 +219,9 @@ final class DocumentHandle: Identifiable, CommandSink {
     var displayList: DisplayList { previewScene?.displayList ?? builder.scene.displayList }
     /// The merged state the scene was built from (empty until the model opens).
     var state: EngineState { model?.state ?? EngineState() }
+    /// The state the canvases show: the preview's while there is one (a gesture's handles follow
+    /// its preview, D-076), else `state`.
+    var shownState: EngineState { previewState ?? state }
 
     private func modelDidChange(_ event: DocumentEvent) {
         let before = displayList
@@ -290,6 +300,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         var merged = summary
         for node in previewTouched { merged.touch(node) }
         previewScene = nil
+        previewState = nil
         previewTouched = []
         guard let command = previewCommand, let model else { return merged }
         var state = model.state
@@ -304,6 +315,7 @@ final class DocumentHandle: Identifiable, CommandSink {
         var copy = builder
         let (scene, previewed) = copy.apply(change, state: state, origin: .local)
         previewScene = scene
+        previewState = state
         previewTouched = previewed.touchedNodes
         for node in previewTouched { merged.touch(node) }
         merged.isStructural = merged.isStructural || previewed.isStructural
@@ -428,10 +440,33 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// selection, an invalid value) is logged and performs nothing.
     @discardableResult
     func perform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+        // A continuous gesture previews what it would write and writes once when it ends (D-076).
+        if gestureDepth > 0 {
+            gestureEdit.update(command)
+            return Task { nil }
+        }
+        if ContinuousInput.isSettling {
+            gestureEdit.updateSettling(command)
+            return Task { nil }
+        }
         let transformed = commandTransform?(command) ?? command
         // A symbol's canvas creates into the symbol (LIB-012); a glyph's or master's onto its canvas.
         let command = symbolCanvasNode.map { SymbolPlacedCommand.placing(transformed, in: $0) } ?? GlyphCanvas.placing(transformed, on: canvasNode)
-        return run { model in try await model.perform(command) }
+        return now { try $0.performNow(command) } ?? run { model in try await model.perform(command) }
+    }
+
+    /// Runs `body` on the model at once when it is open and nothing is queued (D-076: the change
+    /// is on screen before this returns), answering a finished task; nil otherwise.
+    private func now(_ body: (WTModel.Document) throws -> Wiretuner_Doc_V1_Change?) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard queued == 0, let model else { return nil }
+        let change: Wiretuner_Doc_V1_Change?
+        do {
+            change = try body(model)
+        } catch {
+            Self.logger.error("command failed: \(String(describing: error), privacy: .public)")
+            change = nil
+        }
+        return Task { change }
     }
 
     /// Undo and redo do nothing while set (Inspect mode: nothing may change, COLLAB-035).
@@ -441,14 +476,14 @@ final class DocumentHandle: Identifiable, CommandSink {
     @discardableResult
     func undo() -> Task<Wiretuner_Doc_V1_Change?, Never> {
         guard !historyLocked else { return Task { nil } }
-        return run { model in try await model.undo() }
+        return now { try $0.undoNow() } ?? run { model in try await model.undo() }
     }
 
     /// menu:Edit[Redo].
     @discardableResult
     func redo() -> Task<Wiretuner_Doc_V1_Change?, Never> {
         guard !historyLocked else { return Task { nil } }
-        return run { model in try await model.redo() }
+        return now { try $0.redoNow() } ?? run { model in try await model.redo() }
     }
 
     /// The model's state was replaced wholesale (WTSync's `SyncEvent.stateReplaced`: a snapshot
@@ -466,18 +501,23 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// Applies a change from the server's log (the sync client's path in; tests stand in for it).
     @discardableResult
     func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64 = 0) -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        run { model in
+        // Not counted as queued: a local command need not wait for a remote change's write.
+        run(queuing: false) { model in
             try await model.receive(change, serverSeq: serverSeq)
             return change
         }
     }
 
-    private func run(_ body: @escaping @MainActor (WTModel.Document) async throws -> Wiretuner_Doc_V1_Change?) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+    private func run(queuing: Bool = true,
+                     _ body: @escaping @MainActor (WTModel.Document) async throws -> Wiretuner_Doc_V1_Change?) -> Task<Wiretuner_Doc_V1_Change?, Never> {
         let opening = opening
         let previous = inflight
+        let counted = queuing ? 1 : 0
+        queued += counted
         let task = Task { [weak self] () -> Wiretuner_Doc_V1_Change? in
             await opening?.value
             await previous?.value
+            defer { self?.queued -= counted }
             guard let model = self?.model else { return nil }
             do {
                 return try await body(model)
@@ -490,9 +530,40 @@ final class DocumentHandle: Identifiable, CommandSink {
         return task
     }
 
-    /// Opens an undo group: every command until `endGroup` is one undo step (a drag).
+    /// Opens an undo group: every command until `endGroup` is one undo step (a batch of
+    /// commands; a continuous gesture uses `beginGesture` instead).
     func beginGroup() { model?.beginGroup() }
     func endGroup() { model?.endGroup() }
+
+    // MARK: Continuous gestures (D-076)
+
+    /// The preview of the continuous gesture in progress and its one change.
+    private(set) lazy var gestureEdit = GestureEdit(document: self)
+    private var gestureDepth = 0
+
+    /// Begins a continuous gesture (a slider or colour drag): until `endGesture`, `perform`
+    /// previews its command on every canvas instead of writing it -- the last one shown is the
+    /// gesture's one change.  Gestures nest; the outermost decides.
+    func beginGesture() {
+        gestureDepth += 1
+    }
+
+    /// Ends the gesture `beginGesture` began: its last command is written as one change, or --
+    /// `cancelling` -- nothing is.
+    @discardableResult
+    func endGesture(cancelling: Bool = false) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard gestureDepth > 0 else { return nil }
+        gestureDepth -= 1
+        guard gestureDepth == 0 else { return nil }
+        if cancelling {
+            gestureEdit.cancel()
+            return nil
+        }
+        return gestureEdit.commit()
+    }
+
+    /// Whether a continuous gesture is in progress.
+    var isInGesture: Bool { gestureDepth > 0 }
 
     /// The Edit menu's titles and states.
     var undoTitle: String { model?.undoTitle ?? "Undo" }

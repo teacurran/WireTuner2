@@ -74,9 +74,11 @@ import WTRender
         for flag in SetLayerFlag.Flag.allCases { _ = LayersPanelModel.value(flag, of: model.layers[0]) }
         // The row's column closures: a click and a drag.
         LayerRow.column(model, .locked, model.layers[0], 0)(0)
+        #expect(LayerOrder(document.state).layer(layers[2])?.locked == true, "the click locks the top row, applied at once (D-076)")
+        // The drag starts on the row the click just locked: the run takes the opposite, unlocked.
         LayerRow.column(model, .locked, model.layers[0], 0)(LayersPanelBody.rowHeight * 2)
         await document.settle()
-        #expect(LayerOrder(document.state).layer(layers[0])?.locked == true)
+        #expect(LayerOrder(document.state).layer(layers[0])?.locked == false)
     }
 
     @Test func clickingANameSelectsActivatesAndMoves() async {

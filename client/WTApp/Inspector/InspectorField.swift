@@ -33,10 +33,18 @@ struct InspectorField<Value: Equatable>: View {
     }
 
     /// An arrow key press: steps the value when the field steps.
-    static func step(_ editor: FieldEditor<Value>, key: SwiftUI.KeyEquivalent, shift: Bool) -> KeyPress.Result {
+    /// A held key's repeats (`repeating`) preview the stepped value and write it once the key is
+    /// released and the repeats pause (D-076); the first press writes at once.
+    static func step(_ editor: FieldEditor<Value>, key: SwiftUI.KeyEquivalent, shift: Bool, repeating: Bool = false) -> KeyPress.Result {
         let up: Bool? = key == .upArrow ? true : key == .downArrow ? false : nil
-        guard let steps = FieldEditor<Value>.steps(up: up, shift: shift), editor.step(steps) else { return .ignored }
-        return .handled
+        guard let steps = FieldEditor<Value>.steps(up: up, shift: shift) else { return .ignored }
+        var stepped = false
+        if repeating {
+            ContinuousInput.settle { stepped = editor.step(steps) }
+        } else {
+            stepped = editor.step(steps)
+        }
+        return stepped ? .handled : .ignored
     }
 
     // The field's handlers, as closures the tests can call.
@@ -83,7 +91,7 @@ struct InspectorField<Value: Equatable>: View {
         TextField(title, text: Self.text(editor), prompt: Text(value == nil ? "Mixed" : ""))
             .focused($focused)
             .onSubmit(Self.submitting(editor))
-            .onKeyPress(keys: [.upArrow, .downArrow], phases: [.down, .repeat]) { Self.step(editor, key: $0.key, shift: $0.modifiers.contains(.shift)) }
+            .onKeyPress(keys: [.upArrow, .downArrow], phases: [.down, .repeat]) { Self.step(editor, key: $0.key, shift: $0.modifiers.contains(.shift), repeating: $0.phase == .repeat) }
             .onExitCommand(perform: Self.cancelling(editor))
             .onChange(of: focused, Self.focusing(editor))
             .onChange(of: value, Self.binding(editor))

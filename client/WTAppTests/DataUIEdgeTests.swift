@@ -228,8 +228,12 @@ import WTSync
         scripts.install(commands: world.setup.environment.commands, watch: true) { [weak window] in window }
         let changed = MenuCounter()
         scripts.menuDidChange = { changed.count += 1 }
-        try Data("1".utf8).write(to: folder.url.appending(path: "Watched.js"))
-        for _ in 0..<150 where changed.count == 0 { try await Task.sleep(for: .milliseconds(20)) }
+        // FSEvents can drop a change that races the stream's start and delivers late on a busy
+        // machine: the file is rewritten every half second until a change is reported (10 s at most).
+        for attempt in 0..<20 where changed.count == 0 {
+            try Data("\(attempt)".utf8).write(to: folder.url.appending(path: "Watched.js"))
+            for _ in 0..<25 where changed.count == 0 { try await Task.sleep(for: .milliseconds(20)) }
+        }
         #expect(changed.count > 0 && world.setup.environment.commands.command(CommandID("script:Watched.js")) != nil)
         world.setup.environment.commands.perform(ScriptFeatures.ID.editor)
         world.setup.environment.commands.perform(ScriptFeatures.ID.editorFromScripts)

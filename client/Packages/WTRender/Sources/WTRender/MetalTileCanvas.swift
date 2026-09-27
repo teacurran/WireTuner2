@@ -10,7 +10,9 @@
 // Fallback: with no Metal device, or after three command buffers in a row fail, the canvas
 // swaps its layer content for the Core Graphics `TiledCanvasLayer` over the same tile keys and
 // logs why.  A changed display list invalidates the whole canvas unless it comes with its
-// `ChangeSummary` (REND-004), which drops only the tiles under the touched nodes.
+// `ChangeSummary` (REND-004), which drops only the tiles under the touched nodes.  An invalidated
+// tile is retired, not dropped (D-076, "Rendering never shows a hole"): it keeps drawing until its
+// replacement, rendered into a fresh slot, is ready, and visible retired tiles render first.
 
 import WTGeometry
 import Foundation
@@ -302,15 +304,16 @@ public final class MetalTileCanvas {
         requestMissingTiles()
     }
 
-    /// Drops the tiles any of `rects` touches (half a device pixel of slack, as the tile cache).
-    /// No generation bump: a dropped key that is rendering right now loses its slot, so the
-    /// batch's completion cannot mark it ready (and no slot is reallocated while a batch is in
-    /// flight); the other keys of the batch are untouched by the change and are kept.
+    /// Retires the tiles any of `rects` touches (half a device pixel of slack, as the tile cache):
+    /// each keeps drawing its old pixels until its replacement is ready.  No generation bump: a
+    /// retired key that is rendering right now loses its slot, so the batch's completion cannot
+    /// mark it ready (and no slot is reallocated while a batch is in flight); the other keys of
+    /// the batch are untouched by the change and are kept.
     private func dropTiles(touching rects: [Rect]) {
         guard !rects.isEmpty else {
             return
         }
-        atlas?.slots.removeAll { key in
+        atlas?.slots.retireAll { key in
             let geometry = TileGeometry(key: key)
             return TileCache.touches(geometry.pasteboardBounds(of: key), rects: rects, scale: geometry.zoomStep.scale)
         }
@@ -350,9 +353,10 @@ public final class MetalTileCanvas {
         lastRasterChange = clock()
     }
 
+    // Retires every tile `predicate` names, and forgets the batch in flight.
     private func dropTiles(where predicate: (TileKey) -> Bool) {
         generation += 1
-        atlas?.slots.removeAll(where: predicate)
+        atlas?.slots.retireAll(where: predicate)
         setNeedsDisplay()
     }
 
@@ -372,8 +376,10 @@ public final class MetalTileCanvas {
         else {
             return
         }
-        let visible = visibleKeys(of: geometry, viewport: viewport, canvas: displayList.canvas)
-        let protected = Set(visible)
+        let keys = visibleKeys(of: geometry, viewport: viewport, canvas: displayList.canvas)
+        let protected = Set(keys)
+        // Retired tiles first: an edited object comes back before the empty tiles fill in.
+        let visible = keys.filter { atlas.slots.staleSlot(for: $0) != nil } + keys.filter { atlas.slots.staleSlot(for: $0) == nil }
         var jobs: [(key: TileKey, slot: Int)] = []
         for key in visible where !atlas.slots.contains(key) {
             guard let slot = atlas.slots.allocate(key, protecting: protected) else {
@@ -464,8 +470,9 @@ public final class MetalTileCanvas {
     }
 
     /// Encodes one frame into `texture`: the pasteboard colour, the last complete tiling's
-    /// tiles scaled underneath, then the current tiling's tiles, each a quad placed through the
-    /// current view transform.  Returns how many tiles were drawn.
+    /// tiles scaled underneath, then the current tiling's tiles -- a retired tile's old pixels
+    /// until its replacement is ready -- each a quad placed through the current view transform.
+    /// Returns how many tiles were drawn.
     func encodeFrame(into texture: any MTLTexture, commandBuffer: any MTLCommandBuffer) -> Int {
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = texture
@@ -490,7 +497,7 @@ public final class MetalTileCanvas {
                 .concatenating(viewport.pasteboardToView)
                 .concatenating(.scale(backingScale))
             for key in visibleKeys(of: geometry, viewport: viewport, canvas: displayList.canvas) {
-                if let slot = atlas.slots.readySlot(for: key) {
+                if let slot = atlas.slots.readySlot(for: key) ?? atlas.slots.staleSlot(for: key) {
                     quads.append(TileQuad(cell: geometry.tileSpaceRect(of: key), toDevice: toDevice, surface: surface, slice: slot))
                 }
             }

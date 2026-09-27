@@ -5,7 +5,8 @@
 //
 // A changed display list invalidates the whole canvas unless the change comes with its
 // `ChangeSummary` (REND-004), which repaints only the tiles under the touched nodes
-// (`update` compares the list by value; passing the same value is O(1)).
+// (`update` compares the list by value; passing the same value is O(1)).  An invalidated tile
+// keeps its old image until the new one lands (D-076, "Rendering never shows a hole").
 
 import WTGeometry
 import QuartzCore
@@ -32,6 +33,8 @@ public final class TiledCanvasLayer {
     public private(set) var layout: TileLayout?
 
     private var tileLayers: [TileKey: CALayer] = [:]
+    /// Tiles whose image is out of date: shown until the new image lands.
+    private var stale: Set<TileKey> = []
     private var pending: [TileKey: Request] = [:]
     private var invalidations: [Int: Task<Void, Never>] = [:]
     private var nextID = 0
@@ -49,9 +52,14 @@ public final class TiledCanvasLayer {
     /// Tiles requested from the cache and not yet applied.
     public var pendingTileCount: Int { pending.count }
 
-    /// Whether the tile layer for `key` currently shows an image.
+    /// Whether the tile layer for `key` currently shows an image (an out-of-date one included).
     public func hasContents(for key: TileKey) -> Bool {
         tileLayers[key]?.contents != nil
+    }
+
+    /// Whether `key`'s tile shows an out-of-date image while its new one renders.
+    public func isStale(_ key: TileKey) -> Bool {
+        stale.contains(key)
     }
 
     /// Shows `displayList` through `viewport`: lays out the visible tiles, drops the others
@@ -74,6 +82,7 @@ public final class TiledCanvasLayer {
         for (key, tileLayer) in tileLayers where !visible.contains(key) {
             tileLayer.removeFromSuperlayer()
             tileLayers[key] = nil
+            stale.remove(key)
             cancelRequest(for: key)
         }
         for placement in layout.placements {
@@ -110,8 +119,7 @@ public final class TiledCanvasLayer {
         let scale = layout.geometry.zoomStep.scale
         let affected = tileLayers.keys.filter { TileCache.touches(layout.geometry.pasteboardBounds(of: $0), rects: rects, scale: scale) }
         for key in affected {
-            cancelRequest(for: key)
-            tileLayers[key]?.contents = nil
+            retire(key)
         }
         let canvas = displayList.canvas
         runInvalidation { cache in
@@ -125,8 +133,7 @@ public final class TiledCanvasLayer {
             return
         }
         for key in tileLayers.keys {
-            cancelRequest(for: key)
-            tileLayers[key]?.contents = nil
+            retire(key)
         }
         let canvas = displayList.canvas
         runInvalidation { cache in
@@ -138,8 +145,7 @@ public final class TiledCanvasLayer {
     /// touching the display list: the cached tiles are dropped and the visible ones re-requested.
     public func setRenderer(_ renderer: any WTRender) {
         for key in tileLayers.keys {
-            cancelRequest(for: key)
-            tileLayers[key]?.contents = nil
+            retire(key)
         }
         runInvalidation { cache in
             await cache.replaceRenderer(renderer)
@@ -154,6 +160,7 @@ public final class TiledCanvasLayer {
         pending.removeAll()
         for tileLayer in tileLayers.values { tileLayer.removeFromSuperlayer() }
         tileLayers.removeAll()
+        stale.removeAll()
         layout = nil
         runInvalidation { cache in
             await cache.removeAll()
@@ -189,7 +196,7 @@ public final class TiledCanvasLayer {
         guard invalidations.isEmpty, let displayList, let layout else {
             return
         }
-        for (key, tileLayer) in tileLayers where tileLayer.contents == nil && pending[key] == nil {
+        for (key, tileLayer) in tileLayers where (tileLayer.contents == nil || stale.contains(key)) && pending[key] == nil {
             request(key, displayList: displayList, geometry: layout.geometry)
         }
     }
@@ -213,6 +220,14 @@ public final class TiledCanvasLayer {
             return
         }
         tileLayer.contents = image
+        stale.remove(key)
+    }
+
+    // The tile's image is out of date: the request in flight is dropped and the image stays up
+    // until the next one lands.
+    private func retire(_ key: TileKey) {
+        cancelRequest(for: key)
+        if tileLayers[key]?.contents != nil { stale.insert(key) }
     }
 
     private func cancelRequest(for key: TileKey) {

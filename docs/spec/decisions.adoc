@@ -669,6 +669,23 @@ the object's tiles to grey.  The rules, for every tool, panel and command:
 * *Rendering never shows a hole.*  An edit keeps an object's old tiles on screen until their
   replacements are drawn; the pasteboard colour never shows through an edited object.
 
+NOTE: As built (2026-09-27).  *UI never waits*: `WTModel.DocumentEngine` holds the one
+`DocumentCore` behind a lock shared by the `Document` façade and the backend actor; local commands,
+undo and redo apply synchronously on the main actor and queue their outcome, and `WTSync.LocalStore`
+writes the queue in one transaction at most 250 ms later, and at once before the outbox is read or
+sent, before any other write, on close, and when the app deactivates or quits (`DocumentController.flushAll`).
+Undo grouping, labels, dense replica seqs, reconcile, review holds, salvage and snapshots are
+unchanged; a failed batch write leaves the store diverged as before (xref:client.adoc[Client],
+"Concurrency"; xref:offline.adoc[Offline], "Outbox and coalescing").  *Gestures*: the handle drag
+previews in the overlay and writes one `SetHandles`; the other per-event writers found (corner
+widgets, effect centres, polygon, gradient and lens handles, text on a path with kbd:[Option],
+attribute and mixer sliders, the Halftones slider, colour panels, held arrow keys in fields, nudge
+bursts) preview and write once (client.adoc, "Tools").  *Batches*: same-register writes within a
+batch collapse to the latest; a word's keystrokes extend one open change (`DocumentCore.open`),
+not sent while it can still grow.  *Holes*: retired tiles keep drawing until their replacements are
+ready, on Metal and on the Core Graphics fallback (client.adoc, "Metal tile renderer").  Batched and
+unbatched edits give the same state hash, locally and on a replica that receives the uploads.
+
 [[D-077]]
 === D-077 Panels take the macOS 26 design: Liquid Glass tabs, resizable groups, dock and float
 The panel framework (xref:panels.adoc[Panels]) keeps FreeHand's model -- tabbed groups that dock

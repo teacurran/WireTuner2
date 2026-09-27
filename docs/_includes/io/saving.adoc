@@ -1,7 +1,7 @@
-{product} has no Save command that talks to the network.  Every change you make is written to
-this Mac the instant you make it, and sent to the cloud as soon as there is a connection.  You
-never lose work to a crash, a dead battery or a closed lid, and you never have to remember to
-save.  What the File menu offers instead is a set of commands about *versions* and *copies*:
+{product} has no Save command that talks to the network.  Every change you make is on screen the
+instant you make it, written to this Mac within a quarter of a second, and sent to the cloud as
+soon as there is a connection.  A crash, a dead battery or a closed lid loses at most that last
+quarter second, and you never have to remember to save.  What the File menu offers instead is a set of commands about *versions* and *copies*:
 bookmarking a moment in the document's history, duplicating the document, exporting a
 self-contained package for backup or exchange, and restoring an earlier version.
 
@@ -166,8 +166,8 @@ have never opened on this Mac cannot be opened without a connection
 
 {product} writes a compact copy of the whole document to disk at the *Snapshot interval*
 (menu:{product}[Settings… > Documents], default every 5 minutes) and when the window closes.
-This is not a save -- every change is already on disk the moment it is made -- it only makes
-reopening faster.  At the same moments, if the document changed, {product}
+This is not a save -- every change is already on disk within a quarter of a second of being made
+-- it only makes reopening faster.  At the same moments, if the document changed, {product}
 refreshes the document's picture in the library window (xref:creating-opening.adoc[Creating
 and opening documents]).  There is nothing to configure about backups: the cloud holds the
 document's whole history, and a package is the way to take a copy elsewhere.

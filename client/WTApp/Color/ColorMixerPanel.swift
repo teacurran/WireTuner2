@@ -172,12 +172,13 @@ final class ColorMixerModel {
         if live, dragging { workspace.apply(ColorResolver.inline(current)) }
     }
 
-    /// A slider drag begins (`true`) or ends: with *Apply as you mix* on, the drag is one undo
-    /// step.
+    /// A slider drag begins (`true`) or ends: with *Apply as you mix* on, the selection previews
+    /// the colour as it is mixed and the drag is written as one change on mouse-up (D-076).
     func dragging(_ editing: Bool) {
         guard live, let document = workspace.document else { return }
+        guard editing != dragging else { return }
         dragging = editing
-        if editing { document.beginGroup() } else { document.endGroup() }
+        if editing { document.beginGesture() } else { document.endGesture() }
     }
 
     /// Replaces the new colour (a pick, a drop, a field entry): the mode follows its space.

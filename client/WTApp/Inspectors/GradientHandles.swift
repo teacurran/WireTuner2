@@ -10,8 +10,8 @@ import WTRender
 /// Rectangle, in each visible Gradient fill's own set -- the fill selected in the Object panel in
 /// full colour, the others dimmed -- hidden under Auto size.  Dragging the start moves the whole
 /// gradient; an end changes its length and angle (kbd:[Shift]: 45° steps; kbd:[Option] on a
-/// Radial or Rectangle end: both ends together).  A drag writes the ATOMIC `axis` on every move
-/// inside one undo group: one undo step, one coalesced write.
+/// Radial or Rectangle end: both ends together).  A drag previews on the canvas and writes the
+/// ATOMIC `axis` once on mouse-up (D-076): one undo step, one write.
 @MainActor
 final class GradientHandles: CanvasHandleLayer {
     static let radius = 6.0
@@ -44,7 +44,8 @@ final class GradientHandles: CanvasHandleLayer {
 
     let focus: InspectorFocus
     private(set) var dragging: Handle?
-    private var wrote = false
+    /// The drag's preview and its one change (D-076).
+    private var edit: GestureEdit?
 
     init(focus: InspectorFocus = .shared) {
         self.focus = focus
@@ -54,7 +55,7 @@ final class GradientHandles: CanvasHandleLayer {
     func handles(_ context: ToolContext) -> [Handle] {
         let document = context.document
         let selection = context.selection.selection
-        let state = document.state
+        let state = document.shownState
         let targets = AttributesListModel.targets(selection, in: state)
         let focusedRow = focus.row(for: targets)
         let focusedTargets = focusedRow.flatMap { AttributesListModel(document: document, selection: selection).item($0)?.targets } ?? []
@@ -124,35 +125,30 @@ final class GradientHandles: CanvasHandleLayer {
         let all = handles(context).sorted { $0.focused && !$1.focused }
         guard let hit = all.first(where: { Self.position($0, viewport: context.viewport).distance(to: e.viewPoint) <= Self.radius }) else { return false }
         dragging = hit
-        wrote = false
-        context.document.beginGroup()
+        edit = GestureEdit(document: context.document)
         return true
     }
 
     func drag(_ e: CanvasEvent, context: ToolContext) {
         guard let dragging else { return }
-        wrote = true
-        context.commandSink.perform(Self.command(dragging: dragging, to: e))
+        edit?.update(Self.command(dragging: dragging, to: e))
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
         drag(e, context: context)
-        finish(context, undo: false)
+        edit?.commit()
+        finish(context)
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish(context)
     }
 
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    /// Ends the drag: the change was written (or the preview dropped) already.
+    private func finish(_ context: ToolContext) {
         dragging = nil
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {

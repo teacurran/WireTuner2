@@ -170,6 +170,70 @@ struct MetalTileCanvasTests {
         #expect(canvas.layer.bounds == CGRect(x: 0, y: 0, width: 300, height: 200))
     }
 
+    /// D-076, "Rendering never shows a hole": the frame drawn right after an edit -- before the
+    /// replacement tiles have rendered -- shows the object's old pixels, never the pasteboard, and
+    /// once the replacements land it shows the new ones.
+    @Test func anEditNeverShowsAHoleWhileItsTilesReRender() async throws {
+        let context = try #require(MetalAvailability.context)
+        let canvas = makeCanvas(backingScale: 1)
+        canvas.pasteboardColor = Color(red: 0, green: 1, blue: 1)
+        let viewport = Viewport(size: Corpus.viewSize)
+        canvas.update(displayList: Corpus.solidRect, viewport: viewport)
+        await canvas.settle()
+        let texture = try makeFrameTexture(context, width: 128, height: 96)
+        func interior(_ frame: BitmapSurface) -> [RGBA8] {
+            stride(from: 12, to: 68, by: 4).flatMap { x in stride(from: 12, to: 48, by: 4).map { y in frame.pixel(x: x, y: y) } }
+        }
+        _ = try #require(canvas.renderFrame(into: texture))
+        let pasteboard = try readBack(texture).pixel(x: 100, y: 80)
+        #expect(pasteboard.red < 20 && pasteboard.green > 235, "the pasteboard shows outside the object")
+
+        // The edit (as the invalidation batcher delivers it): the rectangle turns blue.
+        let rect = Rect(x: 10, y: 10, width: 60, height: 40)
+        let edited = Corpus.list([.fill(FillItem(path: DisplayPath(rect: rect), paint: .solid(blue)))])
+        for round in 0..<3 {
+            canvas.apply(displayList: round % 2 == 0 ? edited : Corpus.solidRect, invalidating: [rect])
+            // No await: the replacement cannot have landed, since its completion needs the main actor.
+            _ = try #require(canvas.renderFrame(into: texture))
+            let during = interior(try readBack(texture))
+            #expect(during.allSatisfy { $0.maxChannelDifference(to: pasteboard) > 40 }, "no pasteboard pixel inside the edited object")
+        }
+        await canvas.settle()
+        _ = try #require(canvas.renderFrame(into: texture))
+        let after = interior(try readBack(texture))
+        #expect(after.allSatisfy { $0.blue > 150 && $0.red < 100 }, "the new pixels replace the old once ready")
+        #expect(canvas.atlasTileCount == 1, "the retired slot was freed")
+    }
+
+    @Test func retiredTilesGiveTheirSlotsBackWhenTheReplacementIsReady() {
+        let key = { (x: Int) in TileKey(canvas: "c", zoomStep: ZoomStep(index: 0), rotationDegrees: 0, column: x, row: 0) }
+        var slots = TileSlots(capacity: 3)
+        let a = slots.allocate(key(0), protecting: [])!
+        slots.markReady(key(0))
+        slots.retire(key(0))
+        #expect(slots.staleSlot(for: key(0)) == a && !slots.contains(key(0)))
+        // The replacement renders into a fresh slot; the old one is freed when it is ready.
+        let fresh = slots.allocate(key(0), protecting: [key(0)])!
+        #expect(fresh != a)
+        slots.retire(key(0))   // edited again while rendering: the in-flight slot goes, the old pixels stay
+        #expect(slots.staleSlot(for: key(0)) == a && slots.count == 0)
+        _ = slots.allocate(key(0), protecting: [key(0)])
+        slots.markReady(key(0))
+        #expect(slots.staleSlot(for: key(0)) == nil && slots.readySlot(for: key(0)) != nil)
+        // A full atlas takes an unseen stale slot first, then another visible key's stale pixels.
+        slots.retire(key(0))
+        _ = slots.allocate(key(1), protecting: [])
+        _ = slots.allocate(key(2), protecting: [])
+        #expect(slots.allocate(key(3), protecting: [key(1), key(2)]) != nil, "the unseen stale slot is reused")
+        #expect(slots.staleSlot(for: key(0)) == nil)
+        slots.markReady(key(1))
+        slots.retire(key(1))
+        #expect(slots.allocate(key(4), protecting: [key(1), key(2), key(3), key(4)]) != nil, "a visible key's stale pixels as a last resort")
+        #expect(slots.allocate(key(5), protecting: [key(2), key(3), key(4), key(5)]) == nil)
+        slots.removeAll { _ in true }
+        #expect(slots.count == 0)
+    }
+
     @Test func aSmallAtlasRecyclesSlotsOfTilesThatLeftTheView() async throws {
         let canvas = makeCanvas(atlasCapacity: 8)
         let start = Viewport(size: size)

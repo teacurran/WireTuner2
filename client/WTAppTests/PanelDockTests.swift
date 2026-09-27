@@ -102,8 +102,11 @@ import Testing
         #expect(layout.layout.docks[.right]?.count == 3)
         #expect(layout.layout.docks[.right]?[2].panels == ["document"])
 
-        #expect(dock.groupViews[0].draggingEntered(drop) == .move)
-        #expect(dock.groupViews[0].performDragOperation(drop))
+        // On the Properties title bar (a drop on a docked body docks between groups instead).
+        let header = DraggingInfoStub(pasteboardName: "header", panel: "document", location: CGPoint(x: 260, y: 800 - PanelDockController.inset - 10))
+        #expect(dock.groupViews[0].draggingEntered(header) == .move)
+        #expect(dock.groupViews[0].performDragOperation(header))
+        header.release()
         #expect(layout.layout.group("properties")?.panels == ["object", "document"])
         #expect(layout.layout.docks[.right]?.count == 2)
 

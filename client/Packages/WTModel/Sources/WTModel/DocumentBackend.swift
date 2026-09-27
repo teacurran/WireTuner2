@@ -38,71 +38,80 @@ public struct UndoSummary: Sendable, Hashable {
 }
 
 /// Where a document's merge state lives and how its changes are kept (docs/spec/client.adoc,
-/// "Concurrency"): an actor serialising every change on its own executor, so the `Document` façade
-/// on the main actor never touches the merge state directly.  `WTSync.LocalStore` is the
-/// persistent backend (a local change is applied and appended to the outbox in one transaction,
-/// docs/spec/offline.adoc); `MemoryBackend` keeps everything in memory.
+/// "Concurrency"; D-076).  The state itself is the backend's `engine`, which the `Document` façade
+/// applies local commands to synchronously on the main actor; the actor persists what they wrote
+/// off the main actor and serialises everything else (remote changes, acknowledgements, snapshots).
+/// `WTSync.LocalStore` is the persistent backend (the local changes applied since its last write
+/// are written together in one transaction, at most every 250 ms, docs/spec/offline.adoc);
+/// `MemoryBackend` keeps everything in memory.
 public protocol DocumentBackend: Actor {
+    /// The merge state, shared with the façade.
+    nonisolated var engine: DocumentEngine { get }
     /// The current menu state and replica, for a façade opening over the backend.
     func summary() -> DocumentUpdate
-    /// Performs a local command (`DocumentCore.perform`); `change` is nil when it appended no ops.
+    /// Performs a local command (`DocumentCore.perform`) and writes it before returning;
+    /// `change` is nil when it appended no ops.  The façade uses `engine.perform`, which does not
+    /// wait for the write.
     func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate
-    /// Undoes the top undo step (`DocumentCore.undo`).
+    /// Undoes the top undo step (`DocumentCore.undo`), written before returning.
     func undo(recording: DocumentCore.Recording) throws -> DocumentUpdate
-    /// Redoes the top redo step (`DocumentCore.redo`).
+    /// Redoes the top redo step (`DocumentCore.redo`), written before returning.
     func redo(recording: DocumentCore.Recording) throws -> DocumentUpdate
     /// Applies a change from the server's log.
     func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) throws -> DocumentUpdate
-    /// Runs `body` over the merged state on the backend's executor.
+    /// Runs `body` over the merged state.
     func read<T: Sendable>(_ body: @Sendable (EngineState) throws -> T) rethrows -> T
+    /// Writes every local change the engine has applied and not yet written.
+    func flush() async throws
 }
 
 /// A backend without persistence: a document not yet stored, previews, tests.
 public actor MemoryBackend: DocumentBackend {
+    public nonisolated let engine: DocumentEngine
+
     /// The document state.
-    public private(set) var core: DocumentCore
+    public var core: DocumentCore { engine.core }
 
     public init(core: DocumentCore) {
-        self.core = core
+        engine = DocumentEngine(core: core, persists: false)
     }
 
     public init(replica: UInt64, schema: Schema = .generated) {
-        core = DocumentCore(state: EngineState(schema: schema), replica: replica)
+        engine = DocumentEngine(core: DocumentCore(state: EngineState(schema: schema), replica: replica), persists: false)
     }
 
     public func summary() -> DocumentUpdate {
-        DocumentUpdate(change: nil, undo: UndoSummary(core.undoStack), replica: core.replica)
+        engine.summary
     }
 
     public func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate {
-        let outcome = try core.perform(command, recording: recording)
-        return update(outcome?.change)
+        try engine.perform(command, recording: recording)
     }
 
-    public func undo(recording: DocumentCore.Recording) -> DocumentUpdate {
-        update(core.undo(recording: recording)?.change)
+    public func undo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        try engine.undo(recording: recording)
     }
 
-    public func redo(recording: DocumentCore.Recording) -> DocumentUpdate {
-        update(core.redo(recording: recording)?.change)
+    public func redo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
+        try engine.redo(recording: recording)
     }
 
     public func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) -> DocumentUpdate {
-        core.receive(change, serverSeq: serverSeq)
-        return update(change)
+        engine.update { core in
+            core.receive(change, serverSeq: serverSeq)
+            return DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
+        }
     }
 
     public func read<T: Sendable>(_ body: @Sendable (EngineState) throws -> T) rethrows -> T {
-        try body(core.state)
+        try body(engine.state)
     }
+
+    public func flush() {}
 
     /// Replaces the whole core (a memory document's snapshot bootstrap or salvage); the façade
     /// catches up with `Document.reload()`.
     public func replace(with core: DocumentCore) {
-        self.core = core
-    }
-
-    private func update(_ change: Wiretuner_Doc_V1_Change?) -> DocumentUpdate {
-        DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
+        engine.replace(with: core)
     }
 }

@@ -57,6 +57,17 @@ cannot give, and `Engine` cannot be created from a decoded snapshot.  `Document`
 `@MainActor @Observable` façade over the backend; it publishes `revision`, `lastChange` and the
 Edit menu state.
 
+NOTE: As built by D-076.  The backend's `DocumentCore` lives in a `WTModel.DocumentEngine`, a
+lock-protected box the façade and the backend actor share, so a local command no longer waits for
+the actor, the database or anything queued before it: `Document.perform` (and `performNow`,
+`undoNow`, `redoNow`) applies it on the main actor, publishes the `DocumentEvent` -- and so rebuilds
+the scene and invalidates the tiles -- before returning, and the backend writes it afterwards in
+batches (xref:offline.adoc[Offline], "Outbox and coalescing").  Remote changes and reloads still go
+through the actor in call order.  `settle()` also waits for the batch to be written; `flush()`
+writes it now (the app flushes every document when it deactivates or quits, and closing a store
+writes it).  `DocumentHandle.perform` applies at once when the model is open and no earlier
+command is queued, answering a finished task.
+
 NOTE: As built by DRAW-002 and the WTApp integration.  `Document` also keeps `state`, a copy of
 the merged `EngineState` as of the last change it published (read back from the backend after each
 call), so the main actor can build the display list and the panels without an actor hop; the
@@ -185,6 +196,22 @@ overlay and emit exactly one change on mouse-up (or one per segment for the Pen)
 one undo step and one change on the wire.  Tools that must show live remote-visible feedback
 (text typing) emit as they go.
 
+NOTE: As built by D-076 ("Gestures write intent").  Bezier handle drags (`PointHandleLayer`)
+preview the path with the handle moved -- `SetHandles.resolved` applies the same linked and
+kbd:[Option] rules as the command -- stroked like a point drag's preview, with the handle's line and
+knob, and write one `SetHandles` on mouse-up; kbd:[Esc] drops the preview.  Handle-style drags that
+change what the tiles draw (corner widgets, effect centres and the Duet axis, polygon handles,
+gradient handles, lens centres, the kbd:[Option] text-on-path drag) preview through
+`DocumentHandle.preview` via `GestureEdit` and write once; their handles follow the preview
+(`DocumentHandle.shownState`).  Sliders (`AttributeSlider`, the Colour Mixer's *Apply as you mix*,
+the Halftones frequency) call `DocumentHandle.beginGesture()`/`endGesture()`: in between `perform`
+previews and the last command is the gesture's one change.  Inputs with no end event -- a colour
+panel streaming its colour, a held arrow key in a panel field -- run inside
+`ContinuousInput.settle` and write once they pause for 400 ms; an arrow-key nudge burst previews the
+move so far and writes it once after *nudgePause*.  A drag's preview stays drawn until the tiles
+show its change (`CanvasHost.whenTilesCatchUp`), so the object never jumps back.  Typing is applied
+at once and written as one change per word or pause (offline.adoc, the open change).
+
 == Panels
 
 Panels are `NSViewController`s registered with the panel framework (APP-004) by id, title,
@@ -225,6 +252,15 @@ screen and Core Graphics for everything that must be exactly right (xref:decisio
   maximum refresh (`preferredFramesPerSecond` = 120 on ProMotion).  The frame budget is 8.3 ms
   and a frame never waits for rasterisation: it composites the tiles that exist, substituting
   the nearest zoom-ladder neighbour scaled, and blank tiles draw the pasteboard colour.
+
+NOTE: As built by D-076 ("Rendering never shows a hole").  An edit's invalidation *retires* the
+tiles it touches instead of freeing them (`TileSlots.retire`): a retired tile's slot keeps its old
+pixels and is drawn until the replacement, rendered into a slot of its own, is ready, and only then
+freed; visible retired tiles render before missing ones, and a full atlas reuses unseen retired
+slots first.  The Core Graphics fallback (`TiledCanvasLayer`) keeps a tile's old image as its
+contents until the new one lands.  The pasteboard colour therefore never shows through an edited
+object (`MetalTileCanvasTests.anEditNeverShowsAHoleWhileItsTilesReRender`,
+`EditPipelineTests.anEditNeverLeavesAVisibleTileHole`).
 * *Tile atlas*: tiles are 256 × 256 device-pixel cells of a few 4096² `MTLTexture` atlases per
   document view, in the display's pixel format; a tile key maps to an atlas slot.  Tiles are
   rendered in the *rotated view space*: the tile's own axes are the screen's, so a rotated

@@ -21,6 +21,10 @@ struct PanelGroupDefaults: Equatable, Sendable {
     /// after their panels until renamed.
     var keepsName: Bool = false
     var edge: DockEdge = .right
+    /// The body height the group asks for in a side dock until the user resizes it (docked
+    /// groups share the dock's height in proportion to it); nil uses
+    /// `PanelLayout.defaultGroupHeight`.
+    var height: Double?
 }
 
 /// A floating group's frame in screen points, stored as `[x, y, width, height]`.
@@ -72,7 +76,8 @@ struct PanelGroup: Codable, Equatable, Sendable, Identifiable {
     /// The front tab; `nil` falls back to the first panel.
     var activePanel: PanelID?
     var collapsed: Bool
-    /// Content height in the dock; `nil` uses the default.
+    /// Body height in a side dock, as the user last sized it with the dividers: docked groups
+    /// share the dock's height in proportion to it.  `nil` uses the group's default.
     var height: Double?
 
     enum CodingKeys: String, CodingKey {

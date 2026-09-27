@@ -460,3 +460,50 @@ public struct CompositeCommand: Command {
         }
     }
 }
+
+/// Commands run one after another as one change, each reading the state the ones before it left
+/// (unlike `CompositeCommand`, whose commands all read the state before the change): a gesture
+/// that adds an effect and then sets it, previewed and written as one change (D-076).
+public struct SequenceCommand: Command {
+    public var label: String
+    public var commands: [any Command]
+
+    public init(_ label: String, _ commands: [any Command]) {
+        self.label = label
+        self.commands = commands
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        var scratch = state
+        for (index, command) in commands.enumerated() {
+            var part = ChangeBuilder(replica: builder.replica, startCounter: builder.nextCounter)
+            try command.execute(&part, state: scratch)
+            guard !part.ops.isEmpty else { continue }
+            for op in part.ops { builder.append(op) }
+            if index < commands.count - 1 {
+                var change = Wiretuner_Doc_V1_Change()
+                change.replica = builder.replica
+                change.startCounter = part.startCounter
+                change.ops = part.ops
+                scratch.apply(change)
+            }
+        }
+    }
+}
+
+/// A command worked out from the state it runs against: `build` answers the command to run (nil
+/// runs nothing).  For the later steps of a `SequenceCommand`, which depend on what the earlier
+/// ones wrote.
+public struct StateCommand: Command {
+    public var label: String
+    public var build: @Sendable (EngineState) throws -> (any Command)?
+
+    public init(_ label: String, _ build: @escaping @Sendable (EngineState) throws -> (any Command)?) {
+        self.label = label
+        self.build = build
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        try build(state)?.execute(&builder, state: state)
+    }
+}

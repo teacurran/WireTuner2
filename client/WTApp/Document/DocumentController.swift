@@ -1,4 +1,5 @@
 import AppKit
+import WTModel
 
 /// The open documents and their windows (no `NSDocument`: there is nothing to save, every
 /// change is kept as it is made).  New documents open as tabs of the front window through
@@ -269,5 +270,16 @@ final class DocumentController {
     /// Saves every window's state (at quit, where windows do not get `windowWillClose`).
     func saveAllStates() {
         for controller in allWindowControllers { controller.saveState() }
+    }
+
+    /// The open documents' models whose local changes wait to be written (D-076).
+    var modelsWithPendingWrites: [WTModel.Document] {
+        windowControllers.values.compactMap { $0.documentHandle.model }.filter { $0.backend.engine.hasPending }
+    }
+
+    /// Writes every open document's pending local changes now (the app deactivating or quitting,
+    /// D-076); returns once they are written.
+    func flushAll() async {
+        for model in modelsWithPendingWrites { try? await model.flush() }
     }
 }

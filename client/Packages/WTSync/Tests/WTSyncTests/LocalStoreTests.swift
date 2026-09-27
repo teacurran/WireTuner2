@@ -221,8 +221,10 @@ import WTProto
         for index in 0..<9 {
             try await doc.perform(OpsCommand("Rename", ops: [Fixture.rename(node, "N\(index)")]))
         }
+        await doc.settle()   // D-076: the façade's changes are written in batches
         #expect(try rows(scratch.url(), "SELECT COUNT(*) FROM undo WHERE stack = 'undo'") == 5)
         try await doc.undo()                                  // N8 -> N7
+        await doc.settle()
         #expect(try rows(scratch.url(), "SELECT COUNT(*) FROM undo WHERE stack = 'redo'") == 1)
         try await store.close()
         // Relaunch: the rest of the stack is undoable, including the step the undo rebased.

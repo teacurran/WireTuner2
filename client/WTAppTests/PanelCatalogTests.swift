@@ -371,7 +371,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
         #expect(controller.bottomDock.view.isHidden)
         #expect(controller.leftHandle.frame.width == DockHandleView.thickness)
         #expect(controller.rightHandle.frame.maxX == controller.dock.view.frame.minX)
-        #expect(PanelDockController.stripHeight(for: [PanelGroup(panels: ["a"], collapsed: true)]) == 30)
+        #expect(PanelDockController.stripHeight(for: [PanelGroup(panels: ["a"], collapsed: true)]) == Double(PanelGroupView.titleHeight))
         #expect(PanelDockController.stripHeight(for: []) == 0)
         controller.topDock.view.layoutSubtreeIfNeeded()
         controller.topDock.handleDrop(.panel("object"), atDockPoint: CGPoint(x: 1000, y: 10))

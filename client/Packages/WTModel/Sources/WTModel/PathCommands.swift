@@ -158,33 +158,43 @@ public struct SetHandles: Command {
         let (_, path) = try PathEditing.path(node, in: state)
         let contour = try PathEditing.contour(self.contour, of: path)
         _ = try PathEditing.point(point, of: contour)
-        let drawn = contour.drawn
-        let index = drawn.firstIndex { $0.id == point }!
-        let current = drawn[index]
+        let current = contour.drawn.first { $0.id == point }!
         for handle in [inHandle, outHandle].compactMap({ $0 }) where !handle.isFinite {
             throw PathEditError.invalidValue("handle")
         }
-        var (newIn, newOut) = (inHandle, outHandle)
-        if linked {
-            switch current.kind {
-            case .curve:
-                if let given = newOut, newIn == nil {
-                    newIn = Self.opposite(given, length: current.inHandle == .zero ? given.length : current.inHandle.length)
-                } else if let given = newIn, newOut == nil {
-                    newOut = Self.opposite(given, length: current.outHandle == .zero ? given.length : current.outHandle.length)
-                }
-            case .connector:
-                (newIn, newOut) = Self.constrained(drawn, index, closed: contour.closed, in: newIn, out: newOut)
-            case .corner:
-                break
-            }
-        }
+        let (newIn, newOut) = Self.resolved(contour, point: point, in: inHandle, out: outHandle, linked: linked)
         if let op = PathEditing.setHandles(node, contour, point, in: newIn, out: newOut) {
             builder.append(op)
         }
         if current.automatic {
             builder.append(Ops.set(node, [PathFields.automatic(contour.id, point)], values: PathEditing.pointValues(Wiretuner_Doc_V1_PathPoint())))
         }
+    }
+
+    /// The handles `point` of `contour` takes when this command sets `inHandle` and `outHandle`
+    /// (nil: that handle is not written): how the other handle answers follows the point type when
+    /// `linked` -- a curve's pivots opposite, a connector's is constrained to its straight side, a
+    /// corner's stays.  What a handle drag previews before the one change on mouse-up (D-076).
+    public static func resolved(_ contour: VectorContour, point: OpID, in inHandle: Vector?, out outHandle: Vector?,
+                                linked: Bool) -> (in: Vector?, out: Vector?) {
+        let drawn = contour.drawn
+        guard let index = drawn.firstIndex(where: { $0.id == point }) else { return (inHandle, outHandle) }
+        let current = drawn[index]
+        var (newIn, newOut) = (inHandle, outHandle)
+        guard linked else { return (newIn, newOut) }
+        switch current.kind {
+        case .curve:
+            if let given = newOut, newIn == nil {
+                newIn = Self.opposite(given, length: current.inHandle == .zero ? given.length : current.inHandle.length)
+            } else if let given = newIn, newOut == nil {
+                newOut = Self.opposite(given, length: current.outHandle == .zero ? given.length : current.outHandle.length)
+            }
+        case .connector:
+            (newIn, newOut) = Self.constrained(drawn, index, closed: contour.closed, in: newIn, out: newOut)
+        case .corner:
+            break
+        }
+        return (newIn, newOut)
     }
 
     /// A handle pointing opposite `handle` with `length`.

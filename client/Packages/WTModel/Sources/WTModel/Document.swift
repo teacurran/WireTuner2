@@ -4,8 +4,11 @@ import WTCRDT
 import WTProto
 
 /// The typed document on the main actor (docs/spec/client.adoc, "Concurrency"): an observable
-/// façade over the backend actor that holds the merge state.  UI code performs commands, undoes
-/// and redoes through it and observes `revision` and the menu titles; it never touches the engine.
+/// façade over the backend's `DocumentEngine`.  UI code performs commands, undoes and redoes
+/// through it and observes `revision` and the menu titles.  A local command, undo or redo is
+/// applied to the engine at once, on the main actor, and published before `perform` returns
+/// (D-076: the UI never waits on persistence); the backend writes it afterwards, off the main
+/// actor, in batches.  Remote changes and reloads go through the backend actor in call order.
 ///
 /// Undo (APP-011, docs/_includes/objects/undo.adoc): every performed command is one undo step,
 /// except that commands performed between `beginGroup` and `endGroup` (a drag) join one step and
@@ -47,8 +50,8 @@ public final class Document {
     @ObservationIgnored private var nextGroup: UInt64 = 1
     @ObservationIgnored private var observers: [UInt64: @MainActor (DocumentEvent) -> Void] = [:]
     @ObservationIgnored private var nextObserver: UInt64 = 1
-    /// The last queued backend call: calls run one at a time in the order they were made, so the
-    /// published state and events follow the backend's order.
+    /// The last queued backend call (remote changes, reloads): they run one at a time in the order
+    /// they were made.
     @ObservationIgnored private var tail: Task<Void, Never>?
 
     /// A façade over `backend`.  `undoLevels` is clamped to 1...1,000; `clock` dates changes and
@@ -58,13 +61,13 @@ public final class Document {
         self.backend = backend
         self.undoLevels = min(max(undoLevels, Self.undoLevelsRange.lowerBound), Self.undoLevelsRange.upperBound)
         self.clock = clock
-        let summary = await backend.summary()
+        let summary = backend.engine.summary
         undoTitle = summary.undo.undoTitle
         redoTitle = summary.undo.redoTitle
         canUndo = summary.undo.canUndo
         canRedo = summary.undo.canRedo
         replica = summary.replica
-        state = await backend.read { $0 }
+        state = backend.engine.state
     }
 
     /// A façade over a `MemoryBackend` holding `core`, ready at once (no suspension): a document
@@ -104,9 +107,17 @@ public final class Document {
         observers[token.id] = nil
     }
 
-    /// Waits until every backend call made so far has finished and been published.
+    /// Waits until every backend call made so far has finished and been published, and every
+    /// local change applied so far has been written by the backend.
     public func settle() async {
         await tail?.value
+        try? await backend.flush()
+    }
+
+    /// Asks the backend to write every local change applied so far now (the app deactivating or
+    /// quitting, a window closing); returns once written.
+    public func flush() async throws {
+        try await backend.flush()
     }
 
     /// Runs `body` after every earlier queued call.
@@ -121,32 +132,43 @@ public final class Document {
     }
 
     /// Performs `command` as one change (or part of the open group's undo step) and returns the
-    /// change, or nil when the command appended no ops.
+    /// change, or nil when the command appended no ops.  Applied and published before it returns;
+    /// `async` for callers written against the queued façade.
     @discardableResult
     public func perform(_ command: any Command) async throws -> Wiretuner_Doc_V1_Change? {
-        let recording = recording()
-        return try await serially { [backend] in
-            try await self.publish(backend.perform(command, recording: recording), origin: .local)
-        }
+        try performNow(command)
+    }
+
+    /// `perform`, synchronously: the change is applied to the engine, published to every observer
+    /// and queued for the backend to write before this returns.
+    @discardableResult
+    public func performNow(_ command: any Command) throws -> Wiretuner_Doc_V1_Change? {
+        publish(try backend.engine.perform(command, recording: recording()), origin: .local)
     }
 
     /// Undoes this user's last step.  Returns the emitted change, or nil when nothing was left to
     /// undo (the step still moves to the redo list) or the list was empty.
     @discardableResult
     public func undo() async throws -> Wiretuner_Doc_V1_Change? {
-        let recording = recording()
-        return try await serially { [backend] in
-            try await self.publish(backend.undo(recording: recording), origin: .undo)
-        }
+        try undoNow()
+    }
+
+    /// `undo`, synchronously.
+    @discardableResult
+    public func undoNow() throws -> Wiretuner_Doc_V1_Change? {
+        publish(try backend.engine.undo(recording: recording()), origin: .undo)
     }
 
     /// Redoes the last undone step; as `undo`.
     @discardableResult
     public func redo() async throws -> Wiretuner_Doc_V1_Change? {
-        let recording = recording()
-        return try await serially { [backend] in
-            try await self.publish(backend.redo(recording: recording), origin: .redo)
-        }
+        try redoNow()
+    }
+
+    /// `redo`, synchronously.
+    @discardableResult
+    public func redoNow() throws -> Wiretuner_Doc_V1_Change? {
+        publish(try backend.engine.redo(recording: recording()), origin: .redo)
     }
 
     /// Re-reads the backend after its state was replaced wholesale (a snapshot bootstrap or a
@@ -157,7 +179,7 @@ public final class Document {
     public func reload() async {
         _ = try? await serially { [backend] in
             let summary = await backend.summary()
-            let after = await backend.read { $0 }
+            let after = backend.engine.state
             self.undoTitle = summary.undo.undoTitle
             self.redoTitle = summary.undo.redoTitle
             self.canUndo = summary.undo.canUndo
@@ -176,7 +198,7 @@ public final class Document {
     /// Applies a change from the server's log (the sync client's path in).
     public func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) async throws {
         _ = try await serially { [backend] in
-            try await self.publish(backend.receive(change, serverSeq: serverSeq), origin: .remote)
+            self.publish(try await backend.receive(change, serverSeq: serverSeq), origin: .remote)
         }
     }
 
@@ -202,17 +224,18 @@ public final class Document {
     /// Whether an undo group is open.
     public var isGrouping: Bool { groupDepth > 0 }
 
-    /// Reads the merged state on the backend's executor.
+    /// Reads the merged state as of now (the engine's, which may be ahead of `state` while a
+    /// remote change is being published).
     public func read<T: Sendable>(_ body: @escaping @Sendable (EngineState) throws -> T) async rethrows -> T {
-        try await backend.read(body)
+        try body(backend.engine.state)
     }
 
     private func recording() -> DocumentCore.Recording {
         DocumentCore.Recording(group: group, limit: undoLevels, now: clock())
     }
 
-    private func publish(_ update: DocumentUpdate, origin: DocumentEvent.Origin) async -> Wiretuner_Doc_V1_Change? {
-        let after = update.change == nil ? state : await backend.read { $0 }
+    private func publish(_ update: DocumentUpdate, origin: DocumentEvent.Origin) -> Wiretuner_Doc_V1_Change? {
+        let after = update.change == nil ? state : backend.engine.state
         undoTitle = update.undo.undoTitle
         redoTitle = update.undo.redoTitle
         canUndo = update.undo.canUndo

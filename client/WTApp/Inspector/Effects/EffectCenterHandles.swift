@@ -8,8 +8,8 @@ import WTRender
 /// The centre handles of the Bend, Duet and Transform effect selected in the Object panel, and
 /// the Duet's axis arm (live-effects.adoc, "Controls"; FX-003): drawn on each selected object
 /// that carries the effect, at its centre -- stored relative to the centre of the object's own
-/// bounds, y up -- and dragged to move it.  Dragging the arm's end turns the Duet axis.  Every
-/// drag writes on each move inside one undo group, so it is one undo step.
+/// bounds, y up -- and dragged to move it.  Dragging the arm's end turns the Duet axis.  A drag
+/// previews on the canvas and writes one change on mouse-up (D-076), so it is one undo step.
 @MainActor
 final class EffectCenterHandles: CanvasHandleLayer {
     /// How near a handle (view points) a press takes it.
@@ -41,7 +41,8 @@ final class EffectCenterHandles: CanvasHandleLayer {
 
     let focus: InspectorFocus
     private(set) var dragging: Handle?
-    private var wrote = false
+    /// The drag's preview and its one change (D-076).
+    private var edit: GestureEdit?
 
     init(focus: InspectorFocus = .shared) {
         self.focus = focus
@@ -51,7 +52,7 @@ final class EffectCenterHandles: CanvasHandleLayer {
     func handles(_ context: ToolContext) -> [Handle] {
         let document = context.document
         let selection = context.selection.selection
-        let targets = AttributesListModel.targets(selection, in: document.state)
+        let targets = AttributesListModel.targets(selection, in: document.shownState)
         guard let row = focus.row(for: targets), row.list == .effects else { return [] }
         let list = AttributesListModel(document: document, selection: selection)
         guard let item = list.item(row) else { return [] }
@@ -60,7 +61,7 @@ final class EffectCenterHandles: CanvasHandleLayer {
 
     /// The handles of effect `target` on its object: its centre, and a Duet's axis arm.
     static func handles(_ target: AttributeTarget, in document: DocumentHandle) -> [Handle] {
-        guard let entry = EffectReading.entries(target.node, in: document.state).first(where: { $0.row == target.row }), !entry.effect.hidden,
+        guard let entry = EffectReading.entries(target.node, in: document.shownState).first(where: { $0.row == target.row }), !entry.effect.hidden,
               let offset = centerOffset(entry.effect.settings),
               case .path(let item)? = document.object(for: SelectionID(target.node))?.item else { return [] }
         let reference = Self.ownBounds(item.path)
@@ -116,8 +117,7 @@ final class EffectCenterHandles: CanvasHandleLayer {
         let all = handles(context).sorted { $0.part == .axis && $1.part == .center }
         guard let hit = all.first(where: { Self.position($0, viewport: context.viewport).distance(to: e.viewPoint) <= Self.radius }) else { return false }
         dragging = hit
-        wrote = false
-        context.document.beginGroup()
+        edit = GestureEdit(document: context.document)
         return true
     }
 
@@ -142,29 +142,24 @@ final class EffectCenterHandles: CanvasHandleLayer {
 
     func drag(_ e: CanvasEvent, context: ToolContext) {
         guard let dragging else { return }
-        wrote = true
-        context.commandSink.perform(Self.command(dragging: dragging, to: e, viewport: context.viewport))
+        edit?.update(Self.command(dragging: dragging, to: e, viewport: context.viewport))
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
         drag(e, context: context)
-        finish(context, undo: false)
+        edit?.commit()
+        finish(context)
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish(context)
     }
 
-    /// Ends the drag's undo group once its writes have landed; a cancelled drag is undone.
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    /// Ends the drag: the change was written (or the preview dropped) already.
+    private func finish(_ context: ToolContext) {
         dragging = nil
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {

@@ -219,9 +219,12 @@ public final class Simulation {
         return options
     }
 
-    /// Copies `client`'s store as it is on disk this moment (database, WAL, shared memory): what a
-    /// backup restored on another Mac, or a cloned disk, starts from.
-    public func copyStore(of client: SimClient, as name: String) throws -> URL {
+    /// Copies `client`'s store as it is on disk (database, WAL, shared memory): what a backup
+    /// restored on another Mac, or a cloned disk, starts from.  The store writes its pending batch
+    /// first (D-076), as it does when the app deactivates: a copy taken between two batches could
+    /// otherwise reuse seqs the original has since sent.
+    public func copyStore(of client: SimClient, as name: String) async throws -> URL {
+        try await client.store.flush()
         let source = directory.appending(components: client.name, "store.sqlite")
         let target = directory.appending(components: name, "store.sqlite")
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

@@ -464,7 +464,8 @@ extension Fixture {
         noMark.textMark = mark
         world.mine([Ops.noop(), op, unreadable, noText, noDelete, noMark])
         let divergence = world.measure()
-        #expect(divergence.localOps == 5 && divergence.localObjects == 0)
+        // A local Noop counts as an op (D-076: a batch leaves one where an overwritten edit was).
+        #expect(divergence.localOps == 6 && divergence.localObjects == 0)
     }
 
     /// TEST-001 finding (c), D-070: a connection dropped for minutes while people edit the same

@@ -95,9 +95,9 @@ struct AttributeEditorContext {
         { value in perform(command(value)) }
     }
 
-    /// A slider drag: one undo step from mouse-down to mouse-up.
+    /// A slider drag: previewed from mouse-down, written as one change on mouse-up (D-076).
     func dragging(_ editing: Bool) {
-        if editing { document.beginGroup() } else { document.endGroup() }
+        if editing { document.beginGesture() } else { document.endGesture() }
     }
 }
 
@@ -225,7 +225,8 @@ struct AttributePicker<Value: Hashable>: View {
     }
 }
 
-/// A slider with a number field: the drag is one undo step, the field commits on Return.
+/// A slider with a number field: the drag previews and is one change, the field commits on
+/// Return.
 struct AttributeSlider: View {
     let title: String
     let value: Double?

@@ -211,13 +211,15 @@ import WTText
         await document.settle()
         #expect(abs(document.state.props(text).text.onPath.offsetStart - offset(70)) < 0.01)
         #expect(document.undoTitle == "Undo Move Text on Path")
-        // With Option: the text moves on every drag event, one undo step for the drag.
+        // With Option: the text previews on the canvas as it is dragged and is written once on
+        // release (D-076), one undo step for the drag.
         let now = try #require(handle.items(context).first)
         let at = TextPathHandle.position(now, viewport: context.viewport)
         #expect(handle.press(CanvasEvent(pasteboardPoint: context.viewport.toPasteboard(at), viewPoint: at, modifiers: .option), context: context))
         handle.drag(TestEvents.point(100, 100, .option), context: context)
         await document.settle()
-        #expect(abs(document.state.props(text).text.onPath.offsetStart - offset(100)) < 0.01, "the text follows the drag")
+        #expect(abs(document.shownState.props(text).text.onPath.offsetStart - offset(100)) < 0.01, "the text follows the drag")
+        #expect(abs(document.state.props(text).text.onPath.offsetStart - offset(70)) < 0.01, "nothing is written while dragging")
         handle.drag(TestEvents.point(120, 100, .option), context: context)
         handle.release(TestEvents.point(130, 100, .option), context: context)
         await document.settle()
@@ -227,7 +229,7 @@ import WTText
         _ = await document.undo().value
         await document.settle()
         #expect(abs(document.state.props(text).text.onPath.offsetStart - offset(70)) < 0.01, "the Option drag undoes as one step")
-        // Esc during a live drag takes back what it wrote.
+        // Esc during a live drag drops the preview; nothing was written.
         let again = TextPathHandle.position(try #require(handle.items(context).first), viewport: context.viewport)
         #expect(handle.press(CanvasEvent(pasteboardPoint: context.viewport.toPasteboard(again), viewPoint: again, modifiers: .option), context: context))
         handle.drag(TestEvents.point(150, 100, .option), context: context)

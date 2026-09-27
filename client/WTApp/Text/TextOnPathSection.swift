@@ -225,8 +225,8 @@ struct TextOnPathSectionView: View {
 /// The triangle that slides text along its path (text-on-path.adoc, "Orientation and alignment
 /// on the path"; TYPE-043): drawn on each selected text on a path at the left offset, the right
 /// one or midway, by the text's alignment.  A drag projects the pointer onto the path; the
-/// offsets are written once at mouse-up, or -- with kbd:[Option], so the text moves as you drag
-/// -- on every move inside one undo group.  Either way the drag is one undo step.
+/// offsets are written once at mouse-up; with kbd:[Option] the text previews on the canvas as you
+/// drag (D-076: nothing is written until mouse-up).  Either way the drag is one change.
 @MainActor
 final class TextPathHandle: CanvasHandleLayer {
     /// How near the triangle (view points) a press takes it.
@@ -237,7 +237,8 @@ final class TextPathHandle: CanvasHandleLayer {
     /// The arc length the triangle is dragged to (the overlay's preview).
     private(set) var draggedLength: Double?
     private var live = false
-    private var wrote = false
+    /// The Option drag's canvas preview and its one change.
+    private var edit: GestureEdit?
 
     init() {}
 
@@ -256,8 +257,7 @@ final class TextPathHandle: CanvasHandleLayer {
         dragging = hit
         draggedLength = hit.handleLength()
         live = e.modifiers.contains(.option)
-        wrote = false
-        if live { context.document.beginGroup() }
+        edit = live ? GestureEdit(document: context.document) : nil
         return true
     }
 
@@ -274,8 +274,7 @@ final class TextPathHandle: CanvasHandleLayer {
         guard let dragging else { return }
         draggedLength = dragging.arcLength(nearest: e.pasteboardPoint)
         if live {
-            wrote = true
-            context.commandSink.perform(Self.command(dragging, to: e.pasteboardPoint))
+            edit?.update(Self.command(dragging, to: e.pasteboardPoint))
         }
         context.host.setNeedsOverlayDisplay()
     }
@@ -284,28 +283,23 @@ final class TextPathHandle: CanvasHandleLayer {
         guard let dragging else { return }
         if live {
             drag(e, context: context)
+            edit?.commit()
         } else {
             context.commandSink.perform(Self.command(dragging, to: e.pasteboardPoint))
         }
-        finish(context, undo: false)
+        finish(context)
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish(context)
     }
 
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    private func finish(_ context: ToolContext) {
         dragging = nil
         draggedLength = nil
-        guard live else { return }
         live = false
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {

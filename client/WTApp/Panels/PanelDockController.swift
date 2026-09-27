@@ -130,17 +130,51 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
     func beginDrag(_ payload: PanelDragPayload, from view: NSView, event: NSEvent) {
         beginTracking(payload)
         let item = NSDraggingItem(pasteboardWriter: payload.pasteboardItem)
-        let image = NSImage(size: view.bounds.size, flipped: false) { rect in
-            NSColor.controlAccentColor.withAlphaComponent(0.35).setFill()
-            rect.fill()
+        let rect = Self.dragRect(of: view)
+        item.setDraggingFrame(rect, contents: Self.dragImage(of: view, rect: rect))
+        startDragSession(view, item, event, self)
+    }
+
+    /// What a drag shows: the whole tab, or a group's title bar and tab strip.
+    static func dragRect(of view: NSView) -> NSRect {
+        guard let group = view as? PanelGroupView else { return view.bounds }
+        let header = PanelGroupView.chromeHeight(collapsed: group.isCollapsed) - (group.isCollapsed ? 0 : PanelGroupView.margin)
+        let height = min(view.bounds.height, header)
+        return NSRect(x: 0, y: group.isFlipped ? 0 : view.bounds.height - height, width: view.bounds.width, height: height)
+    }
+
+    /// The drag image: a picture of `rect` of `view` on a rounded card, so the tab or group
+    /// seems lifted out of its strip.
+    static func dragImage(of view: NSView, rect: NSRect) -> NSImage {
+        var snapshot: NSImage?
+        if rect.width >= 1, rect.height >= 1, let rep = view.bitmapImageRepForCachingDisplay(in: rect) {
+            view.cacheDisplay(in: rect, to: rep)
+            let image = NSImage(size: rect.size)
+            image.addRepresentation(rep)
+            snapshot = image
+        }
+        return NSImage(size: NSSize(width: max(rect.width, 1), height: max(rect.height, 1)), flipped: false) { bounds in
+            let radius = min(10, bounds.height / 2)
+            let card = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: radius, yRadius: radius)
+            NSColor.windowBackgroundColor.withAlphaComponent(0.92).setFill()
+            card.fill()
+            snapshot?.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1)
+            NSColor.controlAccentColor.withAlphaComponent(0.7).setStroke()
+            card.lineWidth = 1
+            card.stroke()
             return true
         }
-        item.setDraggingFrame(view.bounds, contents: image)
-        startDragSession(view, item, event, self)
     }
 
     func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .move
+    }
+
+    /// A drag released outside every target floats what it carried there, so the image does
+    /// not slide back first.
+    func draggingSession(_ session: NSDraggingSession, willBeginAt screenPoint: NSPoint) {
+        session.animatesToStartingPositionsOnCancelOrFail = false
+        session.draggingFormation = .none
     }
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
@@ -263,14 +297,21 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
     }
 }
 
-/// Renders one edge of a `PanelLayout` into a dock: a column (left, right) or row (top,
-/// bottom) of `PanelGroupView`s.  The view is rebuilt from the layout it observes; panel bodies
-/// are created once and reused, so a re-render (a preference change) never closes a panel.
+
+/// Renders one edge of a `PanelLayout` into a dock.  A side dock (left, right) is a sidebar on
+/// the window's glass layer (D-077) holding a `DockColumnView`: the groups share its height
+/// through draggable dividers.  A strip (top, bottom) is a row of groups.  Group views are kept
+/// while their panels stay the same -- choosing a tab, collapsing or resizing updates them in
+/// place, so the selection slides, the column animates and the keyboard focus stays -- and
+/// panel bodies are created once and reused, so a re-render never closes a panel.
 @MainActor
 final class PanelDockController: NSViewController {
     static let accessibilityIdentifier = "panel-dock"
     nonisolated static let pasteboardType = PanelDragPayload.panelType
     static let defaultWidth: CGFloat = 280
+    /// Between the side dock's glass and the window's edges.
+    static let inset: CGFloat = 6
+    static let cornerRadius: CGFloat = 14
 
     let panels: PanelRegistry
     let layoutController: PanelLayoutController
@@ -278,6 +319,10 @@ final class PanelDockController: NSViewController {
     let interaction: PanelInteraction
 
     private let stack = NSStackView()
+    /// The side dock's column of groups (unused by a strip).
+    let column: DockColumnView
+    /// The side dock's glass (nil for a strip).
+    private(set) var glass: NSView?
     private(set) var groupViews: [PanelGroupView] = []
     private var bodies: [PanelID: NSView] = [:]
     /// Width for a side dock, height for a strip.
@@ -289,6 +334,7 @@ final class PanelDockController: NSViewController {
         self.layoutController = layout
         self.edge = edge
         self.interaction = interaction ?? PanelInteraction(panels: panels, layout: layout)
+        column = DockColumnView(edge: edge)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -311,17 +357,34 @@ final class PanelDockController: NSViewController {
         dock.setAccessibilityIdentifier(edge == .right ? Self.accessibilityIdentifier : "\(Self.accessibilityIdentifier).\(edge.rawValue)")
         dock.setAccessibilityLabel("Panels")
 
-        stack.orientation = edge.isVertical ? .vertical : .horizontal
-        stack.alignment = edge.isVertical ? .leading : .top
-        stack.spacing = 1
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        dock.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: dock.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: dock.leadingAnchor),
-            edge.isVertical ? stack.trailingAnchor.constraint(equalTo: dock.trailingAnchor) : stack.trailingAnchor.constraint(lessThanOrEqualTo: dock.trailingAnchor),
-            edge.isVertical ? stack.bottomAnchor.constraint(lessThanOrEqualTo: dock.bottomAnchor) : stack.bottomAnchor.constraint(equalTo: dock.bottomAnchor),
-        ])
+        if edge.isVertical {
+            let surface = PanelGlass.surface(cornerRadius: Self.cornerRadius)
+            surface.translatesAutoresizingMaskIntoConstraints = false
+            surface.setAccessibilityElement(false)
+            dock.addSubview(surface)
+            NSLayoutConstraint.activate([
+                surface.topAnchor.constraint(equalTo: dock.topAnchor, constant: Self.inset),
+                surface.bottomAnchor.constraint(equalTo: dock.bottomAnchor, constant: -Self.inset),
+                surface.leadingAnchor.constraint(equalTo: dock.leadingAnchor, constant: edge == .right ? 0 : Self.inset),
+                surface.trailingAnchor.constraint(equalTo: dock.trailingAnchor, constant: edge == .right ? -Self.inset : 0),
+            ])
+            column.preferredHeight = { [weak self] group in self?.preferredHeight(for: group) ?? PanelLayout.defaultGroupHeight }
+            column.onResize = { [weak self] heights in self?.resize(heights) }
+            PanelGlass.setContent(column, of: surface)
+            glass = surface
+        } else {
+            stack.orientation = .horizontal
+            stack.alignment = .top
+            stack.spacing = 1
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            dock.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.topAnchor.constraint(equalTo: dock.topAnchor),
+                stack.leadingAnchor.constraint(equalTo: dock.leadingAnchor),
+                stack.trailingAnchor.constraint(lessThanOrEqualTo: dock.trailingAnchor),
+                stack.bottomAnchor.constraint(equalTo: dock.bottomAnchor),
+            ])
+        }
         let size = edge.isVertical ? dock.widthAnchor.constraint(equalToConstant: Self.defaultWidth) : dock.heightAnchor.constraint(equalToConstant: 0)
         size.isActive = true
         sizeConstraint = size
@@ -339,18 +402,13 @@ final class PanelDockController: NSViewController {
         render(layoutController.layout)
     }
 
-    /// Rebuilds the dock from `layout`.
+    /// Brings the dock up to date with `layout`.
     func render(_ layout: PanelLayout) {
-        for subview in stack.views { stack.removeView(subview) }
         let groups = layout.docks[edge] ?? []
-        groupViews = groups.map { interaction.makeGroupView($0, floating: false, body: body(for:)) }
-        for groupView in groupViews {
-            stack.addView(groupView, in: .top)
-            if edge.isVertical {
-                groupView.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-            } else {
-                groupView.widthAnchor.constraint(equalToConstant: 320).isActive = true
-            }
+        if edge.isVertical {
+            renderColumn(groups)
+        } else {
+            renderStrip(groups)
         }
         let hidden = layout.hiddenDocks.contains(edge) || (!edge.isVertical && groups.isEmpty)
         view.isHidden = hidden
@@ -358,9 +416,54 @@ final class PanelDockController: NSViewController {
         sizeConstraint?.constant = hidden ? 0 : CGFloat(edge.isVertical ? size : max(size, Self.stripHeight(for: groups)))
     }
 
-    /// A strip is as tall as its tallest expanded group.
+    private func renderColumn(_ groups: [PanelGroup]) {
+        let appearance = interaction.appearance()
+        let existing = Dictionary(groupViews.map { ($0.group.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let views = groups.map { group -> PanelGroupView in
+            if let view = existing[group.id], view.canShow(group, appearance: appearance) {
+                view.show(group, body: body(for:))
+                return view
+            }
+            let view = interaction.makeGroupView(group, floating: false, body: body(for:))
+            view.dock = self
+            return view
+        }
+        let kept = views.map(ObjectIdentifier.init) == groupViews.map(ObjectIdentifier.init)
+        groupViews = views
+        column.setGroupViews(views)
+        if kept { column.animateLayout() }
+    }
+
+    private func renderStrip(_ groups: [PanelGroup]) {
+        for subview in stack.views { stack.removeView(subview) }
+        groupViews = groups.map { interaction.makeGroupView($0, floating: false, body: body(for:)) }
+        for groupView in groupViews {
+            groupView.dock = self
+            stack.addView(groupView, in: .top)
+            groupView.widthAnchor.constraint(equalToConstant: 320).isActive = true
+            groupView.heightAnchor.constraint(equalTo: stack.heightAnchor).isActive = true
+        }
+    }
+
+    /// A strip is as tall as its tallest group.
     static func stripHeight(for groups: [PanelGroup]) -> Double {
-        groups.map { $0.collapsed ? 30 : ($0.height ?? PanelLayout.defaultGroupHeight) + 30 }.max() ?? 0
+        groups.map { Double(PanelGroupView.height(forContent: CGFloat($0.height ?? PanelLayout.defaultGroupHeight), collapsed: $0.collapsed)) }.max() ?? 0
+    }
+
+    /// The height a docked group asks for: its stored height, else its default group's
+    /// (Properties asks for more than the others), else the framework's default.
+    func preferredHeight(for group: PanelGroup) -> Double {
+        if let height = group.height { return height }
+        let defaults = panels.groupDefaults.first { PanelGroup.id(forName: $0.key) == group.id }?.value
+        return defaults?.height ?? PanelLayout.defaultGroupHeight
+    }
+
+    /// A divider drag: the expanded groups' new heights go into the layout (and so into the
+    /// saved layout file).
+    func resize(_ heights: [PanelGroup.ID: Double]) {
+        layoutController.update { layout in
+            for (id, height) in heights { layout.setHeight(height, group: id) }
+        }
     }
 
     /// The panel's body view, created once and reused across renders.
@@ -373,13 +476,26 @@ final class PanelDockController: NSViewController {
 
     // MARK: Drag and drop
 
+    /// The group index a drop at `point` (in the dock view) lands before.
+    func insertionIndex(atDockPoint point: CGPoint) -> Int {
+        if edge.isVertical {
+            let frames = groupViews.map { view.convert($0.frame, from: column) }
+            return Self.insertionIndex(forY: point.y, groupFrames: frames)
+        }
+        return Self.tabIndex(forX: stack.convert(point, from: view).x, frames: groupViews.map(\.frame))
+    }
+
+    /// A panel or group dragged over the dock at `point`: the insertion line shows where it
+    /// would land.  Nil hides it.
+    func showInsertion(atDockPoint point: CGPoint?) {
+        column.insertionIndex = point.map(insertionIndex(atDockPoint:))
+    }
+
     /// A drop on the dock background: a panel splits into a new group at the drop position, a
     /// group docks there.
     func handleDrop(_ payload: PanelDragPayload, atDockPoint point: CGPoint) {
-        let local = stack.convert(point, from: view)
-        let index = edge.isVertical
-            ? Self.insertionIndex(forY: local.y, groupFrames: groupViews.map(\.frame))
-            : Self.tabIndex(forX: local.x, frames: groupViews.map(\.frame))
+        let index = insertionIndex(atDockPoint: point)
+        showInsertion(atDockPoint: nil)
         interaction.drop(payload, onDock: edge, at: index)
     }
 
@@ -408,7 +524,8 @@ final class PanelDockController: NSViewController {
     }
 }
 
-/// The dock's background: a drop target for panels and groups dragged into it.
+/// The dock's background: a drop target for panels and groups dragged into it, showing the
+/// insertion line while one is over it.
 @MainActor
 final class DockDropView: NSView {
     weak var controller: PanelDockController?
@@ -424,7 +541,21 @@ final class DockDropView: NSView {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        PanelDragPayload.read(from: sender.draggingPasteboard) == nil ? [] : .move
+        draggingUpdated(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard PanelDragPayload.read(from: sender.draggingPasteboard) != nil else { return [] }
+        controller?.showInsertion(atDockPoint: convert(sender.draggingLocation, from: nil))
+        return .move
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) {
+        controller?.showInsertion(atDockPoint: nil)
+    }
+
+    override func draggingEnded(_ sender: NSDraggingInfo) {
+        controller?.showInsertion(atDockPoint: nil)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
@@ -435,7 +566,7 @@ final class DockDropView: NSView {
 }
 
 /// The thin handle between the canvas and a side dock (panels.adoc, "To show or hide the whole
-/// dock"): a click hides or shows the dock, a drag resizes it.
+/// dock"): a click hides or shows the dock, a drag resizes it.  Drawn as a small grabber.
 @MainActor
 final class DockHandleView: NSView {
     static let thickness: CGFloat = 6
@@ -451,7 +582,7 @@ final class DockHandleView: NSView {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         wantsLayer = true
-        layer?.backgroundColor = NSColor.separatorColor.cgColor
+        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         setAccessibilityElement(true)
         setAccessibilityRole(.splitter)
         setAccessibilityIdentifier("dock-handle.\(edge.rawValue)")
@@ -462,6 +593,12 @@ final class DockHandleView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("DockHandleView is built in code")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let grabber = NSRect(x: (bounds.width - 3) / 2, y: (bounds.height - 32) / 2, width: 3, height: 32)
+        NSColor.tertiaryLabelColor.setFill()
+        NSBezierPath(roundedRect: grabber, xRadius: 1.5, yRadius: 1.5).fill()
     }
 
     override func resetCursorRects() {
@@ -500,295 +637,5 @@ final class DockHandleView: NSView {
             drag(startWidth: startWidth, by: dx)
         }
         finish(totalDelta: dx)
-    }
-}
-
-/// One group: an optional close button (floating), the gripper, the disclosure triangle, the
-/// title (or the rename field), the Options button; a tab per panel; the front panel's body.
-/// Reports gestures through closures and never touches the layout itself.
-@MainActor
-final class PanelGroupView: NSView, NSTextFieldDelegate {
-    let group: PanelGroup
-    let isFloating: Bool
-    let panelAppearance: PanelAppearance
-    private(set) var titleLabel: NSTextField
-    private(set) var renameField: NSTextField?
-    private(set) var disclosure: NSButton
-    private(set) var optionsButton: NSButton
-    private(set) var closeButton: NSButton?
-    private(set) var gripper: GripperView
-    private(set) var tabButtons: [PanelTabButton] = []
-    private(set) var tabBar: NSStackView
-    private(set) var contentView = NSView()
-    private var titleBar: NSStackView
-
-    var onSelectTab: ((PanelID) -> Void)?
-    var onToggleCollapse: (() -> Void)?
-    /// A panel or group dropped on the tab strip, before tab `index` (nil: at the end).
-    var onDrop: ((PanelDragPayload, Int?) -> Void)?
-    var onDragTab: ((PanelTabButton, NSEvent) -> Void)?
-    /// A tab's context menu.
-    var tabMenu: ((PanelID) -> NSMenu?)?
-    var onDragGroup: ((NSEvent) -> Void)?
-    var onRename: ((String) -> Void)?
-    var onClose: (() -> Void)?
-    var onOptions: ((NSButton) -> Void)?
-
-    init(
-        group: PanelGroup, title: (PanelID) -> String, icon: (PanelID) -> String = { _ in "square.dashed" }, body: (PanelID) -> NSView,
-        appearance: PanelAppearance = .standard, isFloating: Bool = false
-    ) {
-        self.group = group
-        self.isFloating = isFloating
-        self.panelAppearance = appearance
-        titleLabel = NSTextField(labelWithString: group.displayName(titles: title))
-        titleLabel.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize, weight: .semibold)
-        titleLabel.lineBreakMode = .byTruncatingTail
-        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        disclosure = NSButton(title: "", target: nil, action: nil)
-        disclosure.bezelStyle = .disclosure
-        disclosure.setButtonType(.pushOnPushOff)
-        disclosure.state = group.collapsed ? .off : .on
-        optionsButton = NSButton(image: NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "Options")!, target: nil, action: nil)
-        optionsButton.isBordered = false
-        gripper = GripperView()
-        titleBar = NSStackView()
-        tabBar = NSStackView()
-        super.init(frame: .zero)
-
-        translatesAutoresizingMaskIntoConstraints = false
-        setAccessibilityElement(true)
-        setAccessibilityRole(.group)
-        setAccessibilityIdentifier("panel-group.\(group.id)")
-        registerForDraggedTypes([PanelDragPayload.panelType, PanelDragPayload.groupType])
-        disclosure.target = self
-        disclosure.action = #selector(toggleCollapse(_:))
-        disclosure.setAccessibilityIdentifier("panel-group.\(group.id).disclosure")
-        optionsButton.target = self
-        optionsButton.action = #selector(showOptions(_:))
-        optionsButton.setAccessibilityIdentifier("panel-group.\(group.id).options")
-        optionsButton.toolTip = appearance.showsTooltips ? "Options" : nil
-        gripper.onDrag = { [weak self] event in self?.onDragGroup?(event) }
-        gripper.setAccessibilityIdentifier("panel-group.\(group.id).gripper")
-
-        var titleViews: [NSView] = []
-        if isFloating {
-            let close = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close Group")!, target: self, action: #selector(closeGroup(_:)))
-            close.isBordered = false
-            close.setAccessibilityIdentifier("panel-group.\(group.id).close")
-            closeButton = close
-            titleViews.append(close)
-        }
-        titleViews += [gripper, disclosure, titleLabel, NSView(), optionsButton]
-        titleBar.setViews(titleViews, in: .leading)
-        titleBar.orientation = .horizontal
-        titleBar.spacing = 4
-        titleBar.edgeInsets = NSEdgeInsets(top: 4, left: 6, bottom: 4, right: 6)
-
-        let active = group.effectiveActivePanel
-        tabButtons = group.panels.map { panel in
-            let label = appearance.tabLabel(title: title(panel), icon: icon(panel))
-            let button = PanelTabButton(panelID: panel, title: label.title, image: label.image)
-            button.toolTip = appearance.showsTooltips ? title(panel) : nil
-            button.setAccessibilityLabel(title(panel))
-            button.state = panel == active ? .on : .off
-            button.target = self
-            button.action = #selector(selectTab(_:))
-            button.onDrag = { [weak self] button, event in self?.onDragTab?(button, event) }
-            button.contextMenu = { [weak self] id in self?.tabMenu?(id) }
-            return button
-        }
-        tabBar.setViews(tabButtons, in: .leading)
-        tabBar.orientation = .horizontal
-        tabBar.spacing = 2
-        tabBar.edgeInsets = NSEdgeInsets(top: 0, left: 6, bottom: 2, right: 6)
-
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.heightAnchor.constraint(equalToConstant: CGFloat(group.height ?? PanelLayout.defaultGroupHeight)).isActive = true
-        if let active {
-            let bodyView = body(active)
-            bodyView.removeFromSuperview()
-            bodyView.translatesAutoresizingMaskIntoConstraints = false
-            contentView.addSubview(bodyView)
-            NSLayoutConstraint.activate([
-                bodyView.topAnchor.constraint(equalTo: contentView.topAnchor),
-                bodyView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-                bodyView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-                bodyView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            ])
-        }
-        contentView.isHidden = group.collapsed
-
-        let column = NSStackView(views: [titleBar, tabBar, contentView])
-        column.orientation = .vertical
-        column.alignment = .leading
-        column.spacing = 0
-        column.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(column)
-        NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: topAnchor),
-            column.bottomAnchor.constraint(equalTo: bottomAnchor),
-            column.leadingAnchor.constraint(equalTo: leadingAnchor),
-            column.trailingAnchor.constraint(equalTo: trailingAnchor),
-            titleBar.widthAnchor.constraint(equalTo: column.widthAnchor),
-            tabBar.widthAnchor.constraint(equalTo: column.widthAnchor),
-            contentView.widthAnchor.constraint(equalTo: column.widthAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("PanelGroupView is built in code")
-    }
-
-    var isCollapsed: Bool { contentView.isHidden }
-
-    @objc func selectTab(_ sender: PanelTabButton) {
-        onSelectTab?(sender.panelID)
-    }
-
-    @objc func toggleCollapse(_ sender: Any?) {
-        onToggleCollapse?()
-    }
-
-    @objc func showOptions(_ sender: NSButton) {
-        onOptions?(sender)
-    }
-
-    @objc func closeGroup(_ sender: Any?) {
-        onClose?()
-    }
-
-    // MARK: Renaming
-
-    /// *Rename Panel Group…*: the title becomes a field holding the current name.
-    func beginRename() {
-        guard renameField == nil else { return }
-        let field = NSTextField(string: titleLabel.stringValue)
-        field.font = titleLabel.font
-        field.delegate = self
-        field.setAccessibilityIdentifier("panel-group.\(group.id).rename")
-        renameField = field
-        titleLabel.isHidden = true
-        titleBar.insertView(field, at: (titleBar.views.firstIndex(of: titleLabel) ?? 0) + 1, in: .leading)
-        window?.makeFirstResponder(field)
-    }
-
-    /// Ends renaming: commits a non-empty name when `committed`, otherwise changes nothing.
-    func endRename(committed: Bool) {
-        guard let field = renameField else { return }
-        renameField = nil
-        field.delegate = nil
-        titleBar.removeView(field)
-        titleLabel.isHidden = false
-        if case let .commit(name) = GroupRename.outcome(text: field.stringValue, committed: committed) {
-            titleLabel.stringValue = name
-            onRename?(name)
-        }
-    }
-
-    func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-        switch selector {
-        case #selector(NSResponder.insertNewline(_:)):
-            endRename(committed: true)
-            return true
-        case #selector(NSResponder.cancelOperation(_:)):
-            endRename(committed: false)
-            return true
-        default:
-            return false
-        }
-    }
-
-    /// Clicking anywhere else cancels.
-    func controlTextDidEndEditing(_ notification: Notification) {
-        endRename(committed: false)
-    }
-
-    // MARK: Drops
-
-    /// The tab index a drop at `point` (in this view) lands before.
-    func tabIndex(at point: CGPoint) -> Int {
-        let local = tabBar.convert(point, from: self)
-        return PanelDockController.tabIndex(forX: local.x, frames: tabButtons.map(\.frame))
-    }
-
-    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        PanelDragPayload.read(from: sender.draggingPasteboard) == nil ? [] : .move
-    }
-
-    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let payload = PanelDragPayload.read(from: sender.draggingPasteboard) else { return false }
-        onDrop?(payload, tabIndex(at: convert(sender.draggingLocation, from: nil)))
-        return true
-    }
-}
-
-/// The textured area at the left of a group's title bar: dragging it moves the group between
-/// the dock and the pasteboard.
-@MainActor
-final class GripperView: NSImageView {
-    var onDrag: ((NSEvent) -> Void)?
-
-    init() {
-        super.init(frame: .zero)
-        image = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "Gripper")
-        contentTintColor = .tertiaryLabelColor
-        setAccessibilityLabel("Gripper")
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("GripperView is built in code")
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        onDrag?(event)
-    }
-}
-
-/// A tab in a group's strip.  A click selects the tab; a drag hands the panel to the host's
-/// dragging session.
-@MainActor
-final class PanelTabButton: NSButton {
-    let panelID: PanelID
-    var onDrag: ((PanelTabButton, NSEvent) -> Void)?
-    /// The tab's context menu (secondary click or Control-click).
-    var contextMenu: ((PanelID) -> NSMenu?)?
-
-    init(panelID: PanelID, title: String, image: NSImage? = nil) {
-        self.panelID = panelID
-        super.init(frame: .zero)
-        self.title = title
-        self.image = image
-        imagePosition = title.isEmpty ? .imageOnly : .imageLeading
-        bezelStyle = .recessed
-        setButtonType(.pushOnPushOff)
-        font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
-        setAccessibilityIdentifier("panel-tab.\(panelID.rawValue)")
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("PanelTabButton is built in code")
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        contextMenu?(panelID)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        if event.modifierFlags.contains(.control), let menu = contextMenu?(panelID) {
-            NSMenu.popUpContextMenu(menu, with: event, for: self)
-            return
-        }
-        guard let window,
-            let next = window.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: .distantFuture, inMode: .eventTracking, dequeue: true)
-        else { return }
-        if next.type == .leftMouseDragged {
-            onDrag?(self, event)
-        } else {
-            performClick(nil)
-        }
     }
 }

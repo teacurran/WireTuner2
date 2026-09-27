@@ -218,7 +218,9 @@ public struct Divergence: Sendable, Hashable {
     public static func measure(local: [Wiretuner_Doc_V1_Change], remote: [Wiretuner_Doc_V1_Change], state: EngineState,
                                gap: Duration = .zero, remoteComplete: Bool = true) -> Divergence {
         var scope = Scope(state: state)
-        let mine = Side(local, scope: &scope)
+        // A local Noop counts as an op of this user's: D-076's batches drop an earlier write to a
+        // register a later change of the batch writes again, leaving a Noop where the edit was.
+        let mine = Side(local, scope: &scope, countingNoops: true)
         let theirs = Side(remote, scope: &scope)
         var entries: [ReviewEntry] = []
         var candidates = Set(mine.nodes.keys).intersection(theirs.nodes.keys)
@@ -304,13 +306,19 @@ struct Side {
     /// Objects whose last write of `deleted` on this side is true.
     var deletes: Set<OpID> = []
 
-    init(_ changes: [Wiretuner_Doc_V1_Change], scope: inout Scope) {
+    init(_ changes: [Wiretuner_Doc_V1_Change], scope: inout Scope, countingNoops: Bool = false) {
         for change in changes {
             var counter = change.startCounter
             for op in change.ops {
                 let id = OpID(counter: counter, replica: change.replica)
                 counter &+= EngineState.counters(op)
-                if case .noop? = op.op { continue }
+                if case .noop? = op.op {
+                    if countingNoops {
+                        ops += 1
+                        opsByReplica[change.replica, default: 0] += 1
+                    }
+                    continue
+                }
                 ops += 1
                 opsByReplica[change.replica, default: 0] += 1
                 record(op, id: id, replica: change.replica, scope: &scope)

@@ -81,9 +81,13 @@ protocol CanvasHost: AnyObject {
     /// Hands a key to the text input system while the Text tool edits (`interpretKeyEvents`, which
     /// calls back through the canvas's `NSTextInputClient`); false when the host has none.
     func interpretKeys(_ event: NSEvent) -> Bool
+    /// Calls `body` once the tiles show every change applied so far (D-076: a gesture's preview
+    /// stays up until its change has rendered, so the object never jumps back).
+    func whenTilesCatchUp(_ body: @escaping @MainActor () -> Void)
 }
 
 extension CanvasHost {
+    func whenTilesCatchUp(_ body: @escaping @MainActor () -> Void) { body() }
     func showHUD(_ message: String) { showStatusMessage(message) }
     func requestNamedView(_ target: Viewport) {}
     func interpretKeys(_ event: NSEvent) -> Bool { false }

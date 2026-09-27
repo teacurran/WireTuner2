@@ -246,9 +246,10 @@ import WTProto
         #expect(rebase.map(OpID(counter: 21, replica: 42)) == OpID(counter: 300, replica: 50))
         #expect(rebase.map(OpID(counter: 16, replica: 42)) == OpID(counter: 16, replica: 42))
         #expect(rebase.map(OpID(counter: 10, replica: 42)) == OpID(counter: 10, replica: 42))
-        // A piece of Noops only is not issued, and maps nothing.
+        // A change of Noops only (its writes coalesced away, D-076) is issued as it is, so its
+        // label stays in the history.
         let noops = rebase.rebase(Fixture.change(42, seq: 2, start: 30, [Ops.noop(), Ops.noop()]), startCounter: 400, state: state)
-        #expect(noops.ops == nil && noops.next == 2 && rebase.map(OpID(counter: 30, replica: 42)) == OpID(counter: 30, replica: 42))
+        #expect(noops.ops == [Ops.noop(), Ops.noop()] && noops.next == 2 && rebase.map(OpID(counter: 30, replica: 42)) == OpID(counter: 400, replica: 50))
     }
 
     @Test func theStoreReissuesAnOversizedChangeAsSeveral() async throws {

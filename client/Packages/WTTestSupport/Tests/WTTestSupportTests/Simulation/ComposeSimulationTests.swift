@@ -159,7 +159,7 @@ struct ComposeSimulationTests {
         ana.goOffline()
         var random = sim.random.fork(4)
         for _ in 0..<3 { await Workload.move(ana, shapes, &random) }
-        let clone = try sim.copyStore(of: ana, as: "clone")
+        let clone = try await sim.copyStore(of: ana, as: "clone")
         let replica = await ana.store.replica
         ana.goOnline()
         try await sim.settle([ana])

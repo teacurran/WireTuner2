@@ -401,9 +401,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if restoreSession().isEmpty { openUntitledAtLaunch() }
     }
 
-    /// Quitting with changes waiting shows the quit sheet (IO-007).
+    /// Quitting with changes waiting shows the quit sheet (IO-007).  Local changes not written
+    /// yet (D-076: at most 250 ms of them) are written before the app goes.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        quit.shouldTerminate()
+        let reply = quit.shouldTerminate()
+        guard reply == .terminateNow, let documents, !documents.modelsWithPendingWrites.isEmpty else { return reply }
+        Task { @MainActor in
+            await documents.flushAll()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
+    /// Deactivating writes every document's pending local changes (D-076).
+    func applicationDidResignActive(_ notification: Notification) {
+        guard let documents else { return }
+        Task { @MainActor in await documents.flushAll() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

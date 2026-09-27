@@ -39,12 +39,17 @@ struct ObjectPanelBody: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
+                .frame(minHeight: Self.editorMinimumHeight, maxHeight: .infinity)
                 .accessibilityIdentifier("object.attributes")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: InspectorRowRequest.shared.pending, initial: true) { InspectorRowRequest.shared.apply(to: attributes) }
     }
+
+    /// The least height the lower half (the editor) gets: when the group is shorter, the panel
+    /// scrolls as a whole rather than squeezing the editor away (D-077).
+    static let editorMinimumHeight: CGFloat = 160
 
     /// The lower half: the selected stack row's editor (identified by the row, so a remote insert
     /// does not rebuild the editor that has focus), else the root row's sections.

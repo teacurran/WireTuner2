@@ -23,7 +23,8 @@ struct CornerWidget: Equatable {
 /// or rectangle -- curve points have none.  Dragging one sets the radius of the object's Corners
 /// effect, adding the effect on the first drag, and with points selected adds them to the
 /// effect's *Selected points*; kbd:[Option]-click cycles the style (Round, Inverted round,
-/// Chamfer); a double-click shows the effect in the Object panel.  A drag is one undo step.
+/// Chamfer); a double-click shows the effect in the Object panel.  A drag previews on the canvas
+/// and writes one change on mouse-up (D-076), so it is one undo step.
 /// menu:View[Show Corner Widgets] hides them.
 @MainActor
 final class CornerWidgetLayer: CanvasHandleLayer {
@@ -41,10 +42,10 @@ final class CornerWidgetLayer: CanvasHandleLayer {
     private(set) var dragging: CornerWidget?
     private var pressed: CanvasEvent?
     private var moved = false
-    /// The drag's writes, in order (the first one may add the effect before the rest can find it).
-    private var chain: Task<Void, Never>?
-    private var wrote = false
-    private var addedPoints = false
+    /// The drag's preview and its one change.
+    private var edit: GestureEdit?
+    /// The change written on release (tests wait for it).
+    private var written: Task<Wiretuner_Doc_V1_Change?, Never>?
 
     init() {}
 
@@ -76,7 +77,7 @@ final class CornerWidgetLayer: CanvasHandleLayer {
     }
 
     /// The object-level Corners effect of `node`, if it has one.
-    static func effect(_ node: OpID, in state: EngineState) -> EffectEntry? {
+    nonisolated static func effect(_ node: OpID, in state: EngineState) -> EffectEntry? {
         EffectReading.entries(node, in: state).last { $0.kind == .corners && $0.attachment == .object && !$0.effect.hidden }
     }
 
@@ -103,7 +104,7 @@ final class CornerWidgetLayer: CanvasHandleLayer {
     /// Every widget of the selection, with where it draws.
     static func widgets(_ context: ToolContext) -> [(corner: CornerWidget, at: Point)] {
         guard isShown() else { return [] }
-        let state = context.document.state
+        let state = context.document.shownState
         return context.selection.selection.ids.flatMap { id -> [(corner: CornerWidget, at: Point)] in
             guard let object = context.document.object(for: id) else { return [] }
             return corners(of: object).map { ($0, position($0, radius: radius($0, in: state), zoom: context.viewport.zoom)) }
@@ -134,7 +135,7 @@ final class CornerWidgetLayer: CanvasHandleLayer {
     }
 
     /// The radius write, with the selected points added once per drag.
-    static func radiusCommand(_ node: OpID, radius: Double, points: [OpID], in state: EngineState) -> (any WTModel.Command)? {
+    nonisolated static func radiusCommand(_ node: OpID, radius: Double, points: [OpID], in state: EngineState) -> (any WTModel.Command)? {
         guard let entry = effect(node, in: state) else { return nil }
         var commands: [any WTModel.Command] = [EditEffect([(node, entry.row)], label: "Change corner radius", fields: [EffectField.corners(1)]) {
             $0.corners.radius = radius
@@ -159,68 +160,56 @@ final class CornerWidgetLayer: CanvasHandleLayer {
         dragging = hit.corner
         pressed = e
         moved = false
-        wrote = false
-        addedPoints = false
-        chain = nil
-        context.document.beginGroup()
+        edit = GestureEdit(document: context.document)
         return true
+    }
+
+    /// The command a drag of `corner` to `point` writes: the radius, the effect added first when
+    /// the object has none, and the selected points added to it.
+    static func dragCommand(_ corner: CornerWidget, to point: Point, points: [OpID], in state: EngineState) -> (any WTModel.Command)? {
+        let radius = radius(corner, draggedTo: point)
+        let node = corner.node
+        guard effect(node, in: state) == nil else { return radiusCommand(node, radius: radius, points: points, in: state) }
+        return SequenceCommand("Change corner radius", [
+            AddEffect([node], kind: .corners),
+            StateCommand("Change corner radius") { radiusCommand(node, radius: radius, points: points, in: $0) },
+        ])
     }
 
     func drag(_ e: CanvasEvent, context: ToolContext) {
         guard let corner = dragging, let pressed else { return }
         if !moved, e.viewPoint.distance(to: pressed.viewPoint) < PointerTool.dragThreshold { return }
         moved = true
-        wrote = true
-        let radius = Self.radius(corner, draggedTo: e.pasteboardPoint)
-        let document = context.document, sink = context.commandSink
         let points = corner.point == nil ? [] : Self.selectedPoints(corner.node, context: context)
-        if Self.effect(corner.node, in: document.state) == nil, chain == nil {
-            let add = sink.perform(AddEffect([corner.node], kind: .corners))
-            chain = Task { @MainActor in _ = await add.value }
-        }
-        let previous = chain
-        let addPoints = !addedPoints
-        addedPoints = true
-        chain = Task { @MainActor in
-            await previous?.value
-            await document.settle()
-            if let command = Self.radiusCommand(corner.node, radius: radius, points: addPoints ? points : [], in: document.state) {
-                _ = await sink.perform(command).value
-            }
-        }
+        edit?.update(Self.dragCommand(corner, to: e.pasteboardPoint, points: points, in: context.document.state))
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
-        if !moved, let corner = dragging, pressed?.modifiers.contains(.option) == true,
+        if !moved, dragging != nil, let corner = dragging, pressed?.modifiers.contains(.option) == true,
            let command = Self.cycleStyle(corner.node, in: context.document.state) {
-            wrote = true
-            context.commandSink.perform(command)
-        } else {
+            edit?.cancel()
+            written = context.commandSink.perform(command)
+        } else if dragging != nil {
             drag(e, context: context)
+            written = edit?.commit()
         }
-        finish(context, undo: false)
+        finish()
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish()
     }
 
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    private func finish() {
         dragging = nil
         pressed = nil
-        let document = context.document, previous = chain
-        chain = Task { @MainActor in
-            await previous?.value
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
-    /// Waits for the drag's writes (tests).
+    /// Waits for the drag's change (tests).
     func settle() async {
-        await chain?.value
+        _ = await written?.value
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {

@@ -329,7 +329,8 @@ import WTSync
         #expect(OverridesSectionModel.text(.visible(true)) == nil)
         await w.world.document.settle()
         #expect(Symbols.textNode(w.text, in: w.first, state: w.world.document.state)?.string == "On sale")
-        #expect(Symbols.liveOverrides(of: w.first, in: w.world.document.state)[stroke.key] != nil)
+        // The colour panel's stream is written once it settles (D-076).
+        #expect(await eventually { Symbols.liveOverrides(of: w.first, in: w.world.document.state)[stroke.key] != nil })
         // A picture of an unknown type is stored as plain data.
         let odd = FileManager.default.temporaryDirectory.appendingPathComponent("override-\(UUID().uuidString).zzzq")
         try Data([1, 2, 3]).write(to: odd)

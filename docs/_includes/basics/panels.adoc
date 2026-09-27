@@ -5,8 +5,13 @@ This page explains the framework: opening, closing, grouping, docking, collapsin
 Options menu every panel has.  What each panel *contains* is documented on that panel's own
 page; the table at the end links them.
 
-// TODO screenshot: the default panel layout on first launch, with the Properties group
-// expanded and the Assets group collapsed.
+Panel groups have the look of a current Mac app: the dock is a sidebar on the window's glass
+layer, a group's tabs are a glass tab strip, floating groups are glass panels, and what a panel
+shows sits on the standard window material.
+
+// TODO screenshot: the default panel layout on first launch, in the macOS 26 look: the dock
+// as a glass sidebar, the Properties group expanded with its Object and Document tabs in a
+// glass tab strip, the Assets group collapsed to its title bar, and a divider between groups.
 
 == The default layout
 
@@ -29,7 +34,8 @@ panel at the left edge.  The groups are:
 |===
 
 Layers, Help and the Properties, Assets, and Mixer and Tints groups are open at first launch;
-some are collapsed to their title bars.  Halftones and Navigation are closed until you open
+some are collapsed to their title bars.  Properties takes the largest share of the dock's height,
+so the Object panel shows its properties list and the editor under it without resizing.  Halftones and Navigation are closed until you open
 them.  Groups with a single panel are named after it.  Except for Properties and Assets, a
 group made of several panels shows every panel's name in its title bar until you rename it.
 
@@ -44,12 +50,16 @@ To open the Find & Replace Graphics or Select panel::
 These are also in menu:Edit[Find & Replace] and menu:Edit[Select].
 
 To activate a panel in a group::
-Click its tab.  Tabs show an icon, a name, or both, depending on the *Label panel tabs with*
-preference (xref:preferences.adoc[Preferences]).
+Click its tab.  The front tab is marked by the glass selection under it.  Tabs show an icon, a
+name, or both, depending on the *Label panel tabs with* preference
+(xref:preferences.adoc[Preferences]).  With keyboard navigation on, press kbd:[Tab] to reach a
+tab strip, then the arrow keys to move between tabs; kbd:[Home] and kbd:[End] go to the first
+and last tab.
 
 To expand or collapse a group::
 Click the group's title, or the disclosure triangle beside it.  A collapsed group keeps its
-place in the dock and takes only its title bar's height.  Choosing a collapsed panel from the
+place in the dock and takes only its title bar's height; the other groups share the room it
+gave up.  Choosing a collapsed panel from the
 menu:Window[] menu expands it.
 
 To close a floating group::
@@ -70,17 +80,18 @@ kbd:[Control+Tab] cycles document tabs instead (xref:workspace.adoc[The workspac
 
 == Docking and floating
 
-Every group has a *gripper* -- a textured area at the left of its title bar.  Dragging the
+Every group has a *gripper* -- the three lines at the left of its title bar.  Dragging the
 gripper moves the group between the dock and the pasteboard; dragging the title bar itself
-moves a floating group without docking it.
+moves a floating group without docking it.  While you drag, a picture of the group's title bar
+and tabs follows the pointer.
 
 To dock a group::
-Drag it by its gripper toward the right or left edge of the window.  A blue insertion line
-shows where it will land between the groups already docked there.  Release to dock.
+Drag it by its gripper into the dock at the right or left edge of the window, over the groups
+already there.  A blue insertion line shows where it will land between them.  Release to dock.
 
 To dock a group onto another group::
-Drag it by its gripper onto the other group's tab strip.  The strip highlights and the dragged
-panels join that group as tabs.
+Drag it by its gripper onto the other group's title bar or tab strip.  The strip highlights and
+the dragged panels join that group as tabs.
 
 To float a group::
 Drag it by its gripper out of the dock onto the pasteboard, or choose *Float Group* from its
@@ -89,7 +100,8 @@ display.
 
 To resize a floating group::
 Drag any edge.  Docked groups share the dock's width; drag the dock's edge to change it, and
-drag the divider between two docked groups to change how the height is shared.
+drag the divider between two docked groups to change how the height is shared.  When a panel's
+contents are taller than its group, the panel scrolls; it never covers the group below.
 
 CAUTION: If you mean to move a floating group, drag the title bar, not the gripper -- dragging
 the gripper near the dock will dock it.
@@ -98,10 +110,12 @@ the gripper near the dock will dock it.
 
 To add a panel to another group::
 Choose *Group <panel> With* from the panel's Options menu and pick the target group, or drag
-the panel's tab onto the other group's tab strip.
+the panel's tab onto the other group's tab strip.  A thin line in the strip shows where the tab
+will land.
 
 To split a panel into its own group::
-Choose *Group <panel> With > New Panel Group*, or drag its tab out of the strip.
+Choose *Group <panel> With > New Panel Group*, or drag its tab out of the strip: onto the dock
+between two groups to dock it there, or onto the pasteboard to float it.
 
 To rename a group::
 Choose *Rename Panel Group* from the Options menu of any panel in the group, type the name and
@@ -139,8 +153,9 @@ for every panel:
 
 == Panel layouts
 
-Your arrangement -- which groups exist, where they dock, their sizes, what is collapsed -- is
-saved automatically and restored when you relaunch.  You can also name layouts and switch
+Your arrangement -- which groups exist, which panels they hold and in what order, where they
+dock, their sizes and how the dock's height is divided, what is collapsed -- is saved
+automatically and restored when you relaunch.  You can also name layouts and switch
 between them, and reset to the factory layout.
 
 To reset the panels to their default positions::
@@ -289,18 +304,57 @@ open, collapsed, keeps its name, edge) is a `PanelGroupDefaults` table the regis
 in the layout, so a reload does not bring a closed group back; showing one reopens the closed
 members of its default group) and `flyoutSlots` (the Tools panel's, BASIC-009); both keys are
 optional, so the file stays version 1.  Dock edges gained `top` and `bottom` strips (for the Tools
-panel); docks are stacks of groups rather than an `NSSplitView`, so there is no divider between
-docked groups yet (a group keeps its stored height).  The Tools panel is a panel of the framework,
+panel); docks are stacks of groups rather than an `NSSplitView` (D-077 added dividers between
+docked groups, below).  The Tools panel is a panel of the framework,
 docked left (84 pt) by default.  Floating groups are `NSPanel` child windows of the front document
 window, one per group, app-wide (`FloatingPanelsController`).  The Options menu's *Group <panel>
 With* lists every other group then *New Panel Group*; *Help for <panel>* shows the page in the Help
 panel (BASIC-007).  Renaming edits the title in place: kbd:[Return]
 commits, kbd:[Esc], clicking elsewhere or an empty name cancels.  Tabs and the gripper drag with a
 private pasteboard type each (panel, group); a drag released outside every target floats what it
-carried at that point; the 2 pt insertion line is not drawn yet.  The dock handle is a 6 pt strip
+carried at that point (D-077 drew the 2 pt insertion line, below).  The dock handle is a 6 pt strip
 between the canvas and each side dock: a click hides or shows the dock, a drag resizes it.  The
 two appearance preferences apply live through `PreferenceStore.observe`.  The thirteen panels
 whose epics have not landed register placeholder bodies.
+
+NOTE: As built for D-077 (the macOS 26 design).  *Tab strip*: `PanelTabStrip` (`Panels/PanelTabStrip.swift`)
+replaces the filled `.recessed` buttons: an `NSGlassEffectContainerView` holding an `NSGlassEffectView` track
+and an `NSGlassEffectView` selection (tinted lighter) that slides under the front tab; the tabs are
+borderless `PanelTabButton`s sharing the width equally, the front one in the label colour and semibold.  To
+accessibility the strip is a tab group (`accessibilityTabs`), each tab a radio button with the
+`AXTabButton` subrole, value 1 or 0 and the selected state; a focused tab moves with the arrow keys
+(wrapping), kbd:[Home] and kbd:[End].  The *Label panel tabs with* preference picks each tab's label; the
+name is always the accessibility label.  `PanelSectionTabs` wraps the same strip for SwiftUI; the Transform
+panel's Move/Rotate/Scale/Skew/Reflect use it (identifier `transform.tab`, tabs `transform.tab.<id>`).
+*Chrome* (`PanelGlass`): a side dock is an `NSGlassEffectView` inset 6 pt from the window's edges, radius
+14 pt; a group's body sits on an `NSVisualEffectView` of the `.windowBackground` material (radius 8 pt),
+never glass; a floating group is a clear `NSPanel` (`.fullSizeContentView`, standard buttons hidden) whose
+group view draws an `NSGlassEffectView`.  Title-bar buttons (Options, a floating group's close) are `.glass`
+circles.  Before macOS 26 (the deployment target is 15) the glass falls back to visual-effect materials.  A
+click on the title bar expands or collapses the group; dragging a floating group's title bar moves its
+window.  *Sizing* (`Panels/DockColumn.swift`): a side dock's groups are laid out by `DockColumnView`, top
+first, each group its title bar (28 pt), tab row (32 pt) and a share of the remaining height: expanded
+groups share it in proportion to their stored `height` (else the default group's
+`PanelGroupDefaults.height` -- Properties asks for 600, the rest `PanelLayout.defaultGroupHeight`, 220),
+never below 48 pt while there is room (`DockSizing`).  A 7 pt `DockDividerView` between neighbours moves
+height between the nearest expanded groups above and below it and writes every expanded group's height into
+the layout, so the saved layout reproduces the split; to accessibility it is a splitter whose increment and
+decrement move it 16 pt.  A collapsed group is its title bar only (a collapsed floating group shrinks its
+window to it, keeping the stored frame).  A body is in an `NSScrollView`: it fills the group and grows past
+it, and scrolls, only as far as its own minimum height (a SwiftUI body's `NSHostingView.minHeight`); the
+body card clips, so nothing draws over the next group.  The Object panel's editor half has a 160 pt floor
+(`ObjectPanelBody.editorMinimumHeight`): at the default window size the whole Object panel, editor
+included, fits the Properties group.  *Updates*: a group view whose panels are unchanged is updated in
+place (tab, name, collapsed), so the selection slides, the column animates (Reduce Motion respected) and
+the keyboard focus stays; floating groups do the same.  *Drags*: the drag image is a picture of the tab, or
+of the group's title bar and tabs, on a card; a drag released outside every target floats without sliding
+back.  Over a group's title bar or tab strip a drag joins it -- the strip takes the accent tint and a caret
+shows where the tab lands; over a docked group's body or the dock background it docks between groups, shown
+by the 2 pt insertion line.  Deviations: the dock is not an `NSSplitViewController` inspector item (the
+window keeps its own dock views, so the glass sidebar is an inset `NSGlassEffectView` beside the canvas,
+not over it); a group's tab strip stays when it holds one panel (so its tab can be dragged onto another
+strip); hovering a drag over a tab does not spring-load it (the strip highlights instead); the top and
+bottom strips keep a row of groups without dividers or the insertion line.
 
 NOTE: As built by BASIC-007 (`WTApp/Help/`).  The Help panel searches a catalog of the guide's pages
 generated from `docs/guide` (`HelpCatalog.swift`: slug, title, group, first paragraph, section headings

@@ -8,9 +8,15 @@ import WTProto
 /// One open document's local store (docs/spec/offline.adoc, "Local store"; SYNC-001, SYNC-002):
 /// a SQLite database (GRDB, WAL, synchronous = FULL) holding the newest snapshot, every change
 /// since it (the outbox is the unacknowledged local ones), the undo stack, pending blobs and view
-/// state.  The actor also holds the document's merge state (`DocumentCore`): a local change is
-/// applied and appended to the outbox inside one database transaction, so a change that was
-/// applied is on disk, and a transaction that fails leaves no trace in the file.
+/// state.  The document's merge state (`DocumentCore`) is the store's `engine`, which the
+/// `Document` façade applies local changes to on the main actor (D-076): the store writes them
+/// afterwards, off the main actor, every change applied since the last write in one transaction,
+/// at most `Options.batchInterval` (250 ms) after the first of them, and at once before the outbox
+/// is read or sent, before any other write and on close.  A crash loses at most that unwritten
+/// batch; a transaction that fails leaves no trace in the file and the store diverged.  Within a
+/// batch, an earlier write to a register a later change of the batch writes again is dropped
+/// (`Coalescer.Rules.registers`), and the keystrokes of one word are one change
+/// (`DocumentCore.open`), which is not sent while it can still grow.
 ///
 /// Opening loads the snapshot and replays the changes after it; the snapshot is rewritten on close
 /// and every `Options.snapshotInterval` while open.  A local change's local-only writes
@@ -29,6 +35,9 @@ public actor LocalStore: DocumentBackend {
         public var makeReplicaID: @Sendable () -> UInt64
         /// The merge table.
         public var schema: Schema
+        /// The longest a local change waits to be written (D-076): the first change after a write
+        /// schedules the next write this much later.
+        public var batchInterval: Duration = .milliseconds(250)
         /// Written to `meta` when the store is created.
         public var featureLevel: Int
         public var mergeTableVersion: String
@@ -105,13 +114,18 @@ public actor LocalStore: DocumentBackend {
 
     private let options: Options
     /// Whether local changes are refused (`setReadOnly`).
-    public private(set) var isReadOnly = false
+    public var isReadOnly: Bool { engine.gate.readOnly }
     /// Whether, while read-only, changes that concern comments only are still accepted (a
     /// commenter's role; `setReadOnly(_:commentsAllowed:)`).
-    public private(set) var allowsComments = false
+    public var allowsComments: Bool { engine.gate.commentsAllowed }
+    /// The merge state, shared with the `Document` façade.
+    public nonisolated let engine: DocumentEngine
     private var database: DatabaseQueue?
-    private var core: DocumentCore
+    /// A copy of the merge state as of now.
+    private var core: DocumentCore { engine.core }
     private var diverged = false
+    /// The scheduled write of the pending batch.
+    private var flushTask: Task<Void, Never>?
     private var timer: Task<Void, Never>?
     /// Snapshots written since the store opened (the periodic rewrite's test observable).
     private(set) var snapshotsWritten = 0
@@ -161,7 +175,7 @@ public actor LocalStore: DocumentBackend {
             core.restoreLocalOnly(try LocalOnlyRows.all(db))
         }
         self.database = database
-        self.core = core
+        engine = DocumentEngine(core: core, persists: true, refusal: Failure.readOnly)
         report = OpenReport(created: created, rotatedFrom: rotatedFrom, replayed: replayed,
                             seconds: Double(DispatchTime.now().uptimeNanoseconds - start) / 1e9)
     }
@@ -221,6 +235,9 @@ public actor LocalStore: DocumentBackend {
     }
 
     private func startTimer() {
+        engine.onPending { [weak self] in
+            Task { await self?.scheduleFlush() }
+        }
         let interval = options.snapshotInterval
         timer = Task { [weak self] in
             while !Task.isCancelled {
@@ -237,6 +254,12 @@ public actor LocalStore: DocumentBackend {
 
     // MARK: Writing
 
+    private struct Stamped<T>: Sendable where T: Sendable {
+        var nextSeq: UInt64
+        var stack: UndoStack
+        var result: T
+    }
+
     // Runs `body` in one write transaction.  `body` reports through `applied` once it has changed
     // the in-memory state: a failure after that point marks the store diverged.
     private func write<T>(_ body: (Database, inout Bool) throws -> T) throws -> T {
@@ -247,23 +270,134 @@ public actor LocalStore: DocumentBackend {
             return try database.write { db in try body(db, &applied) }
         } catch {
             if applied {
-                diverged = true
+                markDiverged()
             }
             throw error
         }
+    }
+
+    private func markDiverged() {
+        diverged = true
+        engine.fail(Failure.diverged)
+    }
+
+    /// What one step changed in memory, for `commit` to write: the local changes the engine had
+    /// queued before it, and the seq the replica's next change takes after it.
+    private struct Applied<T> {
+        var pending: [DocumentCore.Outcome]
+        var nextSeq: UInt64
+        var stack: UndoStack
+        var result: T
+    }
+
+    // Applies `mutation` to the core under the engine's lock -- taking, in the same step, the local
+    // changes queued before it -- then, with the lock released, writes those changes and whatever
+    // `persist` writes in one transaction.  So the file holds the changes in the order the state
+    // saw them, and the main actor never waits on the disk.  `changed` says whether the mutation
+    // changed the state (a failed write then leaves the store diverged, as queued changes do).
+    private func commit<T: Sendable>(_ mutation: (inout DocumentCore, [DocumentCore.Outcome]) throws -> T, changed: (T) -> Bool = { _ in true },
+                           persist: (Database, T) throws -> Void = { _, _ in }) throws -> T {
+        guard database != nil else { throw Failure.closed }
+        guard !diverged else { throw Failure.diverged }
+        let step = try engine.mutate { core, pending -> Stamped<T> in
+            let result = try mutation(&core, pending)
+            return Stamped(nextSeq: core.nextSeq, stack: core.undoStack, result: result)
+        }
+        let applied = Applied(pending: step.pending, nextSeq: step.result.nextSeq, stack: step.result.stack, result: step.result.result)
+        let dirty = !applied.pending.isEmpty || changed(applied.result)
+        guard dirty else { return applied.result }
+        guard let database else { throw Failure.closed }
+        do {
+            try database.write { db in
+                try checkFault()
+                try writePending(applied.pending, nextSeq: applied.nextSeq, stack: applied.stack, db)
+                try persist(db, applied.result)
+            }
+        } catch {
+            markDiverged()
+            throw error
+        }
+        return applied.result
+    }
+
+    /// Writes every local change the engine has applied and not yet written, in one transaction.
+    public func flush() throws {
+        flushTask?.cancel()
+        flushTask = nil
+        guard engine.hasPending, database != nil, !diverged else { return }
+        try commit({ _, _ in () }, changed: { false })
+    }
+
+    // The first change after a write schedules the next write `batchInterval` later.
+    private func scheduleFlush() {
+        guard flushTask == nil, database != nil else { return }
+        let interval = options.batchInterval
+        flushTask = Task { [weak self] in
+            try? await Task.sleep(for: interval)
+            guard !Task.isCancelled else { return }
+            await self?.scheduledFlush()
+        }
+    }
+
+    private func scheduledFlush() {
+        flushTask = nil
+        try? flush()
     }
 
     private func checkFault() throws {
         try options.fault?()
     }
 
-    private func appendLocal(_ change: Wiretuner_Doc_V1_Change, _ db: Database) throws {
-        try db.execute(sql: "INSERT INTO changes (replica, seq, local, label, data) VALUES (?, ?, 1, ?, ?)",
-                       arguments: [change.replica.sql, change.seq.sql, change.label, try change.serializedData()])
-        try db.execute(sql: "UPDATE meta SET next_seq = ? WHERE id = 1", arguments: [core.nextSeq.sql])
+    // Writes queued local outcomes: each change's row (an open change that grew replaces its row),
+    // its local-only registers and its undo edit.  Within the batch an open change's successive
+    // versions collapse to the last, and an earlier write to a register a later change of the batch
+    // writes again is dropped (`Coalescer.Rules.registers`; the batch holds only local changes, all
+    // unsent).  The open change itself is left as it is, since it is rewritten when it grows.
+    private func writePending(_ pending: [DocumentCore.Outcome], nextSeq: UInt64, stack: UndoStack, _ db: Database) throws {
+        guard !pending.isEmpty else { return }
+        struct Row {
+            var change: Wiretuner_Doc_V1_Change
+            var replaces: Bool
+        }
+        var rows: [Row] = []
+        for outcome in pending {
+            guard let change = outcome.outbox else { continue }
+            if outcome.extends, let last = rows.last, last.change.replica == change.replica, last.change.seq == change.seq {
+                rows[rows.count - 1].change = change
+            } else {
+                rows.append(Row(change: change, replaces: outcome.extends))
+            }
+        }
+        let open = engine.core.open?.seq
+        let closed = rows.indices.filter { rows[$0].change.seq != open || rows[$0].change.replica != engine.core.replica }
+        if closed.count > 1 {
+            let coalesced = Coalescer.coalesce(closed.map { .outbox(rows[$0].change) }, rules: .registers)
+            for (index, change) in zip(closed, coalesced) {
+                rows[index].change = change
+            }
+        }
+        for row in rows {
+            let data = try row.change.serializedData()
+            if row.replaces {
+                try db.execute(sql: "UPDATE changes SET data = ? WHERE replica = ? AND seq = ? AND local = 1 AND server_seq IS NULL",
+                               arguments: [data, row.change.replica.sql, row.change.seq.sql])
+                if db.changesCount > 0 { continue }
+            }
+            try db.execute(sql: "INSERT INTO changes (replica, seq, local, label, data) VALUES (?, ?, 1, ?, ?)",
+                           arguments: [row.change.replica.sql, row.change.seq.sql, row.change.label, data])
+        }
+        for outcome in pending {
+            try LocalOnlyRows.keep(outcome.localOnly, db)
+            try persist(outcome.edit, stack: stack, db)
+        }
+        if !rows.isEmpty {
+            try db.execute(sql: "UPDATE meta SET next_seq = ? WHERE id = 1", arguments: [nextSeq.sql])
+        }
     }
 
-    private func persist(_ edit: UndoEdit?, _ db: Database) throws {
+    // `stack` is the undo stack after the batch: an undo or redo rewrites the rebased inverses of
+    // the other steps from it.
+    private func persist(_ edit: UndoEdit?, stack: UndoStack, _ db: Database) throws {
         switch edit {
         case nil:
             break
@@ -280,12 +414,12 @@ public actor LocalStore: DocumentBackend {
         case .undo(let entry):
             try db.execute(sql: "DELETE FROM undo WHERE id = (SELECT MAX(id) FROM undo WHERE stack = 'undo')")
             try insert(entry, stack: "redo", db)
-            try rewriteStack(db)
+            try rewriteStack(stack, db)
         case .redo(let entry, let limit):
             try db.execute(sql: "DELETE FROM undo WHERE id = (SELECT MAX(id) FROM undo WHERE stack = 'redo')")
             try insert(entry, stack: "undo", db)
             try trim(limit, db)
-            try rewriteStack(db)
+            try rewriteStack(stack, db)
         }
     }
 
@@ -303,9 +437,9 @@ public actor LocalStore: DocumentBackend {
 
     // An undo or redo rebases the other steps (WTModel's UndoRebase): their stored inverses are
     // rewritten from the in-memory stack, which lists them in the same order as the rows.
-    private func rewriteStack(_ db: Database) throws {
-        for (stack, entries) in [("undo", core.undoStack.undo), ("redo", core.undoStack.redo)] {
-            let ids = try Int64.fetchAll(db, sql: "SELECT id FROM undo WHERE stack = ? ORDER BY id", arguments: [stack])
+    private func rewriteStack(_ stack: UndoStack, _ db: Database) throws {
+        for (name, entries) in [("undo", stack.undo), ("redo", stack.redo)] {
+            let ids = try Int64.fetchAll(db, sql: "SELECT id FROM undo WHERE stack = ? ORDER BY id", arguments: [name])
             for (id, entry) in zip(ids, entries) {
                 try db.execute(sql: "UPDATE undo SET inverse = ? WHERE id = ?", arguments: [Data(InverseCodec.encode(entry.inverse)), id])
             }
@@ -315,96 +449,75 @@ public actor LocalStore: DocumentBackend {
     // MARK: DocumentBackend
 
     public func summary() -> DocumentUpdate {
-        update(nil)
+        engine.summary
     }
 
+    /// Performs a local command and writes it (with every change queued before it) before
+    /// returning.  The façade applies through `engine` instead and does not wait for the write.
     public func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate {
-        if isReadOnly {
-            guard allowsComments else { throw Failure.readOnly }
-            var builder = ChangeBuilder(replica: core.replica, startCounter: core.state.clock.peek)
-            try command.execute(&builder, state: core.state)
-            guard CommentFields.onlyComments(builder.ops, in: core.state) else { throw Failure.readOnly }
-        }
-        let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
-            guard let outcome = try core.perform(command, recording: recording) else { return nil }
-            applied = true
-            try checkFault()
-            try appendLocal(outcome.outbox!, db)
-            try LocalOnlyRows.keep(outcome.localOnly, db)
-            try persist(outcome.edit, db)
-            return outcome.change
-        }
-        return update(change)
+        try writeThrough { try engine.perform(command, recording: recording) }
     }
 
     public func undo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
-        try reverse { $0.undo(recording: recording) }
+        try writeThrough { try engine.undo(recording: recording) }
     }
 
     public func redo(recording: DocumentCore.Recording) throws -> DocumentUpdate {
-        try reverse { $0.redo(recording: recording) }
+        try writeThrough { try engine.redo(recording: recording) }
     }
 
-    private func reverse(_ body: (inout DocumentCore) -> DocumentCore.Outcome?) throws -> DocumentUpdate {
-        if isReadOnly {
-            var trial = core
-            guard allowsComments, let ops = body(&trial)?.change?.ops, CommentFields.onlyComments(ops, in: core.state) else {
-                throw Failure.readOnly
-            }
-        }
-        let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
-            guard let outcome = body(&core) else { return nil }
-            applied = true
-            try checkFault()
-            if let change = outcome.outbox {
-                try appendLocal(change, db)
-                try LocalOnlyRows.keep(outcome.localOnly, db)
-            }
-            try persist(outcome.edit, db)
-            return outcome.change
-        }
-        return update(change)
+    private func writeThrough(_ body: () throws -> DocumentUpdate) throws -> DocumentUpdate {
+        guard database != nil else { throw Failure.closed }
+        guard !diverged else { throw Failure.diverged }
+        let update = try body()
+        try flush()
+        return update
     }
 
     /// Applies a change from the server's log at `serverSeq`, recording it (or, for the echo of
-    /// this replica's own change, its ack) and the new `last_server_seq` in the same transaction.
+    /// this replica's own change, its ack) and the new `last_server_seq` in the same transaction,
+    /// after the local changes applied before it.
     public func receive(_ change: Wiretuner_Doc_V1_Change, serverSeq: UInt64) throws -> DocumentUpdate {
-        try write { db, applied in
+        try commit({ core, _ -> (UInt64, UInt64) in
             core.receive(change, serverSeq: serverSeq)
-            applied = true
-            try checkFault()
-            if change.replica == core.replica {
-                try markAcknowledged(seq: change.seq, serverSeq: serverSeq, db)
+            return (core.replica, core.lastServerSeq)
+        }, persist: { db, applied in
+            let (replica, lastServerSeq) = applied
+            if change.replica == replica {
+                try Self.markAcknowledged(replica: replica, seq: change.seq, serverSeq: serverSeq, db)
             } else {
                 try db.execute(sql: """
                     INSERT OR IGNORE INTO changes (replica, seq, server_seq, local, label, data) VALUES (?, ?, ?, 0, ?, ?)
                     """, arguments: [change.replica.sql, change.seq.sql, serverSeq.sql, change.label, try change.serializedData()])
             }
-            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [core.lastServerSeq.sql])
-        }
+            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [lastServerSeq.sql])
+        })
         return update(change)
     }
 
     public func read<T: Sendable>(_ body: @Sendable (EngineState) throws -> T) rethrows -> T {
-        try body(core.state)
+        try body(engine.state)
     }
 
     private func update(_ change: Wiretuner_Doc_V1_Change?) -> DocumentUpdate {
-        DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
+        let core = core
+        return DocumentUpdate(change: change, undo: UndoSummary(core.undoStack), replica: core.replica)
     }
 
     // MARK: Outbox (SYNC-002)
 
     /// The unacknowledged local changes of the current replica, in order: the outbox.
     public func outbox() throws -> [Wiretuner_Doc_V1_Change] {
-        try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? ORDER BY id",
+        try flush()
+        return try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? ORDER BY id",
                     arguments: [core.replica.sql])
     }
 
     /// Unacknowledged local changes of replicas this store has rotated away from, in order: what
     /// replica salvage (offline.adoc, "Replica expiry and salvage") re-issues.
     public func retiredOutbox() throws -> [Wiretuner_Doc_V1_Change] {
-        try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica != ? ORDER BY id",
+        try flush()
+        return try changes(sql: "SELECT data FROM changes WHERE local = 1 AND server_seq IS NULL AND replica != ? ORDER BY id",
                     arguments: [core.replica.sql])
     }
 
@@ -412,9 +525,16 @@ public actor LocalStore: DocumentBackend {
     /// its first change.  Changes up to seq `fixedThrough` have already been sent as they were
     /// coalesced then (the sync client resends exactly those bytes, SYNC-003): they are neither
     /// returned nor rewritten, only judged against like any other applied change.
+    ///
+    /// The batch is written first (D-076: "flush before push").  A change still taking keystrokes
+    /// (`DocumentCore.open`) is not sent until the word ends or the typing pauses for
+    /// `UndoStack.typingPause`, when it is sealed, so it never changes after leaving the Mac.
     public func pendingUpload(rules: Coalescer.Rules = .standard, fixedThrough: UInt64 = 0) throws -> [Wiretuner_Doc_V1_Change] {
+        sealIfPaused()
+        try flush()
         guard let database else { throw Failure.closed }
         let replica = core.replica
+        let open = core.open?.seq
         let log = try database.read { db in
             let rows = try Row.fetchAll(db, sql: """
                 SELECT replica, seq, local, server_seq, data FROM changes
@@ -430,11 +550,25 @@ public actor LocalStore: DocumentBackend {
                 return unsent ? .outbox(change) : .other(change)
             }
         }
-        return Coalescer.coalesce(log, rules: rules)
+        return Coalescer.coalesce(log, rules: rules).filter { $0.seq != open }
+    }
+
+    /// Seals the open change once the typing has paused (`UndoStack.typingPause`).
+    private func sealIfPaused() {
+        guard core.open != nil else { return }
+        let paused = engine.lastLocalChange.map { ContinuousClock.now - $0 >= .seconds(UndoStack.typingPause) } ?? true
+        if paused { sealOpenChange() }
+    }
+
+    /// Seals the change still taking keystrokes (`DocumentCore.seal`): the next keystroke starts a
+    /// change of its own, and this one may be sent.
+    public func sealOpenChange() {
+        engine.update { $0.seal() }
     }
 
     /// The seq of the current replica's oldest local change still waiting for an acknowledgement.
     public func oldestUnacknowledgedSeq() throws -> UInt64? {
+        try flush()
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Int64.fetchOne(db, sql: "SELECT MIN(seq) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?",
@@ -444,6 +578,7 @@ public actor LocalStore: DocumentBackend {
 
     /// How many local changes of the current replica wait for an acknowledgement (the outbox).
     public func outboxCount() throws -> Int {
+        try flush()
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ?",
@@ -455,19 +590,24 @@ public actor LocalStore: DocumentBackend {
     /// `serverSeq`: `Welcome.last_accepted_seq` says they got in, and a snapshot that holds them
     /// (so no echo will come) is at `serverSeq`, an upper bound of their true positions.
     public func acknowledgeAccepted(through seq: UInt64, serverSeq: UInt64) throws {
-        try write { db, applied in
-            let seqs = try Int64.fetchAll(db, sql: """
+        try flush()
+        guard let database else { throw Failure.closed }
+        let replica = core.replica
+        let seqs = try database.read { db in
+            try Int64.fetchAll(db, sql: """
                 SELECT seq FROM changes WHERE local = 1 AND server_seq IS NULL AND replica = ? AND seq <= ?
-                """, arguments: [core.replica.sql, seq.sql]).map(UInt64.init(sql:))
-            guard !seqs.isEmpty else { return }
-            applied = true
+                """, arguments: [replica.sql, seq.sql]).map(UInt64.init(sql:))
+        }
+        guard !seqs.isEmpty else { return }
+        try commit({ core, _ in
             for accepted in seqs {
                 core.acknowledge(seq: accepted, serverSeq: serverSeq)
             }
+        }, persist: { db, _ in
             try db.execute(sql: """
                 UPDATE changes SET server_seq = ?, sent_at = ? WHERE local = 1 AND server_seq IS NULL AND replica = ? AND seq <= ?
-                """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, core.replica.sql, seq.sql])
-        }
+                """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, replica.sql, seq.sql])
+        })
     }
 
     /// Replaces the stored bytes of the unacknowledged local change with `change`'s replica and
@@ -485,21 +625,37 @@ public actor LocalStore: DocumentBackend {
     /// catch-up, SYNC-004), replays every stored change on top -- the outbox, and remote changes
     /// the snapshot may not hold -- and rewrites the local snapshot from the result.
     public func installSnapshot(_ state: EngineState, serverSeq: UInt64) async throws {
-        try write { db, applied in
+        try flush()
+        guard !diverged else { throw Failure.diverged }
+        let (stored, localOnly) = try storedLog()
+        try commit({ core, pending -> UInt64 in
             var fresh = DocumentCore(state: state, replica: core.replica, nextSeq: core.nextSeq,
                                      lastServerSeq: max(serverSeq, core.lastServerSeq), undoStack: core.undoStack,
                                      horizon: core.horizon)
-            let rows = try Row.fetchCursor(db, sql: "SELECT server_seq, data FROM changes ORDER BY id")
-            while let row = try rows.next() {
-                fresh.replay(try Self.change(row["data"]), serverSeq: (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
+            for (change, sequenced) in stored {
+                fresh.replay(change, serverSeq: sequenced)
             }
-            fresh.restoreLocalOnly(try LocalOnlyRows.all(db))
+            // Local changes applied since the flush above are not stored yet: they go on top too.
+            for change in pending.compactMap(\.change) {
+                fresh.replay(change, serverSeq: nil)
+            }
+            fresh.restoreLocalOnly(localOnly + pending.flatMap(\.localOnly))
             core = fresh
-            applied = true
-            try checkFault()
-            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [core.lastServerSeq.sql])
-        }
+            return core.lastServerSeq
+        }, persist: { db, lastServerSeq in
+            try db.execute(sql: "UPDATE meta SET last_server_seq = ? WHERE id = 1", arguments: [lastServerSeq.sql])
+        })
         try await rewriteSnapshot()
+    }
+
+    // Every stored change in order, with its server sequence, and the local-only registers.
+    private func storedLog() throws -> ([(Wiretuner_Doc_V1_Change, UInt64?)], [Write]) {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            (try Row.fetchAll(db, sql: "SELECT server_seq, data FROM changes ORDER BY id").map { row in
+                (try Self.change(row["data"]), (row["server_seq"] as Int64?).map(UInt64.init(sql:)))
+            }, try LocalOnlyRows.all(db))
+        }
     }
 
     /// Records a stable point the server published (`DocumentCore.advanceHorizon`, D-067), and
@@ -508,7 +664,7 @@ public actor LocalStore: DocumentBackend {
     /// must not start again from 0.  A store that cannot be written keeps it in memory only.
     public func advanceHorizon(to stableSeq: UInt64) {
         guard stableSeq > core.horizon else { return }
-        core.advanceHorizon(to: stableSeq)
+        engine.update { $0.advanceHorizon(to: stableSeq) }
         try? database?.write { db in
             try db.execute(sql: "UPDATE meta SET horizon_seq = ? WHERE id = 1", arguments: [stableSeq.sql])
         }
@@ -522,17 +678,18 @@ public actor LocalStore: DocumentBackend {
 
     /// Records the server's acknowledgement of this replica's change `seq` at `serverSeq`.
     public func acknowledge(seq: UInt64, serverSeq: UInt64) throws {
-        try write { db, applied in
+        try commit({ core, _ -> UInt64 in
             core.acknowledge(seq: seq, serverSeq: serverSeq)
-            applied = true
-            try markAcknowledged(seq: seq, serverSeq: serverSeq, db)
-        }
+            return core.replica
+        }, persist: { db, replica in
+            try Self.markAcknowledged(replica: replica, seq: seq, serverSeq: serverSeq, db)
+        })
     }
 
-    private func markAcknowledged(seq: UInt64, serverSeq: UInt64, _ db: Database) throws {
+    private static func markAcknowledged(replica: UInt64, seq: UInt64, serverSeq: UInt64, _ db: Database) throws {
         try db.execute(sql: """
             UPDATE changes SET server_seq = ?, sent_at = ? WHERE replica = ? AND seq = ? AND local = 1
-            """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, core.replica.sql, seq.sql])
+            """, arguments: [serverSeq.sql, Date().timeIntervalSince1970, replica.sql, seq.sql])
     }
 
     private func changes(sql: String, arguments: StatementArguments) throws -> [Wiretuner_Doc_V1_Change] {
@@ -559,17 +716,15 @@ public actor LocalStore: DocumentBackend {
         try await current.value
     }
 
-    private func lastRow(_ database: DatabaseQueue) throws -> Int64 {
-        try database.read { db in try Int64.fetchOne(db, sql: "SELECT MAX(id) FROM changes") } ?? 0
-    }
-
     private func writeSnapshot() async throws {
-        guard let database else { throw Failure.closed }
-        let state = core.state
-        let serverSeq = core.lastServerSeq
-        // Read without suspending: every applied change is committed, so the rows up to here are
-        // exactly what `state` holds.
-        let through = try lastRow(database)
+        guard database != nil else { throw Failure.closed }
+        // The state, and the changes queued before it written in the same step without suspending:
+        // the rows up to `through` are then exactly what `state` holds.  The open change is sealed,
+        // since a row the snapshot holds must never grow afterwards.
+        let (state, serverSeq, through) = try commit({ core, _ -> Captured in
+            core.seal()
+            return Captured(state: core.state, serverSeq: core.lastServerSeq)
+        }, changed: { _ in false }).withRow(try lastRow())
         let (size, compressed) = await Task.detached(priority: .utility) {
             let snapshot = Snapshot.encode(state, serverSeq: serverSeq)
             return (snapshot.count, Zstd.compress(snapshot))
@@ -583,6 +738,18 @@ public actor LocalStore: DocumentBackend {
             try db.execute(sql: "UPDATE changes SET in_snapshot = 1 WHERE id <= ?", arguments: [through])
         }
         snapshotsWritten += 1
+    }
+
+    private struct Captured: Sendable {
+        var state: EngineState
+        var serverSeq: UInt64
+
+        func withRow(_ row: Int64) -> (EngineState, UInt64, Int64) { (state, serverSeq, row) }
+    }
+
+    private func lastRow() throws -> Int64 {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in try Int64.fetchOne(db, sql: "SELECT MAX(id) FROM changes") } ?? 0
     }
 
     /// The current replica id.
@@ -599,12 +766,11 @@ public actor LocalStore: DocumentBackend {
     @discardableResult
     public func rotateReplica() throws -> UInt64 {
         let replica = options.makeReplicaID()
-        try write { db, applied in
-            core.rotate(to: replica)
-            applied = true
+        let hardware = options.hardwareUUID()
+        try commit({ core, _ in core.rotate(to: replica) }, persist: { db, _ in
             try db.execute(sql: "UPDATE meta SET replica_id = ?, next_seq = 1, hardware_uuid = ? WHERE id = 1",
-                           arguments: [replica.sql, options.hardwareUUID()])
-        }
+                           arguments: [replica.sql, hardware])
+        })
         return replica
     }
 
@@ -612,10 +778,13 @@ public actor LocalStore: DocumentBackend {
     public func close() async throws {
         timer?.cancel()
         timer = nil
+        flushTask?.cancel()
+        flushTask = nil
         guard database != nil else { return }
         if !diverged {
             try await rewriteSnapshot()
         }
+        engine.onPending(nil)
         try database?.close()
         database = nil
     }
@@ -698,6 +867,7 @@ public actor LocalStore: DocumentBackend {
 
     /// How many local changes, of this replica or a retired one, wait for an acknowledgement.
     public func unsentChangeCount() throws -> Int {
+        try flush()
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM changes WHERE local = 1 AND server_seq IS NULL")!
@@ -712,6 +882,7 @@ public actor LocalStore: DocumentBackend {
 
     /// Whether any local change, of this replica or a retired one, waits for an acknowledgement.
     public func hasUnsentChanges() throws -> Bool {
+        try flush()
         guard let database else { throw Failure.closed }
         return try database.read { db in
             try Bool.fetchOne(db, sql: "SELECT EXISTS (SELECT 1 FROM changes WHERE local = 1 AND server_seq IS NULL)")!
@@ -726,16 +897,7 @@ public actor LocalStore: DocumentBackend {
     /// Returns the new replica id.
     @discardableResult
     public func beginSalvage(reason: SalvageReport.Reason) throws -> UInt64 {
-        let replica = options.makeReplicaID()
-        try write { db, applied in
-            try db.execute(sql: """
-                INSERT INTO salvage (reason, data)
-                SELECT ?, data FROM changes WHERE local = 1 AND server_seq IS NULL ORDER BY id
-                """, arguments: [reason.rawValue])
-            applied = true
-            try reset(to: replica, db)
-        }
-        return replica
+        try reset(salvaging: reason)
     }
 
     /// Drops every unacknowledged local change and the local state, rotating to a new replica:
@@ -743,22 +905,35 @@ public actor LocalStore: DocumentBackend {
     /// copy…* and *Keep my changes on a branch*, reconcile.adoc).  Returns the new replica id.
     @discardableResult
     public func discardLocalChanges() throws -> UInt64 {
-        let replica = options.makeReplicaID()
-        try write { db, applied in
-            applied = true
-            try reset(to: replica, db)
-        }
-        return replica
+        try reset(salvaging: nil)
     }
 
-    private func reset(to replica: UInt64, _ db: Database) throws {
-        try db.execute(sql: "DELETE FROM changes; DELETE FROM snapshot; DELETE FROM undo")
-        try db.execute(sql: """
-            UPDATE meta SET replica_id = ?, next_seq = 1, last_server_seq = 0, hardware_uuid = ?,
-                            review_kind = NULL, review_base_seq = NULL, salvage_report = NULL WHERE id = 1
-            """, arguments: [replica.sql, options.hardwareUUID()])
-        core = DocumentCore(state: EngineState(schema: options.schema), replica: replica, horizon: core.horizon)
-        core.restoreLocalOnly(try LocalOnlyRows.all(db))
+    // Empties the store and the state for a new replica, first moving the unsent local changes --
+    // the ones still queued included, which `commit` writes ahead -- to `salvage` when `reason`
+    // is given.
+    private func reset(salvaging reason: SalvageReport.Reason?) throws -> UInt64 {
+        guard let database else { throw Failure.closed }
+        let replica = options.makeReplicaID()
+        let hardware = options.hardwareUUID()
+        let schema = options.schema
+        let localOnly = try database.read { db in try LocalOnlyRows.all(db) }
+        try commit({ core, pending in
+            core = DocumentCore(state: EngineState(schema: schema), replica: replica, horizon: core.horizon)
+            core.restoreLocalOnly(localOnly + pending.flatMap(\.localOnly))
+        }, persist: { db, _ in
+            if let reason {
+                try db.execute(sql: """
+                    INSERT INTO salvage (reason, data)
+                    SELECT ?, data FROM changes WHERE local = 1 AND server_seq IS NULL ORDER BY id
+                    """, arguments: [reason.rawValue])
+            }
+            try db.execute(sql: "DELETE FROM changes; DELETE FROM snapshot; DELETE FROM undo")
+            try db.execute(sql: """
+                UPDATE meta SET replica_id = ?, next_seq = 1, last_server_seq = 0, hardware_uuid = ?,
+                                review_kind = NULL, review_base_seq = NULL, salvage_report = NULL WHERE id = 1
+                """, arguments: [replica.sql, hardware])
+        })
+        return replica
     }
 
     /// How many salvaged changes wait to be re-issued.
@@ -778,22 +953,31 @@ public actor LocalStore: DocumentBackend {
         let reason = SalvageReport.Reason(rawValue: first["reason"]) ?? .conflict
         let shared = SalvageCommand.Shared(SalvageRebase(replica: core.replica, reason: reason, limits: limits))
         let changes = try rows.map { try Self.change($0["data"]) }
-        try write { db, applied in
+        try commit({ core, _ -> Reissued in
+            // On a copy: a command that throws leaves the state as it was.
+            var trial = core
+            var outcomes: [DocumentCore.Outcome] = []
             for change in changes {
                 var from = 0
                 repeat {
-                    let outcome = try core.perform(SalvageCommand(change: change, from: from, shared: shared), recording: recording)
+                    let outcome = try trial.perform(SalvageCommand(change: change, from: from, shared: shared), recording: recording)
                     from = max(shared.next, from + 1)
-                    guard let outcome else { continue }
-                    applied = true
-                    try appendLocal(outcome.outbox!, db)
-                    try LocalOnlyRows.keep(outcome.localOnly, db)
-                    try persist(outcome.edit, db)
+                    if let outcome { outcomes.append(outcome) }
                 } while from < change.ops.count
             }
+            core = trial
+            return Reissued(outcomes: outcomes, nextSeq: core.nextSeq, stack: core.undoStack)
+        }, persist: { db, reissued in
+            try writePending(reissued.outcomes, nextSeq: reissued.nextSeq, stack: reissued.stack, db)
             try db.execute(sql: "DELETE FROM salvage")
-        }
+        })
         return shared.report
+    }
+
+    private struct Reissued: Sendable {
+        var outcomes: [DocumentCore.Outcome]
+        var nextSeq: UInt64
+        var stack: UndoStack
     }
 
     // MARK: Blobs and view state
@@ -888,6 +1072,7 @@ public actor LocalStore: DocumentBackend {
     /// the sequenced changes it still holds (remote ones and this Mac's acknowledged ones), the
     /// unsent ones, and the oldest seq whose state `state(atServerSeq:)` can rebuild.
     public func localHistory() throws -> LocalHistory {
+        try flush()
         guard let database else { throw Failure.closed }
         let head = core.lastServerSeq
         return try database.read { db in
@@ -931,8 +1116,7 @@ public actor LocalStore: DocumentBackend {
     /// `setReadOnly`, still accepting changes that concern comments only when `commentsAllowed`
     /// (a commenter: comments.adoc, "Who may do what"; COLLAB-034).
     public func setReadOnly(_ readOnly: Bool, commentsAllowed: Bool) {
-        isReadOnly = readOnly
-        allowsComments = readOnly && commentsAllowed
+        engine.setGate(DocumentEngine.Gate(readOnly: readOnly, commentsAllowed: commentsAllowed))
     }
 
     /// Closes the store and deletes its directory (the caller's access was removed, and the offer
@@ -940,6 +1124,10 @@ public actor LocalStore: DocumentBackend {
     public func delete() async throws {
         timer?.cancel()
         timer = nil
+        flushTask?.cancel()
+        flushTask = nil
+        engine.onPending(nil)
+        _ = engine.takePending()
         try database?.close()
         database = nil
         try FileManager.default.removeItem(at: url.deletingLastPathComponent())
@@ -952,6 +1140,7 @@ public actor LocalStore: DocumentBackend {
     /// applied head, or the snapshot holds a local change the server sequenced after `serverSeq`
     /// (or has not sequenced yet), whose effect cannot be taken out of it.
     public func state(atServerSeq serverSeq: UInt64) throws -> EngineState? {
+        try flush()
         guard let database else { throw Failure.closed }
         guard serverSeq <= core.lastServerSeq else { return nil }
         return try database.read { db -> EngineState? in
@@ -1009,6 +1198,7 @@ public actor LocalStore: DocumentBackend {
     }
 
     private func branchRows() throws -> ([OutboxRow], [UndoRow]) {
+        try flush()
         guard let database else { throw Failure.closed }
         let replica = core.replica
         return try database.read { db in

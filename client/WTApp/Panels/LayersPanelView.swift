@@ -128,8 +128,10 @@ struct LayerRow: View {
     }
 
     static func highlight(_ model: LayersPanelModel, _ layer: LayerInfo) -> Binding<CGColor> {
+        // The colour panel streams changes while its colour is dragged: previewed, written once it
+        // settles (D-076).
         Binding(get: { LayersPanelModel.swatch(layer).cgColor }, set: { color in
-            model.setHighlight(layer.id, color: NSColor(cgColor: color) ?? .black)
+            ContinuousInput.settle { model.setHighlight(layer.id, color: NSColor(cgColor: color) ?? .black) }
         })
     }
 

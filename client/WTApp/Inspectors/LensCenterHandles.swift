@@ -8,8 +8,8 @@ import WTRender
 /// The lens centerpoint handle (fill-attributes.adoc, "Lens fills", *Centerpoint*; ATTR-022): drawn
 /// over the Pointer and Subselect tools on each selected object whose lens fill shows its
 /// centerpoint -- at `centerpoint` in the object's own space, or the centre of its bounds while
-/// that is unset -- and hidden when the object is deselected.  Dragging it writes `centerpoint` on
-/// each move inside one undo group, so the drag is one undo step; kbd:[Shift]-click clears it (the
+/// that is unset -- and hidden when the object is deselected.  Dragging it previews on the canvas
+/// and writes `centerpoint` once on mouse-up (D-076), so the drag is one undo step; kbd:[Shift]-click clears it (the
 /// handle returns to the centre).
 @MainActor
 final class LensCenterHandles: CanvasHandleLayer {
@@ -28,7 +28,8 @@ final class LensCenterHandles: CanvasHandleLayer {
     }
 
     private(set) var dragging: Handle?
-    private var wrote = false
+    /// The drag's preview and its one change (D-076).
+    private var edit: GestureEdit?
 
     init() {}
 
@@ -41,7 +42,7 @@ final class LensCenterHandles: CanvasHandleLayer {
     static func handles(_ node: OpID, in document: DocumentHandle) -> [Handle] {
         guard case .path(let item)? = document.object(for: SelectionID(node))?.item else { return [] }
         let bounds = EffectCenterHandles.ownBounds(item.path)
-        return AppearanceEditing.entries(node, in: document.state).compactMap { entry in
+        return AppearanceEditing.entries(node, in: document.shownState).compactMap { entry in
             let lens = entry.fill.settings.lens
             guard entry.row.list == .fills, !entry.hidden, entry.fill.settings.kind == .lens, lens.centerpointShown else { return nil }
             let center = lens.hasCenterpoint ? Point(x: lens.centerpoint.x, y: lens.centerpoint.y) : (bounds.isNull ? .zero : bounds.center)
@@ -78,36 +79,30 @@ final class LensCenterHandles: CanvasHandleLayer {
             return true
         }
         dragging = hit
-        wrote = false
-        context.document.beginGroup()
+        edit = GestureEdit(document: context.document)
         return true
     }
 
     func drag(_ e: CanvasEvent, context: ToolContext) {
         guard let dragging else { return }
-        wrote = true
-        context.commandSink.perform(Self.command(dragging: dragging, to: e))
+        edit?.update(Self.command(dragging: dragging, to: e))
     }
 
     func release(_ e: CanvasEvent, context: ToolContext) {
         drag(e, context: context)
-        finish(context, undo: false)
+        edit?.commit()
+        finish(context)
     }
 
     func cancel(context: ToolContext) {
-        finish(context, undo: wrote)
+        edit?.cancel()
+        finish(context)
     }
 
-    /// Ends the drag's undo group once its writes have landed; a cancelled drag is undone.
-    private func finish(_ context: ToolContext, undo: Bool) {
-        guard dragging != nil else { return }
+    /// Ends the drag: the change was written (or the preview dropped) already.
+    private func finish(_ context: ToolContext) {
         dragging = nil
-        let document = context.document
-        Task { @MainActor in
-            await document.settle()
-            document.endGroup()
-            if undo { _ = await document.undo().value }
-        }
+        edit = nil
     }
 
     func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {

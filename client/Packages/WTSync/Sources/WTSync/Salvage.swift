@@ -162,7 +162,10 @@ struct SalvageRebase {
             index += 1
         }
         report.dropped += drops
-        guard kept > 0 else {
+        // A change whose every op is a Noop (its writes coalesced away: SYNC-002, D-076's batches)
+        // is re-issued as it is, so its label stays in the history; one that lost its ops is not.
+        let onlyNoops = from == 0 && drops.isEmpty && index == change.ops.count && !ops.isEmpty
+        guard kept > 0 || onlyNoops else {
             if registered {
                 ranges[change.replica]!.removeLast()
             }
