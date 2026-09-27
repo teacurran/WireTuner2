@@ -614,6 +614,34 @@ the line figure.  The analysis token can create projects but not administer them
 projects use the instance's default gate.  Revisit if the instance gains a Swift analyzer, or
 import SwiftLint's report as external issues.
 
+[[D-075]]
+=== D-075 Public channels come after v1; keep documents postable and forkable
+After the collaborative editor ships, WireTuner gains public *channels*: a curated list of feeds,
+like Instagram for vector and typeface documents.  Planned shape, to be specified when the work
+starts:
+
+* Posting shares a *frozen copy*: the server copies the document (or, for a typeface, a single
+  glyph) at the posted version into an immutable post, so later edits to the author's document
+  never change what was posted.  The author keeps editing their own copy.
+* Channels are curated (a fixed list chosen by WireTuner, not user-created); a post belongs to one
+  channel.
+* The feed shows rendered images, not live documents: each post has WebP renditions (a few
+  sizes) stored in R2 beside the blobs, so scrolling a feed never opens a document.  The posting
+  client renders them with WTRender and uploads them with the post: WTRender is built on Core
+  Graphics, which the Linux server cannot run, and a second server-side renderer would drift from
+  what the author saw.  A server renderer is only worth building if posts must be re-rendered
+  without a Mac (a web or Android client, a rendering change).  Opening a post can show the
+  read-only document.
+* Viewers can *like* a post and *edit* it; editing forks the post into the viewer's personal
+  collection (the existing duplicate/fork path, with provenance back to the post).
+* Moderation, reporting and ranking are part of that work.
+
+Consequences for the work before then: documents and glyphs must be copyable server-side into a
+new immutable container (today's `DocumentService.Duplicate` and branch forks are the path to
+extend); WTRender must be able to render a document or a single glyph to a bitmap headlessly, off
+the main thread (it already does for export); and provenance fields should allow a source post as
+well as a source document.
+
 == Open questions
 
 [[Q-001]]
