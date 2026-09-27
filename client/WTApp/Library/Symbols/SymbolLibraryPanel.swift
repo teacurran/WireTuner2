@@ -196,6 +196,7 @@ extension AppDelegate {
     /// The Library panel and the Symbol menu (before `PanelCatalog.register`).
     func installSymbolLibrary() {
         let model = SymbolLibraryModel(selection: activeSelection)
+        SymbolLibraryModel.installed = model
         SymbolLibraryFeatures.connectSheets(model, presenter: SheetPresenter())
         ReplaceArtworkSheet.connect(presenter: SheetPresenter())
         let layout = layout

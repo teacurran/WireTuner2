@@ -60,10 +60,8 @@ public nonisolated struct Wiretuner_Account_V1_PreferenceValue: Sendable {
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The typed value.  Field 5 is held for `Color color_value` (wiretuner.doc.v1 Color, for
-  /// guide and grid colors), added by BASIC-020 once PROTO-003 defines the type.  Exactly one
-  /// case is set: a preference is restored to its default by writing the default explicitly,
-  /// never by sending an empty value.
+  /// The typed value.  Exactly one case is set: a preference is restored to its default by
+  /// writing the default explicitly, never by sending an empty value.
   public var value: Wiretuner_Account_V1_PreferenceValue.OneOf_Value? = nil
 
   /// A switch, for example `general.smart_guides`.
@@ -102,6 +100,15 @@ public nonisolated struct Wiretuner_Account_V1_PreferenceValue: Sendable {
     set {value = .stringValue(newValue)}
   }
 
+  /// A color, for example `colors.guide_color`.
+  public var colorValue: Wiretuner_Account_V1_PreferenceColor {
+    get {
+      if case .colorValue(let v)? = value {return v}
+      return Wiretuner_Account_V1_PreferenceColor()
+    }
+    set {value = .colorValue(newValue)}
+  }
+
   /// An ordered list of strings, for example default line weights or DXF options.
   public var listValue: Wiretuner_Account_V1_StringList {
     get {
@@ -109,6 +116,17 @@ public nonisolated struct Wiretuner_Account_V1_PreferenceValue: Sendable {
       return Wiretuner_Account_V1_StringList()
     }
     set {value = .listValue(newValue)}
+  }
+
+  /// The keyboard shortcut sets, for the id `sync.shortcut_sets` only (customizing.adoc,
+  /// "Merge semantics"; BASIC-028).  Unlike every other case this value is merged per set by
+  /// the server rather than replaced whole.
+  public var shortcutSetsValue: Wiretuner_Account_V1_ShortcutSets {
+    get {
+      if case .shortcutSetsValue(let v)? = value {return v}
+      return Wiretuner_Account_V1_ShortcutSets()
+    }
+    set {value = .shortcutSetsValue(newValue)}
   }
 
   /// The client's wall-clock time of the write, in milliseconds since the Unix epoch.  The
@@ -121,10 +139,8 @@ public nonisolated struct Wiretuner_Account_V1_PreferenceValue: Sendable {
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
-  /// The typed value.  Field 5 is held for `Color color_value` (wiretuner.doc.v1 Color, for
-  /// guide and grid colors), added by BASIC-020 once PROTO-003 defines the type.  Exactly one
-  /// case is set: a preference is restored to its default by writing the default explicitly,
-  /// never by sending an empty value.
+  /// The typed value.  Exactly one case is set: a preference is restored to its default by
+  /// writing the default explicitly, never by sending an empty value.
   public nonisolated enum OneOf_Value: Equatable, Sendable {
     /// A switch, for example `general.smart_guides`.
     case boolValue(Bool)
@@ -134,8 +150,14 @@ public nonisolated struct Wiretuner_Account_V1_PreferenceValue: Sendable {
     case doubleValue(Double)
     /// A string, for example `document.new_template`.
     case stringValue(String)
+    /// A color, for example `colors.guide_color`.
+    case colorValue(Wiretuner_Account_V1_PreferenceColor)
     /// An ordered list of strings, for example default line weights or DXF options.
     case listValue(Wiretuner_Account_V1_StringList)
+    /// The keyboard shortcut sets, for the id `sync.shortcut_sets` only (customizing.adoc,
+    /// "Merge semantics"; BASIC-028).  Unlike every other case this value is merged per set by
+    /// the server rather than replaced whole.
+    case shortcutSetsValue(Wiretuner_Account_V1_ShortcutSets)
 
   }
 
@@ -150,6 +172,103 @@ public nonisolated struct Wiretuner_Account_V1_StringList: Sendable {
 
   /// The items, in order.
   public var items: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// An sRGB color with straight alpha, as a preference value (guide, grid and smart-guide
+/// colors).  Components are 0...1.
+public nonisolated struct Wiretuner_Account_V1_PreferenceColor: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Red.
+  public var red: Double = 0
+
+  /// Green.
+  public var green: Double = 0
+
+  /// Blue.
+  public var blue: Double = 0
+
+  /// Alpha: 0 transparent, 1 opaque.
+  public var alpha: Double = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The account's keyboard shortcut sets (customizing.adoc, "Data model"; BASIC-028): the value of
+/// `sync.shortcut_sets`.  Merged per set id, not per entry: of two versions of one set the greater
+/// `updated_at_ms` wins (the incoming one on ties), a deletion is a tombstone that wins the same
+/// way and is dropped 30 days after it was written, and `active_set_id` is newest-wins on its own
+/// stamp.  A client sends only the sets it changed; the server answers the merged whole.
+public nonisolated struct Wiretuner_Account_V1_ShortcutSets: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The sets and tombstones.  At most 32 live sets exist; the rest of the room is for tombstones.
+  public var sets: [Wiretuner_Account_V1_ShortcutSet] = []
+
+  /// The set in use: a user set's id or a built-in id ("builtin.wiretuner" etc.); empty when this
+  /// message does not carry it.
+  public var activeSetID: String = String()
+
+  /// When `active_set_id` was chosen, in milliseconds since the Unix epoch; 0 with no choice.
+  public var activeSetUpdatedAtMs: Int64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// One user shortcut set, or the tombstone of a deleted one.
+public nonisolated struct Wiretuner_Account_V1_ShortcutSet: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// A UUID for user sets.
+  public var id: String = String()
+
+  /// The name in the set pop-up; empty on a tombstone.
+  public var name: String = String()
+
+  /// The set this one was copied from: a command the set does not list takes its keys from there.
+  public var basedOn: String = String()
+
+  /// Only the bindings that differ from `based_on` (an empty key list unbinds).  Replaced whole on
+  /// write: a set is edited in one window on one Mac at a time, and merging key bindings field by
+  /// field would make sets nobody composed.
+  public var bindings: [Wiretuner_Account_V1_Binding] = []
+
+  /// The client's wall-clock time of the write, in milliseconds since the Unix epoch.
+  public var updatedAtMs: Int64 = 0
+
+  /// A tombstone: the set was deleted at `updated_at_ms`.
+  public var deleted: Bool = false
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// The keys of one command in a shortcut set.
+public nonisolated struct Wiretuner_Account_V1_Binding: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The command registry id, for example "view.zoomIn" or "tool.pen".
+  public var commandID: String = String()
+
+  /// Canonical key strings ("cmd+shift+k", "p"); the first shows in menus.
+  public var keys: [String] = []
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -192,7 +311,7 @@ nonisolated extension Wiretuner_Account_V1_Preferences: SwiftProtobuf.Message, S
 
 nonisolated extension Wiretuner_Account_V1_PreferenceValue: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PreferenceValue"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}bool_value\0\u{3}int_value\0\u{3}double_value\0\u{3}string_value\0\u{4}\u{2}list_value\0\u{4}\u{4}updated_at_ms\0\u{1}device\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}bool_value\0\u{3}int_value\0\u{3}double_value\0\u{3}string_value\0\u{3}color_value\0\u{3}list_value\0\u{3}shortcut_sets_value\0\u{4}\u{3}updated_at_ms\0\u{1}device\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -232,6 +351,19 @@ nonisolated extension Wiretuner_Account_V1_PreferenceValue: SwiftProtobuf.Messag
           self.value = .stringValue(v)
         }
       }()
+      case 5: try {
+        var v: Wiretuner_Account_V1_PreferenceColor?
+        var hadOneofValue = false
+        if let current = self.value {
+          hadOneofValue = true
+          if case .colorValue(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.value = .colorValue(v)
+        }
+      }()
       case 6: try {
         var v: Wiretuner_Account_V1_StringList?
         var hadOneofValue = false
@@ -243,6 +375,19 @@ nonisolated extension Wiretuner_Account_V1_PreferenceValue: SwiftProtobuf.Messag
         if let v = v {
           if hadOneofValue {try decoder.handleConflictingOneOf()}
           self.value = .listValue(v)
+        }
+      }()
+      case 7: try {
+        var v: Wiretuner_Account_V1_ShortcutSets?
+        var hadOneofValue = false
+        if let current = self.value {
+          hadOneofValue = true
+          if case .shortcutSetsValue(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.value = .shortcutSetsValue(v)
         }
       }()
       case 10: try { try decoder.decodeSingularInt64Field(value: &self.updatedAtMs) }()
@@ -274,9 +419,17 @@ nonisolated extension Wiretuner_Account_V1_PreferenceValue: SwiftProtobuf.Messag
       guard case .stringValue(let v)? = self.value else { preconditionFailure() }
       try visitor.visitSingularStringField(value: v, fieldNumber: 4)
     }()
+    case .colorValue?: try {
+      guard case .colorValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 5)
+    }()
     case .listValue?: try {
       guard case .listValue(let v)? = self.value else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 6)
+    }()
+    case .shortcutSetsValue?: try {
+      guard case .shortcutSetsValue(let v)? = self.value else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
     }()
     case nil: break
     }
@@ -323,6 +476,181 @@ nonisolated extension Wiretuner_Account_V1_StringList: SwiftProtobuf.Message, Sw
 
   public static func ==(lhs: Wiretuner_Account_V1_StringList, rhs: Wiretuner_Account_V1_StringList) -> Bool {
     if lhs.items != rhs.items {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Account_V1_PreferenceColor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".PreferenceColor"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}red\0\u{1}green\0\u{1}blue\0\u{1}alpha\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularDoubleField(value: &self.red) }()
+      case 2: try { try decoder.decodeSingularDoubleField(value: &self.green) }()
+      case 3: try { try decoder.decodeSingularDoubleField(value: &self.blue) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.alpha) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.red.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.red, fieldNumber: 1)
+    }
+    if self.green.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.green, fieldNumber: 2)
+    }
+    if self.blue.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.blue, fieldNumber: 3)
+    }
+    if self.alpha.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.alpha, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Account_V1_PreferenceColor, rhs: Wiretuner_Account_V1_PreferenceColor) -> Bool {
+    if lhs.red != rhs.red {return false}
+    if lhs.green != rhs.green {return false}
+    if lhs.blue != rhs.blue {return false}
+    if lhs.alpha != rhs.alpha {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Account_V1_ShortcutSets: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ShortcutSets"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}sets\0\u{3}active_set_id\0\u{3}active_set_updated_at_ms\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedMessageField(value: &self.sets) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.activeSetID) }()
+      case 3: try { try decoder.decodeSingularInt64Field(value: &self.activeSetUpdatedAtMs) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.sets.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.sets, fieldNumber: 1)
+    }
+    if !self.activeSetID.isEmpty {
+      try visitor.visitSingularStringField(value: self.activeSetID, fieldNumber: 2)
+    }
+    if self.activeSetUpdatedAtMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.activeSetUpdatedAtMs, fieldNumber: 3)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Account_V1_ShortcutSets, rhs: Wiretuner_Account_V1_ShortcutSets) -> Bool {
+    if lhs.sets != rhs.sets {return false}
+    if lhs.activeSetID != rhs.activeSetID {return false}
+    if lhs.activeSetUpdatedAtMs != rhs.activeSetUpdatedAtMs {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Account_V1_ShortcutSet: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ShortcutSet"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}id\0\u{1}name\0\u{3}based_on\0\u{1}bindings\0\u{3}updated_at_ms\0\u{1}deleted\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.id) }()
+      case 2: try { try decoder.decodeSingularStringField(value: &self.name) }()
+      case 3: try { try decoder.decodeSingularStringField(value: &self.basedOn) }()
+      case 4: try { try decoder.decodeRepeatedMessageField(value: &self.bindings) }()
+      case 5: try { try decoder.decodeSingularInt64Field(value: &self.updatedAtMs) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.deleted) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.id.isEmpty {
+      try visitor.visitSingularStringField(value: self.id, fieldNumber: 1)
+    }
+    if !self.name.isEmpty {
+      try visitor.visitSingularStringField(value: self.name, fieldNumber: 2)
+    }
+    if !self.basedOn.isEmpty {
+      try visitor.visitSingularStringField(value: self.basedOn, fieldNumber: 3)
+    }
+    if !self.bindings.isEmpty {
+      try visitor.visitRepeatedMessageField(value: self.bindings, fieldNumber: 4)
+    }
+    if self.updatedAtMs != 0 {
+      try visitor.visitSingularInt64Field(value: self.updatedAtMs, fieldNumber: 5)
+    }
+    if self.deleted != false {
+      try visitor.visitSingularBoolField(value: self.deleted, fieldNumber: 6)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Account_V1_ShortcutSet, rhs: Wiretuner_Account_V1_ShortcutSet) -> Bool {
+    if lhs.id != rhs.id {return false}
+    if lhs.name != rhs.name {return false}
+    if lhs.basedOn != rhs.basedOn {return false}
+    if lhs.bindings != rhs.bindings {return false}
+    if lhs.updatedAtMs != rhs.updatedAtMs {return false}
+    if lhs.deleted != rhs.deleted {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Account_V1_Binding: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".Binding"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}command_id\0\u{1}keys\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self.commandID) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.keys) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.commandID.isEmpty {
+      try visitor.visitSingularStringField(value: self.commandID, fieldNumber: 1)
+    }
+    if !self.keys.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.keys, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Account_V1_Binding, rhs: Wiretuner_Account_V1_Binding) -> Bool {
+    if lhs.commandID != rhs.commandID {return false}
+    if lhs.keys != rhs.keys {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

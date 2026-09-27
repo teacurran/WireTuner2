@@ -337,4 +337,11 @@ message FontProps {
   bool omit_generated_mark = 10;
   // Do not append the generated liga feature.
   bool omit_generated_liga = 11;
+  // The keys of an imported UFO's lib.plist that WireTuner does not read (everything but
+  // public.glyphOrder and com.wiretuner.*), as a binary property list, kept so a UFO export
+  // writes them back (font-export.adoc, "UFO"; FONT-024).  Empty: none.  ATOMIC.
+  bytes ufo_lib_passthrough = 12 [
+    (wt.crdt.field).merge = MERGE_ATOMIC,
+    (buf.validate.field).bytes.max_len = 1048576
+  ];
 }

@@ -50,6 +50,8 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         #expect(session.start() == session.start())
         await session.start().value
         #expect(connector.connections == 1 && session.client != nil)
+        // The library thumbnail's capture runs beside the blob queue (DOC-032).
+        #expect(session.thumbnails != nil)
         #expect(await eventually { session.status.state == .saved })
         #expect(session.status.details.lastSynced != nil)
         await handle.addRectangles([Rect(x: 0, y: 0, width: 10, height: 10)])
@@ -79,7 +81,7 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         try await session.resolveReview(.upload)
 
         await session.stop()
-        #expect(connector.closes == 1 && session.client == nil && session.isStopped)
+        #expect(connector.closes == 1 && session.client == nil && session.isStopped && session.thumbnails == nil)
         await session.stop()
         handle.close()
     }

@@ -157,6 +157,8 @@ public actor SyncClient {
     public private(set) var lastMerge: ReviewModel?
     /// Display names of remote replicas, from `SequencedChange.author`.
     private var authors: [UInt64: String] = [:]
+    /// The team floor for the review thresholds the last `Welcome` named (BASIC-023).
+    public private(set) var reviewFloor: ReconcilePreferences?
     private var reconciled: Signal?
     private var restart: Signal?
     private var welcomeHead: UInt64 = 0
@@ -616,6 +618,8 @@ public actor SyncClient {
             report(.mergeTableDiffers(server: version))
         }
         featureLevel = welcome.featureLevel
+        reviewFloor = welcome.hasReviewFloor ? ReconcilePreferences(floor: welcome.reviewFloor) : nil
+        report(.reviewFloor(reviewFloor))
         apply(role: welcome.role)
         lastAccepted = welcome.lastAcceptedSeq
         advanceAcked(to: welcome.lastAcceptedSeq)
@@ -632,6 +636,13 @@ public actor SyncClient {
         if applied >= welcomeHead {
             await reconcile()
         }
+    }
+
+    /// The review thresholds a reconcile uses: the user's (`Options.reconcile`) under the team
+    /// floor `Welcome` named, when there is one.
+    public var reconcilePreferences: ReconcilePreferences {
+        let user = options.reconcile()
+        return reviewFloor.map(user.floored(by:)) ?? user
     }
 
     /// The `version` of a serialized merge table (docs/spec/crdt-model.adoc, "Schema evolution").
@@ -1114,7 +1125,7 @@ public actor SyncClient {
     private func measure(since base: UInt64, now: Date, epoch: Int) async {
         guard let divergence = try? await store.divergence(since: base, gap: gap(now), remoteComplete: !snapshotInstalled),
               epoch == reviewEpoch else { return }
-        let decision = divergence.decision(options.reconcile())
+        let decision = divergence.decision(reconcilePreferences)
         let review = ReviewModel(divergence, decision: decision, names: authors)
         if decision.holdsOutbox {
             try? await store.setReviewHold(LocalStore.ReviewHold(kind: .merge, baseSeq: base))

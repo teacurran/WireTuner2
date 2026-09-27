@@ -159,7 +159,7 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
-        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType, StyleDrag.type])
+        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType, StyleDrag.type, TeamLibraryDrag.type])
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -187,6 +187,7 @@ final class CanvasView: NSView, CanvasHost {
         if !FileDrop.urls(from: sender.draggingPasteboard).isEmpty { return onFileDrop != nil ? .copy : [] }
         if ObjectDragging.carriesObjects(sender.draggingPasteboard) { return objectDrop != nil ? .copy : [] }
         if StyleCanvasDrop.carriesStyle(sender.draggingPasteboard) { return styleDrop != nil ? .copy : [] }
+        if TeamLibraryDrag.carries(sender.draggingPasteboard) { return TeamLibraryDrag.drop != nil ? .copy : [] }
         guard let colorDrop else { return [] }
         let over = colorDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers())
         overlay.setNeedsDisplay()
@@ -209,6 +210,9 @@ final class CanvasView: NSView, CanvasHost {
         }
         if StyleCanvasDrop.carriesStyle(sender.draggingPasteboard) {
             return styleDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport) != nil
+        }
+        if TeamLibraryDrag.carries(sender.draggingPasteboard) {
+            return TeamLibraryDrag.perform(sender.draggingPasteboard, at: viewport.toPasteboard(dropPoint(sender)), in: document)
         }
         defer { overlay.setNeedsDisplay() }
         if let textColorDrop, textColorDrop(sender.draggingPasteboard, dropPoint(sender)) { return true }

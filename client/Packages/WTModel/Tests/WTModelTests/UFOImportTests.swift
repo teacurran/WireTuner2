@@ -31,8 +31,8 @@ import WTProto
     @Test func openingAUFOMakesATypefaceWithAnchorsColorsAndFeatures() throws {
         var a = Replica(0xA)
         let plan = UFOImport.plan(Self.ufo(), fileName: "Marlowe.ufo", into: a.state, newDocument: true, batchSize: 2)
-        #expect(plan.commands.map(\.label) == (1...5).map { "Import Marlowe.ufo [\($0)/5]" })
-        #expect(plan.report.first == "The layer x was not imported." && plan.report.last?.contains("lib.plist") == true)
+        #expect(plan.commands.map(\.label) == (1...6).map { "Import Marlowe.ufo [\($0)/6]" })
+        #expect(plan.report == ["The layer x was not imported."])
         try Self.perform(plan, on: &a)
         #expect(DocumentKind(a.state) == .typeface && FontInfo(a.state).names.family == "Marlowe")
         let index = GlyphIndex(a.state)
@@ -42,6 +42,8 @@ import WTProto
         #expect(mark.kind == .mark && mark.anchors.first?.name == "_top")
         #expect(index.glyph(named: "B")?.kind == .base && index.glyph(named: "B")?.markColor == 0)
         #expect(FontInfo(a.state).features == "feature ss01 { sub A by B; } ss01;\n")
+        // The unread lib keys are kept on the settings for a UFO export.
+        #expect(a.state.props(WellKnown.settings).settings.font.ufoLibPassthrough == Data([1]))
         #expect(Kerning(a.state, index: index).value(glyphA.id, index.glyph(named: "B")!.id) == -40)
     }
 
@@ -51,10 +53,16 @@ import WTProto
         try a.perform(AddGlyphs([NewGlyph(scalar: 0x41)]))
         let plan = UFOImport.plan(Self.ufo(), fileName: "Other.ufo", into: a.state, newDocument: false)
         #expect(plan.names.contains("A.1") && plan.report.contains { $0.contains("feature file was not added") })
+        #expect(plan.report.contains { $0.contains("lib.plist keys were not kept; this typeface keeps its own") })
         try Self.perform(plan, on: &a)
         let index = GlyphIndex(a.state)
         #expect(index.glyph(named: "A.1")?.anchors.first?.name == "top" && index.glyph(named: "A")?.anchors.isEmpty == true)
-        #expect(FontInfo(a.state).features.isEmpty)
+        #expect(FontInfo(a.state).features.isEmpty && a.state.props(WellKnown.settings).settings.font.ufoLibPassthrough.isEmpty)
+        // A lib over the field's limit is reported, not written.
+        var large = Self.ufo()
+        large.lib = Data(count: ImportUFOLib.limit + 1)
+        let refused = UFOImport.plan(large, fileName: "L.ufo", into: Replica(0xC).state, newDocument: true)
+        #expect(refused.report.contains { $0.contains("larger than 1 MB") } && !refused.commands.contains { $0 is ImportUFOLib })
         // A UFO with nothing beyond outlines adds no extra changes.
         var plain = Self.ufo()
         plain.anchors = plain.anchors.map { _ in [] }

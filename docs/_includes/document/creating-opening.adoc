@@ -185,9 +185,12 @@ The default renderer, `ThumbnailCapture.firstPage`, draws the first page (the sy
 an unpaged document) of `DocumentDisplayListBuilder.outputDisplayList` through
 `ThumbnailRenderer.png`: the Core Graphics reference renderer at 512 px on the long edge
 (`ThumbnailRenderer.packageEdge` is the 1024 px render for IO-005), sRGB, transparent where
-nothing is drawn.  WTSync reaches WTRender through WTModel (no Package.swift change).  The WTApp
-glue is not built: the document handle should create one capture beside its blob queue, `start()`
-it on open and `await close()` it before the store closes.  The server's `thumbnail_blob` and the
+nothing is drawn.  WTSync reaches WTRender through WTModel (no Package.swift change).  In the app,
+each `DocumentSession` whose client has a blob queue creates one capture beside it when it connects,
+`start()`s it, and `close()`s it -- one last capture into the queue -- before the client stops
+(`WTApp/Sync/DocumentSession.swift`).  Deviation: the capture lives in the session, which owns the
+blob queue and outlives the window while uploads finish, rather than in the document handle; the
+interval is the default five minutes, not the *Snapshot interval* preference.  The server's `thumbnail_blob` and the
 library window's download and display are unchanged (SRV-009, APP-009).
 
 NOTE: Deviations recorded by APP-009.  The Library window is `LibraryWindowController` over

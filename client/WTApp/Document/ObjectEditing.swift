@@ -141,7 +141,12 @@ final class ObjectEditing: CommandSink {
     /// menu:Edit[Copy].
     func copy() {
         guard hasSelection else { return }
-        pasteboard.write(ClipboardPayload(copying: selectedNodes, from: document.state, document: document.id).encoded())
+        // The swatches, styles and symbols the objects need in another document travel with them
+        // (LIB-013, LIB-022): inside the payload, and the symbols also as their own pasteboard type.
+        let state = document.state
+        let payload = ClipboardPayload(copying: selectedNodes, from: state, document: document.id).carryingLibrary(from: state)
+        pasteboard.write(payload.encoded())
+        SymbolClipboard.write(payload, from: state, to: pasteboard)
     }
 
     /// menu:Edit[Cut]: copies, then deletes what may be deleted.
@@ -160,7 +165,7 @@ final class ObjectEditing: CommandSink {
     @discardableResult
     func paste() -> Task<Void, Never>? {
         guard let payload else { return nil }
-        return performSelectingCreated(Paste(payload, placement: .top(layer: activeLayer, center: visibleCenter()), rememberLayerInfo: rememberLayerInfo()))
+        return performSelectingCreated(pasting(Paste(payload, placement: .top(layer: activeLayer, center: visibleCenter()), rememberLayerInfo: rememberLayerInfo())))
     }
 
     /// menu:Edit[Special > Paste In Front] / *Paste Behind*: next to the top (or bottom)
@@ -168,7 +173,18 @@ final class ObjectEditing: CommandSink {
     @discardableResult
     func paste(inFront: Bool) -> Task<Void, Never>? {
         guard let payload, let anchor = anchor(top: inFront) else { return nil }
-        return performSelectingCreated(Paste(payload, placement: inFront ? .inFront(of: anchor) : .behind(anchor)))
+        return performSelectingCreated(pasting(Paste(payload, placement: inFront ? .inFront(of: anchor) : .behind(anchor))))
+    }
+
+    /// A paste of objects copied in another document brings what they need from it: swatches and
+    /// styles matched by name (a same-named style kept, the objects' looks baked as overrides),
+    /// symbols as a paste of instances takes them (`PasteFromDocument`); a payload without that
+    /// library still brings the symbols of the pasteboard's symbol package (`SymbolClipboard`).
+    /// From this document, a plain paste.
+    func pasting(_ paste: Paste) -> any WTModel.Command {
+        guard paste.payload.sourceDocument != document.id else { return paste }
+        if paste.payload.library != nil { return PasteFromDocument(paste) }
+        return SymbolClipboard.command(paste, into: document.id, from: pasteboard)
     }
 
     /// The topmost (or bottommost) selected object in stacking order.

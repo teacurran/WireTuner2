@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384";
+  public static final String VERSION = "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -1316,7 +1316,8 @@ public final class MergeTable {
             Map.entry(8, new FieldPolicy(8, "features", Policy.TEXT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.RichText", null, null)),
             Map.entry(9, new FieldPolicy(9, "omit_generated_kern", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
             Map.entry(10, new FieldPolicy(10, "omit_generated_mark", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
-            Map.entry(11, new FieldPolicy(11, "omit_generated_liga", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
+            Map.entry(11, new FieldPolicy(11, "omit_generated_liga", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null)),
+            Map.entry(12, new FieldPolicy(12, "ufo_lib_passthrough", Policy.ATOMIC, RefFallback.UNSET, false, "bytes", false, null, null, null))
         ));
   }
 

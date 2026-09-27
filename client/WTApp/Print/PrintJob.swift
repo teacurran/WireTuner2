@@ -81,6 +81,8 @@ final class PrintPlanView: NSView {
     var onPaperChange: @MainActor (PrintPaper) -> Void = { _ in }
     /// Sheets that could not be drawn (out of memory), counted for the tests.
     private(set) var failedSheets = 0
+    /// The spooled job's run and progress panel (PRINT-013); nil draws sheets directly.
+    var spooler: PrintSpooler?
 
     init(plan: PrintPlan, renderer: PrintSheetRenderer, title: String) {
         self.plan = plan
@@ -147,7 +149,11 @@ final class PrintPlanView: NSView {
             context.saveGState()
             context.translateBy(x: stripe.minX, y: stripe.minY)
             do {
-                try renderer.draw(sheet: index, of: plan, into: context)
+                if !preview, let spooler {
+                    try spooler.draw(sheet: index, of: plan, renderer: renderer, into: context)
+                } else {
+                    try renderer.draw(sheet: index, of: plan, into: context)
+                }
             } catch {
                 failedSheets += 1
             }

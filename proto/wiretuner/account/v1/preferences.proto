@@ -44,10 +44,8 @@ message Preferences {
 
 // One preference's value with the provenance the per-key merge needs.
 message PreferenceValue {
-  // The typed value.  Field 5 is held for `Color color_value` (wiretuner.doc.v1 Color, for
-  // guide and grid colors), added by BASIC-020 once PROTO-003 defines the type.  Exactly one
-  // case is set: a preference is restored to its default by writing the default explicitly,
-  // never by sending an empty value.
+  // The typed value.  Exactly one case is set: a preference is restored to its default by
+  // writing the default explicitly, never by sending an empty value.
   oneof value {
     option (buf.validate.oneof).required = true;
     // A switch, for example `general.smart_guides`.
@@ -58,8 +56,14 @@ message PreferenceValue {
     double double_value = 3;
     // A string, for example `document.new_template`.
     string string_value = 4 [(buf.validate.field).string.max_len = 4096];
+    // A color, for example `colors.guide_color`.
+    PreferenceColor color_value = 5;
     // An ordered list of strings, for example default line weights or DXF options.
     StringList list_value = 6;
+    // The keyboard shortcut sets, for the id `sync.shortcut_sets` only (customizing.adoc,
+    // "Merge semantics"; BASIC-028).  Unlike every other case this value is merged per set by
+    // the server rather than replaced whole.
+    ShortcutSets shortcut_sets_value = 7;
   }
   // The client's wall-clock time of the write, in milliseconds since the Unix epoch.  The
   // server keeps, per key, the entry with the greater value; ties go to the later receipt.
@@ -76,6 +80,83 @@ message StringList {
     max_items: 256
     items: {
       string: {max_len: 1024}
+    }
+  }];
+}
+
+// An sRGB color with straight alpha, as a preference value (guide, grid and smart-guide
+// colors).  Components are 0...1.
+message PreferenceColor {
+  // Red.
+  double red = 1 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Green.
+  double green = 2 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Blue.
+  double blue = 3 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+  // Alpha: 0 transparent, 1 opaque.
+  double alpha = 4 [(buf.validate.field).double = {
+    gte: 0
+    lte: 1
+  }];
+}
+
+// The account's keyboard shortcut sets (customizing.adoc, "Data model"; BASIC-028): the value of
+// `sync.shortcut_sets`.  Merged per set id, not per entry: of two versions of one set the greater
+// `updated_at_ms` wins (the incoming one on ties), a deletion is a tombstone that wins the same
+// way and is dropped 30 days after it was written, and `active_set_id` is newest-wins on its own
+// stamp.  A client sends only the sets it changed; the server answers the merged whole.
+message ShortcutSets {
+  // The sets and tombstones.  At most 32 live sets exist; the rest of the room is for tombstones.
+  repeated ShortcutSet sets = 1 [(buf.validate.field).repeated.max_items = 64];
+  // The set in use: a user set's id or a built-in id ("builtin.wiretuner" etc.); empty when this
+  // message does not carry it.
+  string active_set_id = 2 [(buf.validate.field).string.max_len = 64];
+  // When `active_set_id` was chosen, in milliseconds since the Unix epoch; 0 with no choice.
+  int64 active_set_updated_at_ms = 3 [(buf.validate.field).int64.gte = 0];
+}
+
+// One user shortcut set, or the tombstone of a deleted one.
+message ShortcutSet {
+  // A UUID for user sets.
+  string id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 64
+  }];
+  // The name in the set pop-up; empty on a tombstone.
+  string name = 2 [(buf.validate.field).string.max_len = 64];
+  // The set this one was copied from: a command the set does not list takes its keys from there.
+  string based_on = 3 [(buf.validate.field).string.max_len = 64];
+  // Only the bindings that differ from `based_on` (an empty key list unbinds).  Replaced whole on
+  // write: a set is edited in one window on one Mac at a time, and merging key bindings field by
+  // field would make sets nobody composed.
+  repeated Binding bindings = 4 [(buf.validate.field).repeated.max_items = 2000];
+  // The client's wall-clock time of the write, in milliseconds since the Unix epoch.
+  int64 updated_at_ms = 5 [(buf.validate.field).int64.gt = 0];
+  // A tombstone: the set was deleted at `updated_at_ms`.
+  bool deleted = 6;
+}
+
+// The keys of one command in a shortcut set.
+message Binding {
+  // The command registry id, for example "view.zoomIn" or "tool.pen".
+  string command_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 128
+  }];
+  // Canonical key strings ("cmd+shift+k", "p"); the first shows in menus.
+  repeated string keys = 2 [(buf.validate.field).repeated = {
+    max_items: 16
+    items: {
+      string: {max_len: 64}
     }
   }];
 }

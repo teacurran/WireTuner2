@@ -185,6 +185,37 @@ import WTProto
         await client.stop()
     }
 
+    @Test func theTeamFloorFromWelcomeRaisesTheUsersThresholds() async throws {
+        let harness = try await Self.synced()
+        let server = harness.server
+        try await Self.rename(harness, Self.n, "mine")
+        try await server.inject(Fixture.change(9, seq: 2, start: 1_000, [Fixture.note(Self.n, "theirs")]))
+        // The team always asks: the user's own thresholds would merge this silently.
+        await server.update {
+            $0.reviewFloor = .with {
+                $0.autoMergeBelow = 100
+                $0.askOverlapCount = 40
+                $0.askOverlapSharePercent = 50
+                $0.alwaysAsk = true
+                $0.suggestReviewAfterHours = 24
+            }
+        }
+        var options = fastOptions()
+        options.reconcile = { ReconcilePreferences(askOverlapCount: 20) }
+        let (client, events) = Self.client(harness, options: options)
+        await client.start()
+        try await Self.waitFor(client, .needsReview)
+        #expect(await client.pendingReview?.mode == .wholeDocument)
+        let floor = try #require(await client.reviewFloor)
+        #expect(floor.askOverlapCount == 40 && floor.askOverlapShare == 0.5 && floor.suggestReviewAfter == .seconds(24 * 3600))
+        let effective = await client.reconcilePreferences
+        #expect(effective.askOverlapCount == 40 && effective.autoMergeBelow == 100 && effective.alwaysAsk)
+        #expect(events.all.contains { if case .reviewFloor(let named?) = $0 { named == floor } else { false } })
+        try await client.resolveReview(.upload)
+        try await harness.expectConverged()
+        await client.stop()
+    }
+
     @Test func aStaleHoldWithNothingToSendIsDropped() async throws {
         let harness = try await Self.synced()
         try await harness.store.setReviewHold(LocalStore.ReviewHold(kind: .merge, baseSeq: 0))

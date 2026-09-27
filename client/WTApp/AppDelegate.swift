@@ -92,6 +92,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var menuTarget: CommandMenuTarget?
     /// The effects, brush and colour-adjustment UI (FX-003 ... COLOR-017).
     private(set) var effects: EffectFeatures?
+    /// Team libraries and style import/export (LIB-016, LIB-022).
+    var libraryTransfer: (teams: TeamLibraryFeatures, styles: StyleTransferModel)?
     /// The colour panels, sheets and commands (COLOR, CMS epics).
     private(set) lazy var colors = ColorFeatures(
         selection: activeSelection, preferences: preferences, defaults: preferences.defaults,
@@ -168,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.storesDirectory = storesDirectory
         self.spotlight = spotlight
         layout = PanelLayoutController(registry: panels, store: layoutStore)
-        preferences = PreferenceStore(defaults: defaults)
+        preferences = PreferenceStore(defaults: defaults, backend: AccountPreferenceBackend())
         snapSounds = SnapSoundPlayer(preferences: preferences)
         floatingPanels = FloatingPanelsController(panels: panels, layout: layout)
         self.sessionStore = sessionStore
@@ -261,6 +263,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.attachTypeAndDrawingFeatures(window)
             self?.attachExtras(window)
             self?.attachImageLinkAndAccessibility(window)
+            self?.attachPackageGlue(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -358,11 +361,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installDocumentGlue()
         installDocumentMenus()
         installScripting()
+        installLibraryTransfer()
+        installSubjectCommands()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
         installExtras()
         installImageLinkAndAccessibility()
+        installPackageGlue()
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
         panelsDidChange()
@@ -559,6 +565,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @discardableResult
     func open(_ url: URL) -> Bool {
         if images.inbox.opens(url) { return true }
+        if SymbolTransferFeatures.opens(url) { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }
             return true

@@ -261,8 +261,10 @@ nothing).  *Duplicate release*: a page released by both sides; the later change 
 is the duplicate, with *Remove duplicates* ("Remove duplicate copies": `deleted` on its live copy
 groups, one change) and *Keep my copies*.  Deviation: the two kinds are not `OverlapKind` cases on an
 object entry but rows of their own (`ReleaseOverlap`, as the data-merge rows are): they are about a page
-and a change, not an object changed on both sides, and they always hold the outbox.  Not built: the
-review sheet's rendering of these rows (WTApp) and the live notice (DOC-012's, which waits for DOC-011).
+and a change, not an object changed on both sides, and they always hold the outbox.  The review sheet
+(`WTApp/Review/ReviewSheetModel.swift`) lists each as a row of its own under *Conflicts* -- "Page 3 from
+Master A", with its kind -- and offers its two choices, each one change.  Not built: the live notice
+(DOC-012's, which waits for DOC-011).
 
 NOTE: As built by DOC-011 (`WTModel/MasterRendering.swift`, hooks in `DocumentScene.swift`; `GroupItem.inert` and the
 `HitTester` rule in WTRender).  The pasteboard's builder keeps one builder per master that has child pages, drawing the master's

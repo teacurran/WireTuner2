@@ -77,6 +77,12 @@ final class ReviewSheetModel {
     enum DataRow: Equatable {
         case mergeRuns(MergeRunConflict)
         case removedField(FieldRemovedEntry)
+        /// A *released stale master* or *duplicate release* page (master-pages.adoc; DOC-013).
+        case release(ReleaseOverlap)
+        /// An object drawn while the font was rescaled (font-info.adoc; FONT-007).
+        case rescale(RescaleEntry)
+        /// An instance of a removed symbol, or an object using a removed style (LIB-023).
+        case removedTarget(RemovedTargetEntry)
     }
 
     /// One conflicting attribute: both values and which the merge kept.
@@ -133,7 +139,8 @@ final class ReviewSheetModel {
         var remoteSeen = listed.union(localNodes)
         remoteNodes = remote.flatMap { change in RegisterNames.touched(by: change).map { ($0.node, change.replica) } }
             .filter { remoteSeen.insert($0.0).inserted && merged.store.exists($0.0) }
-        filter = review.entries.isEmpty && review.mergeRuns.isEmpty && review.removedFields.isEmpty ? .everything : .conflicts
+        filter = review.entries.isEmpty && review.mergeRuns.isEmpty && review.removedFields.isEmpty && review.releaseOverlaps.isEmpty
+            && review.rescaleRows.isEmpty && review.removedTargets.isEmpty ? .everything : .conflicts
         selectedID = nil
         selectedID = rows.first?.id
     }
@@ -171,14 +178,54 @@ final class ReviewSheetModel {
         }
     }
 
-    /// The data-merge rows: each pair of merge runs, then each removed field.
+    /// The rows of their own beside the objects: each pair of merge runs, each removed field,
+    /// each released page, each object drawn while the font was rescaled, and each object that
+    /// refers to a removed symbol or style.  A rescale row whose object is already listed (its
+    /// transform written on both sides) is not a row: its *Rescale* sits on that object's row.
     var dataRows: [Row] {
-        review.mergeRuns.map { conflict in
+        let listed = Set(review.entries.map(\.node))
+        let merges = review.mergeRuns.map { conflict in
             Row(id: conflict.id, node: conflict.page, name: Self.mergeRunsName(conflict), kind: "Both merged", entry: nil, data: .mergeRuns(conflict))
         } + review.removedFields.map { field in
             Row(id: field.id, node: field.field, name: field.title, kind: field.deletedLocally ? "Removed by you" : "Removed by someone else", entry: nil,
                 data: .removedField(field))
         }
+        let releases = review.releaseOverlaps.map { overlap in
+            Row(id: overlap.id, node: overlap.page, name: releaseName(overlap), kind: overlap.kind.title, entry: nil, data: .release(overlap))
+        }
+        let rescales = review.rescaleRows.filter { !listed.contains($0.node) }.map { entry in
+            Row(id: entry.id, node: entry.node, name: ObjectNaming.name(of: entry.node, in: merged), kind: entry.reason.title, entry: nil,
+                data: .rescale(entry))
+        }
+        let removed = review.removedTargets.map { entry in
+            Row(id: entry.id, node: entry.object, name: ObjectNaming.name(of: entry.object, in: merged), kind: entry.kind.title, entry: nil,
+                data: .removedTarget(entry))
+        }
+        return merges + releases + rescales + removed
+    }
+
+    /// "Page 3 from Master A".
+    func releaseName(_ overlap: ReleaseOverlap) -> String {
+        "\(ObjectNaming.name(of: overlap.page, in: merged)) from \(ObjectNaming.name(of: overlap.master, in: merged))"
+    }
+
+    /// The rescale of a listed object whose transform both sides wrote (*Rescale* beside *Use mine*).
+    func rescale(for entry: ReviewEntry) -> RescaleEntry? {
+        review.rescaleRows.first { $0.node == entry.node }
+    }
+
+    /// *Rescale all*: every rescale row's objects in one change, while a held review lists any.
+    var rescaleAll: RescaleObjects? {
+        allowsChoices ? FontRescaleReview.rescaleAll(review.rescaleRows) : nil
+    }
+
+    /// Runs *Rescale all* as one change and marks every rescale row reviewed.
+    @discardableResult
+    func performRescaleAll() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard let command = rescaleAll else { return nil }
+        for row in review.rescaleRows { reviewed.insert(row.id) }
+        for entry in review.entries where rescale(for: entry) != nil { reviewed.insert(entry.id) }
+        return context.perform(command)
     }
 
     /// "Two merge runs: 3 pages and 4 pages".
@@ -345,10 +392,16 @@ final class ReviewSheetModel {
     /// The choices of the selected data-merge row: *Keep both, one after the other*, *Remove
     /// theirs*, *Remove mine* for two merge runs; *Restore* for a removed field.
     var dataChoices: [String] {
-        guard allowsChoices, let data = selectedRow?.data else { return [] }
+        guard allowsChoices, let row = selectedRow else { return [] }
+        guard let data = row.data else {
+            return row.entry.flatMap { rescale(for: $0) }.map { [$0.reason.actionTitle] } ?? []
+        }
         switch data {
         case .mergeRuns: return MergeRunConflict.Choice.allCases.map(\.title)
         case .removedField: return ["Restore"]
+        case .release(let overlap): return overlap.choices.map(\.title)
+        case .rescale(let entry): return [entry.reason.actionTitle]
+        case .removedTarget(let entry): return entry.choices.map(\.title)
         }
     }
 
@@ -356,13 +409,28 @@ final class ReviewSheetModel {
     /// writes nothing (the runs already in order, the pages already gone).
     @discardableResult
     func performData(_ title: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        guard allowsChoices, let row = selectedRow, let data = row.data, let index = dataChoices.firstIndex(of: title) else { return nil }
+        guard allowsChoices, let row = selectedRow, let index = dataChoices.firstIndex(of: title) else { return nil }
         reviewed.insert(row.id)
+        guard let data = row.data else {
+            // *Rescale* on a listed object whose transform both sides wrote.
+            return row.entry.flatMap { rescale(for: $0) }.map { context.perform($0.command) }
+        }
         switch data {
         case .mergeRuns(let conflict):
             return conflict.command(MergeRunConflict.Choice.allCases[index], in: merged).map { context.perform($0) }
         case .removedField(let field):
             return context.perform(field.restore)
+        case .release(let overlap):
+            return overlap.command(overlap.choices[index], in: merged).map { context.perform($0) }
+        case .rescale(let entry):
+            return context.perform(entry.command)
+        case .removedTarget(let entry):
+            do {
+                return try entry.command(entry.choices[index], in: merged).map { context.perform($0) }
+            } catch {
+                message = "\(title) could not be applied: \(error.localizedDescription)"
+                return nil
+            }
         }
     }
 

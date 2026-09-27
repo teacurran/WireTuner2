@@ -633,6 +633,48 @@ public nonisolated struct Wiretuner_Sync_V1_Welcome: Sendable {
   /// read-only (CLIENT_TOO_OLD on push).
   public var featureLevel: UInt32 = 0
 
+  /// The review-threshold floor of the team whose space holds the document, when the team has
+  /// set one (preferences.adoc, "Sync and collaboration"): the client applies it over the
+  /// user's thresholds.  Unset for a personal document or a team without a floor.
+  public var reviewFloor: Wiretuner_Sync_V1_ReviewFloor {
+    get {_reviewFloor ?? Wiretuner_Sync_V1_ReviewFloor()}
+    set {_reviewFloor = newValue}
+  }
+  /// Returns true if `reviewFloor` has been explicitly set.
+  public var hasReviewFloor: Bool {self._reviewFloor != nil}
+  /// Clears the value of `reviewFloor`. Subsequent reads from it will return its default value.
+  public mutating func clearReviewFloor() {self._reviewFloor = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _reviewFloor: Wiretuner_Sync_V1_ReviewFloor? = nil
+}
+
+/// A team's floor for the review thresholds (preferences.adoc, "Merge semantics").  The client
+/// takes the greater of the user's and the team's counts, share and hours, the smaller
+/// *Auto-merge below*, and *Always ask* if either asks.
+public nonisolated struct Wiretuner_Sync_V1_ReviewFloor: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// *Auto-merge below*, in operations: the user's value is lowered to this.
+  public var autoMergeBelow: Int32 = 0
+
+  /// *Ask when overlap exceeds*, in objects: the user's value is raised to this.
+  public var askOverlapCount: Int32 = 0
+
+  /// *Ask when overlap share exceeds*, a percentage: the user's value is raised to this.
+  public var askOverlapSharePercent: Int32 = 0
+
+  /// *Always ask when anything overlaps*.
+  public var alwaysAsk: Bool = false
+
+  /// *Suggest review after*, in hours: the user's value is raised to this.
+  public var suggestReviewAfterHours: Int32 = 0
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1907,7 +1949,7 @@ nonisolated extension Wiretuner_Sync_V1_ServerFrame: SwiftProtobuf.Message, Swif
 
 nonisolated extension Wiretuner_Sync_V1_Welcome: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".Welcome"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}role\0\u{3}merge_table\0\u{3}head_seq\0\u{3}last_accepted_seq\0\u{3}snapshot_hint\0\u{3}feature_level\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}role\0\u{3}merge_table\0\u{3}head_seq\0\u{3}last_accepted_seq\0\u{3}snapshot_hint\0\u{3}feature_level\0\u{3}review_floor\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -1921,12 +1963,17 @@ nonisolated extension Wiretuner_Sync_V1_Welcome: SwiftProtobuf.Message, SwiftPro
       case 4: try { try decoder.decodeSingularUInt64Field(value: &self.lastAcceptedSeq) }()
       case 5: try { try decoder.decodeSingularBoolField(value: &self.snapshotHint) }()
       case 6: try { try decoder.decodeSingularUInt32Field(value: &self.featureLevel) }()
+      case 7: try { try decoder.decodeSingularMessageField(value: &self._reviewFloor) }()
       default: break
       }
     }
   }
 
   public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
     if self.role != .unspecified {
       try visitor.visitSingularEnumField(value: self.role, fieldNumber: 1)
     }
@@ -1945,6 +1992,9 @@ nonisolated extension Wiretuner_Sync_V1_Welcome: SwiftProtobuf.Message, SwiftPro
     if self.featureLevel != 0 {
       try visitor.visitSingularUInt32Field(value: self.featureLevel, fieldNumber: 6)
     }
+    try { if let v = self._reviewFloor {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 7)
+    } }()
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -1955,6 +2005,57 @@ nonisolated extension Wiretuner_Sync_V1_Welcome: SwiftProtobuf.Message, SwiftPro
     if lhs.lastAcceptedSeq != rhs.lastAcceptedSeq {return false}
     if lhs.snapshotHint != rhs.snapshotHint {return false}
     if lhs.featureLevel != rhs.featureLevel {return false}
+    if lhs._reviewFloor != rhs._reviewFloor {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wiretuner_Sync_V1_ReviewFloor: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ReviewFloor"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}auto_merge_below\0\u{3}ask_overlap_count\0\u{3}ask_overlap_share_percent\0\u{3}always_ask\0\u{3}suggest_review_after_hours\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularInt32Field(value: &self.autoMergeBelow) }()
+      case 2: try { try decoder.decodeSingularInt32Field(value: &self.askOverlapCount) }()
+      case 3: try { try decoder.decodeSingularInt32Field(value: &self.askOverlapSharePercent) }()
+      case 4: try { try decoder.decodeSingularBoolField(value: &self.alwaysAsk) }()
+      case 5: try { try decoder.decodeSingularInt32Field(value: &self.suggestReviewAfterHours) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.autoMergeBelow != 0 {
+      try visitor.visitSingularInt32Field(value: self.autoMergeBelow, fieldNumber: 1)
+    }
+    if self.askOverlapCount != 0 {
+      try visitor.visitSingularInt32Field(value: self.askOverlapCount, fieldNumber: 2)
+    }
+    if self.askOverlapSharePercent != 0 {
+      try visitor.visitSingularInt32Field(value: self.askOverlapSharePercent, fieldNumber: 3)
+    }
+    if self.alwaysAsk != false {
+      try visitor.visitSingularBoolField(value: self.alwaysAsk, fieldNumber: 4)
+    }
+    if self.suggestReviewAfterHours != 0 {
+      try visitor.visitSingularInt32Field(value: self.suggestReviewAfterHours, fieldNumber: 5)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wiretuner_Sync_V1_ReviewFloor, rhs: Wiretuner_Sync_V1_ReviewFloor) -> Bool {
+    if lhs.autoMergeBelow != rhs.autoMergeBelow {return false}
+    if lhs.askOverlapCount != rhs.askOverlapCount {return false}
+    if lhs.askOverlapSharePercent != rhs.askOverlapSharePercent {return false}
+    if lhs.alwaysAsk != rhs.alwaysAsk {return false}
+    if lhs.suggestReviewAfterHours != rhs.suggestReviewAfterHours {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

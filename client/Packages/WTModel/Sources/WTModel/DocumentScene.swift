@@ -549,7 +549,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         var nested: [(instance: OpID, symbol: OpID)] = []
         for symbol in Symbols.symbols(in: state) {
             let props = state.props(symbol).symbol
-            let nodes = state.liveChildren(symbol).compactMap { symbolNode($0, state: state, parentTransform: .identity, nested: &nested) }
+            let nodes = Symbols.artwork(of: symbol, in: state).compactMap { symbolNode($0, state: state, parentTransform: .identity, nested: &nested) }
             var hasher = Hasher()
             hasher.combine(nodes)
             artworks.append(SymbolArtwork(symbol: NodeID(symbol), name: props.common.name, version: UInt64(bitPattern: Int64(hasher.finalize())),

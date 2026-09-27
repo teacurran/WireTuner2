@@ -431,6 +431,26 @@ tested: the repository holds no photograph fixtures or reference masks.  The tes
 on synthetic segmentations and the real Vision segmenter once on a drawn shape, where a mask or
 "no subject found" both pass.
 
+NOTE: As built by IMG-028 (`WTModel/ImageSubjectCommands.swift`; `WTApp/Images/RemoveBackground.swift`, a seeding hook in
+`TraceTool.swift`).  `SubjectImages.refusal` is the rule both menu items validate with: exactly one selected object, an image,
+unlocked, not bilevel or indexed, its pixels on this Mac ("The image has not finished downloading" for a placeholder).
+`RemoveImageBackground` ("Remove background from <name>") writes `pixels` (the alpha PNG's hash, same dimensions, `has_alpha`),
+`display_alpha` and `source_name` with " (background removed)" (once) in one `SetFields`, so a concurrent crop applies over the new
+pixels; `ClipImageToSubject` ("Clip <name> to subject") makes the clip group at the image's place, a path named "Subject of
+<name>" created from the traced contours with the image's own transform (so it lies on the subject), the image moved in after
+it, and `clip_path` set.  The sheet decodes the full-resolution blob, segments it off the main actor (`SubjectMask.segment`),
+chooses every subject found, and previews the image at up to 480 px with the unchosen area faded toward white (30% showing); a
+click in the preview picks the subject under it, kbd:[Shift]-click adds or removes one; *Soften edge* 0 to 10 px (1); the result is
+a radio group.  btn:[Remove Background] stores the PNG through the window's blob queue (`BlobPlacement`, so it uploads like a placed
+image) before the change; *Clipping path* traces the unfeathered mask at full resolution in the natural frame.  *Select Subject*
+segments the image, scales the subjects' mask to the Trace tool's sample of the image (at most 2,048 px), thresholds it, activates
+the Trace tool and seeds its wand selection (`TraceTool.seed`), marching ants and status line included, so kbd:[Return] and kbd:[E]
+trace or convert it.  *Deviations*: the preview fades the background rather than drawing a 50% mask overlay; the sheet's click
+hit-tests the segmentation's per-pixel labels (IMG-027's `instance(at:)`) in unit image space.  The "UI test" is an app test
+(`RemoveBackgroundTests`) with a stand-in segmenter on a drawn image -- the repository has no portrait fixture -- asserting the one
+change, the alpha PNG of the same dimensions, the clip group, and *Select Subject*'s pixel count against the mask; the merge test
+(transparent image vs. a concurrent crop) is `ImageSubjectCommandsTests`.
+
 [[IMG-016]]
 ==== IMG-016 Object panel image editor
 [horizontal]

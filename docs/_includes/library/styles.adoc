@@ -645,7 +645,35 @@ row, with the outcome -- the placeholder, which draws the symbol again once it i
 kept through the deleted style's registers.  The rows' choices are *Restore* (`deleted = false` on
 the symbol and its artwork, or the style) and *Release* / *Keep look* (`ReleaseInstances` /
 `RemoveGraphicStyle` built against the state with the removal undone, so they read the removed
-node's registers), each one change; the review sheet's rendering is WTApp's.
+node's registers), each one change.  The review sheet lists each as a row of its own ("Placed an
+instance of a removed symbol", "Uses a removed style") with its two choices
+(`WTApp/Review/ReviewSheetModel.swift`); a choice that cannot be built shows why under the buttons.
+
+NOTE: As built by LIB-022 (`WTModel/StyleTransfer.swift`, a `library` field on `ClipboardPayload` in `Clipboard.swift`;
+`WTSync/StyleSources.swift`; `WTApp/Styles/StyleTransferSheets.swift`, a hook in `Document/ObjectEditing.swift`).  A
+`StylePackage` is chosen graphic styles with what they reference -- parents through `based_on`, swatches, assets -- read from one
+document (the resource walk of LIB-013's `SymbolPackage`); a style library file is `.wtstyles`: the bytes `WTSTYLES1\n` and the
+same encoding, asset bytes included.  `ImportStyles` ("Import Style" / "Import N styles", one change) brings each chosen style and
+each parent it needs once, parents first, with swatches matched by name and assets by hash as in a symbol import; a style whose
+name is taken is added as "Name 2" (the first free number), or with *Replace styles with the same name* redefines that style in
+place (the registers that differ written, the stack replaced when it differs, its role kept).  The cross-document paste: a copy
+carries a `ClipboardLibrary` in field 6 of the objects payload (not a second pasteboard type) -- the `SymbolPackage` of what the
+objects reference and each styled object's resolved look (its canonical stack and halftone) -- and a paste from another document
+is `PasteFromDocument`: of the package only what the objects need is imported (a same-named style here is left alone and brings
+none of its parents; a missing one is created with its parents), the objects are pasted pointing at this document's nodes, and each
+styled object gets overrides in every category whose look here differs from the one it was copied with, so it looks identical and
+shows the plus sign; one change labelled as the paste.  This also carries instances' symbols across documents (LIB-013's missing
+pasteboard glue).  Styles read unique by name: of several live graphic styles with one name the smallest node id keeps it and the
+others read "Name 2", "Name 3" … in node id order, skipping numbers in use (`GraphicStyleFields.displayNames`, which the Styles
+panel lists); nothing is rewritten, so two people importing the same style see "Name" and "Name 2" and the review lists nothing.
+The Styles panel's *Import…* sheet reads another open document, a document cached on this Mac (its local store), a team library
+from the catalog, or a `.wtstyles` file (btn:[Choose File…]; its asset bytes go into the blob cache), lists the styles for a
+selection and has the *Replace styles with the same name* box; *Export…* lists the front document's styles and writes a file
+(btn:[To File…]) or hands them to *Export to Team Library…* (btn:[To Team Library…], LIB-016).  *Not built*: reading a document
+from the server that is not cached here (`SymbolSources.cloudState` exists; the sheet offers cached and open documents only),
+{product} document files on disk as an import source and the IMG epic's importer routing for style library files, and queueing
+the uploads of an imported file's asset blobs.  Tests: `StyleTransferTests` (WTModel), `LibraryTransferReviewTests` and `StyleSourcesTests` (WTSync),
+`StyleTransferModelTests` (WTApp).
 
 === Build tasks
 

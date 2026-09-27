@@ -184,8 +184,16 @@ transparent image is written as gray + alpha) and, unless stripped, EXIF/TIFF/IP
 `estimate` is the byte count of that encode.  Resampling draws at `CGInterpolationQuality.high`, not Core Image Lanczos, and
 grayscale conversion draws into the generic gray profile rather than going through Core Image -- a deviation from the
 bullet above with the same results for the tests.  `OptimizeImages` writes every result as `ReplaceImagePixels` in one
-change labelled "Optimize _name_" / "Optimize (N images)".  The *Optimize Image…* sheet, its live preview and the blob
-upload are WTApp's and not built.
+change labelled "Optimize _name_" / "Optimize (N images)".
+
+NOTE: As built by IMG-020's app half (`WTApp/Images/OptimizeImageSheet.swift`, `WTApp/Glue/PackageHalvesGlue.swift`).
+menu:Modify[Optimize Image…] (enabled with an image selected) opens the sheet over the selected images: *Format* (the
+formats this Mac writes; JPEG dimmed when an image has alpha), *Quality* for the lossy formats, *Resample* (*None*, *To
+effective resolution*, *To pixel size*), *Color mode* and *Strip metadata*; each image's pixel size and effective
+resolution now and after, the stored size and the estimate -- encoded off the main actor 150 ms after the options settle,
+cancelled by the next change -- and the first image's centre before and after at 100%.  btn:[Optimize] encodes every image
+off the main actor, stores the results through the import controller's blob placement (cached, queued for upload) and
+performs `OptimizeImages`.  An image whose pixels have not downloaded disables btn:[Optimize] with the reason.
 
 NOTE: As built by IMG-019 (`WTApp/Images/ExternalEditing.swift`; `WTModel/ExternalEditCommands.swift`, a new file).
 menu:Edit[Edit With] lists the applications Launch Services has for images; the Object panel's btn:[Edit With…] and

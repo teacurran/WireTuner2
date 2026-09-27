@@ -233,6 +233,31 @@ final class CommandState {
         copy.draw(in: BitmapSurface(width: 2, height: 2)!.context)
     }
 
+    @MainActor @Test func theOverlayLayerAskedToDrawOffTheMainThreadDrawsLaterOnIt() async {
+        let overlay = CanvasOverlayLayer()
+        overlay.bounds = CGRect(x: 0, y: 0, width: 4, height: 4)
+        let counter = DrawCounter()
+        overlay.drawer = { _ in counter.draws += 1 }
+        overlay.draw(in: BitmapSurface(width: 4, height: 4)!.context)
+        #expect(counter.draws == 1)
+        overlay.setNeedsDisplay()
+        overlay.displayIfNeeded()
+        let drawn = counter.draws
+        #expect(!overlay.needsDisplay())
+        nonisolated(unsafe) let layer = overlay
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global().async {
+                // Before the fix this trapped in MainActor.assumeIsolated.
+                layer.draw(in: BitmapSurface(width: 4, height: 4)!.context)
+                done.resume()
+            }
+        }
+        await Task.yield()
+        #expect(counter.draws == drawn && overlay.needsDisplay())
+        overlay.displayIfNeeded()
+        #expect(counter.draws == drawn + 1)
+    }
+
     @Test func canvasEventsCarryModifiersForward() {
         let event = CanvasEvent(pasteboardPoint: Point(x: 1, y: 2), viewPoint: Point(x: 3, y: 4), pressure: 0.5, clickCount: 2, timestamp: 1)
         let changed = event.with(modifiers: .shift)
@@ -241,4 +266,9 @@ final class CommandState {
         #expect(changed.timestamp == 1)
         #expect(event.with(modifiers: [], timestamp: 9).timestamp == 9)
     }
+}
+
+/// Counts an overlay's draws (only ever touched on the main thread).
+final class DrawCounter: @unchecked Sendable {
+    var draws = 0
 }

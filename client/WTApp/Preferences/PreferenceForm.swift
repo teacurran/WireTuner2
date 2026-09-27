@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WTSync
 
 /// One row of a generated category form: what to draw for a catalog key.  Pure data so the
 /// generation is testable without SwiftUI.
@@ -93,6 +94,8 @@ struct PreferenceBindings {
     var beep: @MainActor () -> Void = { NSSound.beep() }
     /// Runs a chooser's open panel (BASIC-022); replaceable in tests.
     var choose: @MainActor (AnyPreferenceKey) -> Void
+    /// The front document's team floor for the review thresholds (BASIC-023).
+    var floor: @MainActor () -> ReconcilePreferences? = { ReviewFloors.shared.current }
 
     init(store: PreferenceStore, beep: @escaping @MainActor () -> Void = { NSSound.beep() }, choose: (@MainActor (AnyPreferenceKey) -> Void)? = nil) {
         self.store = store
@@ -106,19 +109,30 @@ struct PreferenceBindings {
     }
 
     func commit(_ value: PreferenceValue, for key: AnyPreferenceKey) {
+        guard ReviewFloors.allows(value, id: key.id, floor: floor()) else { return beep() }
         if !store.set(value, for: key) { beep() }
+    }
+
+    /// The stored value, under the team floor for a review threshold.
+    func shown(_ key: AnyPreferenceKey) -> PreferenceValue {
+        ReviewFloors.floored(store.value(for: key), id: key.id, floor: floor())
+    }
+
+    /// "Team minimum: 40" under a floored threshold.
+    func floorNote(_ key: AnyPreferenceKey) -> String? {
+        ReviewFloors.note(id: key.id, floor: floor())
     }
 
     func bool(_ key: AnyPreferenceKey) -> Binding<Bool> {
         Binding(
-            get: { if case let .bool(value) = store.value(for: key) { value } else { false } },
+            get: { if case let .bool(value) = shown(key) { value } else { false } },
             set: { commit(.bool($0), for: key) }
         )
     }
 
     func number(_ key: AnyPreferenceKey, integer: Bool) -> Binding<Double> {
         Binding(
-            get: { store.value(for: key).number ?? 0 },
+            get: { shown(key).number ?? 0 },
             set: { commit(PreferenceForm.numberValue($0, integer: integer), for: key) }
         )
     }
@@ -203,6 +217,9 @@ struct PreferenceRowView: View {
         control
             .help(row.isLocalInSyncedCategory ? "Stored on this Mac only" : "")
             .accessibilityIdentifier(row.accessibilityIdentifier)
+        if let note = bindings.floorNote(row.key) {
+            Text(note).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("\(row.accessibilityIdentifier).floor")
+        }
     }
 
     @ViewBuilder private var control: some View {

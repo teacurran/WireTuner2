@@ -198,8 +198,11 @@ every `Color.Space` (sRGB, Display P3, CIELAB D50, OKLab as Display P3, CMYK in 
 and tags CMYK and gray pages in the working profiles and RGB pages in Working RGB (Display P3 still wins under *Auto* when
 the artwork holds wide colours), PSD layers likewise, and the PDF and EPS writers convert with Working CMYK and name it in
 the PDF/X output intent whenever the exporter's converter was not chosen explicitly (`ProfileCMYKConverter.followsDocument`).
-Remaining: WTModel's `ExportSnapshot` does not yet fill `ExportScene.output` (the app glue that passes the document's
-settings), and the "PDF viewer's proof within 2/255" check was not run (no viewer in the test host); the separation route
+`ExportSnapshot.capture` fills `ExportScene.output` with `ExportSnapshot.outputContext(_:)`: Working RGB and Working CMYK
+from the document's colour settings, the intent and compensation, the proof setup, and each placed image's own source profile
+(its embedded one when it uses it, else the one chosen for it) by blob hash; so every export, print snapshot and the
+clipboard formats output in the document's working profiles.  Remaining: the "PDF viewer's proof within 2/255" check was not
+run (no viewer in the test host); the separation route
 uses the CMS-003 converter, whose relative-colorimetric white caveat is noted in `CMYKConversion.swift`.
 
 NOTE: As built by CMS-010 (`proto/wiretuner/doc/v1/color_management.proto`, `node.proto`; `WTModel/ProfileAssets.swift`).

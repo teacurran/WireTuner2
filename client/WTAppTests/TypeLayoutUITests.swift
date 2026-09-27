@@ -267,6 +267,44 @@ import WTRender
         #expect(TypeWindowParts.parts(of: world.window) == nil)
     }
 
+    @Test func aClosedWindowsPartsAreNeverHandedToAnotherWindow() async throws {
+        let world = TypeWorld()
+        defer { world.close() }
+        let preferences = world.setup.environment.preferences
+        let other = TypeWorld()
+        let stale = TypeWindowParts.attach(other.window, preferences: preferences)
+        // Closing the window detaches its parts.
+        other.close()
+        #expect(TypeWindowParts.parts(of: other.window) == nil)
+        // An entry left by a deallocated window whose address this window now has: never reused.
+        TypeWindowParts.entries[ObjectIdentifier(world.window)] = TypeWindowParts.Entry(window: nil, parts: stale)
+        #expect(TypeWindowParts.parts(of: world.window) == nil)
+        let fresh = TypeWindowParts.attach(world.window, preferences: preferences)
+        #expect(fresh !== stale && TypeWindowParts.parts(of: world.window) === fresh)
+        world.close()
+        #expect(TypeWindowParts.parts(of: world.window) == nil)
+    }
+
+    @Test func aClosedWindowsCanvasDrawsNoneOfItsParts() async throws {
+        var extras: [@MainActor (CGContext, Viewport) -> Void] = []
+        var viewport: Viewport?
+        weak var closed: DocumentWindowController?
+        do {
+            let other = TypeWorld()
+            TypeWindowParts.attach(other.window, preferences: other.setup.environment.preferences)
+            extras = other.window.canvas.overlayExtras
+            viewport = other.window.viewport
+            closed = other.window
+            other.close()
+        }
+        await Task.yield()
+        // Whether or not the controller is gone yet, its parts (which hold it unowned) are not touched.
+        let context = try #require(CGContext(data: nil, width: 10, height: 10, bitsPerComponent: 8, bytesPerRow: 0,
+                                             space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        for extra in extras { extra(context, try #require(viewport)) }
+        if let closed { #expect(TypeWindowParts.parts(of: closed) == nil) }
+    }
+
     // MARK: Colour drops (TYPE-030)
 
     @Test func aColorDroppedOnTextGoesToTheCharactersTheBorderOrTheInterior() async throws {

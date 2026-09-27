@@ -77,6 +77,8 @@ public enum FontFields {
     public static let omitGeneratedKern = RegisterPath([2, 21, 9])
     public static let omitGeneratedMark = RegisterPath([2, 21, 10])
     public static let omitGeneratedLiga = RegisterPath([2, 21, 11])
+    /// An imported UFO's unread `lib.plist` keys (FONT-024), written back by a UFO export.
+    public static let ufoLibPassthrough = RegisterPath([2, 21, 12])
 
     public static func pair(_ id: OpID) -> RegisterPath { pairs.element(id) }
     public static func pairValue(_ id: OpID) -> RegisterPath { pair(id).child(4) }

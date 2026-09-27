@@ -314,6 +314,7 @@ message FontProps {
   bool omit_generated_kern = 9;    // opentype-features
   bool omit_generated_mark = 10;
   bool omit_generated_liga = 11;
+  bytes ufo_lib_passthrough = 12 [(wt.crdt.field).merge = MERGE_ATOMIC];  // font-export, UFO
 }
 ----
 
@@ -441,7 +442,10 @@ Both buttons are `RescaleObjects` (one change: `TransformObjects` with the unifo
 origin), per row or `FontRescaleReview.rescaleAll`.  The simulator scenario is
 `AccountAndPublishScenarioTests.aScaleWhileAnotherDrawsOfflineIsRescaledFromTheReview`.  Deviation:
 the rows are a list of their own on `ReviewModel` rather than a new `ReviewAction` case, so the review
-sheet (WTApp, not built here) looks a row up by node to show the button.
+sheet looks a row up by node to show the button: a "Drawn while the font was rescaled" row of its own
+with *Rescale mine*, and *Rescale* beside the choices of an object already listed for its transform
+(`WTApp/Review/ReviewSheetModel.swift`); with more than one row the footer adds *Rescale all*
+(`FontRescaleReview.rescaleAll`, one change).
 
 === Build tasks
 

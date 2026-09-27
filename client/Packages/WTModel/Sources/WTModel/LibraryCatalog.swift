@@ -295,6 +295,15 @@ struct LibraryCopying {
         return props
     }
 
+    /// `props` of any kind with `CommonProps.library` set (field 1 of every kind is its common props).
+    static func withObjectProvenance(_ props: Wiretuner_Doc_V1_NodeProps, _ provenance: Wiretuner_Doc_V1_LibraryProvenance) -> Wiretuner_Doc_V1_NodeProps {
+        guard let field = WireReader.fields(Wire.bytes { try props.serializedBytes() })?.last, let kind = NodeKind(rawValue: UInt32(field.number)) else { return props }
+        var out = props
+        let sparse = NodeValues.common(kind: kind) { $0.library = provenance }
+        try? out.merge(serializedBytes: Wire.bytes { try sparse.serializedBytes() })
+        return out
+    }
+
     func provenance(_ source: OpID) -> Wiretuner_Doc_V1_LibraryProvenance {
         var provenance = Wiretuner_Doc_V1_LibraryProvenance()
         provenance.libraryDocumentID = library.documentID
@@ -356,7 +365,11 @@ struct LibraryCopying {
             let keys = try PathEditing.keys(between: state.store.children(node).last.flatMap { state.store.placement($0)?.position }, and: nil,
                                             count: children.count)
             for (child, key) in zip(children, keys) {
-                try NodeCopier.create(tree(child), parent: node, position: key, schema: state.schema, builder: &builder)
+                // Each copied child remembers the library child and version it came from, so two
+                // concurrent updates read as one artwork set (`Symbols.artwork(of:in:)`).
+                var copy = tree(child)
+                copy.props = Self.withObjectProvenance(copy.props, provenance(child))
+                try NodeCopier.create(copy, parent: node, position: key, schema: state.schema, builder: &builder)
             }
         }
         var tree = self.tree(source)

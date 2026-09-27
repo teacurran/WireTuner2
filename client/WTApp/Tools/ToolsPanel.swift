@@ -521,9 +521,17 @@ final class CanvasOverlayLayer: CALayer {
 
     override func draw(in ctx: CGContext) {
         guard let drawer else { return }
+        // Core Animation draws a displayed layer tree on the main thread, but a layer can be asked
+        // to draw elsewhere (rendered into a context off the main thread, or displayed while a
+        // restarted host tears windows down).  The drawer is main-actor code: off the main thread
+        // the layer draws nothing now and asks to be drawn again on the main thread.
+        guard Thread.isMainThread else {
+            nonisolated(unsafe) let layer = self
+            DispatchQueue.main.async { layer.setNeedsDisplay() }
+            return
+        }
         let height = bounds.height
-        // Core Animation draws layers on the main thread for a layer tree it displays; the
-        // context is used synchronously and never escapes.
+        // The context is used synchronously and never escapes.
         nonisolated(unsafe) let context = ctx
         MainActor.assumeIsolated {
             context.saveGState()

@@ -101,6 +101,8 @@ final class DocumentSession {
     /// The store's replica (local changes never flash).
     private(set) var localReplica: UInt64?
     private var starting: Task<Void, Never>?
+    /// The library thumbnail's capture beside the session's blob queue (DOC-032).
+    private(set) var thumbnails: ThumbnailCapture?
     private var feeds: [Task<Void, Never>] = []
     private var documentToken: DocumentHandle.ObservationToken?
     private var observers: [UUID: @MainActor (SessionNotice) -> Void] = [:]
@@ -142,6 +144,11 @@ final class DocumentSession {
                 self.localReplica = replica
                 // Only this session's own presence entry is left out (the person's other Macs are not).
                 self.presenceModel.localReplica = replica
+                if let queue = connection.client.blobs {
+                    let capture = await ThumbnailCapture(store: store, queue: queue)
+                    self.thumbnails = capture
+                    await capture.start()
+                }
                 await self.run(connection)
             } catch {
                 Self.logger.error("sync for \(self.document.id, privacy: .public) could not start: \(String(describing: error), privacy: .public)")
@@ -171,6 +178,7 @@ final class DocumentSession {
     /// Stops the client (ack, `GONE`), closes its transport and stops following it.
     func stop() async {
         isStopped = true
+        ReviewFloors.shared.update(nil, for: document.id)
         await starting?.value
         for feed in feeds { feed.cancel() }
         feeds = []
@@ -178,6 +186,11 @@ final class DocumentSession {
         documentToken = nil
         presenceModel.unbind()
         presence.detach()
+        // The thumbnail is captured once more, into the queue, before the client stops.
+        if let thumbnails {
+            self.thumbnails = nil
+            _ = try? await thumbnails.close()
+        }
         guard let connection else { return }
         self.connection = nil
         await connection.client.stop()
@@ -225,6 +238,8 @@ final class DocumentSession {
             localReplica = to
         case .document(let event):
             post(.document(event))
+        case .reviewFloor(let floor):
+            ReviewFloors.shared.update(floor, for: document.id)
         default:
             break
         }

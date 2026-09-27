@@ -797,6 +797,14 @@ public nonisolated struct Wiretuner_Doc_V1_FontProps: @unchecked Sendable {
     set {_uniqueStorage()._omitGeneratedLiga = newValue}
   }
 
+  /// The keys of an imported UFO's lib.plist that WireTuner does not read (everything but
+  /// public.glyphOrder and com.wiretuner.*), as a binary property list, kept so a UFO export
+  /// writes them back (font-export.adoc, "UFO"; FONT-024).  Empty: none.  ATOMIC.
+  public var ufoLibPassthrough: Data {
+    get {_storage._ufoLibPassthrough}
+    set {_uniqueStorage()._ufoLibPassthrough = newValue}
+  }
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -1572,7 +1580,7 @@ nonisolated extension Wiretuner_Doc_V1_ClassKern: SwiftProtobuf.Message, SwiftPr
 
 nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".FontProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}names\0\u{1}metrics\0\u{1}os2\0\u{1}guides\0\u{1}pairs\0\u{1}classes\0\u{3}class_kerns\0\u{1}features\0\u{3}omit_generated_kern\0\u{3}omit_generated_mark\0\u{3}omit_generated_liga\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}names\0\u{1}metrics\0\u{1}os2\0\u{1}guides\0\u{1}pairs\0\u{1}classes\0\u{3}class_kerns\0\u{1}features\0\u{3}omit_generated_kern\0\u{3}omit_generated_mark\0\u{3}omit_generated_liga\0\u{3}ufo_lib_passthrough\0")
 
   fileprivate class _StorageClass {
     var _names: Wiretuner_Doc_V1_FontNames? = nil
@@ -1586,6 +1594,7 @@ nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftPr
     var _omitGeneratedKern: Bool = false
     var _omitGeneratedMark: Bool = false
     var _omitGeneratedLiga: Bool = false
+    var _ufoLibPassthrough: Data = Data()
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -1607,6 +1616,7 @@ nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftPr
       _omitGeneratedKern = source._omitGeneratedKern
       _omitGeneratedMark = source._omitGeneratedMark
       _omitGeneratedLiga = source._omitGeneratedLiga
+      _ufoLibPassthrough = source._ufoLibPassthrough
     }
   }
 
@@ -1636,6 +1646,7 @@ nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftPr
         case 9: try { try decoder.decodeSingularBoolField(value: &_storage._omitGeneratedKern) }()
         case 10: try { try decoder.decodeSingularBoolField(value: &_storage._omitGeneratedMark) }()
         case 11: try { try decoder.decodeSingularBoolField(value: &_storage._omitGeneratedLiga) }()
+        case 12: try { try decoder.decodeSingularBytesField(value: &_storage._ufoLibPassthrough) }()
         default: break
         }
       }
@@ -1681,6 +1692,9 @@ nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftPr
       if _storage._omitGeneratedLiga != false {
         try visitor.visitSingularBoolField(value: _storage._omitGeneratedLiga, fieldNumber: 11)
       }
+      if !_storage._ufoLibPassthrough.isEmpty {
+        try visitor.visitSingularBytesField(value: _storage._ufoLibPassthrough, fieldNumber: 12)
+      }
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -1701,6 +1715,7 @@ nonisolated extension Wiretuner_Doc_V1_FontProps: SwiftProtobuf.Message, SwiftPr
         if _storage._omitGeneratedKern != rhs_storage._omitGeneratedKern {return false}
         if _storage._omitGeneratedMark != rhs_storage._omitGeneratedMark {return false}
         if _storage._omitGeneratedLiga != rhs_storage._omitGeneratedLiga {return false}
+        if _storage._ufoLibPassthrough != rhs_storage._ufoLibPassthrough {return false}
         return true
       }
       if !storagesAreEqual {return false}

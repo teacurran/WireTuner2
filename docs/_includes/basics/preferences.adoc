@@ -333,14 +333,16 @@ message PreferenceValue {
     int64 int_value = 2;
     double double_value = 3;
     string string_value = 4;
-    Color color_value = 5;        // doc.v1 Color, for guide and grid colors
+    PreferenceColor color_value = 5;  // sRGB + alpha 0...1, for guide and grid colors
     StringList list_value = 6;    // default line weights, DXF options, ...
+    ShortcutSets shortcut_sets_value = 7;  // `sync.shortcut_sets` only, merged per set (BASIC-028)
   }
   int64 updated_at_ms = 10;       // client wall time; ties broken by the server's receipt order
   string device = 11;             // wt-device that wrote it (for the account's device list UI)
 }
 
 message StringList { repeated string items = 1; }
+message PreferenceColor { double red = 1; double green = 2; double blue = 3; double alpha = 4; }
 ----
 
 Preference ids are dotted, lower-case, category first: `general.pick_distance`,
@@ -448,10 +450,26 @@ with my account* off nothing is queued, sent or delivered, and turning it off cl
 `PreferenceSync.reconcilePreferences(_:team:)` reads the `sync.*` ids (the share as a percentage) and
 applies a team floor with `ReconcilePreferences.floored(by:)`.  `GRPCPreferencesTransport` is the
 `AccountService` client.  The simulator scenario is
-`AccountAndPublishScenarioTests.twoDevicesChangeOneKeyWhileOneIsOffline` (`SimAccountService`).  Not
-built: the team floor has no carrier -- `Welcome` has no floor field and the `team` table no policy
-column (proto and server work); the app glue (a `SyncedPreferenceBackend` over `PreferenceSync`, the
-30-second retry after connectivity returns, the floor shown in the window) is WTApp's.
+`AccountAndPublishScenarioTests.twoDevicesChangeOneKeyWhileOneIsOffline` (`SimAccountService`).
+
+NOTE: As built by BASIC-023's team floor and app half (`sync.proto` `Welcome.review_floor`,
+`WTSync/SyncClient.swift`, `WTApp/Preferences/AccountPreferenceBackend.swift`, server
+`V15__team_review_floor.sql`).  The floor is a `ReviewFloor` message in `Welcome` (the five thresholds,
+the share as a percentage), read from the new `team.review_floor` column (the message as proto JSON;
+NULL: none; a value that does not parse is logged and left out) for a document in the team's space.
+`SyncClient` keeps it (`reviewFloor`), reports it as `SyncEvent.reviewFloor`, and decides every
+reconcile with `reconcilePreferences` -- `Options.reconcile` under the floor.  In the app,
+`AccountPreferenceBackend` is the store's `SyncedPreferenceBackend`: entries changed before the sync is
+attached wait, each change is queued and pushed at once, a failed call retries every 30 seconds until
+one gets through, and the account's map is fetched at launch, on each sign-in
+(`AccountModel.signedInHandlers`) and when *Sync preferences with my account* is turned on (off clears
+the queue); every delivered map is applied wholesale.  `ReviewFloors` holds each open document's floor
+(the session passes it on and clears it when it stops); the Preferences window shows the front
+document's: a floored field reads the floored value, refuses a value past the floor with a beep, and
+says "Team minimum: 40" ("Team maximum" for *Auto-merge below*, "Your team always asks").  Deviation:
+field 5 of `PreferenceValue` is a `PreferenceColor` (four sRGB components) rather than doc.v1's `Color`,
+matching the store's `PreferenceColor`.  Test launches attach no sync.  Not built: an API that sets a
+team's floor (the column is set by plans and admin tooling, as `storage_limit_bytes` is).
 
 === Build tasks
 

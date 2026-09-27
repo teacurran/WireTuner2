@@ -44,11 +44,41 @@ public enum Symbols {
         return result
     }
 
+    /// The children of `symbol` its artwork is drawn from (library.adoc, read-time normalizations;
+    /// LIB-016): the live children, except among those an *Update from Library* copied -- whose
+    /// `CommonProps.library` names a library document -- only one update's survive per library:
+    /// the one whose version the symbol's own provenance records, else the newest; and of two
+    /// copies of one library child, the greater node id.  Two people updating the same symbol at
+    /// once therefore see one artwork set; nothing is rewritten.
+    public static func artwork(of symbol: OpID, in state: EngineState) -> [OpID] {
+        let children = state.liveChildren(symbol)
+        var copied: [String: [(child: OpID, provenance: Wiretuner_Doc_V1_LibraryProvenance)]] = [:]
+        for child in children {
+            guard let common = NodeValues.common(state.props(child)), common.hasLibrary else { continue }
+            copied[common.library.libraryDocumentID, default: []].append((child, common.library))
+        }
+        guard !copied.isEmpty else { return children }
+        let own = LibraryCopying.provenance(of: symbol, in: state)
+        var shadowed: Set<OpID> = []
+        for (library, entries) in copied {
+            let seqs = Set(entries.map(\.provenance.sourceServerSeq))
+            let chosen = own.flatMap { $0.libraryDocumentID == library && seqs.contains($0.sourceServerSeq) ? $0.sourceServerSeq : nil } ?? seqs.max()!
+            var kept: [OpID: OpID] = [:]
+            for entry in entries where entry.provenance.sourceServerSeq == chosen {
+                let source = OpID(entry.provenance.sourceNode)
+                if kept[source].map({ $0 < entry.child }) ?? true { kept[source] = entry.child }
+            }
+            let survivors = Set(kept.values)
+            shadowed.formUnion(entries.map(\.child).filter { !survivors.contains($0) })
+        }
+        return shadowed.isEmpty ? children : children.filter { !shadowed.contains($0) }
+    }
+
     /// The live nodes of `symbol`'s artwork at any depth of grouping (an instance's own artwork is
     /// its symbol's, so the walk never enters one).
     public static func artworkNodes(of symbol: OpID, in state: EngineState) -> Set<OpID> {
         var result: Set<OpID> = []
-        var pending = state.liveChildren(symbol)
+        var pending = artwork(of: symbol, in: state)
         while let next = pending.popLast() {
             result.insert(next)
             pending += state.liveChildren(next)
@@ -63,7 +93,7 @@ public enum Symbols {
         let order = LayerOrder(state)
         // The objects as the layers show them (a deleted layer's objects on their display layer),
         // then the symbols' artwork.
-        var pending = order.layers.flatMap { order.objects(on: $0.id, in: state) } + symbols(in: state).flatMap(state.liveChildren)
+        var pending = order.layers.flatMap { order.objects(on: $0.id, in: state) } + symbols(in: state).flatMap { artwork(of: $0, in: state) }
         while !pending.isEmpty {
             let next = pending.removeFirst()
             if case .instance(let instance)? = state.props(next).kind, instance.hasSymbol {
@@ -189,7 +219,7 @@ public enum Symbols {
     public static func cutInstances(in state: EngineState) -> Set<OpID> {
         var edges: [(instance: OpID, from: OpID, to: OpID)] = []
         for symbol in symbols(in: state) {
-            var pending = state.liveChildren(symbol)
+            var pending = artwork(of: symbol, in: state)
             while let next = pending.popLast() {
                 if case .instance(let props)? = state.props(next).kind {
                     if props.hasSymbol, state.nodeKind(OpID(props.symbol.id)) == .symbol {

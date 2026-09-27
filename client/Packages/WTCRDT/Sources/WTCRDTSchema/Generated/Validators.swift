@@ -89,6 +89,29 @@ public enum WTValidators {
         return out
     }
 
+    /// Validates `wiretuner.account.v1.Binding`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_Binding, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.commandID
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)command_id", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 128 {
+                out.append(ValidationViolation(fieldPath: "\(path)command_id", ruleID: "string.max_len", message: "value length must be at most 128 characters"))
+            }
+        }
+        if m.keys.count > 16 {
+            out.append(ValidationViolation(fieldPath: "\(path)keys", ruleID: "repeated.max_items", message: "value must contain no more than 16 item(s)"))
+        }
+        for (i, v) in m.keys.enumerated() {
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)keys[\(i)]", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.account.v1.CreateTeamRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_CreateTeamRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -367,6 +390,36 @@ public enum WTValidators {
         return []
     }
 
+    /// Validates `wiretuner.account.v1.PreferenceColor`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_PreferenceColor, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.red
+            if !(v >= 0 && v <= 1) {
+                out.append(ValidationViolation(fieldPath: "\(path)red", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 1"))
+            }
+        }
+        do {
+            let v = m.green
+            if !(v >= 0 && v <= 1) {
+                out.append(ValidationViolation(fieldPath: "\(path)green", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 1"))
+            }
+        }
+        do {
+            let v = m.blue
+            if !(v >= 0 && v <= 1) {
+                out.append(ValidationViolation(fieldPath: "\(path)blue", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 1"))
+            }
+        }
+        do {
+            let v = m.alpha
+            if !(v >= 0 && v <= 1) {
+                out.append(ValidationViolation(fieldPath: "\(path)alpha", ruleID: "double.gte_lte", message: "value must be greater than or equal to 0 and less than or equal to 1"))
+            }
+        }
+        return out
+    }
+
     /// Validates `wiretuner.account.v1.PreferenceValue`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Account_V1_PreferenceValue, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
@@ -378,8 +431,14 @@ public enum WTValidators {
                 out.append(ValidationViolation(fieldPath: "\(path)string_value", ruleID: "string.max_len", message: "value length must be at most 4096 characters"))
             }
         }
+        if case .colorValue(let v)? = m.value {
+            out += validate(v, path: "\(path)color_value.")
+        }
         if case .listValue(let v)? = m.value {
             out += validate(v, path: "\(path)list_value.")
+        }
+        if case .shortcutSetsValue(let v)? = m.value {
+            out += validate(v, path: "\(path)shortcut_sets_value.")
         }
         do {
             let v = m.updatedAtMs
@@ -610,6 +669,69 @@ public enum WTValidators {
             out += validate(v, path: "\(path)settings.")
         } else {
             out.append(ValidationViolation(fieldPath: "\(path)settings", ruleID: "required", message: "value is required"))
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.ShortcutSet`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_ShortcutSet, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        do {
+            let v = m.id
+            if v.unicodeScalars.count < 1 {
+                out.append(ValidationViolation(fieldPath: "\(path)id", ruleID: "string.min_len", message: "value length must be at least 1 characters"))
+            }
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.name
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)name", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.basedOn
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)based_on", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        if m.bindings.count > 2000 {
+            out.append(ValidationViolation(fieldPath: "\(path)bindings", ruleID: "repeated.max_items", message: "value must contain no more than 2000 item(s)"))
+        }
+        for (i, v) in m.bindings.enumerated() {
+            out += validate(v, path: "\(path)bindings[\(i)].")
+        }
+        do {
+            let v = m.updatedAtMs
+            if !(v > 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)updated_at_ms", ruleID: "int64.gt", message: "value must be greater than 0"))
+            }
+        }
+        return out
+    }
+
+    /// Validates `wiretuner.account.v1.ShortcutSets`; `path` prefixes every violation's field path.
+    public static func validate(_ m: Wiretuner_Account_V1_ShortcutSets, path: String = "") -> [ValidationViolation] {
+        var out: [ValidationViolation] = []
+        if m.sets.count > 64 {
+            out.append(ValidationViolation(fieldPath: "\(path)sets", ruleID: "repeated.max_items", message: "value must contain no more than 64 item(s)"))
+        }
+        for (i, v) in m.sets.enumerated() {
+            out += validate(v, path: "\(path)sets[\(i)].")
+        }
+        do {
+            let v = m.activeSetID
+            if v.unicodeScalars.count > 64 {
+                out.append(ValidationViolation(fieldPath: "\(path)active_set_id", ruleID: "string.max_len", message: "value length must be at most 64 characters"))
+            }
+        }
+        do {
+            let v = m.activeSetUpdatedAtMs
+            if !(v >= 0) {
+                out.append(ValidationViolation(fieldPath: "\(path)active_set_updated_at_ms", ruleID: "int64.gte", message: "value must be greater than or equal to 0"))
+            }
         }
         return out
     }
@@ -3523,6 +3645,12 @@ public enum WTValidators {
         if m.hasFeatures {
             let v = m.features
             out += validate(v, path: "\(path)features.")
+        }
+        do {
+            let v = m.ufoLibPassthrough
+            if v.count > 1048576 {
+                out.append(ValidationViolation(fieldPath: "\(path)ufo_lib_passthrough", ruleID: "bytes.max_len", message: "value length must be at most 1048576 bytes"))
+            }
         }
         return out
     }

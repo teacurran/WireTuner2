@@ -17,30 +17,51 @@ final class TypeWindowParts {
         self.removedText = removedText
     }
 
-    private static var parts: [ObjectIdentifier: TypeWindowParts] = [:]
+    /// A window's parts, keyed by its identifier and holding the window weakly: a closed window's
+    /// address can be reused by the next window, so an entry counts only while its window is that
+    /// same object (a stale entry is replaced, never handed over).
+    struct Entry {
+        weak var window: DocumentWindowController?
+        let parts: TypeWindowParts
+    }
 
-    static func parts(of window: DocumentWindowController) -> TypeWindowParts? { parts[ObjectIdentifier(window)] }
+    static var entries: [ObjectIdentifier: Entry] = [:]
+
+    static func parts(of window: DocumentWindowController) -> TypeWindowParts? {
+        guard let entry = entries[ObjectIdentifier(window)], entry.window === window else { return nil }
+        return entry.parts
+    }
 
     /// Attaches the text ruler, the spelling underlines and the text colour drop to `window`.
     @discardableResult
     static func attach(_ window: DocumentWindowController, preferences: PreferenceStore) -> TypeWindowParts {
-        if let existing = parts[ObjectIdentifier(window)] { return existing }
+        if let existing = parts(of: window) { return existing }
+        entries = entries.filter { $0.value.window != nil }
         let rulers = TextRulers(window: window, defaults: preferences.defaults)
         rulers.tracksLine = { preferences[PreferenceCatalog.Text.trackTabLine] }
         let spelling = TypingSpelling(window: window, checker: { SpellingChecker(service: SpellingFeatures.shared.model.service, options: SpellingOptions(preferences: preferences)) },
                                       isOn: { preferences[PreferenceCatalog.Spelling.checkWhileTyping] })
         let removedText = RemovedTextNotice(window: window)
         let result = TypeWindowParts(rulers: rulers, spelling: spelling, removedText: removedText)
-        parts[ObjectIdentifier(window)] = result
-        window.canvas.overlayExtras.append { [weak rulers, weak spelling, weak window, weak removedText] ctx, viewport in
+        entries[ObjectIdentifier(window)] = Entry(window: window, parts: result)
+        let previous = window.onClose
+        window.onClose = { closed in
+            previous?(closed)
+            detach(closed)
+        }
+        window.canvas.overlayExtras.append { [weak rulers, weak spelling, weak window, weak removedText, weak result] ctx, viewport in
+            // The parts hold their window unowned: once the window is gone they are never touched
+            // (a canvas layer can still draw while the closed window's controller deallocates).
+            guard let window, let result, parts(of: window) === result else { return }
             removedText?.track()
             spelling?.draw(in: ctx, viewport: viewport)
             rulers?.drawTracking(in: ctx, viewport: viewport)
             // The ruler follows the block, and VoiceOver's description the selection, once the
             // overlay has drawn (not while it draws).
-            Task { @MainActor in
+            Task { @MainActor [weak window, weak result] in
+                guard let window, let result, parts(of: window) === result else { return }
                 rulers?.update()
-                if let window { CanvasDescriptions.update(window) }
+                CanvasDescriptions.update(window)
             }
         }
         window.canvas.textColorDrop = { [weak window] pasteboard, point in
@@ -52,8 +73,9 @@ final class TypeWindowParts {
     }
 
     static func detach(_ window: DocumentWindowController) {
-        parts[ObjectIdentifier(window)]?.removedText.stop()
-        parts[ObjectIdentifier(window)] = nil
+        guard let entry = entries[ObjectIdentifier(window)], entry.window === window || entry.window == nil else { return }
+        entry.parts.removedText.stop()
+        entries[ObjectIdentifier(window)] = nil
     }
 
     /// menu:View[Text Rulers]: shown or hidden in every window.

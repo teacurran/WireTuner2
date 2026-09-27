@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384"
+    public static let version = "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -5795,6 +5795,17 @@ public enum WTMergeTable {
           "policy": "ATOMIC",
           "repeated": false,
           "type": "bool",
+          "type_name": null
+        },
+        "12": {
+          "element_message": null,
+          "local_only": false,
+          "name": "ufo_lib_passthrough",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bytes",
           "type_name": null
         },
         "2": {
@@ -14316,7 +14327,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "695651cf677a1c9cf71e2d824638ecaef2eb9e120cd46996de41b44c9a711384"
+  "version": "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8"
 }
 """#
 
@@ -17174,6 +17185,11 @@ public enum WTMergeTable {
             11: FieldPolicy(
                 fieldNumber: 11, name: "omit_generated_liga", policy: .atomic, onDangling: .unset,
                 localOnly: false, type: "bool", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            12: FieldPolicy(
+                fieldNumber: 12, name: "ufo_lib_passthrough", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bytes", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]

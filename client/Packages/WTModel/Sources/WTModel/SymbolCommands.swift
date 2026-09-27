@@ -151,7 +151,7 @@ public struct ReleaseInstances: Command {
             let created = builder.append(Ops.create(parent: parent, position: position, props: group))
             // Text blocks carry their text as the instance shows it: a text override's, else the
             // master's (LIB-025); `NodeCopier` writes it.
-            var trees = state.liveChildren(symbol).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
+            var trees = Symbols.artwork(of: symbol, in: state).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
                 .map { SymbolEditing.overridingTexts($0, instance: instance, overrides: overrides, state: state) }
             let keys = try PathEditing.keys(between: nil, and: nil, count: trees.count)
             var mapping: [OpID: OpID] = [:]

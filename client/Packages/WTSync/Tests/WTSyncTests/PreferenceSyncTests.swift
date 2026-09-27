@@ -36,8 +36,8 @@ final class FakePreferenceServer: PreferencesTransport, @unchecked Sendable {
         try lock.withLock {
             if offline { throw Offline() }
             sets.append(request.changes.values)
-            for (id, value) in request.changes.values where value.updatedAtMs >= (values[id]?.updatedAtMs ?? .min) {
-                values[id] = value
+            for (id, value) in request.changes.values {
+                values[id] = ShortcutSetSync.merge(values[id], value, now: value.updatedAtMs)
             }
             var response = Wiretuner_Account_V1_SetPreferencesResponse()
             response.preferences.values = values

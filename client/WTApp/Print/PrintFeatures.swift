@@ -191,7 +191,11 @@ final class PrintFeatures {
         session.writePreset()
         operation.jobTitle = document.title
         operation.showsPrintPanel = true
-        operation.showsProgressPanel = true
+        // WireTuner's own progress panel (PRINT-013) replaces the system one.
+        operation.showsProgressPanel = false
+        let spooler = PrintSpooler(window: window.window)
+        session.view.spooler = spooler
+        defer { spooler.finish() }
         operation.printPanel.addAccessoryController(session.accessory)
         operation.printPanel.options.formUnion([.showsPaperSize, .showsOrientation, .showsScaling, .showsPreview, .showsCopies, .showsPageRange])
         session.start()

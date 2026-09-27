@@ -8,8 +8,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongConsumer;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
@@ -46,6 +49,7 @@ import com.villagecompute.wiretuner.sync.v1.PushChangeRequest;
 import com.villagecompute.wiretuner.sync.v1.PushChangeResponse;
 import com.villagecompute.wiretuner.sync.v1.PushChangesRequest;
 import com.villagecompute.wiretuner.sync.v1.PushChangesResponse;
+import com.villagecompute.wiretuner.sync.v1.ReviewFloor;
 import com.villagecompute.wiretuner.sync.v1.ServerFrame;
 import com.villagecompute.wiretuner.sync.v1.SubscribeRequest;
 import com.villagecompute.wiretuner.sync.v1.UpdatePresenceRequest;
@@ -74,13 +78,16 @@ import jakarta.inject.Inject;
 public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
 
     /** A snapshot is streamed in chunks of at most this many bytes. */
+    private static final Logger LOG = Logger.getLogger(SyncGrpcService.class);
+
     static final int SNAPSHOT_CHUNK = 1024 * 1024;
 
     static final String STANDING = """
             SELECT d.head_seq, d.feature_level,
                    (SELECT COALESCE(max(s.server_seq), 0) FROM snapshot s WHERE s.document_id = d.id),
                    r.account_id, r.device_id, r.last_seq, r.retired_at IS NOT NULL,
-                   (SELECT b.parent_document_id FROM branch b WHERE b.document_id = d.id)
+                   (SELECT b.parent_document_id FROM branch b WHERE b.document_id = d.id),
+                   (SELECT t.review_floor::text FROM team t WHERE t.id = d.team_id)
             FROM document d LEFT JOIN replica r ON r.document_id = d.id AND r.replica_id = $2
             WHERE d.id = $1
             """;
@@ -180,7 +187,7 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
      * {@code root} is the document's presence family (its parent when it is a branch, else itself).
      */
     record Standing(Principal principal, Role role, Participant participant, long head, int featureLevel,
-            long snapshotSeq, long lastAccepted, int color, UUID documentId, UUID root, long replica) {
+            long snapshotSeq, long lastAccepted, int color, UUID documentId, UUID root, long replica, ReviewFloor floor) {
 
         /** Whether the subscription is on a branch, whose presence is its parent's. */
         boolean onBranch() {
@@ -259,10 +266,29 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
             ReplicaBinding.check(binding, grant.principal(), replica);
             UUID parent = row.getUUID(7);
             UUID root = parent == null ? documentId : parent;
+            ReviewFloor floor = reviewFloor(row.getString(8));
             return colors.of(root, grant.principal().accountId()).map(color -> new Standing(grant.principal(),
                     grant.role(), participant, row.getLong(0), row.getInteger(1), row.getLong(2),
-                    binding == null ? 0 : binding.lastSeq(), color, documentId, root, replica));
+                    binding == null ? 0 : binding.lastSeq(), color, documentId, root, replica, floor));
         });
+    }
+
+    /**
+     * The team's floor for the review thresholds from its {@code team.review_floor} JSON (BASIC-023); null for a
+     * personal document, a team without one, or a value that does not parse (logged: the session goes on without it).
+     */
+    static ReviewFloor reviewFloor(String json) {
+        if (json == null) {
+            return null;
+        }
+        try {
+            ReviewFloor.Builder floor = ReviewFloor.newBuilder();
+            JsonFormat.parser().ignoringUnknownFields().merge(json, floor);
+            return floor.build();
+        } catch (InvalidProtocolBufferException e) {
+            LOG.warnf("team review_floor does not parse: %s", e.getMessage());
+            return null;
+        }
     }
 
     private Multi<ServerFrame> frames(SubscribeRequest request, UUID documentId, Opened opened) {
@@ -271,14 +297,17 @@ public class SyncGrpcService extends MutinySyncServiceGrpc.SyncServiceImplBase {
         long after = request.getAfterServerSeq();
         long replica = request.getReplica();
         boolean hint = after < standing.snapshotSeq();
-        Welcome welcome = Welcome.newBuilder()
+        Welcome.Builder welcomeBuilder = Welcome.newBuilder()
                 .setRole(DocumentMessages.role(standing.role()))
                 .setMergeTable(MERGE_TABLE)
                 .setHeadSeq(standing.head())
                 .setLastAcceptedSeq(standing.lastAccepted())
                 .setSnapshotHint(hint)
-                .setFeatureLevel(standing.featureLevel())
-                .build();
+                .setFeatureLevel(standing.featureLevel());
+        if (standing.floor() != null) {
+            welcomeBuilder.setReviewFloor(standing.floor());
+        }
+        Welcome welcome = welcomeBuilder.build();
         Multi<ServerFrame> replay = hint ? Multi.createFrom().empty()
                 : reader.range(documentId, after, standing.head()).map(change -> ServerFrame.newBuilder().setChange(change).build());
         PresenceUpdate self = presenceOf(standing);

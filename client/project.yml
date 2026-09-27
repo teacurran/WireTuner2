@@ -134,6 +134,20 @@ targets:
           - UTTypeIdentifier: com.villagecompute.wiretuner.gradient-ramp
             UTTypeDescription: WireTuner Gradient Ramp
             UTTypeConformsTo: [public.data]
+          # Library rows dragged within the Library panel (SymbolLibraryDrag).
+          - UTTypeIdentifier: com.villagecompute.wiretuner.library-rows
+            UTTypeDescription: WireTuner Library Rows
+            UTTypeConformsTo: [public.data]
+          # The symbol package of copied objects, beside them on the pasteboard, and a symbol
+          # library file (library.adoc, "Importing and exporting symbols"; LIB-013).
+          - UTTypeIdentifier: com.villagecompute.wiretuner.symbols
+            UTTypeDescription: WireTuner Symbols
+            UTTypeConformsTo: [public.data]
+          - UTTypeIdentifier: com.villagecompute.wiretuner.symbol-library
+            UTTypeDescription: WireTuner Symbol Library
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [wtsymbols]
         # Services in (exporting.adoc, "The Share menu and Services"; IO-037): *Add to WireTuner
         # Document* takes images, PDF, SVG and text from other apps.
         NSServices:
@@ -149,6 +163,11 @@ targets:
             LSItemContentTypes: [com.villagecompute.wiretuner.package]
           # A PDF or EPS exported with *Embed WireTuner document* opens as the original (IO-028);
           # one without a package opens through the importer as a new document.
+          # A symbol library opens the Import Symbols sheet over the front document (LIB-013).
+          - CFBundleTypeName: WireTuner Symbol Library
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.villagecompute.wiretuner.symbol-library]
           - CFBundleTypeName: PDF or EPS Document
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate

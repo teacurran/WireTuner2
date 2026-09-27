@@ -27,12 +27,25 @@ public struct ClipboardPayload: Hashable, Sendable {
     /// The copied objects' bounds, source pasteboard space.
     public var bounds: Rect?
     public var sourceDocument: String
+    /// What the objects need from their document when pasted into another (LIB-013, LIB-022):
+    /// the swatches, styles and symbols they reference and each styled object's resolved look.
+    /// Field 6 of the encoding; set by `carryingLibrary(from:)`.
+    public var library: ClipboardLibrary?
 
-    public init(nodes: [NodeTree], layerNames: [String] = [], bounds: Rect? = nil, sourceDocument: String = "") {
+    public init(nodes: [NodeTree], layerNames: [String] = [], bounds: Rect? = nil, sourceDocument: String = "", library: ClipboardLibrary? = nil) {
         self.nodes = nodes
         self.layerNames = layerNames
         self.bounds = bounds
         self.sourceDocument = sourceDocument
+        self.library = library
+    }
+
+    /// This payload with the library of `state` its objects need in another document.
+    public func carryingLibrary(from state: EngineState) -> ClipboardPayload {
+        var out = self
+        let library = ClipboardLibrary(referencedBy: nodes, from: state)
+        out.library = library.isEmpty ? nil : library
+        return out
     }
 
     /// A copy of the live objects `nodes` of `state` (locked ones included: a locked object can be
@@ -71,6 +84,7 @@ public struct ClipboardPayload: Hashable, Sendable {
             out += Wire.field(4, Wire.bytes { try rect.serializedBytes() })
         }
         if !sourceDocument.isEmpty { out += Wire.field(5, Array(sourceDocument.utf8)) }
+        if let library { out += Wire.field(6, library.encoded()) }
         return out
     }
 
@@ -92,6 +106,7 @@ public struct ClipboardPayload: Hashable, Sendable {
         var names: [String] = []
         var bounds: Rect?
         var source = ""
+        var library: ClipboardLibrary?
         for field in fields {
             switch field.number {
             case 1:
@@ -104,11 +119,13 @@ public struct ClipboardPayload: Hashable, Sendable {
                 bounds = Rect(x: rect.x, y: rect.y, width: rect.width, height: rect.height)
             case 5:
                 source = String(decoding: field.payload, as: UTF8.self)
+            case 6:
+                library = ClipboardLibrary(decoding: field.payload)
             default:
                 continue
             }
         }
-        self.init(nodes: nodes, layerNames: names, bounds: bounds, sourceDocument: source)
+        self.init(nodes: nodes, layerNames: names, bounds: bounds, sourceDocument: source, library: library)
     }
 
     private static func decode(_ bytes: [UInt8]) -> NodeTree? {
@@ -174,9 +191,15 @@ public struct Paste: Command {
     public var label: String { payload.nodes.count == 1 ? "Paste" : "Paste \(payload.nodes.count) objects" }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        var mapping: [OpID: OpID] = [:]
+        try execute(&builder, state: state, mapping: &mapping)
+    }
+
+    /// The paste, with `mapping` receiving each copied node's source id and its copy (what a paste
+    /// from another document bakes style looks onto, LIB-022).
+    func execute(_ builder: inout ChangeBuilder, state: EngineState, mapping: inout [OpID: OpID]) throws {
         guard !payload.isEmpty else { return }
         // References between copied nodes -- across the pasted objects -- point at the copies.
-        var mapping: [OpID: OpID] = [:]
         var placed: [NodeTree] = []
         defer { NodeCopier.rewriteReferences(in: placed, mapping: mapping, builder: &builder) }
         switch placement {
@@ -356,11 +379,13 @@ public struct LastTransform: Hashable, Sendable {
 
 extension Wiretuner_Doc_V1_Change {
     /// The nodes the change created whose parent was not created by it too: the top-level copies
-    /// of a paste or duplicate, in order.
+    /// of a paste or duplicate, in order.  Swatches, styles, symbols, brushes and assets a paste
+    /// brought from another document are not among them.
     public var createdRoots: [OpID] {
         let created = Set(createdObjects)
+        let collections = LibraryCopying.collections.union([WellKnown.symbols])
         return zip(ops, opIDs).compactMap { op, id in
-            guard case .create(let create) = op.op, !created.contains(OpID(create.parent)) else { return nil }
+            guard case .create(let create) = op.op, !created.contains(OpID(create.parent)), !collections.contains(OpID(create.parent)) else { return nil }
             if case .layer? = create.props.kind { return nil }
             return id
         }

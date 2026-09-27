@@ -107,6 +107,7 @@ public struct ExportSnapshot: Sendable {
         var scene = ExportScene(name: request.name, pages: pages, info: documentInfo(state), nodes: capture.nodes, assets: capture.assets,
                                 rasterResolution: rasterResolution(state), placedPostScript: capture.postScript)
         scene.svgAnimations = capture.svgAnimations
+        scene.output = outputContext(state)
         if request.text {
             scene.text = textBlocks(pages, state: state, request: request)
         }
@@ -120,6 +121,33 @@ public struct ExportSnapshot: Sendable {
     }
 
     // MARK: Document facts
+
+    /// The document's colour resolved for output (CMS-011; color-profiles.adoc, "Client"): Working
+    /// RGB and Working CMYK from `SettingsProps.color` (a pending profile outputs through its
+    /// fallback), the document intent and compensation, the proof setup, and each placed image's
+    /// own source profile -- its embedded one when it uses it, else the one chosen for it -- by
+    /// blob hash (`ImageItem.assetID`); an image on the document default is not listed.
+    public static func outputContext(_ state: EngineState, registry: WTColor.ProfileRegistry = .shared) -> WTColor.OutputContext {
+        let settings = ColorSettings(state, registry: registry)
+        var images: [String: WTColor.ProfileRef] = [:]
+        func visit(_ node: OpID) {
+            for child in state.liveChildren(node) {
+                if let info = ImageColorInfo(child, in: state, registry: registry), case .image(let image)? = state.props(child).kind {
+                    switch info.source {
+                    case .embedded: images[ImageNodes.assetID(image.pixels)] = info.embedded
+                    case .profile(let profile): images[ImageNodes.assetID(image.pixels)] = profile
+                    case .documentDefault: break
+                    }
+                }
+                visit(child)
+            }
+        }
+        visit(WellKnown.layers)
+        visit(WellKnown.symbols)
+        return WTColor.OutputContext(rgbProfile: settings.rgbProfile, cmykProfile: settings.cmykProfile, intent: settings.intent,
+                                     blackPointCompensation: settings.blackPointCompensation, proof: settings.proof, imageProfiles: images,
+                                     converter: registry === WTColor.ProfileRegistry.shared ? .shared : WTColor.Converter(registry: registry))
+    }
 
     /// `SettingsProps.raster_effects.resolution_ppi`, 72 when unset (raster-effects.adoc).
     static func rasterResolution(_ state: EngineState) -> Double {

@@ -27,6 +27,7 @@ import com.villagecompute.wiretuner.doc.v1.OpId;
 import com.villagecompute.wiretuner.doc.v1.PathSegment;
 import com.villagecompute.wiretuner.doc.v1.SetFields;
 import com.villagecompute.wiretuner.docs.v1.CreateFolderRequest;
+import com.villagecompute.wiretuner.docs.v1.CreateRequest;
 import com.villagecompute.wiretuner.docs.v1.MoveToFolderRequest;
 import com.villagecompute.wiretuner.docs.v1.RenameRequest;
 import com.villagecompute.wiretuner.docs.v1.RestoreRequest;
@@ -292,6 +293,31 @@ class SubscribeTest extends SyncTestSupport {
         Subscription viewer = subscribe(BOB, null, doc, replicaId(), 0);
         assertThat(viewer.next().getWelcome().getRole()).isEqualTo(DocumentRole.DOCUMENT_ROLE_VIEWER);
         viewer.cancel();
+    }
+
+    @Test
+    void aTeamDocumentsWelcomeCarriesTheTeamsReviewFloor() {
+        UUID team = team(alice, "editor");
+        UUID doc = uuid7();
+        TestUsers.as(docs, ALICE).create(CreateRequest.newBuilder()
+                .setDocumentId(doc.toString()).setSpaceId(team.toString()).setName("Floor").build());
+        Subscription none = subscribe(ALICE, null, doc, replicaId(), 0);
+        assertThat(none.next().getWelcome().hasReviewFloor()).isFalse();
+        none.cancel();
+        exec("UPDATE team SET review_floor = ?::jsonb WHERE id = ?",
+                "{\"askOverlapCount\": 40, \"autoMergeBelow\": 100, \"alwaysAsk\": true, \"futureField\": 1}", team);
+        Subscription floored = subscribe(ALICE, null, doc, replicaId(), 0);
+        Welcome welcome = floored.next().getWelcome();
+        assertThat(welcome.getReviewFloor().getAskOverlapCount()).isEqualTo(40);
+        assertThat(welcome.getReviewFloor().getAutoMergeBelow()).isEqualTo(100);
+        assertThat(welcome.getReviewFloor().getAlwaysAsk()).isTrue();
+        floored.cancel();
+        // A personal document has none; a value that does not parse is left out.
+        Subscription personal = subscribe(ALICE, null, document(ALICE), replicaId(), 0);
+        assertThat(personal.next().getWelcome().hasReviewFloor()).isFalse();
+        personal.cancel();
+        assertThat(SyncGrpcService.reviewFloor("{\"askOverlapCount\": \"many\"}")).isNull();
+        assertThat(SyncGrpcService.reviewFloor(null)).isNull();
     }
 
     static String reason(Subscription s) {

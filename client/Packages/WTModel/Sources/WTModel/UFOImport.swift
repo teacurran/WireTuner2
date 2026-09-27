@@ -2,6 +2,7 @@ import Foundation
 import WTCRDT
 import WTGeometry
 import WTInterchange
+import WTProto
 
 // FONT-024 (model half): a `UFOFont` (WTInterchange's UFO reader) written into a typeface document
 // (font-export.adoc, "UFO packages"): everything `FontImport` writes for an OpenType font -- glyphs,
@@ -25,10 +26,19 @@ public enum UFOImport {
         if !newDocument, !ufo.features.isEmpty {
             report.append("The UFO's feature file was not added to this document's; copy what you need from features.fea.")
         }
-        if ufo.lib != nil {
-            report.append("The UFO's lib.plist keys are not kept (the document has no field for them yet).")
+        // The unread lib keys are kept on a new document's settings for a UFO export to write back;
+        // an existing typeface keeps its own.
+        var lib: Data?
+        if let data = ufo.lib {
+            if !newDocument {
+                report.append("The UFO's other lib.plist keys were not kept; this typeface keeps its own.")
+            } else if data.count > ImportUFOLib.limit {
+                report.append("The UFO's other lib.plist keys were not kept: they are larger than 1 MB.")
+            } else {
+                lib = data
+            }
         }
-        let total = base.commands.count + batches.count + (features.isEmpty ? 0 : 1)
+        let total = base.commands.count + batches.count + (features.isEmpty ? 0 : 1) + (lib == nil ? 0 : 1)
         func label(_ position: Int) -> String { "Import \(fileName) [\(position)/\(total)]" }
         var commands: [any Command] = base.commands.enumerated().map { offset, command in
             switch command {
@@ -45,6 +55,9 @@ public enum UFOImport {
         }
         if !features.isEmpty {
             commands.append(ImportFeatureText(text: features, label: label(commands.count + 1)))
+        }
+        if let lib {
+            commands.append(ImportUFOLib(lib: lib, label: label(commands.count + 1)))
         }
         return FontImport.Plan(commands: commands, report: report, names: base.names)
     }
@@ -71,6 +84,21 @@ struct ImportGlyphDetails: Command {
                 try SetGlyphAttributes([glyph.id], kind: isMark ? .mark : nil, markColor: color == 0 ? nil : color).execute(&builder, state: state)
             }
         }
+    }
+}
+
+/// A new document's `ufo_lib_passthrough`: the UFO's `lib.plist` without the keys the reader
+/// used, as a binary property list.
+struct ImportUFOLib: Command {
+    /// `FontProps.ufo_lib_passthrough`'s validation limit, 1 MiB.
+    static let limit = 1 << 20
+    let lib: Data
+    let label: String
+
+    func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        var props = Wiretuner_Doc_V1_NodeProps()
+        props.settings.font.ufoLibPassthrough = lib
+        builder.append(Ops.set(WellKnown.settings, [FontFields.ufoLibPassthrough], values: props))
     }
 }
 

@@ -136,8 +136,18 @@ it too.  Sheets render raster effects at each object's own resolution, synchrono
 preview* (`PrintSheetRenderer.renderer(for:)` sets `rasterPreview = .document`, no progressive callback) -- the print-time
 resolution hook.  `rasterBandBytes` bounds a rasterized sheet's own bitmap (216 MB for a tabloid sheet at 1200 dpi); the
 print or PDF context still holds each placed band until the page ends, so the 512 MiB peak for that sheet is not
-verified.  Remaining (WTApp): the progress sheet on the document window, `canSpawnSeparateThread` with the view drawing from
-`PrintRun`, and the 200-sheet UI test.
+verified.
+
+NOTE: As built by PRINT-013's app half (`WTApp/Print/PrintProgress.swift`, `PrintJob.swift`, `PrintFeatures.swift`).  The
+Print dialog's operation runs with `showsProgressPanel = false`; once btn:[Print] starts the job, the print view hands each
+spooled sheet (never the dialog's preview) to a `PrintSpooler`, which starts a `PrintRun` over the job's plan at its first
+sheet and shows WireTuner's progress panel over the document window -- the sheet's label, a bar, btn:[Cancel] (kbd:[Esc]).
+A cancel stops the run; the next sheet destroys the print context (`NSPrintOperation.current?.destroyContext()`) and closes
+the panel, so nothing more reaches the printer, and the snapshot is released at once.  Deviation: the job is drawn on the
+main thread, not with `canSpawnSeparateThread`: the print view is an `NSView`, main-actor code under Swift 6, which traps
+when AppKit calls it from its print thread.  The panel is therefore redrawn, and its clicks and kbd:[Esc] delivered
+(`PrintProgressPanel.pump`), at each sheet boundary, so a cancel takes effect before the next sheet rather than at the next
+band of the sheet in progress.  Not built: the 200-sheet UI test.
 
 NOTE: As built by PRINT-015 (`client/Packages/WTInterchange/Tests/WTInterchangeTests/PrintCorpusTests.swift`, references in
 `Tests/WTInterchangeTests/Goldens/PrintCorpus/`).  The corpus is a suite of the package's test target rather than a test

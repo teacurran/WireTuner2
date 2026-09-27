@@ -233,6 +233,38 @@ message Welcome {
   // The highest schema feature any change in the document has used.  A client below it opens
   // read-only (CLIENT_TOO_OLD on push).
   uint32 feature_level = 6;
+  // The review-threshold floor of the team whose space holds the document, when the team has
+  // set one (preferences.adoc, "Sync and collaboration"): the client applies it over the
+  // user's thresholds.  Unset for a personal document or a team without a floor.
+  ReviewFloor review_floor = 7;
+}
+
+// A team's floor for the review thresholds (preferences.adoc, "Merge semantics").  The client
+// takes the greater of the user's and the team's counts, share and hours, the smaller
+// *Auto-merge below*, and *Always ask* if either asks.
+message ReviewFloor {
+  // *Auto-merge below*, in operations: the user's value is lowered to this.
+  int32 auto_merge_below = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  // *Ask when overlap exceeds*, in objects: the user's value is raised to this.
+  int32 ask_overlap_count = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 1000000
+  }];
+  // *Ask when overlap share exceeds*, a percentage: the user's value is raised to this.
+  int32 ask_overlap_share_percent = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  // *Always ask when anything overlaps*.
+  bool always_ask = 4;
+  // *Suggest review after*, in hours: the user's value is raised to this.
+  int32 suggest_review_after_hours = 5 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 720
+  }];
 }
 
 // A change with the position the server gave it and, so attribution needs no replica lookup,

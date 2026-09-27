@@ -87,6 +87,7 @@ message Welcome {
   uint64 last_accepted_seq = 4;     // this replica's last accepted seq: where pushes resume
   bool snapshot_hint = 5;           // true: FetchSnapshot instead of waiting for replay
   uint32 feature_level = 6;
+  ReviewFloor review_floor = 7;     // the team's floor for the review thresholds; unset: none (BASIC-023)
 }
 
 message PushChangeRequest { string document_id = 1; wiretuner.doc.v1.Change change = 2; }

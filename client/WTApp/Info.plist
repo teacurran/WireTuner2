@@ -22,6 +22,18 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>WireTuner Symbol Library</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.villagecompute.wiretuner.symbol-library</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>PDF or EPS Document</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
@@ -174,6 +186,43 @@
 			<string>WireTuner Gradient Ramp</string>
 			<key>UTTypeIdentifier</key>
 			<string>com.villagecompute.wiretuner.gradient-ramp</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Library Rows</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.library-rows</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Symbols</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.symbols</string>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Symbol Library</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.symbol-library</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>wtsymbols</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 	<key>WTAPIURL</key>

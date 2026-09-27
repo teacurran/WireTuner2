@@ -47,6 +47,9 @@ final class LibraryModel {
     @ObservationIgnored let thumbnails: ThumbnailCache
     @ObservationIgnored var debounce: Duration
     @ObservationIgnored var now: @MainActor () -> Date = { Date() }
+    /// The sync state of a document's running session, for the row's badge (IO-002); nil when
+    /// none runs.
+    @ObservationIgnored var syncState: @MainActor (String) -> SyncState? = { _ in nil }
     @ObservationIgnored var makeID: @MainActor () -> String = { UUIDv7.make() }
     /// Opens documents in tabs (`DocumentController`).
     @ObservationIgnored var onOpen: @MainActor ([LibraryDocument]) -> Void = { _ in }
@@ -66,6 +69,10 @@ final class LibraryModel {
     private(set) var currentSpaceID: String?
     private(set) var section: Section = .folder(nil)
     private(set) var isOnline = true
+    /// *Use as Team Library* on a document (LIB-016; the team library features).
+    @ObservationIgnored var useAsTeamLibrary: (@MainActor (LibraryDocument) -> Void)?
+    /// Why *Use as Team Library* is disabled for a document, or nil when it applies.
+    @ObservationIgnored var teamLibraryRefusal: (@MainActor (LibraryDocument) -> String?)?
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     private(set) var nextCursor: String?

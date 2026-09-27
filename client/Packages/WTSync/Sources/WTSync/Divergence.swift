@@ -39,6 +39,14 @@ public struct ReconcilePreferences: Sendable, Hashable {
     /// The defaults.
     public static let standard = ReconcilePreferences()
 
+    /// A team's floor as `Welcome` carries it (the share as a percentage); what it does not name
+    /// -- the brief gap and the share minimum -- is at its default, so flooring leaves it alone.
+    public init(floor: Wiretuner_Sync_V1_ReviewFloor) {
+        self.init(autoMergeBelow: Int(floor.autoMergeBelow), askOverlapCount: Int(floor.askOverlapCount),
+                  askOverlapShare: Double(floor.askOverlapSharePercent) / 100, alwaysAsk: floor.alwaysAsk,
+                  suggestReviewAfter: .seconds(Int(floor.suggestReviewAfterHours) * 3600))
+    }
+
     /// These preferences under a team's floor (preferences.adoc, "Merge semantics"): the greater
     /// of the counts, share and hours, the smaller *Auto-merge below*, and *Always ask* if either
     /// asks it.

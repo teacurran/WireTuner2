@@ -4,13 +4,18 @@ import WTSync
 
 /// The server's synced preferences as the preference scenarios need them (BASIC-023;
 /// preferences.adoc, "Merge semantics"): per account, per key the entry with the greater
-/// `updated_at_ms` (receipt order on ties), answered as the full map.  `transport(account:link:)`
+/// `updated_at_ms` (receipt order on ties), answered as the full map -- `sync.shortcut_sets` per set,
+/// with its tombstones aged on `now` (BASIC-028, `ShortcutSetSync`).  `transport(account:link:)`
 /// gives a device its `PreferencesTransport` through that device's network link: a partitioned
 /// device is offline.
 public final class SimAccountService: Sendable {
     private let accounts = Locked([String: [String: Wiretuner_Account_V1_PreferenceValue]]())
+    private let now: @Sendable () -> Int64
 
-    public init() {}
+    /// A service whose clock, in milliseconds, is `now` (the simulation's, in scenarios).
+    public init(now: @escaping @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }) {
+        self.now = now
+    }
 
     /// The account's stored map.
     public func preferences(of account: String) -> [String: Wiretuner_Account_V1_PreferenceValue] {
@@ -23,10 +28,11 @@ public final class SimAccountService: Sendable {
     }
 
     func set(_ changes: [String: Wiretuner_Account_V1_PreferenceValue], for account: String) -> [String: Wiretuner_Account_V1_PreferenceValue] {
-        accounts.withLock { accounts in
+        let now = now()
+        return accounts.withLock { accounts in
             var map = accounts[account] ?? [:]
-            for (id, value) in changes where value.updatedAtMs >= (map[id]?.updatedAtMs ?? .min) {
-                map[id] = value
+            for (id, value) in changes {
+                map[id] = ShortcutSetSync.merge(map[id], value, now: now)
             }
             accounts[account] = map
             return map

@@ -484,9 +484,22 @@ uploads no bytes.  `PublishedLinks` is the *Published links* sheet's model: ever
 files of one publish for *Download as folder*, and the current URL for *Copy Link*.
 `GRPCPublishTransport` is the `PublishService` client.  The simulator scenario is
 `AccountAndPublishScenarioTests.aSecondClientsPublishedLinksFollowTheDocumentEvent`
-(`SimPublishService`, which announces changes through `SimServer.announce`).  Not built: the *Web link*
-destination and access chooser in the Publish sheet, the *Published links* sheet itself, clipboard copy
-and the offline dimming (WTApp).
+(`SimPublishService`, which announces changes through `SimServer.announce`).
+
+NOTE: As built by WEB-013's app half (`WTApp/Web/WebLinkPublishing.swift`, `WTApp/Web/PublishSheets.swift`).
+The Publish sheet's *Publish to* is *Folder on this Mac* or *Web link*; the web link shows *Who can open
+it* (*People with access to this document* / *Anyone with the link*) and is dimmed with "Needs a
+connection" offline, where btn:[Publish] is refused rather than queued.  btn:[Publish] builds the bundle
+off the main actor as for a folder, then `WebLinkUpload` runs the uploader with the version the local copy
+has reached (`LocalStore.lastServerSeq`), showing its phase and bytes in the sheet; the address is shown
+and copied to the clipboard.  A failed or cancelled upload keeps its job, so publishing the same bundle
+again resumes it.  btn:[Published Links…] in the Publish sheet opens the *Published links* sheet
+(`PublishedLinksModel`): every publish with its date, setting, size and version, marked *Current*, with
+*Open*, *Copy Link*, *Download as Folder…* (written under the chosen folder as "<document> <version>"),
+the access pop-up and *Unpublish*; it follows the listings, refreshes on the session's
+`PublishesChanged`, and offline shows the cached list read-only.  The app's services use the session's
+transport as the blob transport and one `GRPCPublishTransport`; test launches have none.
+Deviation: *Published links…* is a button in the Publish sheet rather than a menu item.
 
 NOTE: The WTModel half of placed SVG animations is built (`ExportSnapshot.svgAnimation`): every `svg_animation` node the
 export draws is carried in `ExportScene.svgAnimations` with its asset's bytes, natural size, pasteboard transform, script

@@ -222,6 +222,13 @@ struct LibraryDocumentTile: View {
                         .help(document.isPendingUpload ? "Waiting to upload" : "Available offline")
                         .accessibilityIdentifier("library.document.\(document.id).badge")
                 }
+                if let badge = LibrarySyncBadge.badge(model.syncState(document.id)) {
+                    Image(systemName: badge.symbol)
+                        .foregroundStyle(.secondary)
+                        .help(badge.help)
+                        .accessibilityLabel(badge.help)
+                        .accessibilityIdentifier("library.document.\(document.id).sync")
+                }
             }
             if let snippet = row.snippet {
                 Text(snippet.attributed).font(.caption).lineLimit(2)
@@ -243,6 +250,10 @@ struct LibraryDocumentTile: View {
             Button(document.isTemplate ? "Use as Document" : "Use as Template") { Task { await model.setTemplate(document.id, !document.isTemplate) } }
                 .disabled(!model.isOnline && !document.isPendingUpload)
                 .help(model.isOnline || document.isPendingUpload ? "" : LibraryModel.templateFlagOfflineMessage)
+            if let use = model.useAsTeamLibrary {
+                let refusal = model.teamLibraryRefusal?(document)
+                Button("Use as Team Library") { use(document) }.disabled(refusal != nil).help(refusal ?? "Offer this document's symbols, styles and master pages to the team")
+            }
             Divider()
             Button("Move to Trash") { Task { await model.trash(document.id) } }
         }

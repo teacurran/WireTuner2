@@ -24,6 +24,7 @@ struct ReviewSheetView: View {
         { model.perform(action, paragraph: row) }
     }
     static func document(_ model: ReviewSheetModel, _ action: ReviewModel.DocumentAction) -> () -> Void { { model.perform(action) } }
+    static func rescaleAll(_ model: ReviewSheetModel) -> () -> Void { { model.performRescaleAll() } }
     static func done(_ model: ReviewSheetModel) -> () -> Void { { Task { await model.done() } } }
 
     var body: some View {
@@ -145,6 +146,9 @@ struct ReviewSheetView: View {
                         .accessibilityIdentifier("review.document.\(model.documentActionTitle(action))")
                 }
                 Spacer()
+                if model.review.rescaleRows.count > 1, model.rescaleAll != nil {
+                    Button("Rescale all", action: Self.rescaleAll(model)).accessibilityIdentifier("review.rescaleAll")
+                }
                 Button("Done", action: Self.done(model)).keyboardShortcut(.defaultAction).accessibilityIdentifier("review.done")
             }
         }

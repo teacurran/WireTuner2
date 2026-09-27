@@ -767,7 +767,7 @@ using them (not renamed or removed from the Library); a symbol dragged onto the 
 (through the objects pasteboard type the canvas takes); canvas objects dropped on the list make a symbol, on a symbol row
 the Replace sheet asks before `ReplaceSymbolArtwork`; rows dropped on a folder move into it and an kbd:[Option]-drag
 duplicates.  A drag from the canvas starts only once it leaves the window, so it reaches a floating Library panel, not a
-docked one.  *Edit* is LIB-012's (below).  *Not built yet*: *Import…* and *Export…* (LIB-013) and opening a master page (DOC-011).
+docked one.  *Edit* is LIB-012's (below); *Import…* and *Export…* are LIB-013's.  *Not built yet*: opening a master page (DOC-011).
 
 NOTE: As built by LIB-013 (`WTModel/SymbolTransfer.swift`, `WTSync/SymbolSources.swift`).  A
 `SymbolPackage` is a set of symbols with everything their artwork references, transitively -- nodes in
@@ -786,9 +786,23 @@ payload's `assets` field is not used; the package travels as a second pasteboard
 `.wtsymbols` file -- the bytes `WTSYMBOLS1\n` followed by the same encoding, asset bytes included
 (`SymbolPackage.fileData`).  `SymbolSources` reads a cached document from its local store (offline) or
 a cloud one at head (newest snapshot and the changes after it), builds a package with the cached asset
-bytes, and stores a file's asset bytes in the blob cache.  Not built: the Import Symbols and Export
-Symbols sheets, the pasteboard glue that writes and reads the second type, and queueing the uploads of
-imported assets' blobs (WTApp).
+bytes, and stores a file's asset bytes in the blob cache.
+
+NOTE: As built by LIB-013's app half (`WTApp/Library/Symbols/SymbolTransferSheets.swift`).  The Library
+panel's options menu has *Import…* and *Export…*.  *Import…* lists the library's documents and
+btn:[Choose File…] (a `.wtsymbols` file or a `.wiretuner` package, whose symbols come with the package's
+asset bytes); a document is read from its open window, else its store on this Mac, else the cloud's head
+through a session's transport ("That document is not on this Mac; connect to import from it" offline).
+The Import Symbols sheet lists the source's symbols, all chosen, for kbd:[Shift]- and kbd:[Cmd]-click;
+btn:[Import] stores the package's asset bytes through the import controller's blob placement (cached and
+queued for upload) and performs `ImportSymbols`.  *Export…* lists the document's symbols and btn:[To File…]
+writes the symbol library file with the cached bytes of their assets.  A `.wtsymbols` file opened from the
+Finder opens the Import Symbols sheet over the front window.  Copy writes the package of what the copied
+objects reference beside them (`com.villagecompute.wiretuner.symbols`); Paste and *Paste In Front*/*Behind*
+from another document perform `PasteWithSymbols`, from the same document the plain paste.  `project.yml`
+declares both types and the symbol library document type.  Not built: btn:[To Team Library…] (the team
+library service, LIB-014/LIB-015), and a drag of objects between documents (`ObjectDragging`) still
+carries no symbols.
 
 NOTE: As built by LIB-025 (`WTModel/SymbolOverrides.swift`, `SymbolCommands.swift`).  `OverrideText(instance, master:, edit:)`
 "Override text" with `.insert(_:at:)` / `.delete(_:)` in live offsets: the first edit of a block without a live `TEXT` override
@@ -862,6 +876,34 @@ edit the text is the master's and nothing is published -- and `PresenceOverlay.c
 `Symbols.overrideMaster(ofTextField:in:)` to the master block laid out as the instance draws it.  The UI tests of *Done when* are
 app tests (`SymbolOverrideEditingTests`), as elsewhere in this book.  Not built: the Text tool's kbd:[Option]-click opening the Text
 Editor on a block inside an instance (the menu command does) and text styles applied to an override.
+
+NOTE: As built by LIB-016 (`WTSync/TeamLibraryClient.swift`; `WTModel/TeamLibraryPlacement.swift`, `Symbols.artwork(of:in:)`
+in `Symbols.swift`, the child provenance in `LibraryCatalog.swift`; `WTApp/Library/TeamLibraryFeatures.swift` and additions to
+`TeamLibraries.swift`).  `TeamLibraryClient` lists each of the account's teams' libraries (`ListLibraries`, every page; the last
+listing kept per team under `Application Support/WireTuner/Libraries` for offline) and is the `LibraryStoreOpening` COLLAB-015's
+catalog reads: a library's state comes from its store on this Mac when that has reached the listed head (offline, at whatever head
+it has), else from the server at head (the newest snapshot and the changes after it, `SymbolSources.cloudStateAndSeq`), kept for
+the session; offline, a library with no state here is not offered.  `setLibrary` and `head(of:)` wrap `SetLibrary` and
+`GetLibrary`.  In the app the *Team libraries* sections are live: each library is a folder with a cloud badge (a struck-out cloud
+offline), and in the Library panel its symbols drag onto the canvas (`TeamLibraryDrag`, a private pasteboard type the canvas takes)
+to run `PlaceFromLibrary` -- "Place Symbol "Star" from Marketing library", one change: the symbol copied with its provenance as
+`CopyFromLibrary` copies it, or this document's live copy from the same library reused, then an instance at the drop point.  The
+Library panel's options menu gains *Show Team Libraries* / *Hide Team Libraries*, *Update from Library* (the selected symbol, when it
+came from a library in the catalog) and *Export to Team Library…* (the selected symbols: a sheet picks a library the account can edit;
+the library document opens in a tab and `ImportSymbols` adds them there, one change in that document).  The document library window's
+kbd:[Control]-click menu has *Use as Team Library*, disabled with the reason for a document outside a team space, for anyone but its
+owner, and offline.  Offline, placing, btn:[Update] / *Update from Library* and *Export to Team Library…* are disabled with "Team
+libraries need a connection: symbols already in your document keep working"; the catalog reloads (badges recomputed) on every
+listing.  *Deviations*: the provenance written is `CommonProps.library` (COLLAB-010), which every copied kind carries; the sketched
+`SymbolProps.source` stays in the schema unwritten.  A double-click on a library item still copies it from a cached library offline
+(COLLAB-015's rule); only the Library panel's drag is refused.  Concurrent updates: *Update from Library* now stamps each copied
+child with `CommonProps.library` (the library child and version), and `Symbols.artwork(of:in:)` -- which the scene, the resolved
+artwork, release and the instance index read -- shows, among a symbol's children copied from one library, only those of the version
+the symbol's own provenance records (else the newest) and of two copies of one library child the greater node id; so two people
+updating the same symbol at once see one artwork set on every replica, both sets stay in the tree and nothing is rewritten.  The
+review lists the symbol under *Same attribute* (both wrote its library link) rather than *both edited*: the divergence measure calls
+two writes of one register a same-register row even when they carry the same value.  Tests: `TeamLibraryPlacementTests`,
+`TeamLibraryClientTests`, `LibraryTransferReviewTests` (WTSync), `TeamLibraryFeaturesTests` (WTApp).
 
 === Build tasks
 

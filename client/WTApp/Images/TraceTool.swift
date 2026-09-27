@@ -61,6 +61,13 @@ struct WandSelection: Equatable {
         mask = [UInt8](repeating: 0, count: width * height)
     }
 
+    /// A selection of the pixels `mask` sets (one byte per pixel, 1 selected), as *Select Subject*
+    /// makes one (IMG-028); a mask of the wrong size selects nothing.
+    init(width: Int, height: Int, mask: [UInt8]) {
+        self.init(width: width, height: height)
+        if mask.count == width * height { self.mask = mask.map { $0 == 0 ? 0 : 1 } }
+    }
+
     var count: Int { mask.reduce(0) { $0 + Int($1) } }
     var isEmpty: Bool { !mask.contains(1) }
 
@@ -210,6 +217,14 @@ final class TraceTool: Tool {
         wand = current
         context.host.setNeedsOverlayDisplay()
         context.host.showStatusMessage("\(current.selection.count) pixels selected: Return traces them, E converts the edge, Tab inverts")
+    }
+
+    /// *Select Subject* (IMG-028): `selection` of `bitmap` (mapped to the pasteboard by
+    /// `transform`, over `area`) becomes the wand selection, marching ants and all, as if picked.
+    func seed(bitmap: Trace.Bitmap, transform: WTGeometry.AffineTransform, area: Rect, selection: WandSelection) {
+        wand = (bitmap, transform, area, selection)
+        context?.host.setNeedsOverlayDisplay()
+        context?.host.showStatusMessage("\(selection.count) pixels selected: Return traces them, E converts the edge, Tab inverts")
     }
 
     func flagsChanged(_ e: CanvasEvent) {

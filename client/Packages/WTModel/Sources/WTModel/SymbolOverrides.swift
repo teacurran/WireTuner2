@@ -341,7 +341,7 @@ extension Symbols {
     public static func resolvedArtwork(of instance: OpID, in state: EngineState) -> ResolvedArtwork? {
         guard let symbol = symbol(of: instance, in: state) else { return nil }
         let overrides = liveOverrides(of: instance, in: state)
-        let nodes = state.liveChildren(symbol).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
+        let nodes = artwork(of: symbol, in: state).compactMap { SymbolEditing.resolved($0, state: state, overrides) }
         var texts: [OpID: ResolvedText] = [:]
         func collect(_ tree: NodeTree) {
             if case .text? = tree.props.kind, let master = tree.source {

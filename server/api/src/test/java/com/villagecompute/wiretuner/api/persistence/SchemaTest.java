@@ -43,8 +43,8 @@ class SchemaTest {
     DataSource dataSource;
 
     @Test
-    void flywayReachedV14() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("14");
+    void flywayReachedV15() {
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("15");
         assertThat(flyway.info().pending()).isEmpty();
     }
 

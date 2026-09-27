@@ -139,8 +139,9 @@ final class StylesPanelModel {
         let overridden = Set(objects.filter { !GraphicStyleDefaults.overrides(of: $0, in: state).isEmpty }.compactMap { resolver.style(of: $0, in: state) })
         let mirrored = objects.isEmpty ? GraphicStyleDefaults.style(in: state) : nil
         let modified = mirrored != nil && GraphicStyleDefaults.isModified(in: state)
+        let names = GraphicStyleFields.displayNames(in: state, resolver)
         return GraphicStyleFields.styles(in: state, resolver).map { id in
-            Row(id: id, name: state.props(id).style.common.name, isNormal: resolver.role(of: id) == .normal, count: index.objects(using: id).count,
+            Row(id: id, name: names[id] ?? state.props(id).style.common.name, isNormal: resolver.role(of: id) == .normal, count: index.objects(using: id).count,
                 isHighlighted: objects.isEmpty ? id == mirrored : used.contains(id),
                 isModified: objects.isEmpty ? modified && id == mirrored : overridden.contains(id))
         }

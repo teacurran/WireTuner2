@@ -123,8 +123,15 @@ resolution), reporting after each band and cancelling when the callback says so,
 Working CMYK and grayscale as 8-bit gray PNG (drawn in the gray working profile, not through Core Image).  CMYK and grayscale
 results are opaque whatever *Background* says.  `RasterizeObjects` is the one change: the image created directly above the
 topmost selected object in its parent, named "Rasterized _name_", `dpi_x = dpi_y` the resolution, its transform the
-selection's origin in the parent's space, then `SetDeleted` for each original unless *Keep originals*.  The sheet, the
-progress sheet over 16 MP and the blob upload are WTApp's and not built.
+selection's origin in the parent's space, then `SetDeleted` for each original unless *Keep originals*.
+
+NOTE: As built by IMG-024's app half (`WTApp/Objects/RasterizeSheet.swift`, `WTApp/Glue/PackageHalvesGlue.swift`).
+menu:Modify[Rasterize…] opens the sheet over the selection's top-level objects (a nested selection as its top-level
+object), bottom first, drawn from the window's scene as placed: the options of the table above, the readout as they change,
+the warning over *Downsample images larger than* and the refusal over 200 MiB.  btn:[Rasterize] renders off the main actor
+with the document's output context (`ExportSnapshot.outputContext`) and the window's image store, showing a progress bar
+above 16 MP; btn:[Cancel] stops the render at its next band.  The image is stored through the import controller's blob
+placement (queued for upload) and `RasterizeObjects` is the one change.
 
 === Build tasks
 

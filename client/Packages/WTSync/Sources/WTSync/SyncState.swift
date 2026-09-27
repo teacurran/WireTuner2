@@ -131,4 +131,7 @@ public enum SyncEvent: Sendable {
     case reviewNeeded(ReviewModel)
     /// Salvage re-issued a retired replica's unsent changes (SYNC-010).
     case salvaged(SalvageReport)
+    /// `Welcome` named the document's team floor for the review thresholds (nil: none), which
+    /// every reconcile of this session applies over `Options.reconcile` (BASIC-023).
+    case reviewFloor(ReconcilePreferences?)
 }

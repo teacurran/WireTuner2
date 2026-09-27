@@ -56,6 +56,8 @@ actor FakeSyncServer {
     var duplicateLive = false
     /// After Welcome, the subscription goes quiet (no replay, presence or live frames).
     var silentAfterWelcome = false
+    /// The team floor `Welcome` names (BASIC-023); nil names none.
+    var reviewFloor: Wiretuner_Sync_V1_ReviewFloor?
     /// The next Subscribe calls fail with these errors, in order.
     var subscribeFailures: [SyncCallError] = []
     /// A bulk upload fails (UNAVAILABLE) after this many of its changes were accepted.
@@ -256,6 +258,7 @@ actor FakeSyncServer {
                 $0.lastAcceptedSeq = replicaLast
                 $0.snapshotHint = hint
                 $0.featureLevel = featureLevel
+                if let reviewFloor { $0.reviewFloor = reviewFloor }
             }
         })
         if request.hasPresence {

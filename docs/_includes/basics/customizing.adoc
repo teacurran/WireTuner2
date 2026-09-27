@@ -316,6 +316,31 @@ document's pages; layers, named views and recent documents register through
 whole normalized query it was chosen for; it matches that query and every longer one, decayed
 with a 30-day half-life; equal scores keep the sources' order.  Spaces in a query are ignored.
 
+NOTE: As built by BASIC-028 (`account/v1/preferences.proto`; server `api/.../account/Preferences.java`;
+`WTSync/ShortcutSetSync.swift`, `PreferenceSync.swift`; `WTApp/Shortcuts/ShortcutSetStore.swift`).  `ShortcutSets`
+is the `PreferenceValue` case `shortcut_sets_value = 7`, used for the id `sync.shortcut_sets` only.  Refinements of
+the sketch above: `ShortcutSets` gains `active_set_updated_at_ms = 3` (the choice of set is newest-wins on its own
+stamp; a value without a choice leaves it alone) and holds at most 64 entries (32 live sets and room for
+tombstones); `ShortcutSet` gains `bool deleted = 6` (a tombstone keeps the id and the stamp, no name or bindings) and
+its `name` may be empty on a tombstone; `bindings` holds only the bindings that differ from the set named by
+`based_on` (an empty key list unbinds), so a set costs what it changes in the 64 KiB of preferences, and a command it
+does not mention takes its keys from there as a local copy always did.  The server's `SetPreferences` merges two
+`shortcut_sets_value` entries per set id (the greater `updated_at_ms`, the change on a tie), drops tombstones 30 days
+after they were written (its own clock), and stamps the entry with the newer of the two; any other pair of values
+stays newest-wins for the whole entry.  `PreferenceSync` runs the same merge on its outbox: a change queued while
+another is queued joins it, a queued set the server already has at the same or a newer stamp is dropped on fetch
+(`ShortcutSetSync.unsent`), and the queued sets lie over the server's in the delivered map.  `ShortcutSetStore`
+hands `onSyncChange` the entry of every change made on this Mac -- the changed sets, a tombstone for a deleted one,
+the active set when the choice changed; *Revert* is a new edit (the sets it restores are stamped now, the sets it
+takes away are deleted) -- and `applySynced(_:)` applies a merged value (`ShortcutSetSync.apply`: a newer set replaces
+or joins, a newer tombstone deletes, a set the value does not mention stays, the newer choice wins and falls back to
+{product}'s set when its set is gone), sending nothing back; `syncValue` is every set for turning sync on.  The
+simulator scenario is `ShortcutSetScenarioTests` (an edit on one Mac and a deletion on the other while apart end
+deleted when the deletion is newer and restored when the edit is, on both; the tombstone is gone from the server 30
+days on).  Not built: connecting the store to a running `PreferenceSync` -- the app has no `PreferenceSync` yet (the
+BASIC-023 app glue, a `SyncedPreferenceBackend` over it, is still the local stub), so `onSyncChange` has no listener
+and nothing calls `applySynced` in the running app.
+
 === Build tasks
 
 [[BASIC-026]]

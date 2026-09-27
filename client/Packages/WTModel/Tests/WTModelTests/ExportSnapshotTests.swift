@@ -36,6 +36,30 @@ import WTRender
         ExportSnapshot.capture(state, request: request, builder: DocumentDisplayListBuilder(canvas: "export"), blob: { blobs[$0] })
     }
 
+    @Test func theSceneCarriesTheDocumentsOutputColour() throws {
+        var a = Replica(0xA)
+        let registry = WTColor.ProfileRegistry.shared
+        let images = [try ImageCommandsTests.place(&a, ImageCommandsTests.pixels(fill: 1)), try ImageCommandsTests.place(&a, ImageCommandsTests.pixels(fill: 2)),
+                      try ImageCommandsTests.place(&a, ImageCommandsTests.pixels(fill: 3))]
+        try a.perform(SetImageSourceProfile([images[0]], .profile(registry.displayP3)))
+        try ImageColorCommandTests.embed(registry.sRGB, on: images[1], &a)
+        try a.perform(SetImageSourceProfile([images[1]], .embedded))
+        var draft = a.state.props(WellKnown.settings).settings.color
+        draft.intent = .perceptual
+        draft.noBlackPointCompensation = true
+        try a.perform(ChangeColorSettings(draft))
+        let settings = ColorSettings(a.state)
+        let output = try #require(Self.capture(a.state, ExportSnapshot.Request(name: "Colour", pages: Self.pages, scope: .pages([0]))).scene.output)
+        #expect(output.rgbProfile == settings.rgbProfile && output.cmykProfile == settings.cmykProfile)
+        #expect(output.intent == .perceptual && !output.blackPointCompensation && output.proof == nil)
+        let ids = images.map { ImageNodes.assetID(a.state.props($0).image.pixels) }
+        // The chosen profile, the embedded one, and nothing for an image on the document default.
+        #expect(output.imageProfiles[ids[0]] == registry.displayP3 && output.imageProfiles[ids[1]] == registry.sRGB && output.imageProfiles[ids[2]] == nil)
+        // A private registry gets a converter of its own.
+        let own = WTColor.ProfileRegistry()
+        #expect(ExportSnapshot.outputContext(a.state, registry: own).converter !== WTColor.Converter.shared)
+    }
+
     @Test func pagesRegroupTheOutputListByLayerWithNestedIDsAndFacts() throws {
         var a = Replica(0xA)
         let layers = try LayerFixture.layers(["Back", "Front"], on: &a)

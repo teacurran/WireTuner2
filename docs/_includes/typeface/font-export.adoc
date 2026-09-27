@@ -356,9 +356,11 @@ and the rest of `lib.plist` as a binary plist.  The result is an `ImportedFont` 
 colors, features and the lib.  `UFOImport.plan` extends `FontImport.plan` (collisions, report,
 batches) with changes adding the anchors (y negated), the Mark kind for a glyph whose anchors are all
 `_` anchors and the mark colors, and for a new document the feature text; every change is labelled
-"Import <file> [i/n]".  Deviations: `settings.ufo_lib_passthrough` is not in the schema (proto work),
-so the lib is read but not kept, and the report says so; the feature file is added only when opening
-(importing into an existing typeface reports it instead).  Not built: the Open and *Import UFO into
+"Import <file> [i/n]".  The lib's unread keys are kept in `FontProps.ufo_lib_passthrough` (field 12,
+ATOMIC, at most 1 MiB; `FontFields.ufoLibPassthrough`) by one more change when opening a UFO, for UFO export
+to write back.  Deviations: the field is on `FontProps` (`SettingsProps.font`), where the rest of the font's
+settings live; like the feature file it is written only when opening -- importing into an existing
+typeface keeps that typeface's own, and the report says so, as it does for a lib over 1 MiB.  Not built: the Open and *Import UFO into
 Typeface…* menu glue and the report sheet (WTApp), UFO export (FONT-023).
 
 === Build tasks

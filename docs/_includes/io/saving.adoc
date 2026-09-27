@@ -522,8 +522,15 @@ keeps its glyph.  The symbols are as listed except `icloud.and.arrow.up` for syn
 the backlog (SF Symbols has no `arrow.up.icloud`) and `icloud` for *Opening…*.  The popover shows
 the state, why (the `readOnly` reason, the error), when the document was last fully synced on this
 Mac, who else has it open, and *Retry Now*, *Review Merge…*, *Sign In…* or *Export a Package…*
-(the latter runs `file.exportPackage` when an export task registers it).  VoiceOver announcement
-of changes, the *Sync Activity* window and the library badges are not delivered here.
+(the latter runs `file.exportPackage` when an export task registers it).  VoiceOver, the *Sync
+Activity* window and the library badges are delivered by `WTApp/Sync/SyncActivity.swift`: each window's
+`SyncAnnouncer` posts the state's text as a VoiceOver announcement when the state's case changes (a
+count ticking, or the state the window opened with, is not announced); menu:Window[Sync Activity] lists
+every document whose session has something in flight or waiting -- open windows, closed windows still
+uploading ("Window closed") and the launch's headless uploads ("Started at launch") -- with the state's
+symbol and detail, or "Everything has reached the cloud."; and the library window badges a document
+whose session is running and not saved with the state's symbol and text beside the *Available offline*
+badge.
 *Closing and quitting* (IO-007): a document whose last window closes while it is syncing,
 uploading or offline with changes keeps its session in the background until the state leaves
 those (a review, a sign-in or an error parks it), then stops and closes the store; opening it again

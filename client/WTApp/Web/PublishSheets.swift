@@ -28,6 +28,12 @@ final class PublishModel {
     var range = ""
     var showWarnings = true
     var openWhenDone = false
+    /// *Publish to*: a folder on this Mac or the document's web link (WEB-013).
+    var destination = PublishDestination.folder
+    /// Who can open the web link.
+    var access = Wiretuner_Publish_V1_PublishAccess.members
+    /// The web link's upload, its progress and the address.
+    let webLink = WebLinkUpload()
     private(set) var phase = Phase.ready
     private(set) var warnings: [ExportWarning] = []
     @ObservationIgnored private var task: Task<Void, Never>?
@@ -78,9 +84,13 @@ final class PublishModel {
         _ = await window.objectEditing.perform(SetHTMLSettingLocation(setting.id, to: url.path(percentEncoded: false))).value
     }
 
+    /// Whether the web link can be chosen now (it needs a connection; never queued).
+    var webLinkAvailable: Bool { WebLinks.services?.isOnline ?? false }
+
     /// btn:[Publish].
     @discardableResult
     func publish() -> Task<Void, Never>? {
+        if destination == .webLink { return publishToWebLink() }
         guard let window, let pages, !pages.isEmpty, let folder, phase != .publishing else {
             if folder == nil { phase = .failed("Choose a folder to publish to") } else if pages?.isEmpty != false { phase = .failed("Enter pages to publish, such as 1-3, 5") }
             return nil
@@ -120,6 +130,52 @@ final class PublishModel {
         }
     }
 
+    /// btn:[Publish] to the web link: the bundle built off the main actor, then uploaded; the
+    /// address is shown and copied.  Cancelling stops between chunks; publishing again resumes.
+    private func publishToWebLink() -> Task<Void, Never>? {
+        guard let window, phase != .publishing else { return nil }
+        guard let services = WebLinks.services, services.isOnline else {
+            phase = .failed("Publishing to a web link needs a connection")
+            return nil
+        }
+        guard let pages, !pages.isEmpty else {
+            phase = .failed("Enter pages to publish, such as 1-3, 5")
+            return nil
+        }
+        let scene: ExportScene
+        do {
+            scene = try features.scene(of: window, pages: pages)
+        } catch {
+            phase = .failed("The document could not be read for publishing: \(error.localizedDescription)")
+            return nil
+        }
+        phase = .publishing
+        warnings = []
+        let settings = setting.settings
+        let name = setting.displayName
+        let access = access
+        let document = window.documentHandle
+        let task = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) { () -> Result<HTMLBundle, any Error> in
+                Result { try HTMLPublisher(settings: settings).publish(scene) }
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            do {
+                let bundle = try result.get()
+                self.warnings = bundle.warnings.sorted
+                let url = try await self.webLink.publish(WebLinks.files(bundle), document: document, settingName: name, access: access, services: services)
+                guard !Task.isCancelled else { return }
+                self.phase = URL(string: url).map { .done($0) } ?? .ready
+            } catch is CancellationError {
+                self.phase = .ready
+            } catch {
+                self.phase = .failed("The document could not be published: \(error.localizedDescription)")
+            }
+        }
+        self.task = task
+        return task
+    }
+
     /// btn:[Cancel] while publishing: nothing is written.
     func cancel() {
         if phase == .publishing {
@@ -140,6 +196,12 @@ final class PublishModel {
     }
 
     var visibleWarnings: [ExportWarning] { showWarnings ? warnings : [] }
+}
+
+/// Where btn:[Publish] writes.
+enum PublishDestination: Hashable {
+    case folder
+    case webLink
 }
 
 struct PublishSheet: View {
@@ -167,17 +229,40 @@ struct PublishSheet: View {
                 TextField("All", text: $model.range).frame(width: 120).accessibilityIdentifier("publish.pages")
                 Text("of \(model.pageCount)").foregroundStyle(.secondary)
             }
-            HStack {
-                Text("Publish to")
-                Text(model.folder?.path(percentEncoded: false) ?? "No folder chosen").lineLimit(1).truncationMode(.middle).foregroundStyle(.secondary)
-                Button("Choose…", action: Self.choose(model))
+            Picker("Publish to", selection: $model.destination) {
+                Text("Folder on this Mac").tag(PublishDestination.folder)
+                Text(model.webLinkAvailable ? "Web link" : "Web link (Needs a connection)").tag(PublishDestination.webLink)
+                    .selectionDisabled(!model.webLinkAvailable)
+            }
+            .pickerStyle(.radioGroup)
+            .accessibilityIdentifier("publish.destination")
+            if model.destination == .folder {
+                HStack {
+                    Text(model.folder?.path(percentEncoded: false) ?? "No folder chosen").lineLimit(1).truncationMode(.middle).foregroundStyle(.secondary)
+                    Button("Choose…", action: Self.choose(model))
+                }
+            } else {
+                Picker("Who can open it", selection: $model.access) {
+                    Text(WebLinks.title(.members)).tag(Wiretuner_Publish_V1_PublishAccess.members)
+                    Text(WebLinks.title(.anyoneWithLink)).tag(Wiretuner_Publish_V1_PublishAccess.anyoneWithLink)
+                }
+                .accessibilityIdentifier("publish.access")
+                if let url = model.webLink.url {
+                    Text("\(url) (copied)").font(.caption).textSelection(.enabled).accessibilityIdentifier("publish.url")
+                }
             }
             Toggle("Show output warnings", isOn: $model.showWarnings)
             Toggle("Open when done", isOn: $model.openWhenDone)
             switch model.phase {
             case .ready: EmptyView()
-            case .publishing: ProgressView("Publishing…").controlSize(.small)
-            case .done(let folder): Text("Published to \(folder.lastPathComponent)").foregroundStyle(.secondary)
+            case .publishing:
+                if model.destination == .webLink, let progress = model.webLink.progress {
+                    ProgressView(value: progress.fraction) { Text(WebLinkUpload.label(progress)) }.controlSize(.small)
+                } else {
+                    ProgressView("Publishing…").controlSize(.small)
+                }
+            case .done(let folder):
+                Text(folder.isFileURL ? "Published to \(folder.lastPathComponent)" : "Published to the web link").foregroundStyle(.secondary)
             case .failed(let message): Text(message).foregroundStyle(.red)
             }
             ForEach(Array(model.visibleWarnings.enumerated()), id: \.offset) { _, warning in
@@ -188,6 +273,7 @@ struct PublishSheet: View {
                 }
             }
             HStack {
+                Button("Published Links…") { model.features.presentPublishedLinks() }.accessibilityIdentifier("publish.links")
                 Spacer()
                 Button(model.phase == .publishing ? "Cancel" : "Close", action: Self.cancel(model)).keyboardShortcut(.cancelAction)
                 Button("Publish", action: Self.publish(model)).keyboardShortcut(.defaultAction).disabled(model.phase == .publishing)

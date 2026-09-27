@@ -86,7 +86,9 @@ extension GRPCPreferencesTransport where Transport == HTTP2ClientTransport.Posix
 /// app-level store, then sent as a partial `SetPreferences`.  `GetPreferences` runs on sign-in and
 /// on reconnect.  The server keeps, per key, the newer entry and answers the full map, which is
 /// applied wholesale -- except that an entry still queued here and newer than the server's stands
-/// until it is sent.  Maps to apply arrive on `updates()`.
+/// until it is sent.  Maps to apply arrive on `updates()`.  `sync.shortcut_sets` is merged per set
+/// (`ShortcutSetSync`): changes queued one after another join into one entry, a queued set the
+/// server already has newer is dropped, and the queued sets lie over the server's in `updates()`.
 ///
 /// *Sync preferences with my account* off (`setEnabled(false)`): nothing is queued or sent and no
 /// remote map is delivered.  Turning it on fetches and applies the account's map.
@@ -172,6 +174,10 @@ public actor PreferenceSync {
                 var stamped = value
                 stamped.updatedAtMs = stamp
                 stamped.device = device
+                // A shortcut set change joins the one already queued rather than replacing it.
+                if case .shortcutSetsValue? = value.value, let bytes = try Data.fetchOne(db, sql: "SELECT value FROM preferences_outbox WHERE id = ?", arguments: [id]) {
+                    stamped = ShortcutSetSync.merge(try Wiretuner_Account_V1_PreferenceValue(serializedBytes: bytes), stamped, now: stamp)
+                }
                 try db.execute(sql: "INSERT OR REPLACE INTO preferences_outbox (id, value, updated_at_ms) VALUES (?, ?, ?)",
                                arguments: [id, try stamped.serializedData(), stamp])
             }
@@ -223,8 +229,19 @@ public actor PreferenceSync {
         let server = response.preferences.values
         let queued = try pending()
         try write { db in
-            for (id, value) in queued where (server[id]?.updatedAtMs ?? .min) >= value.updatedAtMs {
-                try db.execute(sql: "DELETE FROM preferences_outbox WHERE id = ?", arguments: [id])
+            for (id, value) in queued {
+                // Shortcut sets are judged per set: only what the server does not have newer stays.
+                if case .shortcutSetsValue(let sets)? = value.value, case .shortcutSetsValue(let known)? = server[id]?.value {
+                    if let rest = ShortcutSetSync.unsent(sets, after: known) {
+                        var kept = value
+                        kept.shortcutSetsValue = rest
+                        try db.execute(sql: "UPDATE preferences_outbox SET value = ? WHERE id = ?", arguments: [try kept.serializedData(), id])
+                    } else {
+                        try db.execute(sql: "DELETE FROM preferences_outbox WHERE id = ?", arguments: [id])
+                    }
+                } else if (server[id]?.updatedAtMs ?? .min) >= value.updatedAtMs {
+                    try db.execute(sql: "DELETE FROM preferences_outbox WHERE id = ?", arguments: [id])
+                }
             }
         }
         let applied = try apply(server)
@@ -235,8 +252,12 @@ public actor PreferenceSync {
     private func apply(_ map: Entries) throws -> Entries {
         accountMap = map
         var merged = map
-        for (id, value) in try pending() where (map[id]?.updatedAtMs ?? .min) < value.updatedAtMs {
-            merged[id] = value
+        for (id, value) in try pending() {
+            if case .shortcutSetsValue? = value.value, case .shortcutSetsValue? = map[id]?.value {
+                merged[id] = ShortcutSetSync.merge(map[id], value, now: now())
+            } else if (map[id]?.updatedAtMs ?? .min) < value.updatedAtMs {
+                merged[id] = value
+            }
         }
         for continuation in continuations.values {
             continuation.yield(merged)

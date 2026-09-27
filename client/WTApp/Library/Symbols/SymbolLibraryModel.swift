@@ -64,6 +64,9 @@ final class SymbolLibraryModel {
         self.selection = selection
     }
 
+    /// The Library panel's model once installed (LIB-016's team library menu reads its selection).
+    static weak var installed: SymbolLibraryModel?
+
     var document: DocumentHandle? { selection.document }
     var editing: ObjectEditing? { selection.editing }
     private var state: EngineState { document?.state ?? EngineState() }
@@ -344,6 +347,7 @@ final class SymbolLibraryModel {
                 if self.shown.contains(kind) { self.shown.remove(kind) } else { self.shown.insert(kind) }
             })
         }
+        items += SymbolTransferFeatures.shared?.menuItems(for: self) ?? []
         items.append(PanelMenuItem(title: showsPreview ? "Hide Preview" : "Show Preview") { [weak self] in self?.showsPreview.toggle() })
         return items
     }

@@ -156,6 +156,14 @@ public struct PublishProgress: Sendable, Hashable {
     public var blobsDone: Int
     public var blobCount: Int
 
+    public init(phase: Phase, sentBytes: Int64, totalBytes: Int64, blobsDone: Int, blobCount: Int) {
+        self.phase = phase
+        self.sentBytes = sentBytes
+        self.totalBytes = totalBytes
+        self.blobsDone = blobsDone
+        self.blobCount = blobCount
+    }
+
     /// 0...1 for the bar.
     public var fraction: Double {
         switch phase {
@@ -322,6 +330,11 @@ public actor PublishedLinks {
         public var publishes: [Wiretuner_Publish_V1_Publish]
         /// False when the list is the cached one (offline): the sheet is read-only.
         public var isCurrent: Bool
+
+        public init(publishes: [Wiretuner_Publish_V1_Publish], isCurrent: Bool) {
+            self.publishes = publishes
+            self.isCurrent = isCurrent
+        }
     }
 
     public nonisolated let documentID: String

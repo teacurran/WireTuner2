@@ -1,10 +1,18 @@
 import Foundation
+import WTProto
+import WTSync
 
 /// The shortcut sets on this Mac and which one is active (customizing.adoc, `ShortcutSets`):
 /// the built-in sets, resolved against the registry on demand, and the user's own sets, kept in
-/// `Application Support/WireTuner/ShortcutSets.json` until BASIC-028 syncs them with the
-/// account.  Every change calls `onChange`, which rebuilds the menu bar, so switching or editing
-/// a set rebinds every menu item and tool shortcut without relaunch.
+/// `Application Support/WireTuner/ShortcutSets.json`.  Every change calls `onChange`, which
+/// rebuilds the menu bar, so switching or editing a set rebinds every menu item and tool shortcut
+/// without relaunch.
+///
+/// Sync (BASIC-028): every change made here also hands `onSyncChange` the `sync.shortcut_sets`
+/// entry to queue -- the changed sets, only their bindings that differ from the set each was
+/// copied from, a tombstone for a deleted one, and the active set when the choice changed -- and
+/// `applySynced(_:)` takes the account's merged value (`ShortcutSetSync.apply`: newer sets replace
+/// or join, newer tombstones delete, the newer choice of set wins).
 @MainActor
 final class ShortcutSetStore {
     static let fileName = "ShortcutSets.json"
@@ -23,10 +31,13 @@ final class ShortcutSetStore {
     struct File: Codable, Equatable {
         var activeSetID: String
         var sets: [ShortcutSet]
+        /// When the active set was chosen (absent in files written before BASIC-028).
+        var activeSetUpdatedAtMs: Int64?
 
         enum CodingKeys: String, CodingKey {
             case activeSetID = "active_set_id"
             case sets
+            case activeSetUpdatedAtMs = "active_set_updated_at_ms"
         }
     }
 
@@ -42,8 +53,14 @@ final class ShortcutSetStore {
     /// The registered commands, read whenever a set is resolved.
     var commands: @MainActor () -> [Command] = { [] }
     var onChange: (@MainActor () -> Void)?
+    /// The `sync.shortcut_sets` entry of each change made on this Mac, for `PreferenceSync.enqueue`.
+    var onSyncChange: (@MainActor (Wiretuner_Account_V1_PreferenceValue) -> Void)?
+    /// The wall clock in milliseconds.
+    var now: @MainActor () -> Int64 = { ShortcutSet.nowMs() }
     private(set) var userSets: [ShortcutSet] = []
     private(set) var activeSetID = ShortcutSet.defaultID
+    /// When `activeSetID` was chosen; 0 when never.
+    private(set) var activeSetUpdatedAtMs: Int64 = 0
     private(set) var lastSaveError: (any Error)?
 
     /// - Parameter url: the file; nil keeps the sets in memory (tests).
@@ -94,7 +111,8 @@ final class ShortcutSetStore {
     func activate(_ id: String) throws {
         guard contains(id) else { throw Failure.unknownSet(id) }
         activeSetID = id
-        didChange()
+        activeSetUpdatedAtMs = now()
+        didChange(synced: [])
     }
 
     /// A new user set copied from `id` (resolved, so it is complete), made active.
@@ -103,10 +121,11 @@ final class ShortcutSetStore {
         guard let source = resolvedSet(id) else { throw Failure.unknownSet(id) }
         let name = try validName(name)
         guard userSets.count < Self.maximumUserSets else { throw Failure.tooManySets }
-        let copy = source.copy(name: name)
+        let copy = source.copy(name: name, now: now())
         userSets.append(copy)
         activeSetID = copy.id
-        didChange()
+        activeSetUpdatedAtMs = copy.updatedAtMs
+        didChange(synced: [copy.id])
         return copy
     }
 
@@ -126,23 +145,28 @@ final class ShortcutSetStore {
         let name = try validName(name)
         let index = try userIndex(id)
         userSets[index].name = name
-        userSets[index].updatedAtMs = ShortcutSet.nowMs()
-        didChange()
+        userSets[index].updatedAtMs = now()
+        didChange(synced: [id], activeChanged: false)
     }
 
     /// Deletes a user set; deleting the active set switches to WireTuner's.
     func delete(_ id: String) throws {
         let index = try userIndex(id)
         userSets.remove(at: index)
-        if activeSetID == id { activeSetID = ShortcutSet.defaultID }
-        didChange()
+        let stamp = now()
+        let wasActive = activeSetID == id
+        if wasActive {
+            activeSetID = ShortcutSet.defaultID
+            activeSetUpdatedAtMs = stamp
+        }
+        didChange(synced: [], tombstones: [ShortcutSetSync.tombstone(id, at: stamp)], activeChanged: wasActive)
     }
 
     /// Replaces the user set with `set.id`.
     func update(_ set: ShortcutSet) throws {
         let index = try userIndex(set.id)
         userSets[index] = set
-        didChange()
+        didChange(synced: [set.id], activeChanged: false)
     }
 
     /// Imports a `.wtkeys` file as a new user set (a fresh id when the file's id is taken or
@@ -153,8 +177,9 @@ final class ShortcutSetStore {
         guard userSets.count < Self.maximumUserSets else { throw Failure.tooManySets }
         if imported.set.isBuiltIn || contains(imported.set.id) { imported.set.id = UUID().uuidString }
         imported.set.name = (try? validName(imported.set.name)) ?? copyName(for: ShortcutSet.defaultID)
+        imported.set.updatedAtMs = now()
         userSets.append(imported.set)
-        didChange()
+        didChange(synced: [imported.set.id], activeChanged: false)
         return imported
     }
 
@@ -171,19 +196,88 @@ final class ShortcutSetStore {
 
     // MARK: Snapshot (Revert)
 
-    var snapshot: File { File(activeSetID: activeSetID, sets: userSets) }
+    var snapshot: File { File(activeSetID: activeSetID, sets: userSets, activeSetUpdatedAtMs: activeSetUpdatedAtMs) }
 
+    /// Puts the sets back as `snapshot` had them.  To sync, that is a new edit: each set that
+    /// differs is stamped now, each set the snapshot lacks is deleted.
     func restore(_ snapshot: File) {
-        userSets = snapshot.sets
+        let stamp = now()
+        let before = Dictionary(userSets.map { ($0.id, $0) }) { first, _ in first }
+        var changed: [String] = []
+        userSets = snapshot.sets.map { set in
+            guard before[set.id] != set else { return set }
+            var restamped = set
+            restamped.updatedAtMs = stamp
+            changed.append(set.id)
+            return restamped
+        }
+        let kept = Set(userSets.map(\.id))
+        let tombstones = before.keys.sorted().filter { !kept.contains($0) }.map { ShortcutSetSync.tombstone($0, at: stamp) }
+        let activeChanged = activeSetID != snapshot.activeSetID
         activeSetID = snapshot.activeSetID
-        didChange()
+        if activeChanged { activeSetUpdatedAtMs = stamp }
+        didChange(synced: changed, tombstones: tombstones, activeChanged: activeChanged)
+    }
+
+    // MARK: Sync (BASIC-028)
+
+    /// `set` as synced: only the bindings that differ from the set it was copied from (an empty
+    /// key list unbinds), so a set costs what it changes in the account's 64 KiB of preferences.
+    func synced(_ set: ShortcutSet) -> ShortcutSetSync.Item {
+        let origin = set.basedOn.flatMap { $0 == set.id ? nil : resolvedSet($0) } ?? defaultSet
+        let originKeys = Dictionary(origin.bindings.map { ($0.commandID, $0.keys) }) { first, _ in first }
+        var item = ShortcutSetSync.Item()
+        item.id = set.id
+        item.name = set.name
+        item.basedOn = set.basedOn ?? ""
+        item.updatedAtMs = max(set.updatedAtMs, 1)
+        item.bindings = set.bindings.filter { originKeys[$0.commandID] != $0.keys }.map { binding in
+            Wiretuner_Account_V1_Binding.with {
+                $0.commandID = binding.commandID.rawValue
+                $0.keys = binding.keys.map(\.canonical)
+            }
+        }
+        return item
+    }
+
+    /// Every user set and the active set, for the first sync of this Mac's sets (sync turned on).
+    var syncValue: Wiretuner_Account_V1_PreferenceValue {
+        ShortcutSetSync.entry(userSets.map(synced), active: (activeSetID, max(activeSetUpdatedAtMs, 1)))
+    }
+
+    /// A set the account sent, as this Mac keeps it (a key string that does not parse is dropped).
+    static func local(_ item: ShortcutSetSync.Item) -> ShortcutSet {
+        ShortcutSet(id: item.id, name: item.name, basedOn: item.basedOn.isEmpty ? nil : item.basedOn,
+                    bindings: item.bindings.map { ShortcutBinding(commandID: CommandID($0.commandID), keys: $0.keys.compactMap { try? KeyEquivalent(parsing: $0) }) },
+                    updatedAtMs: item.updatedAtMs)
+    }
+
+    /// Applies the account's merged `sync.shortcut_sets` value; nothing is sent back.
+    func applySynced(_ remote: ShortcutSetSync.Sets) {
+        let mine = Dictionary(userSets.map { ($0.id, $0) }) { first, _ in first }
+        let applied = ShortcutSetSync.apply(remote, to: userSets.map(synced), active: (activeSetID, activeSetUpdatedAtMs),
+                                            fallback: ShortcutSet.defaultID)
+        guard applied.changed else { return }
+        userSets = applied.sets.prefix(Self.maximumUserSets).map { item in
+            if let local = mine[item.id], max(local.updatedAtMs, 1) == item.updatedAtMs { return local }
+            return Self.local(item)
+        }
+        activeSetID = contains(applied.activeSetID) ? applied.activeSetID : ShortcutSet.defaultID
+        activeSetUpdatedAtMs = applied.activeSetUpdatedAtMs
+        save()
+        onChange?()
     }
 
     // MARK: Persistence
 
-    private func didChange() {
+    /// Saves, rebuilds, and hands the sync entry of the change to `onSyncChange`.
+    private func didChange(synced ids: [String], tombstones: [ShortcutSetSync.Item] = [], activeChanged: Bool = true) {
         save()
         onChange?()
+        guard let onSyncChange else { return }
+        let sets = userSets.filter { ids.contains($0.id) }.map(synced) + tombstones
+        guard !sets.isEmpty || activeChanged else { return }
+        onSyncChange(ShortcutSetSync.entry(sets, active: activeChanged ? (activeSetID, max(activeSetUpdatedAtMs, 1)) : nil))
     }
 
     /// Reads the file; a missing or unreadable one leaves WireTuner's set active and no user
@@ -192,6 +286,7 @@ final class ShortcutSetStore {
         guard let url, let data = try? Data(contentsOf: url), let file = try? JSONDecoder().decode(File.self, from: data) else { return }
         userSets = file.sets
         activeSetID = file.activeSetID
+        activeSetUpdatedAtMs = file.activeSetUpdatedAtMs ?? 0
     }
 
     private func save() {
