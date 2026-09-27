@@ -16,9 +16,15 @@ final class AccountPreferenceBackend: SyncedPreferenceBackend {
     static let retryInterval: Duration = .seconds(30)
 
     var onRemoteMap: (@MainActor ([String: PreferenceValue]) -> Void)?
+    /// The account's merged `sync.shortcut_sets` in each delivered map (BASIC-028: the
+    /// `ShortcutSetStore` applies it; it is not a store value).
+    var onShortcutSets: (@MainActor (ShortcutSetSync.Sets) -> Void)?
     private(set) var sync: PreferenceSync?
     /// Entries enqueued before a sync was attached.
     private(set) var waiting: [String: PreferenceValue] = [:]
+    /// Wire entries (the shortcut sets) enqueued before a sync was attached, merged as the outbox
+    /// merges them.
+    private(set) var waitingWire: PreferenceSync.Entries = [:]
     /// The last failure, until a call succeeds (the retry is running meanwhile).
     private(set) var lastError: String?
     private var listener: Task<Void, Never>?
@@ -37,15 +43,16 @@ final class AccountPreferenceBackend: SyncedPreferenceBackend {
         listener = Task { [weak self] in
             for await map in await sync.updates() {
                 guard let self else { return }
-                self.onRemoteMap?(Self.values(map))
+                self.deliver(map)
             }
         }
-        let queued = waiting
+        let queued = Self.wire(waiting).merging(waitingWire) { $1 }
         waiting = [:]
+        waitingWire = [:]
         return Task {
             do {
                 try await sync.setEnabled(enabled)
-                try await sync.enqueue(Self.wire(queued))
+                try await sync.enqueue(queued)
             } catch {
                 note(error)
             }
@@ -53,12 +60,43 @@ final class AccountPreferenceBackend: SyncedPreferenceBackend {
         }
     }
 
+    /// The shortcut sets sync through this backend (BASIC-028): every change made on this Mac is
+    /// queued as its `sync.shortcut_sets` entry, and the account's merged value in each delivered
+    /// map is applied to `store` (which sends nothing back).
+    func connect(_ store: ShortcutSetStore) {
+        store.onSyncChange = { [weak self] entry in self?.enqueueWire([ShortcutSetSync.key: entry]) }
+        onShortcutSets = { [weak store] sets in store?.applySynced(sets) }
+    }
+
+    /// A delivered map: the store's values, and the shortcut sets to their store.
+    func deliver(_ map: PreferenceSync.Entries) {
+        onRemoteMap?(Self.values(map))
+        if case .shortcutSetsValue(let sets)? = map[ShortcutSetSync.key]?.value { onShortcutSets?(sets) }
+    }
+
     func enqueue(_ entries: [String: PreferenceValue]) {
-        guard let sync else {
+        guard sync != nil else {
             waiting.merge(entries) { $1 }
             return
         }
-        let wire = Self.wire(entries)
+        send(Self.wire(entries))
+    }
+
+    /// Queues and sends entries already on the wire: `ShortcutSetStore`'s `sync.shortcut_sets`
+    /// entry of each change made on this Mac (BASIC-028).  Before a sync is attached they wait,
+    /// merged per set as the outbox would merge them.
+    func enqueueWire(_ entries: PreferenceSync.Entries) {
+        guard sync != nil else {
+            for (key, value) in entries {
+                waitingWire[key] = ShortcutSetSync.merge(waitingWire[key], value, now: Int64(Date().timeIntervalSince1970 * 1000))
+            }
+            return
+        }
+        send(entries)
+    }
+
+    private func send(_ wire: PreferenceSync.Entries) {
+        guard let sync else { return }
         Task {
             do {
                 try await sync.enqueue(wire)

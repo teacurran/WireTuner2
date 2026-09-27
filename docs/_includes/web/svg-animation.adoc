@@ -289,7 +289,7 @@ details are on xref:publish-html.adoc[Publishing as HTML], "Client").  The publi
 `ExportScene.svgAnimations` (file bytes, natural size, transform, script flag and *On the web*
 settings by node); the wrapper is a `<div>` rather than an injected `<svg>`, and a file that needs
 isolation (script kept under *Allow scripts*) is an `<object>` rather than an `<img>`, since an
-`<img>` runs no script.  The SVG exporter's nesting and the animated-SVG exporter's are not built.
+`<img>` runs no script.  The SVG exporter's nesting and the animated-SVG exporter's are WEB-028's (below).
 
 NOTE: As built by WEB-024 (`WTModel/WebSvgAnimation.swift`).  `SvgAnimationInfo` reads a node with
 the read-time normalizations (a zero natural size 320 × 240, a poster time beyond a finite duration

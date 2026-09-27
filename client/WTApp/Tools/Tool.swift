@@ -241,6 +241,8 @@ struct ToolContext {
     var editText: (@MainActor (OpID, Point) -> Void)?
     /// Opens the Text Editor window on a block, or on a new empty block at the point (TYPE-011).
     var openTextEditor: (@MainActor (OpID?, Point) -> Void)?
+    /// Opens the Text Editor on a text block inside an instance (its text override; LIB-027).
+    var openOverrideEditor: (@MainActor (_ instance: OpID, _ master: OpID) -> Void)?
     /// The Text tool's preferences.
     var text: @MainActor () -> TextToolSettings = { TextToolSettings() }
     /// The Text tool's insertion point moved: the block, the character it is before (zero: the

@@ -107,6 +107,9 @@ final class FollowController {
     private var lastSpotlight: [String: Bool] = [:]
     /// Moves the view to a participant's visible rect and zoom.
     var apply: @MainActor (Rect, Double?) -> Void = { _, _ in }
+    /// The canvas the window shows (nil: the pasteboard); a followed view on another canvas is
+    /// not applied (DOC-012).
+    var canvas: OpID?
     /// Following, the bar or the banners changed.
     var onChange: @MainActor () -> Void = {}
 
@@ -126,7 +129,7 @@ final class FollowController {
         followingName = participant.name
         followingColor = participant.color
         branchOffer = nil
-        if let visible = participant.viewport { apply(visible, participant.zoom) }
+        if let visible = participant.viewport, participant.canvas == canvas { apply(visible, participant.zoom) }
         onChange()
     }
 
@@ -172,7 +175,8 @@ final class FollowController {
                     stop()
                     branchOffer = (name, target.branchID)
                     changed = true
-                } else if let visible = target.viewport {
+                } else if let visible = target.viewport, target.canvas == canvas {
+                    // A view on another canvas (a master page's tab) is in that canvas's space.
                     apply(visible, target.zoom)
                 }
             } else {

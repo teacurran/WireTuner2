@@ -442,7 +442,7 @@ dictionary (in lowercase with *Add words to dictionary* > *All lowercase*) and w
 *Check spelling while typing* the Text tool's block has its words underlined in red (canvas overlay,
 cached per revision).  The kbd:[Control]-click suggestions came with the rest of TYPE-014, below.
 
-NOTE: TYPE-016, continued: the Text Editor draws collaborators' carets (name beside) and selections
+NOTE: As built by TYPE-016 (`WTApp/Text/Editor/`, `RemovedTextNotice.swift`, `Collaboration/PresenceOverlay.swift`): the Text Editor draws collaborators' carets (name beside) and selections
 (tinted) in their colour, resolved through anchors like the canvas's.  When a remote change deletes
 the block being edited, the window's banner says "<name> deleted the text you were editing." with
 btn:[Restore], one undoable change "Restore text" (`deleted = false`; `WTApp/Text/RemovedTextNotice.swift`).
@@ -621,7 +621,7 @@ Done when::
 * Merge test: the notice appears when a remote `deleted = true` arrives for the edited node,
   and *Restore* writes `deleted = false` as one undoable change.
 
-NOTE: Partly built with TYPE-003: on the canvas a collaborator's caret is drawn at its character
+NOTE: As built by TYPE-016 with TYPE-003 (`PresenceOverlay.caretGeometry`): on the canvas a collaborator's caret is drawn at its character
 through the block's layout (a deleted character reads where it was; a character not received yet,
 or a caret in a deleted block, is not drawn) and a range as a tint in their colour
 (`PresenceOverlay.caretGeometry`).  Carets in the Text Editor and the *Restore* notice came with

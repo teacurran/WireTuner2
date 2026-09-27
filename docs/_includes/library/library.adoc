@@ -877,8 +877,14 @@ menu:Text[Editor…] opens on the Text tool's override (keyed per instance and b
 names the instance and the override element's text field (`SymbolFields.overrideText`) once the element exists -- before the first
 edit the text is the master's and nothing is published -- and `PresenceOverlay.caretText` resolves such a caret through
 `Symbols.overrideMaster(ofTextField:in:)` to the master block laid out as the instance draws it.  The UI tests of *Done when* are
-app tests (`SymbolOverrideEditingTests`), as elsewhere in this book.  Not built: the Text tool's kbd:[Option]-click opening the Text
-Editor on a block inside an instance (the menu command does) and text styles applied to an override.
+app tests (`SymbolOverrideEditingTests`), as elsewhere in this book.  The rest of LIB-027: the Text tool's kbd:[Option]-click on a
+block inside an instance opens the Text Editor on its override (`ToolContext.openOverrideEditor`, which selects the instance), and
+the Object panel's *Style* and *Character style* pop-ups apply to the override while its block is edited -- `OverrideTextStyles`
+(`WTModel/OverrideTextStyles.swift`) turns a style into the `OverrideText` edits `ApplyParagraphStyle` and `ApplyCharacterStyle` write
+to a block (the `style` register of each touched paragraph with the governed registers cleared and a cleared mark per governed
+character attribute; a `style` mark and the cleared marks for a character style), one change "Apply style", and the pop-ups read the
+override's paragraphs and runs.  Deviation: a paragraph style leaves an override paragraph's own tab stops (a paragraph edit writes
+registers, not the `tabs` sequence).  Tests: `OverrideTextStylesTests` (WTModel), `SymbolOverrideEditingTests`.
 
 NOTE: As built by LIB-016 (`WTSync/TeamLibraryClient.swift`; `WTModel/TeamLibraryPlacement.swift`, `Symbols.artwork(of:in:)`
 in `Symbols.swift`, the child provenance in `LibraryCatalog.swift`; `WTApp/Library/TeamLibraryFeatures.swift` and additions to

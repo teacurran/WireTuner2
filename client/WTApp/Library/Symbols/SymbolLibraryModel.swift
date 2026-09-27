@@ -59,6 +59,8 @@ final class SymbolLibraryModel {
     @ObservationIgnored var dismiss: @MainActor () -> Void = {}
     /// Opens a symbol's editing window (LIB-012, `SymbolEditingWindows`); nothing in tests.
     @ObservationIgnored var edit: @MainActor (OpID) -> Void = { _ in }
+    /// Opens a master page in its tab (a master row's double-click; DOC-012's rest).
+    @ObservationIgnored var editMaster: @MainActor (OpID) -> Void = { _ in }
 
     init(selection: ActiveSelection) {
         self.selection = selection
@@ -282,8 +284,10 @@ final class SymbolLibraryModel {
         return true
     }
 
-    /// Double-click on a symbol's icon: selects it and opens its editing window.
+    /// Double-click on a symbol's icon: selects it and opens its editing window; on a master
+    /// page's, opens the master in its tab (master-pages.adoc, "Editing a master page").
     func editRow(_ id: OpID) {
+        if rows.first(where: { $0.id == id })?.kind == .master { return editMaster(id) }
         guard rows.first(where: { $0.id == id })?.kind == .symbol else { return }
         click(id)
         editSelected()

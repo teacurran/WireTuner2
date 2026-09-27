@@ -17,8 +17,11 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
         StandardCommands.ID.print, ContextMenuCatalog.ID.lock, ContextMenuCatalog.ID.unlock,
         PanelCommands.ID.show("findReplace"), PanelCommands.ID.show("align"), PanelCommands.ID.show("transform"),
         PanelCommands.ID.show("library"), PanelCommands.ID.show("object"), PanelCommands.ID.show("colorMixer"),
-        PanelCommands.ID.show("swatches"), PanelCommands.ID.show("layers"), MainToolbarController.comments, ContextMenuCatalog.ID.share,
+        PanelCommands.ID.show("swatches"), PanelCommands.ID.show("layers"), MainToolbarController.comments, MainToolbarController.inspect,
+        ContextMenuCatalog.ID.share,
     ]
+    /// The Inspect button: toggles Inspect mode (inspect.adoc; COLLAB-035).
+    static let inspect = CollaborationFeatures.ID.inspectMode
     /// The Comments button: opens the Comments panel, badged with the unread count (comments.adoc).
     static let comments = PanelCommands.ID.show("comments")
     static let saveVersion = StandardCommands.ID.saveVersion
@@ -28,6 +31,7 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
     static let labels: [CommandID: String] = [
         saveVersion: "Save Version", importFile: "Import", StandardCommands.ID.print: "Print", StandardCommands.ID.open: "Open",
         PanelCommands.ID.show("findReplace"): "Find & Replace", ContextMenuCatalog.ID.share: "Share", comments: "Comments",
+        inspect: "Inspect",
     ]
 
     static let symbols: [CommandID: String] = [
@@ -38,7 +42,7 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
         PanelCommands.ID.show("library"): "books.vertical", PanelCommands.ID.show("object"): "square.on.circle",
         PanelCommands.ID.show("colorMixer"): "paintpalette", PanelCommands.ID.show("swatches"): "swatchpalette",
         PanelCommands.ID.show("layers"): "square.3.layers.3d", ContextMenuCatalog.ID.share: "square.and.arrow.up",
-        comments: "text.bubble",
+        comments: "text.bubble", inspect: "ruler",
     ]
 
     let environment: DocumentEnvironment

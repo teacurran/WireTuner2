@@ -1,6 +1,8 @@
 import AppKit
+import Observation
 import PDFKit
 import SwiftUI
+import Synchronization
 import Testing
 @testable import WireTuner
 
@@ -359,6 +361,54 @@ import Testing
         KeyboardShortcutsCommands.install(into: registry) { shown += 1 }
         #expect(registry.perform(StandardCommands.ID.keyboardShortcuts) && shown == 1)
         #expect(registry[StandardCommands.ID.keyboardShortcuts]?.menuPath == MenuPath("Edit", section: 2))
+    }
+
+    /// The list's outline view writes the sections' expansion and its selection from inside its
+    /// delegate callbacks while it lays out; a write that changes nothing must not invalidate the
+    /// model, or SwiftUI reloads the table from within its own delegate ("reentrant operation in
+    /// NSTableView delegate", seen once in `theAppOpensOneEditorWindow`).
+    @Test func unchangedWritesFromTheListInvalidateNothing() {
+        let registry = CommandRegistry()
+        StandardCommands.register(into: registry)
+        let model = KeyboardShortcutsModel(store: ShortcutSetStore(url: nil), registry: registry)
+        let category = model.categories[0].id
+        let count = Mutex(0)
+        var invalidations: Int { count.withLock { $0 } }
+        func track(_ read: @escaping () -> Void) {
+            withObservationTracking(read) { count.withLock { $0 += 1 } }
+        }
+        track { _ = model.isExpanded(category) }
+        model.expansion(for: category).wrappedValue = true
+        #expect(invalidations == 0, "already expanded: nothing changed")
+        model.expansion(for: category).wrappedValue = false
+        #expect(invalidations == 1 && !model.isExpanded(category))
+        track { _ = model.isExpanded(category) }
+        model.setExpanded(false, category)
+        #expect(invalidations == 1, "already collapsed")
+        model.setExpanded(true, category)
+        #expect(invalidations == 2 && model.isExpanded(category))
+        let id = model.categories[0].rows[0].id
+        model.selection.wrappedValue = id
+        track { _ = model.selectedCommandID }
+        model.selection.wrappedValue = id
+        #expect(invalidations == 2 && model.selection.wrappedValue == id)
+        model.selection.wrappedValue = nil
+        #expect(invalidations == 3 && model.selectedCommandID == nil)
+    }
+
+    /// The editor window opened twice in one turn with its list laid out between: the second show
+    /// writes nothing the list reads back into its delegate.
+    @Test func showingTheEditorAgainWhileItLaysOutIsSafe() {
+        let registry = CommandRegistry()
+        StandardCommands.register(into: registry)
+        let controller = KeyboardShortcutsWindowController(model: KeyboardShortcutsModel(store: ShortcutSetStore(url: nil), registry: registry))
+        defer { controller.close() }
+        controller.show()
+        controller.window?.contentView?.layoutSubtreeIfNeeded()
+        controller.window?.displayIfNeeded()
+        controller.show()
+        controller.window?.displayIfNeeded()
+        #expect(controller.window?.isVisible == true)
     }
 
     @Test func theAppOpensOneEditorWindow() {

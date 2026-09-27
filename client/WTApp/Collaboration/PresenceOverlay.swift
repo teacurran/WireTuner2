@@ -167,14 +167,26 @@ struct PresenceOverlay {
     /// A remote caret's ends and its selection's quads, in view points; nil when the block has
     /// no layout to place it in.
     func caretGeometry(_ caret: RemoteCaret) -> (top: Point, bottom: Point, selection: [[Point]])? {
-        guard let (text, layout, toPasteboard) = Self.caretText(caret, in: document), text.length > 0,
-              let offset = Self.offset(caret.position, in: text), let placed = layout.caret(atOffset: offset) else { return nil }
-        let toView = toPasteboard.concatenating(viewport.pasteboardToView)
+        guard let (text, ownLayout, toPasteboard) = Self.caretText(caret, in: document), text.length > 0,
+              let offset = Self.offset(caret.position, in: text) else { return nil }
+        // A caret in the head of a linked flow is in the story, drawn in whichever member lays out
+        // its character (TYPE-007).
+        var layout = ownLayout
+        var placement: (Int) -> WTGeometry.AffineTransform = { _ in toPasteboard }
+        let node = caret.node.opID
+        if caret.text == TextFields.text, let flow = document.chainLayout(for: node), flow.chain.first == node {
+            let state = document.state
+            layout = flow.layout
+            placement = { flow.chain.indices.contains($0) ? Objects.pasteboardTransform(of: flow.chain[$0], in: state) : toPasteboard }
+        }
+        guard let placed = layout.caret(atOffset: offset) else { return nil }
+        let pasteboardToView = viewport.pasteboardToView
+        let toView = { (container: Int) in placement(container).concatenating(pasteboardToView) }
         var selection: [[Point]] = []
         if let end = caret.rangeEnd, let other = Self.offset(end, in: text), other != offset {
-            selection = layout.selection(from: offset, to: other).map { $0.corners.map { toView.apply($0) } }
+            selection = layout.selection(from: offset, to: other).map { quad in quad.corners.map { toView(quad.container).apply($0) } }
         }
-        return (toView.apply(placed.top), toView.apply(placed.bottom), selection)
+        return (toView(placed.container).apply(placed.top), toView(placed.container).apply(placed.bottom), selection)
     }
 
     /// The collaborators' text selections, tinted in their colour.

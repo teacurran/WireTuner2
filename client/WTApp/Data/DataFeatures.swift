@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Observation
+import SwiftUI
 import WTCRDT
 import WTGeometry
 import WTInterchange
@@ -196,21 +197,26 @@ final class DataFeatures {
     }
 
     /// *Export Data…*: the resolved records as CSV (UTF-8 with a byte-order mark for
-    /// spreadsheets), a `record` column first.
+    /// spreadsheets) -- the fields, the record range and the `record` column chosen in the save
+    /// panel's options (DATA-022; `options` in place of the panel's in tests).
     @discardableResult
-    func exportData(to chosen: URL? = nil) async -> URL? {
+    func exportData(to chosen: URL? = nil, options: DataExport? = nil) async -> URL? {
         guard let (window, session) = front, !session.records.isEmpty else { return nil }
         let destination: URL?
+        var export = options ?? DataExport()
         if let chosen {
             destination = chosen
         } else {
             let panel = NSSavePanel()
             panel.nameFieldStringValue = "\(window.documentHandle.title) data.csv"
             panel.allowedContentTypes = [.commaSeparatedText]
+            let model = DataExportOptionsModel(records: session.records)
+            panel.accessoryView = NSHostingView(rootView: DataExportOptionsView(model: model))
             destination = await ModalUI.url(panel, on: window.window)
+            export = model.export
         }
         guard let destination else { return nil }
-        let text = Self.exportTable(session.records).csv(bom: true)
+        let text = export.csv(session.records)
         do {
             try Data(text.utf8).write(to: destination, options: .atomic)
             return destination
@@ -222,16 +228,7 @@ final class DataFeatures {
 
     /// The resolved records as a table: `record`, then each field by name, formatted values.
     static func exportTable(_ records: RecordSet) -> DataTable {
-        let fields = records.fields.filter { !$0.name.isEmpty }
-        let rows = records.records.map { record in
-            var values = ["record": String(record.number)]
-            for field in fields {
-                let value = record.value(field.id)
-                if value.raw != nil { values[field.name] = value.text }
-            }
-            return DataRecord(values)
-        }
-        return DataTable(columns: ["record"] + fields.map(\.name), records: rows)
+        DataExport().table(records)
     }
 }
 

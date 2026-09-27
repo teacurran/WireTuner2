@@ -269,6 +269,22 @@ extension FakeCollaborationServer {
         #expect(StorageUsage(spaceID: "", usedBytes: 100, limitBytes: 100).isFull && !StorageUsage(spaceID: "", usedBytes: 1, limitBytes: 0).isFull)
     }
 
+    /// IO-009's rest: the library window's *Storage almost full* banner for the space it shows.
+    @Test func theLibraryWindowShowsStorageAlmostFull() async throws {
+        let library = LibraryModel(services: FakeLibraryServer().services(), store: nil, thumbnails: ThumbnailCache(directory: nil))
+        let monitor = StorageMonitor()
+        let space = library.currentSpace.id
+        monitor.fetch = { [StorageUsage(spaceID: space, usedBytes: 95, limitBytes: 100), StorageUsage(spaceID: "other", usedBytes: 1, limitBytes: 100)] }
+        var read: [StorageUsage] = []
+        monitor.onUsage = { read = $0 }
+        #expect(await monitor.refresh() && read.count == 2)
+        #expect(library.storageBanner == nil)
+        library.storageNotes = Dictionary(read.compactMap { item in StorageMonitor.note(item).map { (item.spaceID, $0) } }, uniquingKeysWith: { a, _ in a })
+        #expect(library.storageBanner?.hasPrefix("Storage almost full") == true && library.storageNotes["other"] == nil)
+        Render.view(LibraryView(model: library))
+        library.refreshStorage()
+    }
+
     // MARK: Preview in Browser
 
     @Test func previewInBrowserPublishesThePageOrTheLinkedDocument() async throws {

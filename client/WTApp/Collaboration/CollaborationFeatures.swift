@@ -107,6 +107,9 @@ final class CollaborationFeatures {
     var presentSheet: @MainActor (NSWindow, NSWindow?) -> Void = { sheet, parent in
         if let parent { parent.beginSheet(sheet) } else { sheet.makeKeyAndOrderFront(nil) }
     }
+    /// The caller's role in a document (the library's record); a viewer's window opens in Inspect
+    /// mode (inspect.adoc, "Entering and leaving Inspect mode"; COLLAB-035's rest).
+    var role: @MainActor (String) -> DocumentRole? = { _ in nil }
     private var windows: [ObjectIdentifier: (window: DocumentWindowController, ui: WindowCollaborationUI)] = [:]
     private var closing: [ObjectIdentifier: NSObjectProtocol] = [:]
     private(set) var sheets: [String: NSWindow] = [:]
@@ -127,6 +130,7 @@ final class CollaborationFeatures {
         let ui = WindowCollaborationUI(window: window, features: self)
         windows[key] = (window, ui)
         ui.install(features: self)
+        if role(window.documentHandle.id) == .viewer { ui.inspect.enter() }
         if let nswindow = window.window {
             closing[key] = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nswindow, queue: .main) { [weak self, weak window] _ in
                 MainActor.assumeIsolated { if let window { self?.detach(window) } }
@@ -295,6 +299,7 @@ extension AppDelegate {
             await DocumentOpener.close(model.backend)
             return state
         }
+        collaborationUI.role = { library.cache.documents[$0]?.role }
         collaborationUI.install(commands: commands) { documents.activeWindowController }
     }
 }

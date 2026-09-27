@@ -192,9 +192,9 @@ final class TextTool: Tool, TextInputHandling {
         var hits: [(path: [Int], target: TextEditingSession.Target)] = []
         for object in document.scene.objects.values where !object.isEffectivelyLocked {
             if object.kind == .text {
-                guard let layout = document.textLayout(for: object.id),
+                guard let frame = TextFrames.frame(ofBlock: object.id, document: document),
                       let local = Objects.pasteboardTransform(of: object.id, in: state).inverted()?.apply(point),
-                      TextFrames.frame(of: layout).expanded(by: slop).contains(local) else { continue }
+                      frame.expanded(by: slop).contains(local) else { continue }
                 hits.append((object.itemPath, .node(object.id)))
             } else if object.kind == .instance, object.bounds?.expanded(by: slop).contains(point) == true,
                       let artwork = Symbols.resolvedArtwork(of: object.id, in: state) {
@@ -214,7 +214,12 @@ final class TextTool: Tool, TextInputHandling {
     func mouseDown(_ e: CanvasEvent) {
         guard let context else { return }
         if session == nil, let open = context.openTextEditor, e.modifiers.contains(.option) || context.text().alwaysUseEditor {
-            // kbd:[Option]-click (or any click with *Always use Text Editor*) opens the Text Editor.
+            // kbd:[Option]-click (or any click with *Always use Text Editor*) opens the Text Editor --
+            // on a block inside an instance, on its text override (LIB-027).
+            if case .override(let instance, let master)? = textTarget(at: e, context: context), let openOverride = context.openOverrideEditor {
+                openOverride(instance, master)
+                return
+            }
             let node = textBlock(at: e, context: context)
             if node != nil || e.modifiers.contains(.option) {
                 open(node, e.pasteboardPoint)

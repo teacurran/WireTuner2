@@ -446,9 +446,10 @@ with script under *Allow scripts* is written to `animations/<hash>.svg` and embe
 autoplay or until `:hover` for *Play on hover*, `animation-iteration-count` infinite or 1 for *Loop*
 and *Once* (CSS animations only; SMIL timelines play as the file says).  Deviations: the animations
 sit above the whole page picture, so an object stacked above a placed animation is drawn beneath it;
-posters are not written to `animations/` (the page no longer draws them).  *Not built yet:* HTML5
-validation and the headless WebKit comparison of the corpus, and the WTModel half that fills
-`ExportScene.svgAnimations` from `svg_animation` nodes (`SvgAnimationInfo` and the asset blobs).
+posters are not written to `animations/` (the page no longer draws them).  The WTModel
+half that fills `ExportScene.svgAnimations` from `svg_animation` nodes is `ExportSnapshot`'s (WEB-024's
+`SvgAnimationInfo` and the asset blobs).  *Not built yet:* HTML5 validation and the headless WebKit comparison of
+the corpus.
 
 NOTE: As built by WEB-010, in part (`WTInterchange/Export/ExportWarnings.swift`).  `ExportWarnings`
 is the sink: `ExportWarning(kind, node:, page:, message)`, duplicates dropped, a stable order (page,

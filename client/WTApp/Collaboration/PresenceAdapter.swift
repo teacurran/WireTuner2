@@ -59,7 +59,7 @@ final class PresenceAdapter: PresenceProviding {
             zoom: source.zoom, page: source.page.map(SelectionID.init),
             caret: source.caret.map { RemoteCaret(node: SelectionID($0.node), position: $0.position, rangeEnd: $0.rangeEnd, text: $0.text ?? TextFields.text) },
             role: roleTitle(source.role), branchID: source.branchID, isIdle: source.isIdle, isFrozen: source.frozen,
-            spotlight: source.spotlight, followingUserID: source.followingUserID
+            spotlight: source.spotlight, followingUserID: source.followingUserID, canvas: source.canvas
         )
     }
 

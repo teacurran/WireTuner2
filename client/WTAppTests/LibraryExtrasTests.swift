@@ -84,6 +84,11 @@ import WTRender
         f.model.click(row.id)
         f.model.beginRename(row.id)
         #expect(f.model.renaming == nil && f.model.remove() == nil)
+        // A master row's double-click opens the master in its tab (DOC-012's rest).
+        let opened = TestBox<[OpID]>([])
+        f.model.editMaster = { opened.value.append($0) }
+        SymbolLibraryPanelBody.editing(row.id, f.model)()
+        #expect(opened.value == [master.id])
         f.model.optionsMenu().first { $0.title == "Hide Master Pages" }?.action()
         #expect(!f.model.rows.contains { $0.kind == .master })
         f.model.shown.insert(.masterPage)

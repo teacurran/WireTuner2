@@ -34,6 +34,8 @@ final class TextEditorModel {
 
     init(document: DocumentHandle, target: TextEditingSession.Target, sink: any CommandSink) {
         self.document = document
+        // A member of a linked flow opens the flow's story, held by the chain's head (TYPE-007).
+        let target = TextEditingSession.story(target, in: document.state)
         self.target = target
         if case .override(let instance, _) = target { node = instance } else if case .node(let id) = target { node = id } else { node = .zero }
         session = TextEditingSession(document: document, sink: sink, target: target)

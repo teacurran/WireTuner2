@@ -564,4 +564,67 @@ struct WebWorld {
         let empty = ExportWebPresetModel(defaults: world.setup.environment.preferences.defaults) { nil }
         #expect(empty.estimateSize(WebExportPreset.builtIn[0]) == nil)
     }
+
+    /// WEB-006's rest: the preset editor in the Export sheet -- save the sheet's settings, rename,
+    /// duplicate, delete, and `.wtpreset` files out and in.
+    @Test func thePresetEditorManagesTheUsersPresets() async throws {
+        let world = WebWorld()
+        defer { world.close() }
+        let suite = "wt.test.webeditor.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let exports = ExportController(defaults: world.setup.environment.preferences.defaults)
+        let sheet = ExportSheetModel(context: exports.context(for: world.window), settings: ExportSettings(), presets: exports.presets, registry: exports.registry)
+        let web = ExportWebPresetModel(defaults: defaults) { nil }
+        sheet.web = web
+        // Save the sheet's settings (JPEG at quality 55) as a preset: it is chosen.
+        sheet.settings.format = .jpeg
+        sheet.settings.options.jpeg.quality = 55
+        web.beginNaming(.saving)
+        #expect(web.naming == .saving && web.name.isEmpty && ExportWebPresetSection.naming(web).wrappedValue)
+        ExportWebPresetSection.name(web).wrappedValue = "Banner"
+        let saved = try #require(web.commitName(sheet: sheet))
+        #expect(saved.name == "Banner" && saved.format == .jpeg && saved.quality == 55 && web.choice == saved.id && web.canEdit && web.naming == nil)
+        Render.view(ExportWebPresetSection(model: sheet, web: web))
+        // Rename; duplicate; a built-in preset refuses rename and delete.
+        web.beginNaming(.renaming)
+        #expect(web.name == "Banner")
+        web.name = "Hero"
+        #expect(web.commitName(sheet: sheet)?.name == "Hero")
+        let copy = try #require(web.duplicateChosen())
+        #expect(copy.name == "Hero 2" && web.choice == copy.id)
+        web.choice = "web.png-2x"
+        #expect(!web.canEdit && web.renameChosen(to: "X") == nil && web.message == "Built-in presets cannot be changed.")
+        web.deleteChosen()
+        #expect(web.message == "Built-in presets cannot be changed.")
+        #expect(web.duplicateChosen()?.name == "Web — PNG 2× 2")
+        // Export the user's presets, delete them, import them back.
+        let url = FileManager.default.temporaryDirectory.appending(component: "presets-\(UUID().uuidString).wtpreset")
+        web.chooseExportURL = { _ in url }
+        #expect(web.exportPresets() == url && web.message == "Exported 3 presets.")
+        for preset in web.store.userPresets {
+            web.choice = preset.id
+            web.deleteChosen()
+        }
+        #expect(web.store.userPresets.isEmpty && web.choice == "")
+        #expect(web.exportPresets() == nil && web.message == "There are no presets of yours to export.")
+        web.chooseImportURL = { url }
+        #expect(web.importPresets() == 3 && web.message == "Imported 3 presets.")
+        let bad = FileManager.default.temporaryDirectory.appending(component: "bad-\(UUID().uuidString).wtpreset")
+        try Data("x".utf8).write(to: bad)
+        web.chooseImportURL = { bad }
+        #expect(web.importPresets() == 0 && web.message == "The file is not a preset file.")
+        web.chooseImportURL = { nil }
+        #expect(web.importPresets() == 0)
+        web.chooseExportURL = { _ in nil }
+        #expect(web.exportPresets() == nil)
+        // A format no web preset names cannot be saved; Cancel leaves nothing.
+        sheet.settings.format = .pdf
+        #expect(web.saveCurrent(named: "P", sheet: sheet) == nil && web.message == "Web presets are PNG, JPEG, WebP, AVIF, GIF or SVG.")
+        web.naming = nil
+        #expect(web.commitName(sheet: sheet) == nil)
+        ExportWebPresetSection.naming(web).wrappedValue = false
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(at: bad)
+    }
 }

@@ -77,6 +77,46 @@ import WTSync
         backend.stop()
     }
 
+    /// BASIC-028's app glue: the shortcut sets travel through the preferences backend -- a change
+    /// here waits until a sync is attached, then goes up; the account's sets come down into the store.
+    @Test func shortcutSetsSyncThroughTheBackend() async throws {
+        let server = FakePreferencesServer()
+        var remote = Wiretuner_Account_V1_ShortcutSet()
+        remote.id = "remote-set"
+        remote.name = "Remote"
+        remote.basedOn = ShortcutSet.defaultID
+        remote.updatedAtMs = 5
+        var value = ShortcutSetSync.entry([remote])
+        value.updatedAtMs = 5
+        server.put(ShortcutSetSync.key, value)
+        let backend = AccountPreferenceBackend(sleep: { _ in try await Task.sleep(for: .seconds(3600)) })
+        let folder = TestStores.directory()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let store = ShortcutSetStore(url: folder.appending(path: "ShortcutSets.json"))
+        backend.connect(store)
+        let mine = try store.makeCopy(of: ShortcutSet.defaultID, name: "Mine")
+        #expect(backend.waitingWire[ShortcutSetSync.key] != nil, "waits for a sync")
+        _ = try store.makeCopy(of: ShortcutSet.defaultID, name: "Also mine")
+        await backend.attach(try Self.sync(server), enabled: true).value
+        #expect(backend.waitingWire.isEmpty)
+        #expect(await eventually { store.userSets.contains { $0.id == "remote-set" } }, "the account's set came down")
+        #expect(await eventually {
+            if case .shortcutSetsValue(let sets)? = server.stored[ShortcutSetSync.key]?.value { return sets.sets.contains { $0.id == mine.id } }
+            return false
+        }, "this Mac's set went up")
+        // A rename after the attach goes up at once.
+        try store.rename(mine.id, to: "Renamed")
+        #expect(await eventually {
+            if case .shortcutSetsValue(let sets)? = server.stored[ShortcutSetSync.key]?.value { return sets.sets.contains { $0.name == "Renamed" } }
+            return false
+        })
+        // A delivered map without shortcut sets leaves the store alone.
+        let before = store.userSets
+        backend.deliver([:])
+        #expect(store.userSets == before)
+        backend.stop()
+    }
+
     @Test func aFailingAttachRetriesAndStopCancelsIt() async throws {
         let server = FakePreferencesServer()
         server.failing = true
@@ -338,6 +378,41 @@ import WTSync
         OptimizeImageSheet.cancel(model)()
         _ = OptimizeImageSheet.optimize(model)
         #expect(OptimizeImageModel.message(.unreadable) == "The image could not be read." && OptimizeImageModel.message(.encodingFailed("x")) == "The image could not be written.")
+    }
+
+    /// IMG-025's rest: *Trim to crop* encodes only a cropped image's visible pixels and writes it
+    /// with `TrimImageToCrop` beside the others' `OptimizeImages`, one change (that the visible part
+    /// stays in place is `ImageCroppingTests`).
+    @Test func trimToCropKeepsTheVisiblePixelsInOneChange() async throws {
+        let data = Self.png()
+        let cropped = OptimizeImageModel.Item(node: OpID(counter: 5, replica: 1), name: "Photo", data: data, pixelWidth: 64, pixelHeight: 32, placedWidth: 32,
+                                              crop: Rect(x: 0.25, y: 0, width: 0.5, height: 1))
+        let plain = OptimizeImageModel.Item(node: OpID(counter: 6, replica: 1), name: "Other", data: data, pixelWidth: 64, pixelHeight: 32, placedWidth: 32)
+        var performed: [any WTModel.Command] = []
+        let model = OptimizeImageModel(items: [cropped, plain], perform: { command in
+            performed.append(command)
+            return Task { nil }
+        }, storeBlobs: { _ in })
+        model.settle = .zero
+        #expect(model.canTrim && model.input(cropped)?.trimmed == false, "off until chosen")
+        model.trimToCrop = true
+        let input = try #require(model.input(cropped))
+        #expect(input.trimmed && input.placedWidth == 16 && model.input(plain)?.trimmed == false)
+        let cut = try #require(OptimizeImageModel.image(input.data))
+        #expect(cut.width == 32 && cut.height == 32)
+        #expect(OptimizeImageModel.trimmed(Data([1, 2]), to: (0, 0, 1, 1)) == nil)
+        Render.view(OptimizeImageSheet(model: model))
+        await model.optimize()?.value
+        let batch = try #require(performed.first as? CommandBatch)
+        #expect(batch.label == "Optimize (2 images)" && batch.commands.count == 2)
+        #expect((batch.commands[0] as? TrimImageToCrop)?.node == cropped.node && (batch.commands[1] as? OptimizeImages)?.results.map(\.node) == [plain.node])
+        #expect(!OptimizeImageModel(items: [plain], perform: { _ in Task { nil } }, storeBlobs: { _ in }).canTrim)
+
+        // One trimmed image alone: a batch of the trim under "Optimize <name>".
+        let pixels = try ImageOptimizer.optimize(input.data, placedWidth: input.placedWidth, options: ImageOptimizeOptions())
+        let single = try #require(OptimizeImageModel.command([(cropped.node, pixels, true)], names: ["Photo"]) as? CommandBatch)
+        #expect(single.label == "Optimize Photo" && single.commands.count == 1)
+        #expect(OptimizeImageModel.command([(plain.node, pixels, false)], names: ["Other"]) is OptimizeImages)
     }
 
     @Test func anUnreadableOrMissingImageIsReported() async {

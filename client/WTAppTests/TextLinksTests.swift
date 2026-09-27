@@ -110,4 +110,67 @@ import WTProto
         await world.settle()
         #expect(TextChains.chain(of: x, in: world.state) == [x, z])
     }
+
+    /// TYPE-007: a click and typing in any member of a linked chain edit the story -- the head's
+    /// text -- at the place that member draws, never the member's dormant text; the caret, the
+    /// selection and the frame are drawn in the member that lays the characters out, and the Text
+    /// Editor opens the story from any member.
+    @Test func typingIntoAMemberEditsTheStory() async throws {
+        let world = TypeWorld()
+        defer { world.close() }
+        let head = try await Self.area(world, Self.story, Rect(x: 50, y: 50, width: 200, height: 40))
+        let member = try await Self.area(world, "", Rect(x: 50, y: 200, width: 200, height: 300))
+        _ = await world.document.perform(LinkTextBlocks(from: head, to: member)).value
+        await world.settle()
+        #expect(TextChains.chain(of: head, in: world.state) == [head, member])
+        let session = TextEditingSession(document: world.document, sink: world.document, target: .node(member))
+        #expect(session.node == head && session.flow?.chain == [head, member])
+        let flow = try #require(session.flow)
+        // A click in the member lands in the member's part of the story.
+        let click = Point(x: 52, y: 205)
+        let local = try #require(Objects.pasteboardTransform(of: member, in: world.state).inverted()).apply(click)
+        let expected = try #require(flow.layout.offset(at: local, inContainer: 1))
+        #expect(expected > 0 && expected < Array(Self.story.unicodeScalars).count)
+        session.click(at: click, granularity: .character, extend: false)
+        await session.settle()
+        #expect(session.focusOffset == expected && session.activeContainer == 1)
+        #expect(session.contains(Point(x: 100, y: 300)) && session.contains(Point(x: 100, y: 60)) && !session.contains(Point(x: 700, y: 700)))
+        let corners = session.frameCorners
+        #expect(abs(corners[0].x - 50) < 0.01 && abs(corners[0].y - 200) < 0.01, "the frame is the member's")
+        let caret = try #require(session.caret)
+        #expect(caret.top.y >= 199 && caret.bottom.y <= 500, "the caret is drawn in the member")
+        session.insert("Z")
+        await session.settle()
+        await world.settle()
+        let story = try #require(world.state.textNode(head))
+        #expect(Array(story.string.unicodeScalars)[expected] == "Z")
+        #expect(world.state.textNode(member)?.length == 0, "the member's own text stays dormant")
+        // A selection across the two members is drawn in both.
+        session.select(anchor: 0, focus: expected + 1)
+        await session.settle()
+        let quads = session.selectionQuads
+        #expect(quads.contains { $0.allSatisfy { $0.y < 100 } } && quads.contains { $0.allSatisfy { $0.y > 190 } })
+        #expect(session.caretBaseline != nil)
+        // A remote caret in the story is drawn in the member that lays its character out.
+        let overlay = PresenceOverlay(document: world.document, viewport: world.window.viewport)
+        let char = try #require(story.anchor(at: expected).char as OpID?)
+        let remote = RemoteCaret(node: SelectionID(head), position: char)
+        let geometry = try #require(overlay.caretGeometry(remote))
+        let top = world.window.viewport.viewToPasteboard.apply(geometry.top)
+        #expect(top.y > 190, "drawn in the member, not the head")
+        // The Text tool's hit test finds the member by its container of the story; the editor
+        // opens the story.
+        let editor = TextEditorModel(document: world.document, node: member, sink: world.document)
+        #expect(editor.node == head && editor.text?.string == story.string)
+        #expect(TextFrames.frame(ofBlock: member, document: world.document)?.height == 300)
+        #expect(TextEditingSession.story(.pending(.point(.zero)), in: world.state) == .pending(.point(.zero)))
+        // Emptying the story does not delete its head: the members still hold the flow.
+        session.selectAll()
+        session.delete(.deleteSelection)
+        await session.settle()
+        await world.settle()
+        #expect(session.end() == head)
+        await world.settle()
+        #expect(world.state.isLive(head) && TextChains.chain(of: head, in: world.state) == [head, member])
+    }
 }

@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
+import WTInterchange
 import WTCRDT
 import WTModel
 import WTProto
@@ -27,14 +28,17 @@ final class StyleTransferModel {
         case document(id: String, name: String)
         /// A team library (its state is in the catalog).
         case library(id: String, name: String)
-        /// A style library file.
+        /// A style library file, or a {product} package on disk.
         case file(URL)
+        /// A document of the library that this Mac holds no copy of: read from the server at head.
+        case cloud(id: String, name: String)
 
         var id: String {
             switch self {
             case .document(let id, _): "document:\(id)"
             case .library(let id, _): "library:\(id)"
             case .file(let url): "file:\(url.path)"
+            case .cloud(let id, _): "cloud:\(id)"
             }
         }
 
@@ -43,6 +47,7 @@ final class StyleTransferModel {
             case .document(_, let name): name
             case .library(_, let name): "\(name) (team library)"
             case .file(let url): url.lastPathComponent
+            case .cloud(_, let name): "\(name) (from the cloud)"
             }
         }
     }
@@ -58,6 +63,18 @@ final class StyleTransferModel {
     @ObservationIgnored var chooseFile: @MainActor () -> URL? = StyleTransferModel.openPanel
     /// Chooses where to write a style library file; nil when cancelled.
     @ObservationIgnored var chooseDestination: @MainActor (String) -> URL? = StyleTransferModel.savePanel
+    /// The library's documents (id and name) for the sources this Mac holds no copy of (LIB-022's rest).
+    @ObservationIgnored var libraryDocuments: @MainActor () -> [(id: String, name: String)] = { [] }
+    /// Whether the server can be reached (uncached documents are offered only then).
+    @ObservationIgnored var isOnline: @MainActor () -> Bool = { false }
+    /// A document's state at the server's head (`SymbolSources.cloudState`); nil offline.
+    @ObservationIgnored var cloudState: @MainActor (String) async throws -> EngineState? = { _ in nil }
+    /// Caches and queues for upload the asset bytes an import from a file brings (the import
+    /// controller's placement).
+    @ObservationIgnored var storeBlobs: @MainActor ([(data: Data, mediaType: String)], DocumentHandle) async throws -> Void = { _, _ in }
+
+    /// The model the app installed (a style library file opened from the Finder or the importer).
+    static weak var shared: StyleTransferModel?
 
     /// The import sheet's source, package, selection and option.
     var source: Source?
@@ -117,10 +134,20 @@ final class StyleTransferModel {
         for library in teamLibraries?.catalog.catalog.libraries ?? [] {
             out.append(.library(id: library.documentID, name: library.name))
         }
+        if isOnline() {
+            // Online, the library's other documents too, read from the server.
+            for document in libraryDocuments() where document.id != frontID && seen.insert(document.id).inserted {
+                out.append(.cloud(id: document.id, name: document.name))
+            }
+        }
         return out + files.map(Source.file)
     }
 
     func beginImport() {
+        beginImport(readingFirst: true)
+    }
+
+    private func beginImport(readingFirst: Bool) {
         guard front != nil else { return }
         message = nil
         package = nil
@@ -128,7 +155,7 @@ final class StyleTransferModel {
         replacing = false
         source = nil
         sheets.present(StyleImportSheet(model: self), title: "Import Styles", identifier: Self.importSheet)
-        if let first = sources.first { Task { await choose(first) } }
+        if readingFirst, let first = sources.first { Task { await choose(first) } }
     }
 
     /// btn:[Choose File…].
@@ -154,8 +181,14 @@ final class StyleTransferModel {
         }
     }
 
+    /// Reading an uncached document needs the server.
+    enum Failure: Error, Equatable {
+        case offline
+    }
+
     static func describe(_ error: any Error) -> String {
         if error is StylePackage.FileError { return "The file is not a style library" }
+        if error as? Failure == .offline { return "Connect to the internet to read this document's styles" }
         return "The styles could not be read: \(error.localizedDescription)"
     }
 
@@ -172,10 +205,44 @@ final class StyleTransferModel {
             guard let library = teamLibraries?.catalog.catalog.library(id) else { throw StylePackage.FileError.notAStyleLibrary }
             return StylePackage(allStylesOf: library.state)
         case .file(let url):
-            let package = try StylePackage(fileData: Data(contentsOf: url))
+            let package = try Self.package(file: url)
             if let cache = blobCache() { try StyleSources.storeBlobs(of: package, in: cache) }
             return package
+        case .cloud(let id, _):
+            guard let state = try await cloudState(id) else { throw Failure.offline }
+            return StylePackage(allStylesOf: state)
         }
+    }
+
+    /// The styles of a file: a style library file, or every style of a {product} package with the
+    /// package's asset bytes (LIB-022's rest).
+    nonisolated static func package(file url: URL) throws -> StylePackage {
+        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        if data.starts(with: StylePackage.fileMagic) { return try StylePackage(fileData: data) }
+        guard let opened = try? DocumentPackage.reader.open(data), let state = try? DocumentPackage.state(of: opened) else {
+            throw StylePackage.FileError.notAStyleLibrary
+        }
+        let bytes = Dictionary(opened.blobs.map { (ImportedBlob.hex($0.key), $0.value) }, uniquingKeysWith: { first, _ in first })
+        var package = StylePackage(allStylesOf: state)
+        for hash in package.assetHashes {
+            if let data = bytes[hash] { package.blobs[hash] = data }
+        }
+        return package
+    }
+
+    /// A style library file opened from the Finder or given to the importer: the Import Styles
+    /// sheet over the front document, reading it.
+    static func opens(_ url: URL) -> Bool {
+        guard url.pathExtension.lowercased() == StylePackage.fileExtension, let shared, shared.front != nil else { return false }
+        shared.beginImport(file: url)
+        return true
+    }
+
+    /// *Import…* reading `url` first.
+    func beginImport(file url: URL) {
+        beginImport(readingFirst: false)
+        if !files.contains(url) { files.append(url) }
+        Task { await choose(.file(url)) }
     }
 
     var canImport: Bool { package.map { !$0.isEmpty } == true && !chosen.isEmpty && front != nil }
@@ -186,7 +253,14 @@ final class StyleTransferModel {
         guard canImport, let package, let front else { return nil }
         let command = ImportStyles(package, selection: chosen, replacingSameName: replacing)
         cancelImport()
-        return front.perform(command)
+        // The asset bytes a file brought go up with the document (cached, then queued).
+        let blobs = package.blobs.sorted { $0.key < $1.key }.map { (data: $0.value, mediaType: SymbolTransferFeatures.mediaType($0.value)) }
+        guard !blobs.isEmpty else { return front.perform(command) }
+        let storeBlobs = storeBlobs
+        return Task { @MainActor in
+            try? await storeBlobs(blobs, front)
+            return await front.perform(command).value
+        }
     }
 
     func cancelImport() {
@@ -250,15 +324,18 @@ final class StyleTransferModel {
 
     static func openPanel() -> URL? {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: StylePackage.fileExtension) ?? .data]
+        panel.allowedContentTypes = [StyleTransferModel.libraryType, UTType(exportedAs: PackageController.typeIdentifier)]
         panel.allowsMultipleSelection = false
         return panel.runModal() == .OK ? panel.url : nil
     }
 
+    /// The `.wtstyles` file type.
+    static let libraryType = UTType(exportedAs: "com.villagecompute.wiretuner.style-library", conformingTo: .data)
+
     static func savePanel(_ name: String) -> URL? {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
-        panel.allowedContentTypes = [UTType(filenameExtension: StylePackage.fileExtension) ?? .data]
+        panel.allowedContentTypes = [StyleTransferModel.libraryType]
         return panel.runModal() == .OK ? panel.url : nil
     }
 }

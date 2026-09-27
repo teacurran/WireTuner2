@@ -1855,6 +1855,15 @@ Done when::
 * The export of a source re-imported as a CSV source resolves to identical records.
 * Excel and Numbers open the file with correct characters (BOM test) and columns.
 
+NOTE: As built by DATA-022 (`WTModel/DataExport.swift`; `WTApp/Data/DataExportOptions.swift`, `DataFeatures.exportData`).
+`DataExport` writes the resolved `RecordSet` -- formats and transforms applied -- as a `DataTable`: an optional leading
+`record` column with each record's number in the merge, then the chosen fields in the Data panel's order (a field without a
+name is left out; a missing value is an empty cell), for the chosen range of record numbers (clamped); `csv` is UTF-8 with a
+byte-order mark.  *Export Data…* shows the save panel with the options as its accessory: a checkbox per field (all at
+first), *All N* or *Range* with *From* and *To*, and *Include the record column* (on).  The re-import round trip and the
+byte-order mark are `DataExportTests` (WTModel) and `DataPanelTests`; opening the file in Excel and Numbers is a manual check,
+not recorded.
+
 [[DATA-023]]
 ==== DATA-023 Data merge multi-client scenarios
 [horizontal]

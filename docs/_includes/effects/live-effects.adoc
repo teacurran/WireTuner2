@@ -885,7 +885,8 @@ space on a layer) with the identity transform, just above the group, with the gr
 and URL and its attribute stack minus the object-level Combine (effects attached to fills and
 strokes stay attached, renumbered through Copy Attributes' stack copy); then the group is deleted
 with its members.  A group whose Combine is hidden, or that has none, is skipped.  The btn:[Expand]
-button in the Combine form is WTApp's.
+button in the Combine form (`WTApp/Inspector/Effects/EffectEditors.swift`, `expandCombine`) performs it on the
+selected groups whose Combine draws, and is disabled when there are none.
 
 NOTE: The Combine form's btn:[Expand] (`WTApp/Inspector/Effects/EffectEditors.swift`) performs `ExpandCombine` on the
 selected groups whose Combine draws, one change "Expand Combine"; it is disabled otherwise.

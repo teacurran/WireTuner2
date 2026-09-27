@@ -358,8 +358,9 @@ rules (`CanvasColorDrop`), one `ApplyColor` change.  Sampling writes nothing.  T
 chip of the colour.  A drag that leaves the canvas becomes an ordinary colour drag
 (`EyedropperDragOut`, COLOR-012's remainder): the `ColorRef` payload -- a swatch travels as the swatch -- and an `NSColor`,
 so the Tools panel wells, the Swatches panel and the other colour drop targets take it by their own rules, and the canvas
-writes nothing.  *Not built here*: bitmap pixels through the image's profile (image nodes are
-not drawn by the scene yet; the pixel path is ready for them).
+writes nothing.  Bitmap pixels (COLOR-012's rest): the pixel path renders with the window's image store
+(`EyedropperTool.imageStore`, the window's `WindowImages.store`), so a placed image samples its own pixel through its
+profile as the canvas draws it rather than its placeholder (`ImageFeaturesTests.theEyedropperSamplesABitmapsPixel`).
 
 === Build tasks
 

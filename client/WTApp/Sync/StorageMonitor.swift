@@ -37,6 +37,8 @@ final class StorageMonitor {
     var windows: @MainActor () -> [DocumentWindowController] = { [] }
     /// The space a document is in (the library's record), nil when unknown.
     var space: @MainActor (DocumentHandle) -> String? = { _ in nil }
+    /// Every read of the usage (the library window's banner follows it).
+    var onUsage: @MainActor ([StorageUsage]) -> Void = { _ in }
     private(set) var usage: [StorageUsage] = []
     private var polling: Task<Void, Never>?
 
@@ -61,6 +63,7 @@ final class StorageMonitor {
     func refresh() async -> Bool {
         guard let usage = try? await fetch() else { return false }
         self.usage = usage
+        onUsage(usage)
         for window in windows() {
             let current = self.usage(for: window)
             window.collaboration.sync.storageNote = Self.note(current)
@@ -114,5 +117,11 @@ extension AppDelegate {
         }
         storage.windows = { documents.allWindowControllers }
         storage.space = { document in library.cache.documents[document.id]?.spaceID }
+        // The library window's banner (IO-009): the notes by space, read again when it shows.
+        storage.onUsage = { usage in
+            library.storageNotes = Dictionary(usage.compactMap { item in StorageMonitor.note(item).map { (item.spaceID, $0) } }, uniquingKeysWith: { first, _ in first })
+        }
+        let storage = storage
+        library.refreshStorage = { Task { await storage.refresh() } }
     }
 }

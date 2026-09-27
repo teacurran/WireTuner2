@@ -753,11 +753,13 @@ modification time; the content type is the package UTI.  Deviation: whether the 
 decided by a digest of exactly what the item holds, kept per document id in
 `Application Support/WireTuner/SpotlightIndex.json` rather than a head seq in a `spotlight_index` table of
 each store -- closing unchanged skips the rebuild, and a closed store never has to be opened.  Trashing
-through the library removes the item; *Remove Local Copy* is not built yet (`SpotlightIndexer.remove` is
-its hook).  A result opens through `application(_:continue:restorationHandler:)` and `ContinuityOpener`:
+through the library removes the item, as *Remove Local Copy* does (the next paragraph's note, IO-035's rest).  A result opens through `application(_:continue:restorationHandler:)` and `ContinuityOpener`:
 the library entry (cached, else `DocumentService.Get`), a trashed document or an unreachable one showing
-the Library window with a message.  Unit-test launches index nothing (`NoSpotlightIndex`).  Not built:
-the snapshot-time rebuild (the item follows window closes), and the `WireTunerSpotlightImporter`
+the Library window with a message.  Unit-test launches index nothing (`NoSpotlightIndex`).  The
+snapshot-time rebuild is IO-035's rest: every *Snapshot interval* (`SpotlightIndexer.startRefreshing`, from the
+preference the stores write their snapshots by) the open documents' items are rebuilt from their in-memory state,
+each only when its digest changed -- deviation: a timer at the stores' interval rather than a hook on each store's
+write.  Not built: the `WireTunerSpotlightImporter`
 extension for packages on disk: it needs the snapshot's zstd and protobuf decoding in an extension
 that otherwise links nothing but the zip reader, and is left for a later task.
 +
@@ -769,7 +771,19 @@ package answers the title alone, at once.  Not built: the `WireTunerSpotlightImp
 (`client/WTExtensions` and `project.yml`, a `CSImportExtension` mapping these attributes onto
 `kMDItemTitle`, `kMDItemDescription`, `kMDItemKeywords`, `kMDItemTextContent` and
 `kMDItemNumberOfPages`); since the reader needs `WTModel`, the extension links it rather than only the
-zip reader.  *Remove Local Copy* and the snapshot-time rebuild remain WTApp's.
+zip reader.  *Remove Local Copy* and the snapshot-time rebuild are IO-035's rest (below and above).
++
+NOTE: As built by IO-035's *Remove Local Copy* (`WTSync/LocalCopies.swift`, `LocalStore.unsentChangeCount` and
+`pendingCallCount`; `WTApp/Library/LocalCopyRemoval.swift`, `DocumentSessions.released` and `state(of:)`).
+menu:File[Remove Local Copy…] acts on the Library window's selection when it is key, else on the front document, and is
+enabled when this Mac holds a store for one of them; the Library window's context menu offers it on a row with a copy.  An
+open document must read *Saved to cloud* (else "“Poster” is still syncing." and nothing happens); after a confirmation
+("It stays in the cloud; opening it again downloads it.", plus "Its windows close." for an open one) its windows close and
+the removal waits until its session has stopped and closed the store.  `LocalCopies.remove` then opens the store and
+deletes its directory only when nothing waits for the cloud -- no unacknowledged change of any replica, no salvaged change,
+no image in `blobs_pending`, no queued call in `pending_calls` -- else it keeps the copy and says what waits ("1 change and
+1 image have not reached the cloud yet.").  A removed copy leaves Spotlight (`SpotlightIndexer.remove`) and loses its
+offline badge (`LibraryModel.forgetLocalCopy`).  Tests: `LocalCopiesTests` (WTSync), `LocalCopyRemovalTests`.
 +
 NOTE: As built by IO-034 (`client/WTExtensions/`, targets `WireTunerThumbnail` and `WireTunerPreview`
 in `project.yml`, embedded under the app's `PlugIns`).  Both are sandboxed with no network entitlement
@@ -799,8 +813,11 @@ manual and not recorded here.
 NOTE: As built by IO-009's app part (`WTApp/Sync/StorageMonitor.swift`).  `AccountService.Me`'s `storage` is read into
 `AccountProfile.storage`; `StorageMonitor` reads it when a window opens, puts *Storage almost full — 9.3 GB of 10 GB used*
 in the window's sync popover at 90% or more, and while a window is *Storage full* reads it again every five minutes,
-performing *Retry now* on the window as soon as its space has room.  Deviations: the poll is `Me`, not a blob `Stat`;
-the library window's banner is not built (the library window is another task's).
+performing *Retry now* on the window as soon as its space has room.  Deviation: the poll is `Me`, not a blob `Stat`.  The
+library window's banner (IO-009's rest; `LibraryModel.storageNotes`, `storageBanner`, `LibraryView`): every read of the
+usage hands the notes by space to the library (`StorageMonitor.onUsage`), which shows *Storage almost full — 9.3 GB of 10 GB
+used* above the documents while the space it shows (the current team's, else the personal space) is at 90% or more; the
+usage is read again each time the Library window is shown.  Tests: `WindowGlueTests.theLibraryWindowShowsStorageAlmostFull`.
 
 === Build tasks
 

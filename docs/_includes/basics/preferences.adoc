@@ -439,7 +439,7 @@ bindings and read the store.  Snap sounds: `SnapSoundPlayer` plays through
 `SnappingContext.didSnap`, which GEO-005's resolver calls, so no drag plays one until then; the
 system setting is read from `com.apple.sound.uiaudio.enabled` in the global domain (absent is on).
 
-NOTE: As built by BASIC-023, the `WTSync` half (`WTSync/PreferenceSync.swift`).  `PreferenceSync` keeps
+NOTE: As built by BASIC-023 in `WTSync` (`WTSync/PreferenceSync.swift`).  `PreferenceSync` keeps
 the `preferences_outbox` table in an app-level SQLite store (`Application Support/WireTuner/
 Preferences.sqlite`); `enqueue` stamps each synced entry with `updated_at_ms` and the device, `push`
 sends a partial `SetPreferences` and removes what it sent (an entry re-queued meanwhile stays),
@@ -452,7 +452,7 @@ applies a team floor with `ReconcilePreferences.floored(by:)`.  `GRPCPreferences
 `AccountService` client.  The simulator scenario is
 `AccountAndPublishScenarioTests.twoDevicesChangeOneKeyWhileOneIsOffline` (`SimAccountService`).
 
-NOTE: As built by BASIC-023's team floor and app half (`sync.proto` `Welcome.review_floor`,
+NOTE: As built by BASIC-023's team floor and app glue (`sync.proto` `Welcome.review_floor`,
 `WTSync/SyncClient.swift`, `WTApp/Preferences/AccountPreferenceBackend.swift`, server
 `V15__team_review_floor.sql`).  The floor is a `ReviewFloor` message in `Welcome` (the five thresholds,
 the share as a percentage), read from the new `team.review_floor` column (the message as proto JSON;
@@ -468,8 +468,8 @@ the queue); every delivered map is applied wholesale.  `ReviewFloors` holds each
 document's: a floored field reads the floored value, refuses a value past the floor with a beep, and
 says "Team minimum: 40" ("Team maximum" for *Auto-merge below*, "Your team always asks").  Deviation:
 field 5 of `PreferenceValue` is a `PreferenceColor` (four sRGB components) rather than doc.v1's `Color`,
-matching the store's `PreferenceColor`.  Test launches attach no sync.  Not built: an API that sets a
-team's floor (the column is set by plans and admin tooling, as `storage_limit_bytes` is).
+matching the store's `PreferenceColor`.  Test launches attach no sync.  No API sets a
+team's floor: the column is set by plans and admin tooling, as `storage_limit_bytes` is.
 
 === Build tasks
 

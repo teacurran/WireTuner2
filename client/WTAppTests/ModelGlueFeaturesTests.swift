@@ -245,6 +245,57 @@ import WTSync
         #expect(InspectPanel.descriptor(model: model).id == InspectPanel.id)
     }
 
+    /// COLLAB-037's rest: the value sections, the remembered unit and scale, kbd:[Option]-click to
+    /// save a PNG.
+    @Test func theInspectPanelReadsValueSectionsRemembersUnitAndScaleAndSavesPNGs() async throws {
+        let world = GlueWorld()
+        defer { world.close() }
+        let suite = TestDefaults()
+        defer { suite.remove() }
+        let model = InspectPanelModel(defaults: suite.defaults)
+        model.pasteboard = world.pasteboard
+        model.window = { world.window }
+        #expect(model.unit == .pixels && model.scale == 1)
+        model.unit = .millimeters
+        model.scale = 3
+        let reopened = InspectPanelModel(defaults: suite.defaults)
+        #expect(reopened.unit == .millimeters && reopened.scale == 3, "remembered on this Mac")
+        let rects = await world.document.addRectangles([Rect(x: 10, y: 20, width: 100, height: 50)])
+        world.select([rects[0].opID])
+        model.touch()
+        let object = try #require(model.object)
+        let readout = model.readout(object)
+        #expect(!readout.colors.isEmpty && !readout.fills.isEmpty && readout.text == nil)
+        Render.view(InspectPanelBody(model: model), size: CGSize(width: 360, height: 1200))
+        // Text reads its typography and text.
+        let text = try #require(await world.document.addText("Inspect me", at: Point(x: 300, y: 300)))
+        world.select([text])
+        model.touch()
+        let words = model.readout(try #require(model.object))
+        #expect(words.text == "Inspect me" && !words.typography.isEmpty)
+        Render.view(InspectPanelBody(model: model), size: CGSize(width: 360, height: 1200))
+        // Option-click on a PNG button saves it; a cancelled panel saves nothing.
+        let url = FileManager.default.temporaryDirectory.appending(component: "inspect-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        model.optionDown = { true }
+        model.chooseDestination = { _ in url }
+        #expect(model.png(scale: 1) != nil && FileManager.default.fileExists(atPath: url.path) && model.copied == "Saved \(url.lastPathComponent)")
+        model.chooseDestination = { _ in URL(filePath: "/no/such/place/x.png") }
+        #expect(model.savePNG(scale: 1) == nil && model.copied == "The PNG could not be saved")
+        model.chooseDestination = { _ in nil }
+        #expect(model.savePNG(scale: 1) == nil)
+        model.optionDown = { false }
+        #expect(model.png(scale: 2) != nil && model.copied?.hasPrefix("Copied") == true)
+        // A custom scale, kept between 0.1× and 16×.
+        InspectPanelBody.customScale(model).wrappedValue = 1.5
+        #expect(model.scale == 1.5 && InspectPanelModel.scaleTitle(1.5) == "1.5×" && InspectPanelModel.scaleTitle(2) == "2×")
+        Render.view(InspectPanelBody(model: model), size: CGSize(width: 360, height: 1200))
+        model.setCustomScale(99)
+        #expect(model.scale == 16)
+        model.setCustomScale(.nan)
+        #expect(model.scale == 1 && InspectPanelBody.customScale(model).wrappedValue == 1)
+    }
+
     // MARK: Export
 
     @Test func pdfExportCarriesCommentThreadsWhenAsked() async throws {

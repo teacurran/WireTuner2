@@ -136,13 +136,23 @@ NOTE: As built by WEB-006's sheet half (`WTApp/Export/ExportWebPresets.swift`). 
 preferences' defaults); choosing one sets the format and writes the preset's options into that
 format's options, and the readout under it is `ExportSizeEstimate.bytes` of the current page at the
 preset (a scratch export, detached).  Managing the user's presets and `.wtpreset` files in the sheet
-is not built.
+is the editor's (two notes down).
 
 NOTE: As built by WEB-006's management half (package side; `WTInterchange/Export/WebPresetManagement.swift`).
 `WebExportPresetStore` gains `saveNew` (the sheet's settings as a new preset, fresh id, name made unique as "Name 2"),
 `rename`, `duplicate` (built-in or user), `exportFile(_:)` (the chosen presets as a `.wtpreset` file) and `importAsNew`
 (every preset of a file added with a fresh id and a unique name, so nothing is overwritten); `WebExportPreset.user(...)` and
-`isBuiltIn` serve the editor.  The editor itself in the Export sheet is WTApp's and not built.
+`isBuiltIn` serve the editor.  The editor in the Export sheet is the next note's.
+
+NOTE: As built by WEB-006's editor (`WTApp/Export/ExportWebPresets.swift`; `WebExportPreset.capturing` in
+`WTInterchange/Export/WebPresetManagement.swift`).  Beside the *Web preset* pop-up a *Presets* menu holds *Save Current
+Settings as Preset…* (the sheet's format and options captured back into a preset -- the first scale as 1× or 2×, the
+quality, *Strip metadata* from the embedded profile or Document Info, the transparency and a GIF's matte -- under the
+name typed in the sheet's name field, made unique, then chosen; other formats say "Web presets are PNG, JPEG, WebP,
+AVIF, GIF or SVG."), *Rename…* and *Delete* (the user's presets only; a built-in one says "Built-in presets cannot be
+changed."), *Duplicate* (any preset, as "Name 2"), and *Export Presets…* / *Import Presets…* (every user preset as a
+`.wtpreset` file; an import adds each preset under a unique name and reports how many).  Tests:
+`WebPresetManagementTests` (WTInterchange), `WebFeaturesTests.thePresetEditorManagesTheUsersPresets`.
 
 === Build tasks
 

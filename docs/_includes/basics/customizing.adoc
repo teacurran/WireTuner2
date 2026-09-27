@@ -337,9 +337,13 @@ or joins, a newer tombstone deletes, a set the value does not mention stays, the
 {product}'s set when its set is gone), sending nothing back; `syncValue` is every set for turning sync on.  The
 simulator scenario is `ShortcutSetScenarioTests` (an edit on one Mac and a deletion on the other while apart end
 deleted when the deletion is newer and restored when the edit is, on both; the tombstone is gone from the server 30
-days on).  Not built: connecting the store to a running `PreferenceSync` -- the app has no `PreferenceSync` yet (the
-BASIC-023 app glue, a `SyncedPreferenceBackend` over it, is still the local stub), so `onSyncChange` has no listener
-and nothing calls `applySynced` in the running app.
+days on).  In the app (`WTApp/Preferences/AccountPreferenceBackend.swift` `connect`, `enqueueWire`, `deliver`;
+`Glue/PackageHalvesGlue.swift`): the store is connected to BASIC-023's `AccountPreferenceBackend` at launch --
+`onSyncChange` queues each change's `sync.shortcut_sets` entry through the backend's `PreferenceSync` (sent at once,
+retried with the other entries; before a sync is attached, and in test launches, entries wait merged per set as the
+outbox merges them), every map the sync delivers hands its merged shortcut sets to `applySynced`, and `syncValue`
+(every set) is queued at launch with sync on and whenever *Sync preferences with my account* is turned on.  Tests:
+`PackageGlueTests.shortcutSetsSyncThroughTheBackend`.
 
 === Build tasks
 

@@ -125,8 +125,13 @@ and the transform moved by the kept pixels' offset, one change "Trim to Crop"; t
 *Deviations*: a drag inside moves the picture behind a fixed crop -- the crop moves the other way and the image's transform
 by the same amount, so the visible part stays in place -- as the guide describes, rather than moving the crop over a fixed
 picture; the hidden part is dimmed (30% black over the natural frame outside the crop) rather than drawn from the pixels at
-30%, since the tool has no decoded image.  *Not built*: the *Trim to crop* checkbox itself, which belongs to the Optimize
-Image sheet (IMG-020, not built; its encoder is WTInterchange's `ImageOptimizer`).  The merge criteria are WTModel tests
+30%, since the tool has no decoded image.  *Trim to crop* (IMG-025's rest; `WTApp/Images/OptimizeImageSheet.swift`): the
+Optimize Image sheet's checkbox, enabled when a selected image is cropped, cuts each cropped image's bytes to
+`ImageCropping.trimRect` (re-encoded in the image's own format, at full quality when lossy) before the sheet's encoding --
+the estimate and preview follow it -- and btn:[Optimize] writes those images with `TrimImageToCrop` and the others with
+`OptimizeImages` as one change ("Optimize _name_" / "Optimize (N images)").  `TrimImageToCrop` now also sets the stored
+resolution so the new pixels cover exactly the kept part's natural size, which is the old resolution unless the sheet
+resampled them, so a resampled trim stays in place too (`ImageCroppingTests.aResampledTrimStillCoversTheKeptPart`).  The merge criteria are WTModel tests
 (`ImageCroppingTests`: a crop against a larger pixel replacement keeps the proportion; two crops converge); the placeholder
 case follows from the crop being an ordinary register applied by the renderer whenever the blob arrives.
 

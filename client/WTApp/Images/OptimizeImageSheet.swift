@@ -15,6 +15,9 @@ import WTProto
 /// actor, cancelled when an option changes), and a before/after preview at 100% of the first
 /// image.  btn:[Optimize] encodes every image off the main actor, stores the results as blobs
 /// (queued for upload) and writes them in one change ("Optimize _name_" / "Optimize (N images)").
+/// *Trim to crop* (IMG-025's rest; cropping-bitmaps.adoc) first cuts each cropped image to its crop
+/// (`ImageCropping.trimRect`), so only the visible pixels are encoded, and writes those images with
+/// `TrimImageToCrop` -- the crop reset, the visible part left where it is -- in the same change.
 @MainActor
 @Observable
 final class OptimizeImageModel {
@@ -28,6 +31,8 @@ final class OptimizeImageModel {
         let pixelHeight: Int
         /// The width on the page, in points.
         let placedWidth: Double
+        /// The crop (unit square) when the image is cropped.
+        var crop: Rect? = nil
         var id: OpID { node }
     }
 
@@ -59,6 +64,10 @@ final class OptimizeImageModel {
     var pixelSize = 2048 { didSet { optionsChanged() } }
     var colorMode: ImageOptimizeOptions.ColorMode = .keep { didSet { optionsChanged() } }
     var stripMetadata = false { didSet { optionsChanged() } }
+    /// *Trim to crop*: cropped images keep only their visible pixels.
+    var trimToCrop = false { didSet { optionsChanged() } }
+    /// Whether any selected image is cropped (the checkbox is enabled).
+    var canTrim: Bool { items.contains { $0.crop != nil } }
     /// The estimated stored size of every image together, nil while it is being computed.
     private(set) var estimate: Int?
     private(set) var phase = Phase.ready
@@ -87,7 +96,8 @@ final class OptimizeImageModel {
             let scale = (transform.a * transform.a + transform.b * transform.b).squareRoot()
             return Item(node: node, name: ObjectNaming.name(of: node, in: state), data: blobs.cached(image.pixels.blobSha256),
                         pixelWidth: Int(image.pixels.pixelWidth), pixelHeight: Int(image.pixels.pixelHeight),
-                        placedWidth: ImageNodes.naturalRect(image).width * scale)
+                        placedWidth: ImageNodes.naturalRect(image).width * scale,
+                        crop: ImageCropping.isCropped(node, in: state) ? ImageCropping.crop(of: image) : nil)
         }
     }
 
@@ -150,12 +160,37 @@ final class OptimizeImageModel {
 
     // MARK: Estimate and preview
 
+    /// What is encoded for `item`: its bytes and width on the page, cut to its crop when trimming.
+    func input(_ item: Item) -> (data: Data, placedWidth: Double, trimmed: Bool)? {
+        guard let data = item.data else { return nil }
+        guard trimToCrop, let crop = item.crop else { return (data, item.placedWidth, false) }
+        let kept = ImageCropping.trimRect(crop, width: item.pixelWidth, height: item.pixelHeight)
+        guard let cut = Self.trimmed(data, to: kept) else { return (data, item.placedWidth, false) }
+        return (cut, item.placedWidth * Double(kept.width) / Double(max(item.pixelWidth, 1)), true)
+    }
+
+    /// `data`'s pixels in `rect` (top-left origin), re-encoded in the image's own format (at full
+    /// quality when it is lossy); nil when it cannot be read.
+    nonisolated static func trimmed(_ data: Data, to rect: (x: Int, y: Int, width: Int, height: Int)) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil), let type = CGImageSourceGetType(source),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+              let cut = image.cropping(to: CGRect(x: rect.x, y: rect.y, width: rect.width, height: rect.height)) else { return nil }
+        let out = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(out, type, 1, nil) else { return nil }
+        var properties = (CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]) ?? [:]
+        properties[kCGImageDestinationLossyCompressionQuality] = 1.0
+        properties[kCGImagePropertyPixelWidth] = nil
+        properties[kCGImagePropertyPixelHeight] = nil
+        CGImageDestinationAddImage(destination, cut, properties as CFDictionary)
+        return CGImageDestinationFinalize(destination) ? out as Data : nil
+    }
+
     /// Cancels the running estimate and starts one for the current options.
     func optionsChanged() {
         estimating?.cancel()
         estimate = nil
         let options = options
-        let inputs = items.compactMap { item in item.data.map { ($0, item.placedWidth) } }
+        let inputs = items.compactMap { item in input(item).map { ($0.data, $0.placedWidth) } }
         let settle = settle
         estimating = Task { [weak self] in
             try? await Task.sleep(for: settle)
@@ -200,17 +235,20 @@ final class OptimizeImageModel {
         phase = .working
         estimating?.cancel()
         let options = options
-        let inputs = items.map { ($0.node, $0.data ?? Data(), $0.placedWidth) }
+        let inputs = items.map { item in
+            let input = input(item)
+            return (item.node, input?.data ?? Data(), input?.placedWidth ?? item.placedWidth, input?.trimmed ?? false)
+        }
         let names = items.map(\.name)
         return Task { [weak self] in
-            let results = await Task.detached(priority: .userInitiated) { () -> Result<[(OpID, ImportedPixels)], any Error> in
-                Result { try inputs.map { ($0.0, try ImageOptimizer.optimize($0.1, placedWidth: $0.2, options: options)) } }
+            let results = await Task.detached(priority: .userInitiated) { () -> Result<[(OpID, ImportedPixels, Bool)], any Error> in
+                Result { try inputs.map { ($0.0, try ImageOptimizer.optimize($0.1, placedWidth: $0.2, options: options), $0.3) } }
             }.value
             guard let self else { return }
             do {
                 let optimized = try results.get()
                 try await self.storeBlobs(optimized.map(\.1.blob))
-                _ = await self.perform(OptimizeImages(optimized.map { (node: $0.0, pixels: $0.1) }, names: names)).value
+                _ = await self.perform(Self.command(optimized, names: names)).value
                 self.phase = .done
                 self.onClose()
             } catch {
@@ -222,6 +260,16 @@ final class OptimizeImageModel {
     func cancel() {
         estimating?.cancel()
         onClose()
+    }
+
+    /// The one change: the trimmed images through `TrimImageToCrop`, the others through
+    /// `OptimizeImages`, under the optimize label.
+    static func command(_ results: [(OpID, ImportedPixels, Bool)], names: [String]) -> any WTModel.Command {
+        let optimize = OptimizeImages(results.filter { !$0.2 }.map { (node: $0.0, pixels: $0.1) }, names: names)
+        let trims = results.filter(\.2).map { TrimImageToCrop($0.0, pixels: $0.1.pixelSource) }
+        guard !trims.isEmpty else { return optimize }
+        let label = OptimizeImages(results.map { (node: $0.0, pixels: $0.1) }, names: names).label
+        return CommandBatch(label, trims + (optimize.results.isEmpty ? [] : [optimize]))
     }
 }
 
@@ -260,6 +308,9 @@ struct OptimizeImageSheet: View {
                     Text("RGB").tag(ImageOptimizeOptions.ColorMode.rgb)
                 }
                 Toggle("Strip metadata", isOn: $model.stripMetadata)
+                Toggle("Trim to crop", isOn: $model.trimToCrop).disabled(!model.canTrim)
+                    .help(model.canTrim ? "Keep only the pixels inside the crop" : "No selected image is cropped")
+                    .accessibilityIdentifier("optimize.trim")
             }
             ForEach(model.items) { item in
                 Text("\(item.name): \(model.planLine(item))").font(.caption).lineLimit(1).accessibilityIdentifier("optimize.plan")

@@ -307,6 +307,22 @@ import WTSync
         #expect(await world.features.exportData(to: destination) == destination)
         let written = try Data(contentsOf: destination)
         #expect(written.starts(with: [0xEF, 0xBB, 0xBF]))
+        // DATA-022: the save panel's options -- fields, a range, no record column.
+        let options = DataExportOptionsModel(records: world.session.records)
+        #expect(options.fields.map(\.name) == ["name", "amount"] && options.chosen.count == 2 && options.to == 2 && options.export == DataExport(fields: options.chosen))
+        options.binding(options.fields[1].id).wrappedValue = false
+        #expect(!options.binding(options.fields[1].id).wrappedValue)
+        options.binding(options.fields[1].id).wrappedValue = true
+        options.binding(options.fields[1].id).wrappedValue = false
+        options.allRecords = false
+        options.from = 2
+        options.to = 9
+        options.recordColumn = false
+        #expect(options.export == DataExport(fields: [options.fields[0].id], range: 2...2, recordColumn: false))
+        Render.view(DataExportOptionsView(model: options))
+        #expect(await world.features.exportData(to: destination, options: options.export) == destination)
+        let chosenText = try String(contentsOf: destination, encoding: .utf8)
+        #expect(chosenText.replacingOccurrences(of: "\u{FEFF}", with: "").split(whereSeparator: \.isNewline) == ["name", "Bo"])
         // A place that cannot be written says so.
         #expect(await world.features.exportData(to: URL(filePath: "/no/such/place/x.csv")) == nil)
         world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }

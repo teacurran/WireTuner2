@@ -38,6 +38,8 @@ final class DocumentSessions {
     /// Headless uploads started at launch, by document id.
     private(set) var headless: [String: HeadlessUpload] = [:]
     @ObservationIgnored private var backgroundTokens: [String: UUID] = [:]
+    /// Sessions stopping after their last window closed, until their store is closed.
+    @ObservationIgnored private var closing: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var observers: [UUID: @MainActor () -> Void] = [:]
     /// Sign-in and export from any document's popover.
     @ObservationIgnored var onSignIn: @MainActor () -> Void = {}
@@ -90,10 +92,25 @@ final class DocumentSessions {
             return Task {}
         }
         notify()
-        return Task { [weak self] in
+        let task = Task { [weak self] in
             await session.stop()
             self?.closeDocument(document)
         }
+        closing[document.id] = task
+        return task
+    }
+
+    /// Stops whatever holds `documentID`'s store and waits until a session that closed with its
+    /// last window has closed the store (*Remove Local Copy*, IO-035).
+    func released(_ documentID: String) async {
+        await release(documentID)
+        if let task = closing.removeValue(forKey: documentID) { await task.value }
+    }
+
+    /// The sync state of `documentID` while a session holds it (a window's, or a closed window's
+    /// upload); nil when none does.
+    func state(of documentID: String) -> SyncState? {
+        (sessions[documentID] ?? background[documentID])?.status.state ?? headless[documentID]?.state
     }
 
     private func finishBackground(_ documentID: String) {

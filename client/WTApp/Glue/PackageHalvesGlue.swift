@@ -179,13 +179,19 @@ extension AppDelegate {
     /// turned on and off with *Sync preferences with my account*.
     @discardableResult
     func attachPreferenceSync(_ sync: PreferenceSync?) -> Task<Void, Never>? {
-        guard let backend = preferences.backend as? AccountPreferenceBackend, let sync else { return nil }
+        guard let backend = preferences.backend as? AccountPreferenceBackend else { return nil }
+        backend.connect(shortcutSets)
+        guard let sync else { return nil }
         let preferences = preferences
+        let shortcutSets = shortcutSets
         account.signedInHandlers.append { Task { await backend.refresh() } }
         preferences.observe { change in
             guard change.id == PreferenceCatalog.Sync.enabled.id else { return }
             Task { await backend.setEnabled(preferences.syncEnabled) }
+            // Turning sync on sends every set of this Mac (merged per set on the server).
+            if preferences.syncEnabled { backend.enqueueWire([ShortcutSetSync.key: shortcutSets.syncValue]) }
         }
+        if preferences.syncEnabled { backend.enqueueWire([ShortcutSetSync.key: shortcutSets.syncValue]) }
         return backend.attach(sync, enabled: preferences.syncEnabled)
     }
 

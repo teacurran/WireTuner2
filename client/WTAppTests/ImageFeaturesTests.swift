@@ -43,6 +43,30 @@ struct ImageWorld {
 @Suite(.serialized) @MainActor struct ImageFeaturesTests {
     // MARK: Pixels and marks (IMG-004 glue, IMG-006, IMG-017)
 
+    /// COLOR-012's rest: the Eyedropper samples a placed bitmap's own pixel through the window's
+    /// image store; without it the image reads as its placeholder.
+    @Test func theEyedropperSamplesABitmapsPixel() async throws {
+        let world = ImageWorld()
+        defer { world.close() }
+        let node = try #require(await world.placeImage())
+        let store = try #require(world.features.attach(world.window).store)
+        let hash = ImageNodes.assetID(world.document.state.props(node).image.pixels)
+        let bounds = try #require(world.document.object(for: SelectionID(node))?.bounds)
+        let inside = bounds.center
+        // The first sample starts the decode of the level it needs; the store answers once it is in.
+        var red = EyedropperSampling.pixel(at: inside, in: world.document.displayList, imageStore: store)
+        // Red through the colour management the canvas applies (the working space), so a little green.
+        func isRed(_ color: RenderColor) -> Bool { color.red > 0.9 && color.green < 0.3 && color.blue < 0.1 }
+        for _ in 0..<300 where !isRed(red) {
+            try await Task.sleep(for: .milliseconds(10))
+            red = EyedropperSampling.pixel(at: inside, in: world.document.displayList, imageStore: store)
+        }
+        #expect(store.state(of: hash) == .ready)
+        #expect(isRed(red), "the bitmap's own red: \(red)")
+        let placeholder = EyedropperSampling.pixel(at: inside, in: world.document.displayList)
+        #expect(!isRed(placeholder), "without the store: the placeholder")
+    }
+
     @Test func theWindowDrawsImagesFromItsStoreAndMarksThem() async throws {
         let world = ImageWorld()
         defer { world.close() }

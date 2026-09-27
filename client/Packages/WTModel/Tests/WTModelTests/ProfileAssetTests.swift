@@ -58,6 +58,10 @@ import WTProto
         // A malformed asset (no hash) is left out of the list.
         _ = try a.perform(OpsCommand("Bad", ops: [Ops.create(parent: ProfileAssets.assets, position: [0xF0], props: .with { $0.profileAsset.size = 1 })]))
         #expect(ProfileAssets.list(a.state).count == 2)
+        // The profile menus' *In this document* group (CMS-010's rest): WTColor's references, by space.
+        #expect(ColorSettings.documentProfiles(a.state).map(\.name) == ["Adobe RGB", "Press Proof"])
+        #expect(ColorSettings.documentProfiles(a.state, space: .rgb).map(\.name) == ["Adobe RGB"])
+        #expect(ColorSettings.documentProfiles(a.state, space: .cmyk).map(\.name) == ["Press Proof"])
     }
 
     @Test func choosingTheSameProfileOnTwoMacsMakesTwoNodesListedAsOne() throws {

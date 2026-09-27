@@ -363,9 +363,9 @@ kbd:[6] resize by a cell, written on release as one change; with the grid shown 
 shows a wall or the floor.  *Deviations*: *Show* is window state (as the page grid's *Show* is) rather than
 `PageProps.perspective_grid_visible`, because a new document's page is synthesized and has no node to hold the register;
 the overlay and the tool use `PlaneMap`, a copy of WTRender's internal `PlaneProjector` homography (the tests hold the two
-to the same drawing); the built-in grid is reshaped only after it is defined (the tool says so).  *Not built yet*: the
+to the same drawing); the built-in grid is reshaped only after it is defined (the tool says so).  The
 grid-line and wall-edge handles and the arrow badge cursor, kbd:[Option]-drag grid creation, kbd:[Cmd+Option]-double-click
-text editing, and the Pointer tool's detach with Snap to Grid (the next note).  Tests: `PerspectiveUITests`.
+text editing, and the Pointer tool's detach with Snap to Grid came with FX-043's remainder (the next note).  Tests: `PerspectiveUITests`.
 
 NOTE: As built by FX-043's remainder (`WTModel/PerspectiveGridEdits.swift`; `WTApp/Tools/PerspectiveTool.swift`,
 `Effects/PerspectiveGeometry.swift`; `WTRender/Pages/SnapSources.swift`; one line each in `Tools/PointerTool.swift`,

@@ -576,4 +576,52 @@ func bitmap(width: Int = 400, height: Int = 300) -> CGContext {
         #expect(controller.collaboration.banner.warning != nil && !controller.collaboration.bannerHost.isHidden)
         controller.objectEditing.activeLayer = nil
     }
+
+    /// DOC-012's rest: presence on masters -- a master tab's frames name its canvas (and no page),
+    /// the document window's clear it; participants on another canvas are not drawn, not followed,
+    /// and read "On Master A".
+    @Test func presenceNamesTheMasterCanvas() async throws {
+        let presence = LocalPresence()
+        let master = OpID(counter: 9, replica: 1)
+        let tab = LocalPresencePublisher(presence: presence, canvas: master)
+        tab.page(OpID(counter: 2, replica: 1))
+        tab.pointer(Point(x: 3, y: 4))
+        var update = try #require(await presence.presence())
+        #expect(update.hasCanvas && OpID(update.canvas) == master && !update.hasPage)
+        let window = LocalPresencePublisher(presence: presence)
+        window.viewport(Viewport(size: Size(width: 100, height: 50)))
+        window.page(OpID(counter: 2, replica: 1))
+        window.selection(Selection())
+        update = try #require(await presence.presence())
+        #expect(!update.hasCanvas && update.hasPage)
+        tab.selection(Selection())
+        tab.viewport(Viewport(size: Size(width: 10, height: 10)))
+        update = try #require(await presence.presence())
+        #expect(update.hasCanvas)
+        // Read back as a participant.
+        var frame = Wiretuner_Sync_V1_PresenceUpdate()
+        frame.user.userID = "u1"
+        frame.user.displayName = "Priya"
+        frame.canvas = master.proto
+        let participant = PresenceAdapter.participant(PresenceParticipant(frame))
+        #expect(participant.canvas == master)
+        #expect(PresenceAdapter.participant(PresenceParticipant(Wiretuner_Sync_V1_PresenceUpdate())).canvas == nil)
+        // The hover card.
+        #expect(AvatarStripModel.activity(participant, canvas: { _ in "Master A" }) == "On Master A")
+        var editing = participant
+        editing.editing = [SelectionID(OpID(counter: 3, replica: 1))]
+        #expect(AvatarStripModel.activity(editing, object: { _ in "Logo" }, canvas: { _ in "Master A" }) == "Editing Logo on Master A")
+        // Follow applies only a view on the window's canvas.
+        let follow = FollowController()
+        let applied = TestBox(0)
+        follow.apply = { _, _ in applied.value += 1 }
+        var viewed = participant
+        viewed.viewport = Rect(x: 0, y: 0, width: 10, height: 10)
+        follow.follow(viewed)
+        follow.presenceDidChange([viewed], isOffline: false)
+        #expect(applied.value == 0, "their view is in the master's space")
+        follow.canvas = master
+        follow.presenceDidChange([viewed], isOffline: false)
+        #expect(applied.value >= 1)
+    }
 }

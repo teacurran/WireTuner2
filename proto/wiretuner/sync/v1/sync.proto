@@ -520,6 +520,11 @@ message PresenceUpdate {
   // entries; a client recognises its own entry by its own replica and branch.  Ignored on the
   // way up.
   fixed64 session = 16;
+  // Node id of the canvas the user's view shows when it is not the pasteboard: a master page in
+  // its tab (DOC-012), a glyph in its tab.  `cursor`, `viewport` and `sub_selection` are then in
+  // that canvas's space, and collaborators show the user as "on Master A" rather than drawing the
+  // cursor over the pasteboard.  Unset on the pasteboard.
+  wiretuner.doc.v1.OpId canvas = 17;
 }
 
 // A person as shown to collaborators: in presence, as a change's author, as a version's

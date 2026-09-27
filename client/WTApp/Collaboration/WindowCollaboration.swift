@@ -166,6 +166,9 @@ final class WindowCollaboration {
         }
         banner.onDismiss = { [weak self] item in self?.follow.dismiss(item) }
         publisher?.setSharing(preferences[PreferenceCatalog.Sync.sharePresence])
+        // A master page's tab publishes its canvas and draws only who is on it (DOC-012).
+        publisher?.canvas = canvas
+        follow.canvas = canvas
 
         presenceToken = presence.observe { [weak self] in self?.presenceDidChange() }
         statusToken = syncStatus.observe { [weak self] in self?.syncStatusDidChange() }
@@ -176,6 +179,15 @@ final class WindowCollaboration {
     }
 
     // MARK: Presence
+
+    /// The canvas this window shows when it is not the pasteboard (a master page's tab).
+    var canvas: OpID? { controller?.documentHandle.masterCanvasNode }
+
+    /// The participants on this window's canvas: their cursors and selections are in its space.
+    var participantsHere: [RemoteParticipant] {
+        let canvas = canvas
+        return presence.participants.filter { $0.canvas == canvas }
+    }
 
     func presenceDidChange() {
         let participants = presence.participants
@@ -201,7 +213,7 @@ final class WindowCollaboration {
     func drawPresence(in ctx: CGContext) {
         guard let controller else { return }
         let overlay = PresenceOverlay(document: controller.documentHandle, viewport: controller.canvas.viewport)
-        overlay.draw(in: ctx, participants: presence.participants, options: PresenceDisplayOptions(preferences: controller.environment.preferences),
+        overlay.draw(in: ctx, participants: participantsHere, options: PresenceDisplayOptions(preferences: controller.environment.preferences),
                      clock: cursorClock, flashes: flashes.active(), progress: { [flashes] in flashes.progress($0) },
                      following: follow.followingColor)
     }

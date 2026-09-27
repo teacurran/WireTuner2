@@ -494,6 +494,23 @@ final class FakeSpotlightIndex: SpotlightIndexing, @unchecked Sendable {
         try? await DefaultSpotlightIndex().delete(["\(UUID().uuidString)"])
     }
 
+    /// IO-035's rest: the open documents' items follow the snapshot interval as well as window
+    /// closes -- rebuilt only when what they index changed.
+    @Test func openDocumentsAreReindexedEverySnapshotInterval() async throws {
+        let index = FakeSpotlightIndex()
+        let indexer = SpotlightIndexer(index: index)
+        let document = DocumentHandle.memory(title: "Open poster")
+        _ = await document.perform(CreateTextBlock(.area(Rect(x: 0, y: 0, width: 200, height: 40)), text: "Wombat")).value
+        #expect(await indexer.refresh([document]) == 1)
+        #expect(await indexer.refresh([document]) == 0, "unchanged: nothing rebuilt")
+        _ = await document.perform(CreateTextBlock(.area(Rect(x: 0, y: 60, width: 200, height: 40)), text: "Numbat")).value
+        let documents = TestBox([document])
+        indexer.startRefreshing(every: { .milliseconds(20) }, documents: { documents.value })
+        for _ in 0..<200 where index.indexed.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        indexer.stopRefreshing()
+        #expect(index.indexed.count == 2 && index.indexed.last?.attributeSet.textContent?.contains("Numbat") == true && indexer.refreshing == nil)
+    }
+
     @Test func theAppWiresVersionsContinuityAndSpotlight() async throws {
         let suite = TestDefaults()
         let server = FakeLibraryServer()

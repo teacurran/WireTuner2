@@ -22,7 +22,7 @@ struct EyedropperSample: Equatable {
 @MainActor
 enum EyedropperSampling {
     /// The sample under `e`: kbd:[Option] takes the stroke where both are under the pointer.
-    static func sample(at e: CanvasEvent, context: ToolContext, defaultSpace: RenderColor.Space) -> EyedropperSample? {
+    static func sample(at e: CanvasEvent, context: ToolContext, defaultSpace: RenderColor.Space, imageStore: ImageStore? = nil) -> EyedropperSample? {
         let document = context.document
         let hits = context.selection.hitTester(viewport: context.viewport, subselect: true).hitTest(viewPoint: e.viewPoint)
         guard let hit = hits.first(where: { document.selectionID(atItemPath: $0.itemPath) != nil }),
@@ -36,7 +36,7 @@ enum EyedropperSampling {
         var target = CanvasColorDrop.paint(for: hit.kind, modifiers: [])
         if e.modifiers.contains(.option), !ApplyColor.rows([node], target: .stroke, in: state).isEmpty { target = .stroke }
         if let ref = basicColor(node, target: target, in: state) { return sample(ref, in: state) }
-        let color = pixel(at: e.pasteboardPoint, in: document.displayList).converted(to: defaultSpace)
+        let color = pixel(at: e.pasteboardPoint, in: document.displayList, imageStore: imageStore).converted(to: defaultSpace)
         return EyedropperSample(ref: ColorResolver.inline(color), color: color, name: "")
     }
 
@@ -63,10 +63,14 @@ enum EyedropperSampling {
     }
 
     /// The colour drawn at `point` (pasteboard space) -- over empty pasteboard, the pasteboard's -- in sRGB.
-    static func pixel(at point: Point, in displayList: DisplayList) -> RenderColor {
+    /// With the window's `imageStore` a placed bitmap's own pixel is sampled, through its profile as
+    /// the canvas draws it (COLOR-012's rest); without it an image reads as its placeholder.
+    static func pixel(at point: Point, in displayList: DisplayList, imageStore: ImageStore? = nil) -> RenderColor {
         let viewport = Viewport(scrollOrigin: Point(x: point.x - 0.5, y: point.y - 0.5), size: Size(width: 1, height: 1))
         var bytes = [UInt8](repeating: 0, count: 4)
-        if let image = CoreGraphicsRenderer().renderBitmap(displayList, viewport: viewport), let space = CGColorSpace(name: CGColorSpace.sRGB),
+        var renderer = CoreGraphicsRenderer()
+        renderer.imageStore = imageStore
+        if let image = renderer.renderBitmap(displayList, viewport: viewport), let space = CGColorSpace(name: CGColorSpace.sRGB),
            let context = CGContext(data: &bytes, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: space,
                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
             context.draw(image, in: CGRect(x: 0, y: 0, width: 1, height: 1))
@@ -90,6 +94,9 @@ final class EyedropperTool: Tool {
     /// A click's pick: the current colour and the Mixer.
     let pick: @MainActor (EyedropperSample) -> Void
     let defaultSpace: @MainActor () -> RenderColor.Space
+    /// The image store of the window showing a document (its bitmaps' pixels); nil samples images
+    /// as their placeholders.
+    var imageStore: @MainActor (DocumentHandle) -> ImageStore? = { _ in nil }
     private var context: ToolContext?
     private(set) var sample: EyedropperSample?
     private(set) var press: CanvasEvent?
@@ -132,7 +139,7 @@ final class EyedropperTool: Tool {
         guard let context else { return }
         // Text attributes (TYPE-031): a click picks them up, an Option-click applies them.
         if TextEyedropper.press(e, context: context) { return }
-        sample = EyedropperSampling.sample(at: e, context: context, defaultSpace: defaultSpace())
+        sample = EyedropperSampling.sample(at: e, context: context, defaultSpace: defaultSpace(), imageStore: imageStore(context.document))
         guard sample != nil else { return }
         press = e
         current = e

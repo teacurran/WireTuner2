@@ -148,6 +148,12 @@ targets:
             UTTypeConformsTo: [public.data]
             UTTypeTagSpecification:
               public.filename-extension: [wtsymbols]
+          # A style library file (styles.adoc, "Copying styles between documents"; LIB-022).
+          - UTTypeIdentifier: com.villagecompute.wiretuner.style-library
+            UTTypeDescription: WireTuner Style Library
+            UTTypeConformsTo: [public.data]
+            UTTypeTagSpecification:
+              public.filename-extension: [wtstyles]
         # Services in (exporting.adoc, "The Share menu and Services"; IO-037): *Add to WireTuner
         # Document* takes images, PDF, SVG and text from other apps.
         NSServices:
@@ -168,6 +174,11 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
             LSItemContentTypes: [com.villagecompute.wiretuner.symbol-library]
+          # A style library opens the Import Styles sheet over the front document (LIB-022).
+          - CFBundleTypeName: WireTuner Style Library
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes: [com.villagecompute.wiretuner.style-library]
           - CFBundleTypeName: PDF or EPS Document
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate

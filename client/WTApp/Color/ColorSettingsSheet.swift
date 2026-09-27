@@ -111,14 +111,20 @@ final class ColorSettingsModel {
 
     static func id(_ profile: WTColor.ProfileRef) -> String { profile.isBundled ? "bundled:\(profile.bundledID)" : "hash:\(profile.hexHash)" }
 
+    /// The group of the document's own profiles.
+    static let documentGroup = "In this document"
+
     /// The menu of `field`: profiles of its space only.
     func choices(_ field: Field) -> [Choice] {
         var result: [Choice] = registry.bundledProfiles.filter { $0.space == field.space }.map {
             Choice(id: Self.id($0), title: $0.name, group: "Bundled", source: .profile($0))
         }
-        let documentProfiles = Field.allCases.flatMap { [profile($0, in: current), profile($0, in: chosen)] }
+        // *In this document*: the profiles the settings name and every profile asset the document
+        // carries -- chosen earlier or embedded in images (CMS-010).
+        let state = workspace.document?.state ?? EngineState()
+        let documentProfiles = Field.allCases.flatMap { [profile($0, in: current), profile($0, in: chosen)] } + ColorSettings.documentProfiles(state)
         for ref in documentProfiles where !ref.isBundled && ref.space == field.space && !result.contains(where: { $0.id == Self.id(ref) }) {
-            result.append(Choice(id: Self.id(ref), title: ref.name, group: "Document", source: .profile(ref)))
+            result.append(Choice(id: Self.id(ref), title: ref.name, group: Self.documentGroup, source: .profile(ref)))
         }
         for profile in installed where profile.space == field.space {
             result.append(Choice(id: "file:\(profile.url.path)", title: profile.name, group: "Installed", source: .file(profile.url)))

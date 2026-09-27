@@ -1189,6 +1189,19 @@ public nonisolated struct Wiretuner_Sync_V1_PresenceUpdate: @unchecked Sendable 
     set {_uniqueStorage()._session = newValue}
   }
 
+  /// Node id of the canvas the user's view shows when it is not the pasteboard: a master page in
+  /// its tab (DOC-012), a glyph in its tab.  `cursor`, `viewport` and `sub_selection` are then in
+  /// that canvas's space, and collaborators show the user as "on Master A" rather than drawing the
+  /// cursor over the pasteboard.  Unset on the pasteboard.
+  public var canvas: Wiretuner_Doc_V1_OpId {
+    get {_storage._canvas ?? Wiretuner_Doc_V1_OpId()}
+    set {_uniqueStorage()._canvas = newValue}
+  }
+  /// Returns true if `canvas` has been explicitly set.
+  public var hasCanvas: Bool {_storage._canvas != nil}
+  /// Clears the value of `canvas`. Subsequent reads from it will return its default value.
+  public mutating func clearCanvas() {_uniqueStorage()._canvas = nil}
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -2691,7 +2704,7 @@ nonisolated extension Wiretuner_Sync_V1_FetchSnapshotResponse: SwiftProtobuf.Mes
 
 nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".PresenceUpdate"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{3}color_index\0\u{3}branch_id\0\u{1}state\0\u{1}page\0\u{1}cursor\0\u{1}viewport\0\u{1}tool\0\u{1}selection\0\u{3}selection_count\0\u{3}sub_selection\0\u{1}editing\0\u{1}caret\0\u{1}spotlight\0\u{3}following_user_id\0\u{1}session\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}user\0\u{3}color_index\0\u{3}branch_id\0\u{1}state\0\u{1}page\0\u{1}cursor\0\u{1}viewport\0\u{1}tool\0\u{1}selection\0\u{3}selection_count\0\u{3}sub_selection\0\u{1}editing\0\u{1}caret\0\u{1}spotlight\0\u{3}following_user_id\0\u{1}session\0\u{1}canvas\0")
 
   fileprivate class _StorageClass {
     var _user: Wiretuner_Sync_V1_Participant? = nil
@@ -2710,6 +2723,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
     var _spotlight: Bool = false
     var _followingUserID: String = String()
     var _session: UInt64 = 0
+    var _canvas: Wiretuner_Doc_V1_OpId? = nil
 
       // This property is used as the initial default value for new instances of the type.
       // The type itself is protecting the reference to its storage via CoW semantics.
@@ -2736,6 +2750,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
       _spotlight = source._spotlight
       _followingUserID = source._followingUserID
       _session = source._session
+      _canvas = source._canvas
     }
   }
 
@@ -2770,6 +2785,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
         case 14: try { try decoder.decodeSingularBoolField(value: &_storage._spotlight) }()
         case 15: try { try decoder.decodeSingularStringField(value: &_storage._followingUserID) }()
         case 16: try { try decoder.decodeSingularFixed64Field(value: &_storage._session) }()
+        case 17: try { try decoder.decodeSingularMessageField(value: &_storage._canvas) }()
         default: break
         }
       }
@@ -2830,6 +2846,9 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
       if _storage._session != 0 {
         try visitor.visitSingularFixed64Field(value: _storage._session, fieldNumber: 16)
       }
+      try { if let v = _storage._canvas {
+        try visitor.visitSingularMessageField(value: v, fieldNumber: 17)
+      } }()
     }
     try unknownFields.traverse(visitor: &visitor)
   }
@@ -2855,6 +2874,7 @@ nonisolated extension Wiretuner_Sync_V1_PresenceUpdate: SwiftProtobuf.Message, S
         if _storage._spotlight != rhs_storage._spotlight {return false}
         if _storage._followingUserID != rhs_storage._followingUserID {return false}
         if _storage._session != rhs_storage._session {return false}
+        if _storage._canvas != rhs_storage._canvas {return false}
         return true
       }
       if !storagesAreEqual {return false}

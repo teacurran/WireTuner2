@@ -321,9 +321,14 @@ says "Link to an empty text block or a path".  The link lines run from each link
 top-left corner (a path's first point for text inside a path) while a member is selected.  A member's handles use its
 container's laid-out size; only the chain's last block shows the overflow dot, and so does a block whose link was cut.
 Deviations: the delete-and-splice change keeps menu:Edit[Clear]'s label ("Delete 1 object"), not "Delete text block"; a
-fixed-size start is not enforced; text inside a path has no link box, so it links onward only through the command.  Not built:
-the Text tool and the Text Editor edit the node they open on, so typing into a non-head member edits its dormant text rather
-than the flow -- editing the story from any block of the chain is left for a follow-up.  Tests: `TextChainsTests` (the
+fixed-size start is not enforced; text inside a path has no link box, so it links onward only through the command.  Editing
+the story (TYPE-007's rest, `WTApp/Text/TextEditingSession.swift`): a session opened on any member of a chain edits the head's
+text (`TextEditingSession.story`), laid out through every member (`flow`); a click in a member places the insertion point at the
+character that member draws (a member the story does not reach: the end), the caret, the selection's quads and the block frame are
+drawn in the member that lays each out (`toPasteboard(container:)`, `activeContainer`), the Text tool hit-tests a member by its
+container of the story (`TextFrames.frame(ofBlock:document:)`), an emptied head is not deleted when editing ends, the Text Editor
+opens the story from any member (one window per story), and collaborators' carets in the story are drawn in the member holding
+their character (`PresenceOverlay.caretGeometry`).  Tests: `TextChainsTests` (the
 normalizations, link, relink, unlink, the path container, delete-and-splice, a three-block chain across two pages reflowing
 when the first block's font grows, the link race and the opposing links from two replicas), `TextLinksTests`; the
 conformance vectors for `next_link`/`prev_link` written in one change are TYPE-004's (`vectors/type/link-race`, `link-loop`,

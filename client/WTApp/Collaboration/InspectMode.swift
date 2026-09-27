@@ -62,6 +62,8 @@ final class InspectModeController {
             self?.refused += 1
             return InertCommand(label: command.label)
         }
+        // Undo and redo are inert too: they would change the document as surely as a command.
+        document.historyLocked = true
         let tool = InspectTool(controller: self)
         self.tool = tool
         window.toolManager?.push(tool)
@@ -76,6 +78,7 @@ final class InspectModeController {
         overlay.removeFromSuperlayer()
         window.canvas.onViewportChange = previousViewportChange
         window.documentHandle.commandTransform = previousTransform
+        window.documentHandle.historyLocked = false
         if let tool { window.toolManager?.pop(tool) }
         tool = nil
     }
@@ -97,7 +100,11 @@ final class InspectModeController {
         let selected = window.selection.selection.ids.contains { $0 == hovered } ? nil : window.selection.selectedBounds
         let page = window.documentHandle.pageList.page(containing: event.pasteboardPoint)
         let container = event.modifiers.contains(.option) ? window.documentHandle.allPagesBounds : page?.rect
-        return InspectMeasurements.measure(hovered: hoveredBounds, selected: selected, container: container, point: nil,
+        // A path point within the pick distance of the pointer reads out too (COLLAB-035's rest).
+        let member = window.selection.pick(at: event.viewPoint, viewport: viewport, subselect: true)?.id.opID
+        let tolerance = window.selection.pickDistance() / max(viewport.zoom, 0.0001)
+        let point = member.flatMap { InspectPoints.anchor(of: $0, near: event.pasteboardPoint, tolerance: tolerance, in: window.documentHandle.state) }
+        return InspectMeasurements.measure(hovered: hoveredBounds, selected: selected, container: container, point: point,
                                            origin: page?.origin ?? Point(x: 0, y: 0))
     }
 

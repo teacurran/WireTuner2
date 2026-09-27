@@ -648,6 +648,42 @@ struct CollaborationWorld {
         #expect(loose.measurements(at: event) == .empty)
     }
 
+    /// COLLAB-035's rest: undo and redo are inert in Inspect mode, a hovered path point reads out,
+    /// and a viewer's window opens in Inspect mode.
+    @Test func inspectModeLocksHistoryReadsPointsAndOpensForViewers() async throws {
+        let world = CollaborationWorld()
+        defer { world.close() }
+        let document = world.document
+        let page = document.pageList.pages[0]
+        let ids = await document.addRectangles([Rect(x: page.rect.minX + 20, y: page.rect.minY + 20, width: 40, height: 30)])
+        await document.settle()
+        #expect(document.canUndo)
+        let inspect = world.ui.inspect
+        inspect.enter()
+        #expect(!document.canUndo && document.historyLocked)
+        #expect(await document.undo().value == nil && document.state.isLive(ids[0].opID))
+        #expect(await document.redo().value == nil)
+        // The rectangle's top-left corner under the pointer reads out as a point.
+        let viewport = world.window.viewport
+        let corner = Point(x: page.rect.minX + 20, y: page.rect.minY + 20)
+        let measured = inspect.measurements(at: CanvasEvent(pasteboardPoint: corner, viewPoint: viewport.toView(corner)))
+        #expect(measured.point.map { $0.distance(to: corner) < 0.01 } == true)
+        let middle = Point(x: page.rect.minX + 40, y: page.rect.minY + 35)
+        #expect(inspect.measurements(at: CanvasEvent(pasteboardPoint: middle, viewPoint: viewport.toView(middle))).point == nil)
+        inspect.leave()
+        #expect(document.canUndo && !document.historyLocked)
+        // A viewer's window opens in Inspect mode; an editor's does not.
+        let viewer = CollaborationWorld()
+        defer { viewer.close() }
+        viewer.features.role = { _ in .viewer }
+        #expect(viewer.ui.inspect.isOn)
+        let editor = CollaborationWorld()
+        defer { editor.close() }
+        editor.features.role = { _ in .editor }
+        #expect(!editor.ui.inspect.isOn)
+        #expect(InspectPoints.anchor(of: OpID(counter: 999, replica: 9), near: corner, tolerance: 1, in: document.state) == nil)
+    }
+
     // MARK: Windows and the review sheet
 
     @Test func eachWindowGetsItsPopupAndTheAccessBarOnceConnected() async throws {

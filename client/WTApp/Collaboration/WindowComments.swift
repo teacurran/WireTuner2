@@ -46,6 +46,13 @@ final class WindowComments {
     @ObservationIgnored private var sessionToken: UUID?
     private(set) var openThread: OpID?
     private(set) var pending: PendingThread?
+    /// The thread published as `editing` presence while the composer or a reply field has focus
+    /// (comments.adoc, "Client", *Presence*; COLLAB-027's rest).
+    private(set) var editingPresence: OpID?
+    /// Publishes the `editing` set (the window's presence publisher; tests record it).
+    @ObservationIgnored var publishEditing: (@MainActor ([SelectionID]) -> Void)?
+    /// The Pointer tool's pin presses and drags.
+    @ObservationIgnored private(set) lazy var pinHandles = CommentPinHandles { [weak self] document in self?.document === document ? self : nil }
     /// The pin the pointer is over (its first line shows).
     var hovered: OpID? {
         didSet { if hovered != oldValue { setNeedsDisplay() } }
@@ -89,6 +96,8 @@ final class WindowComments {
             self?.viewportDidChange()
         }
         observation = document.observe { [weak self] change in self?.documentDidChange(change) }
+        // The Pointer tool asks the pins before the document (COLLAB-027's rest).
+        window.toolManager.handleLayers.insert(pinHandles, at: 0)
         refresh()
         tracking = true
         readState.onChange = { [weak self] in self?.unreadDidChange() }
@@ -137,6 +146,7 @@ final class WindowComments {
         popover?.close()
         popover = nil
         layer.removeFromSuperlayer()
+        window?.toolManager.handleLayers.removeAll { $0 === pinHandles }
     }
 
     // MARK: The model
@@ -400,6 +410,7 @@ final class WindowComments {
     /// Opens `thread`: its popover shows at the pin and its comments count as read.
     func open(_ thread: OpID) {
         guard let entry = model[thread] else { return }
+        if thread != openThread { composerFocused(false) }
         pending = nil
         openThread = thread
         if let newest = entry.comments.map(\.id).max(), readState.mark(thread, through: newest) { flushMarks() }
@@ -409,8 +420,20 @@ final class WindowComments {
         presentPopover()
     }
 
+    /// The composer or a reply or edit field of the open thread gained (true) or lost focus: while
+    /// one has it, `editing` presence carries the thread's node, so collaborators' hover cards read
+    /// "Commenting on <anchor>".  A pending thread has no node yet and publishes nothing.
+    func composerFocused(_ focused: Bool) {
+        let target = focused ? openThread : nil
+        guard target != editingPresence else { return }
+        editingPresence = target
+        let ids = target.map { [SelectionID($0)] } ?? []
+        if let publishEditing { publishEditing(ids) } else { window?.collaboration.publisher?.editing(ids) }
+    }
+
     /// Closes the open thread or composer.
     func close() {
+        composerFocused(false)
         openThread = nil
         pending = nil
         popover?.close()

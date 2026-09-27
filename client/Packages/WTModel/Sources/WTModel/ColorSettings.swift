@@ -194,3 +194,18 @@ public struct ChangeColorSettings: Command {
         }
     }
 }
+
+extension ColorSettings {
+    /// The profiles the document carries -- each live profile asset once, by name (`ProfileAssets.list`)
+    /// -- as WTColor's references: the profile menus' *In this document* group (color-profiles.adoc,
+    /// "Choosing a profile"; CMS-010), filtered to `space` when given.
+    public static func documentProfiles(_ state: EngineState, space: WTColor.ProfileSpace? = nil) -> [WTColor.ProfileRef] {
+        ProfileAssets.list(state).compactMap { entry -> WTColor.ProfileRef? in
+            var stored = Wiretuner_Doc_V1_ProfileRef()
+            stored.name = entry.name
+            stored.sha256 = entry.sha256
+            stored.space = entry.space
+            return profile(stored, registry: .shared)
+        }.filter { space == nil || $0.space == space }
+    }
+}

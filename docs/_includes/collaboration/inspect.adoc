@@ -261,7 +261,7 @@ disallows package export does not restrict snippets; they are artwork the viewer
   coordinates, kbd:[Shift] freeze.  Uses `REND-003` hit testing with the Pointer's pick
   distances; redraws on pointer move and never invalidates document tiles.
 
-NOTE: As built by COLLAB-035, the render half only (`WTRender/Inspect`).
+NOTE: As built by COLLAB-035, the render side (`WTRender/Inspect`).
 `InspectMeasurements.measure(hovered:selected:container:point:origin:)` gives what the overlay
 shows for one pointer position from axis-aligned pasteboard bounds the caller reads from the
 geometry kernel (`Objects.bounds`, so the numbers are the kernel's): the hovered outline; with a
@@ -274,9 +274,9 @@ points, pixels (times the scale), millimeters, centimeters or inches with at mos
 of these.  `InspectOverlayLayer` is a flipped `CALayer` of its own (so no document tile is ever
 invalidated) that draws through `InspectOverlayRenderer`: outline, capsule labels, lines with end
 ticks, the overlap tinted, at a constant on-screen size; `show(_:)` redraws only when what is
-shown changed, `frozen` is kbd:[Shift], `clear()` is the pointer leaving.  Not built:
-`InspectModeController` and the toolbar and menu commands (WTApp), and the 2 ms frame budget
-test, which needs the app's canvas.
+shown changed, `frozen` is kbd:[Shift], `clear()` is the pointer leaving.  `InspectModeController`,
+the menu command and the 2 ms frame budget test, which needs the app's canvas, are the app's (the
+note under "Client").
 * `WTInterchange.Snippets`: `SVGSnippet` (the IO-019 `SVGWriter` over a selection-only
   display list with a tight `viewBox` and default options), `CSSSnippet`, `SwiftSnippet`,
   `PNGSnippet` (the IO-021 rasterizer at `scale × device scale`, transparent background).
@@ -320,7 +320,7 @@ are not in the display list); the CSS for a rotated object gives its axis-aligne
 snippet draws placed images as their placeholders, as the bitmap rasterizer does.  The
 `SnippetObject` for a selection is built by the Inspect panel (COLLAB-037).
 
-NOTE: As built by COLLAB-035's app half (`WTApp/Collaboration/InspectMode.swift`).  menu:View[Inspect
+NOTE: As built by COLLAB-035, the app (`WTApp/Collaboration/InspectMode.swift`).  menu:View[Inspect
 Mode] (kbd:[Cmd+Shift+I]) toggles `InspectModeController` per window: an `InspectOverlayLayer` is
 inserted above the presence layer and follows the viewport, `InspectTool` is pushed over the
 window's tool (hover measures with `InspectMeasurements.measure` from the hovered object's
@@ -328,8 +328,12 @@ window's tool (hover measures with `InspectMeasurements.measure` from the hovere
 the format from the document's unit; a click selects; kbd:[Shift] freezes; kbd:[Esc] leaves; every
 other key is consumed, so tool shortcuts do nothing), and every document command is made inert:
 `DocumentHandle.commandTransform` hands the document an `InertCommand`, which throws, so nothing is
-written whatever a menu, key or tool asks for.  Not built: the toolbar button, entering the mode by
-default for a viewer, hovered path points, and undo and redo being inert too.  The 2 ms frame budget is
+written whatever a menu, key or tool asks for.  COLLAB-035's rest: the Main toolbar's default set gains btn:[Inspect]
+(`MainToolbarController.inspect`, the command itself); a window whose document the library records with the viewer role
+enters the mode as it opens (`CollaborationFeatures.role`); the anchor of the hovered path, rectangle, ellipse or polygon
+nearest the pointer within the pick distance reads out as the hovered point (`WTModel/InspectPoints.swift`); and undo and
+redo are inert while inspecting (`DocumentHandle.historyLocked`: *Undo* and *Redo* disabled, and nothing undone if asked).
+Deviation: the toolbar button is not highlighted while the mode is on (menu:View[Inspect Mode] shows its check).  The 2 ms frame budget is
 `InspectOverlayPerformanceTests` (COLLAB-035's rest): 200 pointer moves over the 50,000-rectangle
 document in a window, each timed from `InspectTool.pointerMoved` through the hit test, the
 measurements and the overlay layer's `display()`, p95 held to 2 ms as a `PerfBudget` (Debug, like the
@@ -343,10 +347,17 @@ top-left corner from the page holding the object's centre, width and height; a c
 (SVG, CSS and Swift from WTInterchange's snippets, btn:[Copy]) and btn:[PNG 1×] to btn:[PNG 3×] on the pasteboard.
 `ExportSnapshot.snippetObject` gives the kind (a rectangle whose corner radii are all equal and above zero is a rounded
 rectangle; paths and polygons are paths), the name, the document's swatch names by colour, what no snippet can express
-(blends, extrusions, envelopes, objects on a perspective grid) and the placed images the item draws.  *Not built yet*: the
-Colors, Stroke, Fills, Effects, Typography and Text sections, the `inspect.unit`/`inspect.scale` preferences (the
-pop-ups are the panel's own state), kbd:[Option]-click to save a PNG, the attribution flash and remote-selection
-inspection.  Tests: `ModelGlueFeaturesTests`, `WTModelTests/ExportSnapshotGlueTests`.
+(blends, extrusions, envelopes, objects on a perspective grid) and the placed images the item draws.  COLLAB-037's
+rest (`WTInterchange/Snippets/SnippetReadout.swift`, `InspectPanelModel.readout`): the *Colors* section (every colour of
+every fill -- gradient stops included --, stroke, shadow and text run, once each, with its swatch name and its value in the
+notation), *Stroke* (width, cap, join, miter limit, dash, arrowheads, colour of the topmost stroke), *Fills* (each fill:
+a colour, a gradient's kind and stops, or the paint's kind), *Effects* (shadows and glows with offset, angle, softness and
+colour; blur with its radius; any other by name), *Typography* (per run: font, style, size, leading, tracking, colour) and
+*Text* (btn:[Copy Text]); a click on any value copies it.  The unit and scale are remembered on this Mac under
+`inspect.unit` and `inspect.scale` (the preferences' own defaults); kbd:[Option]-click on btn:[PNG 1×] … btn:[PNG 3×]
+saves the PNG to a chosen file; a field beside the *Scale* pop-up takes a custom factor (0.1× to 16×).  Deviation: the two are not rows of the Preferences window yet (the preferences page is a
+shared page; the rows are proposed).  *Not built yet*: the attribution flash on changed rows and remote-selection
+inspection (menu:View[Collaborators > Inspect Selection]).  Tests: `ModelGlueFeaturesTests`, `WTModelTests/ExportSnapshotGlueTests`.
 
 NOTE: As built by COLLAB-038 (`WTModel/DeepLink.swift`, `WTApp/Collaboration/DeepLinks.swift`,
 `api/.../links/DeepLinkRedirect.java`).  `DeepLink` formats and parses the three `wiretuner://doc/…`

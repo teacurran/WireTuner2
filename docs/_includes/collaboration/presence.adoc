@@ -220,6 +220,10 @@ message PresenceUpdate {
   // Server-filled.  The session: the replica of the subscription.  With branch_id it tells one
   // person's two Macs apart.
   fixed64 session = 16;
+  // The canvas the view shows when it is not the pasteboard (a master page's tab, DOC-012):
+  // cursor, viewport and sub_selection are in its space; others show "on Master A" and draw the
+  // cursor only in a window showing that canvas.  Unset on the pasteboard.
+  wiretuner.doc.v1.OpId canvas = 17;
 }
 
 enum PresenceState { PRESENCE_STATE_UNSPECIFIED = 0; PRESENCE_STATE_ACTIVE = 1;

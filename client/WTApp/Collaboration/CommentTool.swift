@@ -120,3 +120,64 @@ extension CanvasView {
     /// The scale an overlay layer of the canvas draws at: its window's backing scale.
     var overlayScale: CGFloat { window?.backingScaleFactor ?? 2 }
 }
+
+/// The Pointer tool's pins (comments.adoc, "Client": the Comment tool and the Pointer tool query the
+/// pin layer before the document; COLLAB-027's rest): a press on a pin is the pin's, not the
+/// object's under it -- a click opens its thread, a drag (a pin the caller may move) drops it on
+/// the object under the release or on empty space, as with the Comment tool.
+@MainActor
+final class CommentPinHandles: CanvasHandleLayer {
+    let lookup: @MainActor (DocumentHandle) -> WindowComments?
+    /// The pin pressed and where (view points).
+    private(set) var pressed: (thread: OpID, start: Point)?
+    /// Where a dragged pin is (pasteboard).
+    private(set) var dragPoint: Point?
+
+    init(lookup: @escaping @MainActor (DocumentHandle) -> WindowComments?) {
+        self.lookup = lookup
+    }
+
+    var tools: Set<ToolID>? { [.pointer] }
+
+    func press(_ e: CanvasEvent, context: ToolContext) -> Bool {
+        guard let comments = lookup(context.document), let thread = comments.thread(atView: e.viewPoint, viewport: context.viewport) else { return false }
+        pressed = (thread.id, e.viewPoint)
+        dragPoint = nil
+        return true
+    }
+
+    func drag(_ e: CanvasEvent, context: ToolContext) {
+        guard let pressed, let comments = lookup(context.document), let thread = comments.model[pressed.thread], comments.permissions.canMove(thread) else { return }
+        if dragPoint != nil || hypot(e.viewPoint.x - pressed.start.x, e.viewPoint.y - pressed.start.y) > CommentTool.dragThreshold {
+            dragPoint = e.pasteboardPoint
+            context.host.setNeedsOverlayDisplay()
+        }
+    }
+
+    func release(_ e: CanvasEvent, context: ToolContext) {
+        defer {
+            pressed = nil
+            dragPoint = nil
+            context.host.setNeedsOverlayDisplay()
+        }
+        guard let pressed, let comments = lookup(context.document) else { return }
+        if dragPoint != nil {
+            let anchor = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: false)?.id.opID
+            comments.movePin(pressed.thread, to: e.pasteboardPoint, on: anchor)
+        } else {
+            comments.open(pressed.thread)
+        }
+    }
+
+    func cancel(context: ToolContext) {
+        pressed = nil
+        dragPoint = nil
+        context.host.setNeedsOverlayDisplay()
+    }
+
+    func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
+        guard let dragPoint, let pressed, let comments = lookup(context.document), let thread = comments.model[pressed.thread] else { return }
+        WindowComments.drawPin(in: ctx, at: viewport.toView(dragPoint), label: "\(thread.number)", color: WindowComments.color(of: thread.opener.author),
+                               unread: false, open: true)
+    }
+}

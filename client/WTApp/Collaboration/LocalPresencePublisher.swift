@@ -18,9 +18,23 @@ final class LocalPresencePublisher {
     static let subSelectionCap = 500
 
     let presence: LocalPresence
+    /// The canvas the window shows when it is not the pasteboard (a master page's tab, DOC-012):
+    /// every pointer, viewport, page and selection write names it, so the frame says which space
+    /// they are in whichever of the document's windows wrote last.
+    var canvas: OpID?
 
-    init(presence: LocalPresence) {
+    init(presence: LocalPresence, canvas: OpID? = nil) {
         self.presence = presence
+        self.canvas = canvas
+    }
+
+    private func stamp(_ update: inout Wiretuner_Sync_V1_PresenceUpdate) {
+        if let canvas {
+            update.canvas = canvas.proto
+            update.clearPage()
+        } else {
+            update.clearCanvas()
+        }
     }
 
     /// *Show my cursor and selection to others*.
@@ -31,6 +45,7 @@ final class LocalPresencePublisher {
     /// The pointer in pasteboard points; nil when it left the canvas.
     func pointer(_ point: Point?) {
         presence.update { update in
+            self.stamp(&update)
             if let point {
                 update.cursor = Self.point(point)
             } else {
@@ -43,6 +58,7 @@ final class LocalPresencePublisher {
     func viewport(_ viewport: Viewport) {
         let visible = viewport.visiblePasteboardBounds
         presence.update { update in
+            self.stamp(&update)
             update.viewport.visible = Self.rect(visible)
             update.viewport.zoom = viewport.zoom
         }
@@ -52,6 +68,7 @@ final class LocalPresencePublisher {
     func page(_ id: OpID?) {
         presence.update { update in
             if let id { update.page = id.proto } else { update.clearPage() }
+            self.stamp(&update)
         }
     }
 
@@ -70,6 +87,7 @@ final class LocalPresencePublisher {
             }
         }
         presence.update { update in
+            self.stamp(&update)
             update.selection = ids.prefix(Self.selectionCap).map { $0.opID.proto }
             update.selectionCount = UInt32(ids.count)
             update.subSelection = points

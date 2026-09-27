@@ -143,4 +143,26 @@ import WTSync
         let well = ColorWellView(title: "Color", model: model, actions: ColorWellActions { _ in }, identifier: "well")
         ColorPanelFixture.render(well.palette())
     }
+
+    /// CMS-010's rest: the profile menus' *In this document* group lists every profile asset the
+    /// document carries, of the menu's space.
+    @Test func profileMenusListTheDocumentsProfiles() async throws {
+        let fixture = ColorPanelFixture()
+        await fixture.settle()
+        var custom = Wiretuner_Doc_V1_ProfileRef()
+        custom.name = "Camera RGB"
+        custom.sha256 = Data(repeating: 7, count: 32)
+        custom.space = .rgb
+        _ = await fixture.document.perform(AddProfileAssets([(profile: custom, size: 500)])).value
+        await fixture.settle()
+        #expect(ColorSettings.documentProfiles(fixture.document.state).map(\.name) == ["Camera RGB"])
+        #expect(ColorSettings.documentProfiles(fixture.document.state, space: .cmyk).isEmpty)
+        let settings = ColorSettingsModel(workspace: fixture.workspace)
+        let rgb = settings.choices(.rgb).filter { $0.group == ColorSettingsModel.documentGroup }
+        #expect(rgb.map(\.title) == ["Camera RGB"])
+        #expect(settings.choices(.cmyk).allSatisfy { $0.group != ColorSettingsModel.documentGroup })
+        settings.choose(rgb[0].id, for: .rgb)
+        #expect(settings.selection(.rgb) == rgb[0].id)
+    }
+
 }

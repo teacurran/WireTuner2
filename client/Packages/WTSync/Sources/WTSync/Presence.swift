@@ -36,6 +36,9 @@ public struct PresenceParticipant: Sendable, Hashable, Identifiable {
     /// No input for two minutes: the avatar is dimmed.
     public var isIdle: Bool
     public var page: OpID?
+    /// The canvas their view shows when it is not the pasteboard (a master page's tab, DOC-012);
+    /// the cursor, viewport and sub-selection are in its space.
+    public var canvas: OpID?
     /// Pointer in pasteboard points; nil when off the canvas.
     public var cursor: CGPoint?
     /// Visible rect in pasteboard points and zoom, for Follow.
@@ -65,6 +68,7 @@ public struct PresenceParticipant: Sendable, Hashable, Identifiable {
         branchID = update.branchID
         isIdle = update.state == .idle
         page = update.hasPage ? OpID(update.page) : nil
+        canvas = update.hasCanvas ? OpID(update.canvas) : nil
         cursor = update.hasCursor ? CGPoint(x: update.cursor.x, y: update.cursor.y) : nil
         viewport = update.hasViewport ? CGRect(x: update.viewport.visible.x, y: update.viewport.visible.y,
                                                width: update.viewport.visible.width, height: update.viewport.visible.height) : nil

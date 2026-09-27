@@ -696,6 +696,20 @@ public actor LocalStore: DocumentBackend {
 
     // MARK: Salvage (SYNC-010)
 
+    /// How many local changes, of this replica or a retired one, wait for an acknowledgement.
+    public func unsentChangeCount() throws -> Int {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM changes WHERE local = 1 AND server_seq IS NULL")!
+        }
+    }
+
+    /// How many calls of any kind wait in `pending_calls` (named versions, comment marks...).
+    public func pendingCallCount() throws -> Int {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM pending_calls")! }
+    }
+
     /// Whether any local change, of this replica or a retired one, waits for an acknowledgement.
     public func hasUnsentChanges() throws -> Bool {
         guard let database else { throw Failure.closed }

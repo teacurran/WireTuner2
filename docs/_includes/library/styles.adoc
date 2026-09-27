@@ -671,10 +671,15 @@ panel lists); nothing is rewritten, so two people importing the same style see "
 The Styles panel's *Import…* sheet reads another open document, a document cached on this Mac (its local store), a team library
 from the catalog, or a `.wtstyles` file (btn:[Choose File…]; its asset bytes go into the blob cache), lists the styles for a
 selection and has the *Replace styles with the same name* box; *Export…* lists the front document's styles and writes a file
-(btn:[To File…]) or hands them to *Export to Team Library…* (btn:[To Team Library…], LIB-016).  *Not built*: reading a document
-from the server that is not cached here (`SymbolSources.cloudState` exists; the sheet offers cached and open documents only),
-{product} document files on disk as an import source and the IMG epic's importer routing for style library files, and queueing
-the uploads of an imported file's asset blobs.  Tests: `StyleTransferTests` (WTModel), `LibraryTransferReviewTests` and `StyleSourcesTests` (WTSync),
+(btn:[To File…]) or hands them to *Export to Team Library…* (btn:[To Team Library…], LIB-016).  LIB-022's rest
+(`WTApp/Styles/StyleTransferSheets.swift`, `Import/ImportController.swift`, `client/project.yml`): online, the source pop-up also
+lists the library's documents this Mac holds no copy of ("Brand (from the cloud)"), read at the server's head through
+`SymbolSources.cloudState` (offline: "Connect to the internet to read this document's styles"); btn:[Choose File…] takes a
+{product} package too, whose styles come with the package's asset bytes; an import that brings asset bytes (from a file or a
+package) caches them and queues their upload for the front document (the import controller's blob placement) before the one
+change; and a `.wtstyles` file -- now the exported type `com.villagecompute.wiretuner.style-library`, owned by {product} --
+opened from the Finder, chosen in menu:File[Import…] or dropped on the canvas opens the Import Styles sheet over the front
+document reading it (a `.wtsymbols` file likewise opens Import Symbols), rather than being placed.  Tests: `StyleTransferTests` (WTModel), `LibraryTransferReviewTests` and `StyleSourcesTests` (WTSync),
 `StyleTransferModelTests` (WTApp).
 
 === Build tasks

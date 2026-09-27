@@ -124,6 +124,23 @@ import WTRender
         #expect(throws: ImageEditError.self) { try a.perform(TrimImageToCrop(OpID(counter: 999, replica: 1), pixels: ImageCommandsTests.pixels())) }
     }
 
+    /// *Trim to crop* with Optimize Image's resampling: half the kept pixels still cover the kept
+    /// part, so the visible part stays in place and the stored resolution halves.
+    @Test func aResampledTrimStillCoversTheKeptPart() throws {
+        var a = Replica(0xA)
+        let image = try ImageCommandsTests.place(&a)
+        // A crop on whole pixels (30, 30, 150 × 60 of 300 × 150), so only the resampling differs.
+        let crop = Rect(x: 0.1, y: 0.2, width: 0.5, height: 0.4)
+        try a.perform(CropImage([image], crop: crop, name: "photo.png"))
+        let before = try #require(Objects.bounds(of: image, in: a.state))
+        let props = a.state.props(image).image
+        let kept = ImageCropping.trimRect(crop, width: Int(props.pixels.pixelWidth), height: Int(props.pixels.pixelHeight))
+        try a.perform(TrimImageToCrop(image, pixels: ImageCommandsTests.pixels(width: Int32(kept.width / 2), height: Int32(kept.height / 2), fill: 1)))
+        let after = try #require(Objects.bounds(of: image, in: a.state))
+        #expect(Self.close(before, after, 0.5))
+        #expect(abs(a.state.props(image).image.dpiX - props.dpiX / 2) < 0.5)
+    }
+
     @Test func aCropMergesWithAPixelReplacementAndTheLaterCropWins() throws {
         var pair = Pair()
         let image = try ImageCommandsTests.place(&pair.a)

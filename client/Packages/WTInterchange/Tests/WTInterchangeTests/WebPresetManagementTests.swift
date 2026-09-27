@@ -51,4 +51,23 @@ import Testing
         #expect(imported[1].format == .webp && imported[1].scale == 1 && imported[1].quality == 55 && imported[1].id != mine.id)
         #expect(other.userPresets.count == 3)
     }
+
+    /// The editor's *Save as Preset…*: a preset's own options capture back to the same settings,
+    /// and other formats' options capture nothing.
+    @Test func theSheetsSettingsCaptureAsAPreset() throws {
+        for preset in WebExportPreset.builtIn + [
+            WebExportPreset(id: "a", name: "A", format: .avif, scale: 1, quality: 40, stripMetadata: false, transparent: true),
+            WebExportPreset(id: "g", name: "G", format: .gif, transparent: false, matte: [0.5, 0.25, 1]),
+            WebExportPreset(id: "p", name: "P", format: .png, scale: 1, stripMetadata: false, transparent: false),
+        ] {
+            let captured = try #require(WebExportPreset.capturing(preset.options(), name: "Mine"))
+            #expect(captured.name == "Mine" && captured.format == preset.format && captured.scale == preset.scale)
+            #expect(captured.stripMetadata == preset.stripMetadata && captured.transparent == preset.transparent)
+            if [.jpeg, .webp, .avif].contains(preset.format) { #expect(captured.quality == preset.quality) }
+            if preset.format == .gif { #expect(zip(captured.matte, preset.matte).allSatisfy { abs($0 - $1) < 0.001 }) }
+            #expect(!captured.isBuiltIn && captured.id.hasPrefix("user."))
+        }
+        #expect(WebExportPreset.capturing(PDFOptions(), name: "No") == nil)
+        #expect(WebExportPreset.capturing(PNGOptions(common: BitmapCommonOptions(scales: [3])), name: "S")?.scale == 2)
+    }
 }

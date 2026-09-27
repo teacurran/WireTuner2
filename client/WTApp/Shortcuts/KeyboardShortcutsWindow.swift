@@ -99,7 +99,7 @@ struct KeyboardShortcutsView: View {
             TextField("Search commands", text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("shortcuts.search")
-            List(selection: $model.selectedCommandID) {
+            List(selection: model.selection) {
                 ForEach(model.categories) { category in
                     Section(isExpanded: model.expansion(for: category.id)) {
                         ForEach(category.rows) { row in

@@ -293,6 +293,66 @@ struct CommentWorld {
         #expect(!loose.hasSomethingToCancel && loose.cursor == .crosshair)
     }
 
+    /// COLLAB-027's rest: the Pointer tool asks the pins first -- a click on a pin opens its thread
+    /// rather than selecting what is under it, a drag moves the pin -- and while the composer or a
+    /// reply field has focus, `editing` presence carries the thread.
+    @Test func thePointerToolQueriesPinsAndTheComposerPublishesEditing() async throws {
+        let world = CommentWorld()
+        defer { world.close() }
+        let setup = world.setup
+        let ids = await world.document.addRectangles([Rect(x: 20, y: 20, width: 60, height: 40)])
+        let thread = try #require(await world.thread("Here", at: Point(x: 40, y: 40), on: ids[0].opID))
+        world.comments.close()
+        let manager: ToolManager = try #require(world.window.toolManager)
+        manager.select(.pointer)
+        #expect(manager.handleLayers.first === world.comments.pinHandles)
+        let entry = try #require(world.comments.model[thread])
+        let pin = try #require(world.comments.pinCenter(entry, viewport: world.window.viewport))
+        let onPin = CanvasEvent(pasteboardPoint: world.window.viewport.toPasteboard(pin), viewPoint: pin)
+        world.window.selection.model.clear()
+        manager.mouseDown(onPin)
+        manager.mouseUp(onPin)
+        #expect(world.comments.openThread == thread && world.window.selection.selection.ids.isEmpty, "the pin's, not the rectangle's")
+        world.comments.close()
+        // A drag drops the pin on empty space: a point pin.
+        manager.mouseDown(onPin)
+        manager.mouseDragged(setup.event(Point(x: 300, y: 200)))
+        world.comments.pinHandles.draw(in: bitmap(), viewport: world.window.viewport, context: manager.context)
+        manager.mouseUp(setup.event(Point(x: 300, y: 200)))
+        await world.document.settle()
+        world.comments.refresh(force: true)
+        #expect(world.comments.model[thread]?.anchoring != .object(ids[0].opID))
+        // Off a pin the press is the tool's; Esc drops a pressed pin.
+        #expect(!world.comments.pinHandles.press(setup.event(Point(x: 700, y: 700)), context: manager.context))
+        let movedEntry = try #require(world.comments.model[thread])
+        let moved = try #require(world.comments.pinCenter(movedEntry, viewport: world.window.viewport))
+        #expect(world.comments.pinHandles.press(CanvasEvent(pasteboardPoint: world.window.viewport.toPasteboard(moved), viewPoint: moved), context: manager.context))
+        world.comments.pinHandles.cancel(context: manager.context)
+        #expect(world.comments.pinHandles.pressed == nil)
+        // Presence: the composer's focus publishes the open thread as `editing`.
+        var published: [[SelectionID]] = []
+        world.comments.publishEditing = { published.append($0) }
+        world.comments.open(thread)
+        let model = ThreadViewModel(comments: world.comments)
+        model.focusChanged(true)
+        #expect(world.comments.editingPresence == thread && published == [[SelectionID(thread)]])
+        model.focusChanged(true)
+        #expect(published.count == 1, "unchanged: nothing sent")
+        CommentThreadView.focus(model)(true, false)
+        #expect(world.comments.editingPresence == nil && published.last == [])
+        model.focusChanged(true)
+        world.comments.close()
+        #expect(world.comments.editingPresence == nil && published.last == [])
+        // A pending thread has no node: nothing is published.
+        world.comments.begin(at: Point(x: 500, y: 500), on: nil)
+        model.focusChanged(true)
+        #expect(world.comments.editingPresence == nil)
+        world.comments.discardPending()
+        var priya = RemoteParticipant(id: "p", name: "Priya", colorIndex: 1)
+        priya.editing = [SelectionID(thread)]
+        #expect(AvatarStripModel.activity(priya, commentAnchor: { $0 == SelectionID(thread) ? "Logo" : nil }) == "Commenting on Logo")
+    }
+
     @Test func theThreadPopoverModelAndViews() async throws {
         let world = CommentWorld()
         defer { world.close() }

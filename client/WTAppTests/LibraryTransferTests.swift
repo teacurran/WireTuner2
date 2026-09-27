@@ -4,6 +4,7 @@ import SwiftUI
 import Testing
 import WTCRDT
 import WTGeometry
+import WTInterchange
 import WTModel
 import WTProto
 import WTRender
@@ -301,6 +302,74 @@ final class FakeTeamLibraryService: TeamLibraryTransport, @unchecked Sendable {
         model.cancelExport()
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: bad)
+    }
+}
+
+/// LIB-022's rest: documents this Mac holds no copy of, {product} packages on disk, a file's asset
+/// bytes queued with the import, and style library files routed to the sheet.
+@Suite(.serialized) @MainActor struct StyleSourcesRestTests {
+    @Test func uncachedDocumentsPackagesAndQueuedBlobs() async throws {
+        let environment = TestEnvironment()
+        let documents = DocumentController(environment: environment.document)
+        let other = documents.open(.memory(title: "Brand"), show: false)
+        _ = await other.documentHandle.perform(CreateGraphicStyle(.defaults)).value
+        let front = documents.open(.memory(title: "Poster"), show: false)
+        defer {
+            front.close()
+            other.close()
+        }
+        let model = StyleTransferModel(documents: documents, teamLibraries: nil)
+        let sheets = SheetPresenter()
+        sheets.present = { _ in }
+        model.sheets = sheets
+        model.blobCache = { nil }
+        // Online, the library's uncached documents are offered and read from the server.
+        model.libraryDocuments = { [(id: "remote", name: "Remote"), (id: front.documentHandle.id, name: "Poster")] }
+        #expect(!model.sources.contains(.cloud(id: "remote", name: "Remote")))
+        model.isOnline = { true }
+        #expect(model.sources.last == .cloud(id: "remote", name: "Remote") && model.sources.last?.title == "Remote (from the cloud)")
+        let brand = other.documentHandle.state
+        model.cloudState = { $0 == "remote" ? brand : nil }
+        await model.choose(.cloud(id: "remote", name: "Remote"))
+        #expect(model.package?.isEmpty == false && model.message == nil)
+        await model.choose(.cloud(id: "gone", name: "Gone"))
+        #expect(model.message == "Connect to the internet to read this document's styles" && model.package == nil)
+        // A package on disk: its styles.
+        let contents = DocumentPackage.contents(of: brand, info: DocumentPackage.Info(documentID: "b", title: "Brand"),
+                                                page: Rect(x: 0, y: 0, width: 100, height: 100), cached: { _ in nil })
+        let packageURL = TestStores.directory().appending(path: "Brand-\(UUID().uuidString).wiretuner")
+        try FileManager.default.createDirectory(at: packageURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try PackageWriter().data(contents).data.write(to: packageURL)
+        await model.choose(.file(packageURL))
+        #expect(model.package?.names.count == StylePackage(allStylesOf: brand).names.count)
+        // A style library carrying asset bytes: they are queued with the import, before it.
+        var file = StylePackage(allStylesOf: brand)
+        file.blobs["ab"] = Data([1, 2, 3])
+        let url = FileManager.default.temporaryDirectory.appending(component: "blobs-\(UUID().uuidString).wtstyles")
+        try file.fileData.write(to: url)
+        var queued: [Int] = []
+        model.storeBlobs = { blobs, document in
+            #expect(document === front.documentHandle)
+            queued.append(blobs.count)
+        }
+        StyleTransferModel.shared = model
+        defer { StyleTransferModel.shared = nil }
+        #expect(StyleTransferModel.opens(url))
+        #expect(!StyleTransferModel.opens(packageURL), "only style library files")
+        await model.choose(.file(url))
+        let change = await model.confirmImport()?.value
+        #expect(queued == [1] && change?.label.hasPrefix("Import") == true)
+        // The importer hands library files to their sheets and places the rest.
+        let importer = ImportController(preferences: environment.preferences)
+        var routed: [String] = []
+        importer.openLibraryFile = { routed.append($0.lastPathComponent); return true }
+        let svg = URL(fileURLWithPath: "/tmp/a.svg")
+        #expect(importer.routingLibraryFiles([url, svg]) == [svg] && routed == [url.lastPathComponent])
+        #expect(importer.drop([url], on: front, at: .zero))
+        importer.openLibraryFile = { _ in false }
+        #expect(importer.routingLibraryFiles([url]) == [url])
+        try? FileManager.default.removeItem(at: url)
+        try? FileManager.default.removeItem(at: packageURL)
     }
 }
 

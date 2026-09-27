@@ -32,15 +32,43 @@ final class InspectPanelModel {
     /// A blob's bytes by SHA-256 when it is on this Mac (the placed images a snippet draws).
     @ObservationIgnored var blob: (Data) -> Data? = { _ in nil }
     @ObservationIgnored var pasteboard: NSPasteboard = .general
+    /// Where the unit and scale are remembered on this Mac (`inspect.unit`, `inspect.scale`).
+    @ObservationIgnored let defaults: UserDefaults?
+    /// Chooses where *Option*-click on a PNG button saves; nil when cancelled.
+    @ObservationIgnored var chooseDestination: @MainActor (String) -> URL? = InspectPanelModel.savePanel
+    /// Whether kbd:[Option] is held (a PNG button saves instead of copying).
+    @ObservationIgnored var optionDown: @MainActor () -> Bool = { NSEvent.modifierFlags.contains(.option) }
     var notation: SnippetNotation = .hex
-    var unit: SnippetUnit = .pixels
-    var scale: Double = 1
+    var unit: SnippetUnit = .pixels {
+        didSet { defaults?.set(unit.rawValue, forKey: Self.unitKey) }
+    }
+    var scale: Double = 1 {
+        didSet { defaults?.set(scale, forKey: Self.scaleKey) }
+    }
+
+    /// A custom factor typed in the scale field, kept between 0.1× and 16×.
+    func setCustomScale(_ value: Double) {
+        scale = value.isFinite ? min(max(value, 0.1), 16) : 1
+    }
+    /// A scale as the pop-up shows it ("1.5×").
+    static func scaleTitle(_ scale: Double) -> String {
+        (scale.rounded() == scale ? "\(Int(scale))" : String(format: "%g", scale)) + "×"
+    }
+
+    static let unitKey = "inspect.unit"
+    static let scaleKey = "inspect.scale"
     var tab: Tab = .svg
     private(set) var revision = 0
     /// What the last copy put on the pasteboard ("Copied CSS").
     private(set) var copied: String?
 
-    init() {}
+    /// `defaults` remembers the unit and scale (COLLAB-037's rest); nil keeps them for the panel's
+    /// life only.
+    init(defaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        if let raw = defaults?.string(forKey: Self.unitKey), let stored = SnippetUnit(rawValue: raw) { unit = stored }
+        if let stored = defaults?.object(forKey: Self.scaleKey) as? Double, stored > 0 { scale = stored }
+    }
 
     /// The selection or the document changed: the panel reads again.
     func touch() {
@@ -67,6 +95,12 @@ final class InspectPanelModel {
         }
         return SnippetObject(name: "selection", shape: .other, item: .group(GroupItem(children: objects.map(\.item))), assets: assets,
                              swatchNames: first.swatchNames)
+    }
+
+    /// *Colors*, *Stroke*, *Fills*, *Effects*, *Typography* and *Text* (COLLAB-037's rest), in the
+    /// notation, unit and scale.
+    func readout(_ object: SnippetObject) -> SnippetReadout {
+        SnippetReadout(object, options: options)
     }
 
     /// *Layout*: the top-left corner on the object's page and the size, in the unit.
@@ -104,6 +138,34 @@ final class InspectPanelModel {
         return copy(code(tab, for: object), what: tab.rawValue)
     }
 
+    /// A PNG button: kbd:[Option]-click saves the PNG to a file, a click copies it.
+    @discardableResult
+    func png(scale: Double) -> Data? {
+        optionDown() ? savePNG(scale: scale) : copyPNG(scale: scale)
+    }
+
+    /// kbd:[Option]-click on btn:[PNG 1×] … btn:[PNG 3×]: the PNG written to a chosen file.
+    @discardableResult
+    func savePNG(scale: Double) -> Data? {
+        guard let object, let url = chooseDestination(PNGSnippet.fileName(object, scale: scale)) else { return nil }
+        let data = PNGSnippet.make(object, scale: scale)
+        do {
+            try data.write(to: url, options: .atomic)
+            copied = "Saved \(url.lastPathComponent)"
+            return data
+        } catch {
+            copied = "The PNG could not be saved"
+            return nil
+        }
+    }
+
+    static func savePanel(_ name: String) -> URL? {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.allowedContentTypes = [.png]
+        return panel.runModal() == .OK ? panel.url : nil
+    }
+
     /// btn:[PNG 1×] … btn:[PNG 3×]: the selection as a PNG at `scale` on the pasteboard.
     @discardableResult
     func copyPNG(scale: Double) -> Data? {
@@ -132,7 +194,29 @@ struct InspectPanelBody: View {
 
     static func copying(_ model: InspectPanelModel, _ text: String, _ what: String) -> () -> Void { { model.copy(text, what: what) } }
     static func copyingCode(_ model: InspectPanelModel, _ tab: InspectPanelModel.Tab) -> () -> Void { { model.copyCode(tab) } }
-    static func copyingPNG(_ model: InspectPanelModel, _ scale: Double) -> () -> Void { { model.copyPNG(scale: scale) } }
+    static func copyingPNG(_ model: InspectPanelModel, _ scale: Double) -> () -> Void { { model.png(scale: scale) } }
+    static func customScale(_ model: InspectPanelModel) -> Binding<Double> {
+        Binding(get: { model.scale }, set: { model.setCustomScale($0) })
+    }
+
+    /// A section of labelled values, each copied by a click.
+    @ViewBuilder
+    static func rows(_ title: String, _ rows: [SnippetReadout.Row], model: InspectPanelModel) -> some View {
+        if !rows.isEmpty {
+            Text(title).font(.headline)
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                Button(action: copying(model, row.value.isEmpty ? row.label : row.value, row.label)) {
+                    HStack(alignment: .top) {
+                        Text(row.label).foregroundStyle(.secondary)
+                        Spacer()
+                        Text(row.value).multilineTextAlignment(.trailing).monospacedDigit()
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("inspect.\(title.lowercased()).\(row.label)")
+            }
+        }
+    }
 
     var body: some View {
         if let object = model.object {
@@ -149,8 +233,13 @@ struct InspectPanelBody: View {
                         .accessibilityIdentifier("inspect.unit")
                         Picker("Scale", selection: $model.scale) {
                             ForEach(InspectPanelModel.scales, id: \.self) { Text("\(Int($0))×").tag($0) }
+                            if !InspectPanelModel.scales.contains(model.scale) { Text(InspectPanelModel.scaleTitle(model.scale)).tag(model.scale) }
                         }
                         .accessibilityIdentifier("inspect.scale")
+                        // A custom factor (inspect.adoc, "Units and scale").
+                        TextField("Custom", value: Self.customScale(model), format: .number.precision(.fractionLength(0...2)))
+                            .frame(width: 48)
+                            .accessibilityIdentifier("inspect.customScale")
                     }
                     .labelsHidden()
                     Text("Layout").font(.headline)
@@ -164,6 +253,33 @@ struct InspectPanelBody: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("inspect.layout.\(row.label)")
+                    }
+                    let readout = model.readout(object)
+                    if !readout.colors.isEmpty {
+                        Text("Colors").font(.headline)
+                        ForEach(Array(readout.colors.enumerated()), id: \.offset) { _, row in
+                            Button(action: Self.copying(model, row.value, row.name ?? "color")) {
+                                HStack {
+                                    SwiftUI.Circle().fill(SwiftUI.Color(cgColor: row.color.cgColor)).frame(width: 12, height: 12)
+                                    Text(row.name ?? "").foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text(row.value).monospacedDigit()
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("inspect.color.\(row.value)")
+                        }
+                    }
+                    Self.rows("Stroke", readout.stroke, model: model)
+                    Self.rows("Fills", readout.fills, model: model)
+                    Self.rows("Effects", readout.effects, model: model)
+                    ForEach(Array(readout.typography.enumerated()), id: \.offset) { index, run in
+                        Self.rows(readout.typography.count > 1 ? "Typography \(index + 1)" : "Typography", run, model: model)
+                    }
+                    if let text = readout.text {
+                        Text("Text").font(.headline)
+                        Text(text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("inspect.text")
+                        Button("Copy Text", action: Self.copying(model, text, "text")).accessibilityIdentifier("inspect.copyText")
                     }
                     Text("Code").font(.headline)
                     Picker("Code", selection: $model.tab) {

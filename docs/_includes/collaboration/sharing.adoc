@@ -661,8 +661,8 @@ library (or an asset of the same hash); every reference inside the copies is rew
 by recreating the library's node in a scratch state), a style's attribute stack replaced when it differs, a symbol's artwork deleted
 and copied again, and `source_server_seq` moved to the library's head.  `DetachFromLibrary` writes `library` unset.
 `LibraryBadge.of(_:in:catalog:)` is the badge (library name, or "From a library you can't access"; *update available* when the head
-is past the copied seq).  Conformance vector `registers/library-update-vs-local-edit`.  Not built: the panels' sections and badge,
-the menu items and opening the cached stores (WTApp, WTSync).
+is past the copied seq).  Conformance vector `registers/library-update-vs-local-edit`.  The panels' sections, the badge and the
+buttons are the app's (the next note); the stores are opened by LIB-016's `TeamLibraryClient` (below).
 
 NOTE: As built by COLLAB-015's app half (`WTApp/Library/TeamLibraries.swift`).  The Swatches, Styles and Library panels end with a
 *Team libraries* section (`PanelRegistry.replace` wraps each panel's view): each cached library's items, expanded per library, where
@@ -670,8 +670,10 @@ a double-click performs `CopyFromLibrary` in the front document, and *In this do
 badge (`LibraryBadge`: the library's name or "From a library you can't access", a filled icon when an update is available) and
 btn:[Update] (`UpdateFromLibrary`, enabled while the library is cached) and btn:[Detach] (`DetachFromLibrary`).  Deviations: *Update
 from Library* and *Detach from Library* are the section's buttons rather than Actions menu items, and the badge is drawn in the
-section, not on the panels' own rows or in the Object panel.  Not built: the `LibraryStoreOpening` that opens the cached library
-stores (WTSync), so in the app the sections say no team library is cached.
+section, not on the panels' own rows or in the Object panel.  The `LibraryStoreOpening` that opens the cached library
+stores is LIB-016's `TeamLibraryClient` (`WTSync/TeamLibraryClient.swift`), which `TeamLibraryFeatures` sets as the catalog's
+opener: each listed library's state from this Mac's store when it is at the library's head (offline, at whatever head it has),
+else read from the server at head and kept for the session; offline, a library with no store here is not listed.
 
 === Build tasks
 

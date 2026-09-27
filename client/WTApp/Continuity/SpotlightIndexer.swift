@@ -50,6 +50,8 @@ final class SpotlightIndexer {
     private(set) var digests: [String: String] = [:]
     /// Items built (tests and the reindex-once rule).
     private(set) var builds = 0
+    /// The rebuild of the open documents' items every snapshot interval (IO-035's rest).
+    private(set) var refreshing: Task<Void, Never>?
 
     init(index: any SpotlightIndexing = DefaultSpotlightIndex(), url: URL? = nil) {
         self.index = index
@@ -105,6 +107,33 @@ final class SpotlightIndexer {
         digests[document.id] = digest
         save()
         return true
+    }
+
+    /// Every `interval` (the *Snapshot interval*, when the stores write their snapshots) the open
+    /// documents' items are rebuilt from their in-memory state -- each only when what it indexes
+    /// changed (IO-035's rest: the item follows snapshots as well as window closes).
+    func startRefreshing(every interval: @escaping @MainActor () -> Duration, documents: @escaping @MainActor () -> [DocumentHandle]) {
+        refreshing?.cancel()
+        refreshing = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: interval())
+                guard !Task.isCancelled, let self else { return }
+                await self.refresh(documents())
+            }
+        }
+    }
+
+    /// Rebuilds the items of `documents` whose content changed; how many were rebuilt.
+    @discardableResult
+    func refresh(_ documents: [DocumentHandle]) async -> Int {
+        var rebuilt = 0
+        for document in documents where await documentDidClose(document) { rebuilt += 1 }
+        return rebuilt
+    }
+
+    func stopRefreshing() {
+        refreshing?.cancel()
+        refreshing = nil
     }
 
     /// The document was trashed or its local copy removed: out of the index.

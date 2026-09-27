@@ -316,6 +316,14 @@ extension AppDelegate {
         features.install(panels: panels)
         let styles = StyleTransferModel(documents: documents, teamLibraries: features)
         styles.install(panels: panels)
+        // LIB-022's rest: uncached documents from the server, and a file's asset bytes queued.
+        let library = library
+        styles.libraryDocuments = { library.cache.documents.values.filter { !$0.isTrashed }.sorted { $0.name < $1.name }.map { (id: $0.id, name: $0.name) } }
+        styles.isOnline = { library.isOnline }
+        styles.cloudState = { id in try await SymbolTransferFeatures.shared?.cloudState(id) }
+        let imports = imports
+        styles.storeBlobs = { blobs, document in try await imports.blobs.store(blobs, for: document) }
+        StyleTransferModel.shared = styles
         libraryTransfer = (features, styles)
     }
 }

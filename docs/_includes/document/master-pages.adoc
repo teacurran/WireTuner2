@@ -238,14 +238,14 @@ dangling-master read-outs: a `WTModel` read rule, tested in `MasterCommandTests`
 built: master content rendering on children (DOC-011, which changes `DocumentDisplayListBuilder`)
 and the reconcile overlaps (DOC-013).
 
-NOTE: Partly built by DOC-012 (`WTApp/Panels/DocumentPanel.swift`, `Tools/PageTool.swift`).  Built:
+NOTE: As built by DOC-012, the Document panel controls (`WTApp/Panels/DocumentPanel.swift`, `Tools/PageTool.swift`):
 the *Master Page* pop-up (a master applies to the selected pages, *None* detaches them), the
 Options menu's *New Master Page*, *Convert to Master Page* and *Release Child Page*, the *Add
 Pages* sheet's *Make child of master page*, the Modify Page sheet's master, and dimmed handles on
-child pages.  Not built, because they need master content drawn on its own canvas and on the
-children (DOC-011): the master page tab (the pop-up's btn:[Edit] is disabled with that reason),
-presence on masters, and the live notices for a stale release and a deleted master (their review
-entries are DOC-013's); the Library panel's master list and drag-to-apply are the LIB epic's.
+child pages.  The master page tab (btn:[Edit]), the live notices for a stale release and a deleted master
+and presence on masters came with DOC-012's rest once DOC-011 drew master content on its own canvas (the
+DOC-012 note below; the review entries are DOC-013's); the Library panel's master list and drag-to-apply
+are the LIB epic's.
 
 NOTE: As built by DOC-013 (`WTSync/ReleaseReview.swift`, measured in `Divergence.measure` and carried
 by `ReviewModel.releaseOverlaps`).  A release is read from its change: a label ending in the
@@ -263,8 +263,8 @@ groups, one change) and *Keep my copies*.  Deviation: the two kinds are not `Ove
 object entry but rows of their own (`ReleaseOverlap`, as the data-merge rows are): they are about a page
 and a change, not an object changed on both sides, and they always hold the outbox.  The review sheet
 (`WTApp/Review/ReviewSheetModel.swift`) lists each as a row of its own under *Conflicts* -- "Page 3 from
-Master A", with its kind -- and offers its two choices, each one change.  Not built: the live notice
-(DOC-012's, which waits for DOC-011).
+Master A", with its kind -- and offers its two choices, each one change.  The live notice is DOC-012's
+(`MasterNotices`, the DOC-012 note below).
 
 NOTE: As built by DOC-011 (`WTModel/MasterRendering.swift`, hooks in `DocumentScene.swift`; `GroupItem.inert` and the
 `HitTester` rule in WTRender).  The pasteboard's builder keeps one builder per master that has child pages, drawing the master's
@@ -290,8 +290,14 @@ notices): after this person's release (a change whose label carries the master t
 someone else's change writing on that master within two minutes posts "Priya changed Master A while you released page 4" with *Update
 the copies* (`UpdateReleaseCopies`, "Update the copies": the copy groups deleted and the master's current objects copied again as
 `ReleaseChildPages` does, one change); someone else deleting a master that live pages follow posts "Tom deleted Master A; 2 pages are
-ordinary pages now" with *Restore*.  Not built: presence on masters ("on Master A"), the Document panel, rulers, guides and Page tool
-acting on the master while its tab is frontmost, and opening a master from the Library panel (the LIB epic's master list).  When
+ordinary pages now" with *Restore*.  Presence on masters (DOC-012's rest; `sync.proto` `PresenceUpdate.canvas = 17`,
+`WTSync.PresenceParticipant.canvas`, `LocalPresencePublisher.canvas`, `WindowCollaboration.participantsHere`): a master tab's
+window stamps every pointer, viewport, page and selection write with its master as `canvas` (and no page), the document window
+clears it, so the shared frame says which space the cursor is in; each window draws only the collaborators on its own canvas,
+the hover card reads "On Master A" (or "Editing Logo on Master A"), and Follow applies a followed view only when it is on the
+window's canvas.  The server relays the field as it relays the rest of the frame.  A master row's double-click in the Library
+panel opens the master in its tab (`SymbolLibraryModel.editMaster`, through the Document panel's btn:[Edit] route).  Not built:
+the Document panel, rulers, guides and Page tool acting on the master while its tab is frontmost.  When
 DOC-013's `ReleaseReview`/`UpdateReleasedCopies` land in WTSync, `MasterRelease` and `UpdateReleaseCopies` should give way to them.
 
 === Build tasks

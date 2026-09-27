@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import PDFKit
 import SwiftUI
 import Testing
 import WTCRDT
@@ -51,6 +52,33 @@ import WTRender
         #expect(paper.imageable.minY == 792 - Double(bounds.maxY))
         info.orientation = .landscape
         #expect(PrintJob.paper(info).size.width == Double(info.paperSize.width))
+    }
+
+    /// PRINT-013's Done when: a 200-sheet job, drawn from its snapshot off the main actor, leaves the
+    /// document window responsive -- text typed during the job lands while sheets are still being
+    /// drawn -- and the job reflects none of what was typed.
+    @Test func aTwoHundredSheetJobKeepsTheWindowResponsiveAndIgnoresLaterEdits() async throws {
+        let world = PrintWorld()
+        defer { world.close() }
+        await world.document.addRectangles([Rect(x: world.center.x - 50, y: world.center.y - 50, width: 100, height: 100)])
+        _ = await world.document.perform(SetPrintSettings([.separations(true)])).value
+        _ = await world.document.perform(AddPages(count: 49)).value
+        await world.document.settle()
+        let plan = PrintJob.plan(world.document, source: .pages, paper: .letter, selection: nil, blobs: BlobPlacement())
+        #expect(plan.count == 200, "50 pages × 4 process plates")
+        let run = PrintRun(plan: plan)
+        let job = Task { try await run.pdfInBackground(title: "Job") }
+        var landedDuringJob = 0
+        for index in 0..<20 {
+            _ = await world.document.addText("Typed during the job \(index)", at: Point(x: world.center.x, y: world.center.y + Double(index) * 14))
+            if run.sheetsDrawn < plan.count { landedDuringJob += 1 }
+        }
+        let data = try await job.value
+        #expect(landedDuringJob > 0, "edits landed while the job was drawing")
+        let pdf = try #require(PDFDocument(data: data))
+        #expect(pdf.pageCount == 200 && run.plan == nil)
+        #expect(!(pdf.string ?? "").contains("Typed"), "the job is the snapshot from before the typing")
+        #expect(world.document.state.store.nodes.contains { world.document.state.textNode($0)?.string.hasPrefix("Typed") == true })
     }
 
     @Test func theViewPaginatesBySheetDrawsThemAndNamesThem() async throws {

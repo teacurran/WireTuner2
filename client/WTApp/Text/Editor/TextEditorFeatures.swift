@@ -86,6 +86,8 @@ final class TextEditorFeatures {
     @discardableResult
     func show(_ target: TextEditingSession.Target, in window: DocumentWindowController) -> TextEditorController {
         let document = window.documentHandle
+        // Every member of a linked flow shares the story's one editor (TYPE-007).
+        let target = TextEditingSession.story(target, in: document.state)
         let key = Self.key(document, target)
         if let existing = controllers[key] {
             if showsWindows { existing.window?.makeKeyAndOrderFront(nil) }

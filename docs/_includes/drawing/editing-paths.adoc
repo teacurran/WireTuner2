@@ -385,7 +385,7 @@ split); the item is shared -- with no points to split at it does what the Split 
 blend's, and OBJ-024's composite split once that registers under the same id).  Rectangles, ellipses and polygons are not cut until converted to paths.  Tests:
 `FreeformToolTests`, `PathEditingToolTests`.
 
-NOTE: As built by DRAW-030's model half (`WTModel/PathAlterCommands.swift`).  Simplify's *Amount*
+NOTE: As built by DRAW-030, the model (`WTModel/PathAlterCommands.swift`).  Simplify's *Amount*
 (0--100) is a fit tolerance of `amount / 20` points in the path's own space -- 5 pt at 100 -- passed
 to WTGeometry's `Contour.simplified` (GEO-004), which keeps corners of 60° or more and never adds
 segments.  `SimplifyPaths` ("Simplify") writes each contour it can shorten as all-new points (every old
@@ -396,9 +396,9 @@ shows.  Reverse Direction is `ReverseContours` (one `reversed` write per contour
 their nesting depth -- a contour inside an even number of the others runs with positive signed
 area, one inside an odd number with negative -- writing `reversed` only; open and degenerate
 contours are left alone.  The Simplify sheet, the menu items and the Extension Operations toolbar
-entries are WTApp's.
+entries are WTApp's (the next note).
 
-NOTE: As built by DRAW-030's app half (`WTApp/Effects/PathAlterFeatures.swift`).  menu:Modify[Alter Path > Simplify] and
+NOTE: As built by DRAW-030, the app (`WTApp/Effects/PathAlterFeatures.swift`).  menu:Modify[Alter Path > Simplify] and
 the Extension Operations toolbar's *Simplify…* open the Simplify sheet over the selected paths: *Amount* by slider or field
 (0--100, remembered on this Mac as `tools.simplify.amount`), the point count before and after, btn:[Apply] showing the
 result on the canvas through the document's preview (nothing written), btn:[OK] writing `SimplifyPaths` (one change

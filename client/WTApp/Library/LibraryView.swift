@@ -38,6 +38,11 @@ struct LibraryView: View {
                     Text(error).font(.caption).foregroundStyle(.red).padding(.horizontal, 12).padding(.bottom, 4)
                         .accessibilityIdentifier("library.error")
                 }
+                if let banner = model.storageBanner {
+                    Label(banner, systemImage: "externaldrive.badge.exclamationmark").font(.callout).foregroundStyle(.orange)
+                        .padding(.horizontal, 12).padding(.bottom, 6)
+                        .accessibilityIdentifier("library.storage")
+                }
                 Divider()
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], alignment: .leading, spacing: 16) {
@@ -247,6 +252,9 @@ struct LibraryDocumentTile: View {
             Button("Rename…") { renaming = document }
             Button("Duplicate") { Task { await model.duplicate(document.id) } }
             Button("Keep Available Offline") { model.keepAvailableOffline(document.id) }
+            if let remove = model.removeLocalCopy, model.hasLocalCopy(document.id) {
+                Button("Remove Local Copy…") { remove(document) }
+            }
             Button(document.isTemplate ? "Use as Document" : "Use as Template") { Task { await model.setTemplate(document.id, !document.isTemplate) } }
                 .disabled(!model.isOnline && !document.isPendingUpload)
                 .help(model.isOnline || document.isPendingUpload ? "" : LibraryModel.templateFlagOfflineMessage)

@@ -208,6 +208,9 @@ extension AppDelegate {
         model.edit = { symbol in
             if let window = documents.activeWindowController { windows.open(symbol, from: window) }
         }
+        model.editMaster = { master in
+            if let window = documents.activeWindowController { DocumentPanelModel.editMaster(window, master) }
+        }
         commands.replace(windows.command { documents.activeWindowController })
         // The Object panel's Overrides section (LIB-027): chosen pictures go through the import pipeline's blob placement.
         let blobs = imports.blobs

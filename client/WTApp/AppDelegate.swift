@@ -129,6 +129,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var images = ImageFeatures(preferences: preferences)
     /// Handoff and Spotlight continuations (IO-035, IO-036).
     let continuity = ContinuityOpener()
+    /// *Remove Local Copy* (IO-035).
+    let localCopyRemoval = LocalCopyRemoval()
     let deepLinks = DeepLinkFeatures()
     /// The Align, Transform and Find & Replace panels and their menu items (OBJ-019, OBJ-033, TYPE-022).
     private(set) lazy var editingPanels = EditingPanels(defaults: preferences.defaults)
@@ -371,6 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installExtras()
         installImageLinkAndAccessibility()
         installPackageGlue()
+        installLocalCopyRemoval()
         layout.load()
         panels.onChange = { [weak self] in self?.panelsDidChange() }
         panelsDidChange()
@@ -543,6 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showLibrary() -> Task<Void, Never> {
         let controller = libraryWindowController ?? LibraryWindowController(model: library)
         libraryWindowController = controller
+        library.refreshStorage()
         return controller.show()
     }
 
@@ -569,6 +573,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func open(_ url: URL) -> Bool {
         if images.inbox.opens(url) { return true }
         if SymbolTransferFeatures.opens(url) { return true }
+        if StyleTransferModel.opens(url) { return true }
         if deepLinks.opens(url) != nil { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }
@@ -594,6 +599,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)
         }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
+        imports.openLibraryFile = { StyleTransferModel.opens($0) || SymbolTransferFeatures.opens($0) }
         installExports()
     }
 
@@ -628,6 +634,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         spotlight.thumbnail = { id in library.cache.documents[id]?.thumbnail.flatMap(library.thumbnails.data(for:)) }
         let spotlight = spotlight
         library.onTrashed = { id in Task { await spotlight.remove(id) } }
+        // The open documents' items follow the stores' snapshots too (IO-035's rest).
+        let preferences = preferences
+        spotlight.startRefreshing(every: { .seconds(60 * max(preferences[PreferenceCatalog.Sync.snapshotIntervalMinutes], 1)) },
+                                  documents: { documents.documents })
     }
 
     /// A Handoff from another Mac or a Spotlight result (IO-035, IO-036).

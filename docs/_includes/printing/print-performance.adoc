@@ -147,7 +147,10 @@ the panel, so nothing more reaches the printer, and the snapshot is released at 
 main thread, not with `canSpawnSeparateThread`: the print view is an `NSView`, main-actor code under Swift 6, which traps
 when AppKit calls it from its print thread.  The panel is therefore redrawn, and its clicks and kbd:[Esc] delivered
 (`PrintProgressPanel.pump`), at each sheet boundary, so a cancel takes effect before the next sheet rather than at the next
-band of the sheet in progress.  Not built: the 200-sheet UI test.
+band of the sheet in progress.  The 200-sheet test is app-hosted, as elsewhere in this book
+(`PrintSessionTests.aTwoHundredSheetJobKeepsTheWindowResponsiveAndIgnoresLaterEdits`, PRINT-013's rest): 50 separated pages'
+200 sheets drawn from the plan's snapshot by `PrintRun.pdfInBackground` while twenty text blocks are typed into the document
+-- they land while sheets are still being drawn -- and the 200-page PDF holds none of the typed text.
 
 NOTE: As built by PRINT-015 (`client/Packages/WTInterchange/Tests/WTInterchangeTests/PrintCorpusTests.swift`, references in
 `Tests/WTInterchangeTests/Goldens/PrintCorpus/`).  The corpus is a suite of the package's test target rather than a test

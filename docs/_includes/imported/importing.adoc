@@ -399,7 +399,7 @@ paths (`ImportPointerTests`: click, marquee, kbd:[Shift] and kbd:[Option], three
 kbd:[Esc] after the second, kbd:[Return] stacking, paste of image, PDF and file data;
 `ImportTests`: drops, the locked-layer rule); XCUITest runs need Automation Mode on this Mac.
 
-NOTE: As built by IMG-006 and IMG-026's app half (`WTApp/Images/ImageFeatures.swift`, `ShareInbox.swift`).
+NOTE: As built by IMG-006, with the parts of IMG-026 in the app (`WTApp/Images/ImageFeatures.swift`, `ShareInbox.swift`).
 Each window draws image marks on a layer of its own above the furniture (never in an export or a
 print): an image whose blob waits in `blobs_pending` shows *Uploading* with a ring, or *Waiting for
 network* while the session is offline; an image whose blob is not in this Mac's cache shows its

@@ -81,8 +81,17 @@ final class TextEditingSession {
     init(document: DocumentHandle, sink: any CommandSink, target: Target, layer: OpID? = nil) {
         self.document = document
         self.sink = sink
-        self.target = target
+        self.target = Self.story(target, in: document.state)
         self.layer = layer
+    }
+
+    /// A block of a linked flow edits the flow's story (text-blocks.adoc, "Linked text blocks";
+    /// TYPE-007): the target is the chain's head, whose text every member draws a part of, so
+    /// typing into any member edits the story rather than the member's dormant text.
+    static func story(_ target: Target, in state: EngineState) -> Target {
+        guard case .node(let node) = target, state.nodeKind(node) == .text else { return target }
+        let chain = TextChains.chain(of: node, in: state)
+        return chain.count > 1 ? .node(chain[0]) : target
     }
 
     // MARK: Reading
@@ -143,8 +152,17 @@ final class TextEditingSession {
 
     // MARK: Geometry
 
-    /// The block's layout (nil before it exists).
+    /// The linked flow the block heads (TYPE-007): the story laid out through every member's
+    /// container, and the members in chain order (container `i` is `chain[i]`'s); nil for a block
+    /// in no chain.
+    var flow: (layout: TextLayout, chain: [OpID])? {
+        guard let node, let flow = document.chainLayout(for: node), flow.chain.first == node else { return nil }
+        return flow
+    }
+
+    /// The block's layout (nil before it exists); in a linked flow, the whole story's.
     var layout: TextLayout? {
+        if let flow { return flow.layout }
         guard override != nil else { return node.flatMap { document.textLayout(for: $0) } }
         if let cached = overrideLayout, cached.count == document.changeCount { return cached.layout }
         guard let text else { return nil }
@@ -172,6 +190,21 @@ final class TextEditingSession {
         case .override(let instance, let master): return Symbols.pasteboardTransform(ofMaster: master, in: instance, state: document.state) ?? .identity
         case .pending(let frame), .creating(let frame): return .translation(x: Self.origin(frame).x, y: Self.origin(frame).y)
         }
+    }
+
+    /// Container `container`'s space → pasteboard: in a linked flow, that member's placement.
+    func toPasteboard(container: Int) -> WTGeometry.AffineTransform {
+        guard container > 0, let flow, flow.chain.indices.contains(container) else { return toPasteboard }
+        return Objects.pasteboardTransform(of: flow.chain[container], in: document.state)
+    }
+
+    /// The container the insertion point is in (the frame drawn around the block being edited):
+    /// 0 outside a linked flow; in one, the member the focus is laid out in -- past the laid-out
+    /// end, the last member.
+    var activeContainer: Int {
+        guard let flow else { return 0 }
+        if let caret = flow.layout.caret(atOffset: focusOffset, upstream: upstream) { return caret.container }
+        return flow.chain.count - 1
     }
 
     static func origin(_ frame: CreateTextBlock.Frame) -> Point {
@@ -210,13 +243,15 @@ final class TextEditingSession {
     /// The block's rectangle in container space (a new auto-expanding block: the caret's height;
     /// text on a path: its path and glyphs, `TextFrames.frame`).
     var localFrame: Rect {
-        TextFrames.frame(of: editingLayout)
+        if flow != nil, let layout { return TextFrames.frame(of: layout, container: activeContainer) }
+        return TextFrames.frame(of: editingLayout)
     }
 
-    /// The block's corners in pasteboard space, clockwise from the top-left.
+    /// The block's corners in pasteboard space, clockwise from the top-left (in a linked flow, the
+    /// member holding the insertion point).
     var frameCorners: [Point] {
         let frame = localFrame
-        let transform = toPasteboard
+        let transform = toPasteboard(container: activeContainer)
         return [Point(x: frame.minX, y: frame.minY), Point(x: frame.maxX, y: frame.minY), Point(x: frame.maxX, y: frame.maxY),
                 Point(x: frame.minX, y: frame.maxY)].map { transform.apply($0) }
     }
@@ -226,21 +261,26 @@ final class TextEditingSession {
         guard selectedRange.isEmpty else { return nil }
         let empty = (text?.length ?? 0) == 0
         guard let caret = editingLayout.caret(atOffset: empty ? 0 : focusOffset, upstream: upstream) else { return nil }
-        return (toPasteboard.apply(caret.top), toPasteboard.apply(caret.bottom))
+        let transform = toPasteboard(container: empty ? 0 : caret.container)
+        return (transform.apply(caret.top), transform.apply(caret.bottom))
     }
 
     /// The selection's shape, one quadrilateral per line, pasteboard space.
     var selectionQuads: [[Point]] {
         let range = selectedRange
         guard !range.isEmpty, let layout else { return [] }
-        let transform = toPasteboard
-        return layout.selection(from: range.lowerBound, to: range.upperBound).map { $0.corners.map { transform.apply($0) } }
+        return layout.selection(from: range.lowerBound, to: range.upperBound).map { quad in
+            let transform = toPasteboard(container: quad.container)
+            return quad.corners.map { transform.apply($0) }
+        }
     }
 
     /// The caret's baseline point, pasteboard space (where marked text is drawn).
     var caretBaseline: Point? {
         let empty = (text?.length ?? 0) == 0
-        return editingLayout.caret(atOffset: empty ? 0 : selectedRange.lowerBound, upstream: upstream).map { toPasteboard.apply($0.baseline) }
+        return editingLayout.caret(atOffset: empty ? 0 : selectedRange.lowerBound, upstream: upstream).map {
+            toPasteboard(container: empty ? 0 : $0.container).apply($0.baseline)
+        }
     }
 
     /// Pasteboard → container space (a degenerate placement reads as the identity).
@@ -248,13 +288,32 @@ final class TextEditingSession {
 
     /// Whether `point` (pasteboard) is on the block: inside its rectangle grown by `tolerance`.
     func contains(_ point: Point, tolerance: Double = 0) -> Bool {
-        localFrame.expanded(by: tolerance).contains(fromPasteboard.apply(point))
+        if let flow { return container(at: point, tolerance: tolerance, in: flow) != nil }
+        return localFrame.expanded(by: tolerance).contains(fromPasteboard.apply(point))
+    }
+
+    /// The member of `flow` whose container holds `point` (pasteboard) grown by `tolerance`, with
+    /// the point in that container's space; the topmost in chain order wins a tie.
+    private func container(at point: Point, tolerance: Double = 0, in flow: (layout: TextLayout, chain: [OpID])) -> (index: Int, local: Point)? {
+        for index in flow.chain.indices.reversed() {
+            guard let local = toPasteboard(container: index).inverted()?.apply(point),
+                  TextFrames.frame(of: flow.layout, container: index).expanded(by: tolerance).contains(local) else { continue }
+            return (index, local)
+        }
+        return nil
     }
 
     /// The boundary nearest `point` (pasteboard): the start of an empty block, the insertion
     /// point when nothing of the block is laid out (all of it overflows).
     func offset(at point: Point) -> Int {
         guard let text, text.length > 0, let layout else { return 0 }
+        if let flow {
+            // Any member: its part of the story; a member the story does not reach, the end.
+            let active = activeContainer
+            let hit = container(at: point, in: flow) ?? toPasteboard(container: active).inverted().map { (index: active, local: $0.apply(point)) }
+            guard let hit else { return focusOffset }
+            return layout.offset(at: hit.local, inContainer: hit.index) ?? (hit.index > activeContainer ? text.length : focusOffset)
+        }
         return layout.offset(at: fromPasteboard.apply(point), inContainer: 0) ?? focusOffset
     }
 
@@ -613,6 +672,20 @@ final class TextEditingSession {
     /// settings): once it lands the selection is read again at the same offsets, since the first
     /// edit of an override replaces the master's characters -- which the anchors name -- with the
     /// override's copies (LIB-027).
+    /// A text style inside an instance (LIB-027): the override edits `edits` makes of the
+    /// selection -- `OverrideTextStyles`' -- as one change "Apply style", the selection kept.  Nil
+    /// outside an instance, when it waits, or when it writes nothing.
+    @discardableResult
+    func applyOverrideStyle(_ edits: @escaping @MainActor (Range<Int>, TextNode) throws -> [OverrideTextEdit]) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        var result: Task<Wiretuner_Doc_V1_Change?, Never>?
+        enqueue { session in
+            guard let override = session.override, let text = session.text,
+                  let made = try? edits(session.selectedRange, text), !made.isEmpty else { return }
+            result = session.performOverride(OverrideText(override.instance, master: override.master, edits: made, label: "Apply style"))
+        }
+        return result
+    }
+
     private func performOverride(_ command: OverrideText) -> Task<Wiretuner_Doc_V1_Change?, Never> {
         let (anchorAt, focusAt, up) = (anchorOffset, focusOffset, upstream)
         return perform(command) { session, _ in session.setSelection(anchor: anchorAt, focus: focusAt, upstream: up) }
@@ -864,10 +937,12 @@ final class TextEditingSession {
         }
         guard let node, isLive else { return nil }
         let waiting = inflight > 0
+        // An emptied head of a linked flow stays: its members still hold the flow's containers.
+        let linked = flow != nil
         enqueue { session in
-            if session.isLive, session.text?.length == 0 { session.perform(DeleteNodes([node])) }
+            if session.isLive, session.text?.length == 0, session.flow == nil { session.perform(DeleteNodes([node])) }
         }
-        return waiting || text?.length != 0 ? node : nil
+        return waiting || linked || text?.length != 0 ? node : nil
     }
 
     /// The anchors presence publishes (presence.adoc, `TextCaret`): the node and its TEXT field,
@@ -897,14 +972,24 @@ final class TextEditingSession {
 /// rectangle from its origin, or for text on a path the bounds of the path and of every placed
 /// glyph's box.
 enum TextFrames {
-    static func frame(of layout: TextLayout) -> Rect {
-        if case .path(let path)? = layout.containers.first {
-            let glyphs = layout.selection(from: 0, to: layout.laidOutEnd).flatMap(\.corners)
+    static func frame(of layout: TextLayout, container: Int = 0) -> Rect {
+        guard layout.containers.indices.contains(container) else { return Rect(x: 0, y: 0, width: 1, height: 1) }
+        if case .path(let path) = layout.containers[container] {
+            let glyphs = layout.selection(from: 0, to: layout.laidOutEnd).filter { $0.container == container }.flatMap(\.corners)
             let bounds = glyphs.reduce(path.contour.bounds) { $0.union($1) }
             return Rect(x: bounds.minX, y: bounds.minY, width: max(bounds.width, 1), height: max(bounds.height, 1))
         }
-        // One container, one size.
-        let size = layout.sizes[0]
+        let size = layout.sizes[container]
         return Rect(x: 0, y: 0, width: max(size.width, 1), height: max(size.height, 1))
+    }
+
+    /// Text block `node`'s rectangle in its own space as the canvas draws it: in a linked flow,
+    /// its container of the story (TYPE-007); nil for anything that is not a text node.
+    @MainActor
+    static func frame(ofBlock node: OpID, document: DocumentHandle) -> Rect? {
+        if let (layout, chain) = document.chainLayout(for: node), let index = chain.firstIndex(of: node) {
+            return frame(of: layout, container: index)
+        }
+        return document.textLayout(for: node).map { frame(of: $0) }
     }
 }

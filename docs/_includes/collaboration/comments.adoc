@@ -612,8 +612,15 @@ and the owner's Delete Thread.  Unread is kept on this Mac: comments present whe
 count as read, a comment by someone else that arrives later is unread until its thread is displayed
 (at once, not after one second).  A remote comment that mentions the caller (or the document's team)
 shows "<name> mentioned you" with btn:[Show] in the bar above the canvas (the page notices'
-`BannerAction`s).  Not built: the Pointer tool querying pins, `editing` presence while the
-composer has focus, and the UI tests (the app-hosted `CommentsFeatureTests` drive the same paths).
+`BannerAction`s).  The UI tests of *Done when* are app-hosted (`CommentsFeatureTests` drive the same paths), as
+elsewhere in this book.  COLLAB-027's rest: the Pointer tool asks the pins before the document --
+`CommentPinHandles`, a canvas handle layer for the Pointer each window's comments insert first, so a
+click on a pin opens its thread rather than picking what lies under it and a drag (a pin the caller may
+move) drops it on the object under the release or on empty space (`MovePin`), as the Comment tool does;
+and while the composer, the reply field or an edit field has focus (`ThreadViewModel.focusChanged`, a
+`FocusState` per field), `WindowComments.composerFocused` publishes the open thread's node as `editing`
+presence, cleared when focus leaves, the thread changes or the popover closes (a pending thread has no
+node and publishes nothing), which collaborators' hover cards read as "Commenting on <anchor>".
 
 NOTE: As built, the rest of COLLAB-027/029's client half.  `WTSync/CommentReadState.swift` (a new
 file): per document, the unread comment ids per thread -- `GetUnread` on open (it replaces what

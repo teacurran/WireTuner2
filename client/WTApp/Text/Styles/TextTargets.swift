@@ -29,6 +29,13 @@ extension ObjectPanelModel {
 
     /// The paragraphs the targets touch, with their text.
     var targetParagraphs: [(text: TextNode, index: Int)] {
+        if let session = editingText, session.override != nil, let text = session.text {
+            // Inside an instance: the override's paragraphs the selection touches (LIB-027).
+            let range = session.selectedRange
+            let first = text.paragraphIndex(at: range.lowerBound)
+            let last = range.isEmpty ? first : text.paragraphIndex(at: max(range.upperBound - 1, range.lowerBound))
+            return (first...last).map { (text, $0) }
+        }
         let state = document.state
         return textTargets.flatMap { target -> [(text: TextNode, index: Int)] in
             guard let text = state.textNode(target.node) else { return [] }
@@ -40,6 +47,11 @@ extension ObjectPanelModel {
 
     /// The runs the targets cover (a caret: the run before it).
     var targetRuns: [[Wiretuner_Doc_V1_TextMarkValue]] {
+        if let session = editingText, session.override != nil, let text = session.text {
+            let range = session.selectedRange
+            if range.isEmpty { return [text.values(at: max(range.lowerBound - 1, 0))] }
+            return text.runs.filter { $0.range.overlaps(range) }.map(\.values)
+        }
         let state = document.state
         return textTargets.flatMap { target -> [[Wiretuner_Doc_V1_TextMarkValue]] in
             guard let text = state.textNode(target.node) else { return [] }

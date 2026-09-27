@@ -356,7 +356,7 @@ classifies a page off the main actor in parallel chunks before the *Shape* item 
 300 ms budget is a `PerfBudget` in the WTGeometry and WTModel suites; it has not been measured on an idle machine yet: with a
 load average of 35 the model classified 4,004 paths in 150 ms and extracted 2,002 paths' features in 19 ms (release), and
 at a load of 144 the whole 5,000-path budget read 1.30 s -- figures the load guard would skip.
-Without the resource no classifier loads and the *Shape* item is not built; the app test counts internet sockets around loading
+Without the resource no classifier loads and the *Shape* item is left out of the menu; the app test counts internet sockets around loading
 and classifying and finds none.
 
 === Build tasks

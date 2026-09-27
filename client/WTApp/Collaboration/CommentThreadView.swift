@@ -135,6 +135,11 @@ final class ThreadViewModel {
 
     func cancelEdit() { editing = nil }
 
+    /// The composer, the reply field or an edit field gained or lost focus (`editing` presence).
+    func focusChanged(_ focused: Bool) {
+        comments.composerFocused(focused)
+    }
+
     @discardableResult
     func delete(_ comment: CommentEntry) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         guard let thread else { return nil }
@@ -178,6 +183,9 @@ struct CommentThreadView: View {
     static func editText(_ model: ThreadViewModel) -> Binding<String> {
         Binding(get: { model.editDraft.text }, set: { model.editDraft.text = $0 })
     }
+    static func focus(_ model: ThreadViewModel) -> (Bool, Bool) -> Void { { _, focused in model.focusChanged(focused) } }
+
+    @FocusState private var draftFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -212,6 +220,8 @@ struct CommentThreadView: View {
                 .font(.body)
                 .frame(minHeight: 44, maxHeight: 90)
                 .border(SwiftUI.Color.secondary.opacity(0.3))
+                .focused($draftFocused)
+                .onChange(of: draftFocused, Self.focus(model))
                 .accessibilityIdentifier("thread.draft")
             ForEach(model.completions) { member in
                 Button("@\(member.name)", action: Self.choose(model, member)).buttonStyle(.link).accessibilityIdentifier("thread.mention")
@@ -232,6 +242,7 @@ struct CommentThreadView: View {
 struct CommentRow: View {
     let model: ThreadViewModel
     let comment: CommentEntry
+    @FocusState private var editFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -253,6 +264,8 @@ struct CommentRow: View {
                 }
                 if model.editing == comment.id {
                     TextEditor(text: CommentThreadView.editText(model)).frame(minHeight: 40, maxHeight: 80).border(SwiftUI.Color.secondary.opacity(0.3))
+                        .focused($editFocused)
+                        .onChange(of: editFocused, CommentThreadView.focus(model))
                     HStack {
                         Button("Cancel", action: CommentThreadView.cancelEdit(model))
                         Button("Save", action: CommentThreadView.saveEdit(model)).accessibilityIdentifier("comment.save")

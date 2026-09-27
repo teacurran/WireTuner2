@@ -121,8 +121,19 @@ final class KeyboardShortcutsModel {
         !searchText.isEmpty || !collapsed.contains(category)
     }
 
+    /// The list's outline view writes the sections' expansion while it lays them out -- from inside
+    /// its delegate callbacks -- so only a real change is a mutation: an unchanged write that still
+    /// invalidated `collapsed` made SwiftUI update the table from within its own delegate
+    /// ("reentrant operation in NSTableView delegate").
     func setExpanded(_ expanded: Bool, _ category: String) {
+        guard expanded == collapsed.contains(category) else { return }
         if expanded { collapsed.remove(category) } else { collapsed.insert(category) }
+    }
+
+    /// The list's selection binding: as the expansion, a write of the current selection (the table
+    /// reporting its selection while it reloads) changes nothing.
+    var selection: Binding<CommandID?> {
+        Binding(get: { self.selectedCommandID }, set: { id in if id != self.selectedCommandID { self.selectedCommandID = id } })
     }
 
     func expansion(for category: String) -> Binding<Bool> {

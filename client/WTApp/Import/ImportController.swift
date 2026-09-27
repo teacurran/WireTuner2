@@ -156,7 +156,7 @@ final class ImportController {
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = registry.acceptedUTIs.compactMap { UTType($0) }
+        panel.allowedContentTypes = registry.acceptedUTIs.compactMap { UTType($0) } + [StyleTransferModel.libraryType, SymbolTransferFeatures.libraryType]
         let accessory = ImportPanelAccessoryModel(importer: self)
         accessory.window = { [weak panel] in panel }
         panel.delegate = accessory
@@ -170,11 +170,26 @@ final class ImportController {
     /// cancelled).
     @discardableResult
     func runImport(on window: DocumentWindowController) async -> ImportPointerTool? {
-        let urls = await runPanel(makePanel(), window.window)
+        let urls = routingLibraryFiles(await runPanel(makePanel(), window.window))
         accessory = nil
         guard !urls.isEmpty else { return nil }
         return beginPlacing(urls, on: window)
     }
+
+    /// Opens a style or symbol library file's import sheet instead of placing it (LIB-022, LIB-013;
+    /// the app's `StyleTransferModel.opens` and `SymbolTransferFeatures.opens`).
+    var openLibraryFile: @MainActor (URL) -> Bool = { _ in false }
+
+    /// The library files of `urls` handed to their import sheets; the rest, to place.
+    func routingLibraryFiles(_ urls: [URL]) -> [URL] {
+        urls.filter { url in
+            guard Self.libraryExtensions.contains(url.pathExtension.lowercased()) else { return true }
+            return !openLibraryFile(url)
+        }
+    }
+
+    /// Style and symbol library files.
+    static let libraryExtensions: Set<String> = [StylePackage.fileExtension, SymbolPackage.fileExtension]
 
     /// Pushes the import pointer for `urls` on `window`'s canvas (importing.adoc, "Importing with
     /// the Import command"): each click or drag places the next file; it pops after the last one,
@@ -199,8 +214,10 @@ final class ImportController {
     /// placing them runs after the drop returns.
     @discardableResult
     func drop(_ urls: [URL], on window: DocumentWindowController, at point: Point) -> Bool {
-        guard urls.contains(where: { ImportFormat(fileExtension: $0.pathExtension) != nil }) else { return false }
-        Task { await place(urls, on: window, at: point) }
+        let libraries = urls.filter { Self.libraryExtensions.contains($0.pathExtension.lowercased()) }
+        let rest = routingLibraryFiles(urls)
+        guard rest.contains(where: { ImportFormat(fileExtension: $0.pathExtension) != nil }) else { return !libraries.isEmpty && rest.count < urls.count }
+        Task { await place(rest, on: window, at: point) }
         return true
     }
 

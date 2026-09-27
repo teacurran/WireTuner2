@@ -12,6 +12,7 @@ import Testing
 import WTGeometry
 @testable import WTInterchange
 import WTRender
+import struct WTRender.StrokeStyle
 
 @Suite struct SnippetTests {
     static let brand = Color(red: 0.902, green: 0.224, blue: 0.275)
@@ -347,5 +348,50 @@ import WTRender
         }
         #expect(checked == 225)
         #expect(SnippetColors.parseOKLCH("oklch(50% 0.1 30 / 50%)") == SIMD3(0.5, 0.1, 30))
+    }
+
+    // MARK: The Inspect panel's sections (COLLAB-037's rest)
+
+    @Test func theReadoutListsColorsStrokeFillsEffectsTypographyAndText() throws {
+        let corpus = Dictionary(uniqueKeysWithValues: Self.corpus.map { ($0.name, $0.object) })
+        let options = SnippetOptions(notation: .hex, unit: .points, scale: 1)
+        let card = SnippetReadout(try #require(corpus["stroked"]), options: options)
+        #expect(card.colors.count >= 3 && card.colors.contains { $0.name == "1st blue" })
+        #expect(card.stroke.map(\.label) == ["Width", "Cap", "Join", "Dash", "Color"])
+        #expect(card.stroke[1].value == "Round" && card.stroke[2].value == "Bevel" && card.stroke[3].value != "Solid")
+        #expect(card.fills.map(\.label) == ["Fill 1"] && card.effects.map(\.label) == ["Drop shadow", "Inner glow"])
+        #expect(card.effects[0].value.contains("offset") && card.typography.isEmpty && card.text == nil)
+        let pill = SnippetReadout(try #require(corpus["rounded"]), options: options)
+        #expect(pill.fills.first?.value.hasPrefix("Linear gradient:") == true && pill.stroke.isEmpty)
+        let hatch = SnippetReadout(try #require(corpus["pattern"]), options: options)
+        #expect(hatch.fills.map(\.value).last == "Pattern" && hatch.effects.first?.label == "Blur")
+        let leaf = SnippetReadout(try #require(corpus["path"]), options: options)
+        #expect(leaf.stroke.contains { $0.label == "Miter limit" })
+        let headline = SnippetReadout(try #require(corpus["text"]), options: options)
+        #expect(headline.text == "Bold \"quoted\"\nplain" && headline.typography.count == 2)
+        #expect(headline.typography[0].contains(SnippetReadout.Row("Font", "Helvetica")) && headline.typography[0].contains { $0.label == "Leading" })
+        #expect(headline.typography[1].first { $0.label == "Style" }?.value.hasSuffix("Italic") == true)
+        // Names and paints the panel spells out.
+        #expect(SnippetReadout.cap(StrokeStyle(width: 1, cap: .butt)) == "Butt" && SnippetReadout.cap(StrokeStyle(width: 1, cap: .square)) == "Square")
+        #expect(SnippetReadout.join(StrokeStyle(width: 1, join: .miter)) == "Miter" && SnippetReadout.join(StrokeStyle(width: 1, join: .round)) == "Round")
+        let kinds: [Paint] = [.none, .custom(CustomFill(pattern: .bricks)), .textured(TexturedFill(texture: .oak, color: .black)),
+                              .tiled(TiledFill(tile: [Corpus.path(Corpus.rect(0, 0, 2, 2), [Corpus.fill(.solid(.black))])])), .lens(LensFill(type: .invert))]
+        for paint in kinds {
+            #expect(!SnippetReadout.describe(paint) { _ in "" }.isEmpty)
+        }
+        #expect(SnippetReadout.title(.bevelEmboss(LiveEffect.BevelEmboss())) == "Bevel emboss")
+        #expect(SnippetReadout.style(weight: 400, italic: true, postScriptName: "X") == "Italic" && SnippetReadout.style(weight: 950, italic: false, postScriptName: "X-Heavy") == "Black")
+        #expect(SnippetReadout.style(weight: 1200, italic: false, postScriptName: "X-Odd") == "X-Odd")
+        // Arrowheads read out on a stroke that has them.
+        let arrow = Corpus.stroke(.solid(.black), width: 1, end: Arrowhead(name: "Triangle", shape: DisplayPath()))
+        let line = SnippetReadout(SnippetObject(shape: .path, item: Corpus.path(Corpus.rect(0, 0, 10, 10), [arrow])), options: options)
+        #expect(line.stroke.contains(SnippetReadout.Row("Arrowheads", "None – Triangle")))
+        // Any other effect reads by its name; a run without glyphs or leading reads what it has.
+        let embossed = SnippetReadout(SnippetObject(shape: .rectangle, item: Corpus.path(Corpus.rect(0, 0, 10, 10), [Corpus.fill(.solid(.white))],
+                                                                                         effects: [EffectElement(.bevelEmboss(LiveEffect.BevelEmboss()))])), options: options)
+        #expect(embossed.effects == [SnippetReadout.Row("Bevel emboss", "")])
+        let bare = SnippetReadout(SnippetObject(shape: .text, item: .text(TextRunItem(text: "x", origin: .zero, bounds: Rect(x: 0, y: 0, width: 5, height: 5)))),
+                                  options: options)
+        #expect(bare.typography.first?.map(\.label) == ["Tracking", "Color"] && bare.text == "x")
     }
 }

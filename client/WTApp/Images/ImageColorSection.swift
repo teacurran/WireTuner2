@@ -90,7 +90,9 @@ struct ImageColorSectionModel {
             if case .profile(let profile) = image.info.source { return profile }
             return nil
         }
-        for profile in registry.bundledProfiles.filter({ $0.space == space }) + assigned where profile.space == space {
+        // The document's profiles (*In this document*, CMS-010) after the bundled and assigned ones.
+        let carried = ColorSettings.documentProfiles(panel.document.state, space: space)
+        for profile in registry.bundledProfiles.filter({ $0.space == space }) + assigned + carried where profile.space == space {
             let choice = Choice(id: Self.id(.profile(profile)), title: profile.name, source: .choice(.profile(profile)))
             if !result.contains(where: { $0.id == choice.id }) { result.append(choice) }
         }

@@ -263,7 +263,7 @@ page's bleed rectangle are deleted, locked ones excepted; removing every page is
 refused with `childOfMaster`) and `ModifyPage` ("Modify page", one `SetFields` of whichever of
 geometry, bleed and master changed).  The zero-pages read-out and its "next command writes it" rule
 are in DOC-002's `PageList`; the review entry "all pages were removed; a page was added" is
-`WTSync`'s (not built).  Conformance vectors for the zero-pages read-out: as for DOC-002, it is a
+`Divergence.zeroPages` (DOC-006's review row, two notes down).  Conformance vectors for the zero-pages read-out: as for DOC-002, it is a
 `WTModel` read rule, tested in `PageCommandTests`.
 
 NOTE: As built by DOC-009 (`WTRender/Pages/PageRendering.swift`).  `PageRendering.item(_:style:output:grid:)`
@@ -320,7 +320,7 @@ last two minutes -- "Page 3 was removed by Tom; your 4 objects are on the pasteb
 page* (`SetDeleted(page, false)`).  The *Done when* UI tests are unit tests hosted in the app
 (`PageToolTests`, `StatusBarTests`, `PageSheetTests`, `PageNoticeTests`).
 
-NOTE: As built by DOC-006's remainder, model half (`WTModel/ZeroPages.swift`).  `ZeroPages.removedOnBothSides(base:local:remote:merged:)`
+NOTE: As built by DOC-006's remainder in the model (`WTModel/ZeroPages.swift`).  `ZeroPages.removedOnBothSides(base:local:remote:merged:)`
 detects the zero-pages case for the reconcile measurement -- the merged state has no live page while the base had some and each
 side's changes deleted pages -- and `ZeroPages.reviewMessage` is the entry's text; the next command touching pages already writes
 the page (`AddPages`).  The review row is the next note.
@@ -399,7 +399,7 @@ NOTE: As built by DOC-031 (`WTTestSupportTests/Simulation/DocumentSetupScenarioT
 the first eight live (within a dropped connection) and after 12 hours offline, three clients each, about 15 s together: a resize
 race (*Same attribute*, *Geometry*), remove vs. draw, move vs. move, a reorder race, zero pages, master edit vs. child release
 (*Released stale master*, then *Update the copies*), a guide drag race (*Same attribute*, *Guides*), guide delete vs. move, and 24
-simulated hours of page edits on two clients (no row).  Rows the chapter names that were not built, built here: "objects created on
+simulated hours of page edits on two clients (no row).  Rows the chapter names that no earlier task had, built here: "objects created on
 a page that was removed" is `RemovedTargetEntry.Kind.removedPage` (an object created directly on a layer whose bounds' centre lies in
 the bleed rectangle of a page the other side removed; *Restore*, the page's `deleted` false); the zero-pages entry is
 `Divergence.zeroPages`/`ReviewModel.zeroPages` from `ZeroPages.removedOnBothSides(local:remote:merged:)` (the measurement has no base

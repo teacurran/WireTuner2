@@ -181,6 +181,62 @@ import WTSync
         world.window.objectEditing.textSession = nil
     }
 
+    /// LIB-027's rest: the Text tool's kbd:[Option]-click on a block inside an instance opens the Text
+    /// Editor on its override.
+    @Test func optionClickOpensTheTextEditorOnTheOverride() async throws {
+        let fixture = Fixture()
+        let (instance, master) = try await SymbolInstanceTextTests.instance(fixture)
+        var opened: [OpID] = []
+        var blocks = 0
+        let tool = TextTool()
+        var context = ToolContext(document: fixture.document, host: fixture.host, selection: fixture.controller)
+        context.openTextEditor = { _, _ in blocks += 1 }
+        context.openOverrideEditor = { opened += [$0, $1] }
+        tool.activate(in: context)
+        let point = Point(x: 50.5, y: 56)
+        tool.mouseDown(CanvasEvent(pasteboardPoint: point, viewPoint: point, modifiers: [.option]))
+        #expect(opened == [instance, master] && blocks == 0 && tool.session == nil)
+        // Away from the instance an Option-click still makes a block for the editor.
+        let away = Point(x: 300, y: 250)
+        tool.mouseDown(CanvasEvent(pasteboardPoint: away, viewPoint: away, modifiers: [.option]))
+        #expect(blocks == 1 && opened.count == 2)
+        tool.deactivate()
+    }
+
+    /// LIB-027's rest: the Object panel's paragraph and character styles apply to the override.
+    @Test func textStylesApplyToTheOverride() async throws {
+        let fixture = Fixture()
+        let (instance, master, session) = try await Self.editing(fixture)
+        _ = await fixture.document.perform(CreateTextStyle(.paragraph, name: "Heading", attrs: .with { $0.paragraph.alignment = .center })).value
+        _ = await fixture.document.perform(CreateTextStyle(.character, name: "Loud", attrs: .with { $0.character.size = 30 })).value
+        let styles = fixture.document.state.textStyles
+        let heading = try #require(styles.styles(.paragraph).first { $0.name == "Heading" }).id
+        let loud = try #require(styles.styles(.character).first { $0.name == "Loud" }).id
+        session.select(anchor: 0, focus: 2)
+        await fixture.settle()
+        let panel = Self.panel(fixture, instance)
+        #expect(panel.targetParagraphs.count == 1 && panel.targetRuns.count >= 1)
+        _ = await panel.applyParagraphStyle(heading)?.value
+        await fixture.settle()
+        var text = try Self.text(fixture, instance, master)
+        #expect(styles.paragraphStyle(text.paragraphs[0].props).style == heading && fixture.document.undoTitle == "Undo Apply style")
+        #expect(Self.panel(fixture, instance).textStyle?.paragraphStyle == heading)
+        #expect(TextNode(master, in: fixture.document.state).map { styles.paragraphStyle($0.paragraphs[0].props).style } != heading, "the master is untouched")
+        _ = await panel.applyCharacterStyle(loud)?.value
+        await fixture.settle()
+        #expect(Self.panel(fixture, instance).textStyle?.characterStyle == .some(loud))
+        _ = await panel.applyCharacterStyle(nil)?.value
+        await fixture.settle()
+        text = try Self.text(fixture, instance, master)
+        #expect(Self.panel(fixture, instance).textStyle?.characterStyle == .some(nil))
+        // At an insertion point the caret's run is read and a character style writes nothing.
+        session.select(anchor: 1, focus: 1)
+        await fixture.settle()
+        #expect(Self.panel(fixture, instance).targetRuns.count == 1)
+        #expect(Self.panel(fixture, instance).applyCharacterStyle(loud) == nil)
+        _ = text
+    }
+
     // MARK: The Overrides section
 
     /// A symbol of a rectangle, a text block and an image with two instances, and the section over

@@ -181,9 +181,10 @@ public struct CropImage: Command {
 }
 
 /// *Trim to crop* (Optimize Image, IMG-020): the image's pixels replaced by the visible part
-/// (`pixels`, already cut to `ImageCropping.trimRect` of the crop by the caller), the crop reset,
-/// the resolution kept and the transform moved so the visible part does not move on the page.
-/// One change, "Trim to Crop".
+/// (`pixels`, already cut to `ImageCropping.trimRect` of the crop by the caller, and possibly
+/// resampled by Optimize Image), the crop reset, the stored resolution set so the new pixels cover
+/// exactly the kept part's natural size (the old resolution when they were not resampled) and the
+/// transform moved so the visible part does not move on the page.  One change, "Trim to Crop".
 public struct TrimImageToCrop: Command {
     public var node: OpID
     public var pixels: Wiretuner_Doc_V1_PixelSource
@@ -205,10 +206,15 @@ public struct TrimImageToCrop: Command {
         let offset = Vector(dx: Double(kept.x) / max(Double(props.pixels.pixelWidth), 1) * natural.width,
                             dy: Double(kept.y) / max(Double(props.pixels.pixelHeight), 1) * natural.height)
         let moved = WTGeometry.AffineTransform.translation(offset).concatenating(Objects.transform(of: node, in: state))
+        // The kept part's natural size, which the new pixels cover whatever their count.
+        let keptWidth = Double(kept.width) / max(Double(props.pixels.pixelWidth), 1) * natural.width
+        let keptHeight = Double(kept.height) / max(Double(props.pixels.pixelHeight), 1) * natural.height
         let values = ImageFields.values { image in
             image.pixels = pixels
             image.common.transform = PathEditing.proto(moved)
+            image.dpiX = keptWidth > 0 ? Double(pixels.pixelWidth) / keptWidth * 72 : props.dpiX
+            image.dpiY = keptHeight > 0 ? Double(pixels.pixelHeight) / keptHeight * 72 : props.dpiY
         }
-        builder.append(Ops.set(node, [ImageFields.pixels, ImageFields.crop, ImageFields.transform], values: values))
+        builder.append(Ops.set(node, [ImageFields.pixels, ImageFields.crop, ImageFields.transform, ImageFields.dpiX, ImageFields.dpiY], values: values))
     }
 }

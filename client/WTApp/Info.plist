@@ -34,6 +34,18 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>WireTuner Style Library</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.villagecompute.wiretuner.style-library</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>PDF or EPS Document</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
@@ -221,6 +233,23 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>wtsymbols</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>WireTuner Style Library</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.villagecompute.wiretuner.style-library</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>wtstyles</string>
 				</array>
 			</dict>
 		</dict>

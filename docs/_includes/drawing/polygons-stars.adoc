@@ -179,8 +179,8 @@ is clamped at 0 (the odd-count formula is negative for a triangle).  A manual st
 seeded from *Acute/Obtuse* between 10% of the radius and the edge midpoints' radius.  `CreatePolygon`
 places the centre with `transform` and the first vertex with `rotation`; the tool previews and creates
 on mouse-up like the other shape tools.  The Polygon Tool sheet lists the tool's preferences
-(`ToolOptionSheets`) without a live preview; the Subselect diamond and circle handles are not
-delivered.  The concurrent `radius`/`rotation` conformance vector is left to the CRDT track (the case is
+(`ToolOptionSheets`) without a live preview; the Subselect diamond and circle handles came
+with DRAW-010's app half (below).  The concurrent `radius`/`rotation` conformance vector is left to the CRDT track (the case is
 a WTModel merge test).
 
 NOTE: As built by DRAW-010's remainder (`WTModel/PolygonHandles.swift`).  `PolygonHandles.positions(of:in:)` gives the diamond (vertex
@@ -188,7 +188,7 @@ NOTE: As built by DRAW-010's remainder (`WTModel/PolygonHandles.swift`).  `Polyg
 `drag(_:of:to:keepAngle:in:)` is the `SetPolygonFields` of a drag event -- polar coordinates about the local centre: the diamond
 writes `radius` and `rotation`, the circle `inner_radius`, `auto_inner` off and `valley_offset`, and kbd:[Shift] (`keepAngle`) the
 radius only.  The conformance vector `registers/polygon-radius-rotation-concurrent` holds the concurrent `radius` and `rotation`
-writes in both engines.  Not built: drawing the handles and routing Subselect drags to them (WTApp).
+writes in both engines.  Drawing the handles and routing Subselect drags to them are the app's (two notes down).
 
 NOTE: DRAW-011's remainder -- the Subselect diamond and circle handles the note above leaves out -- is the next note's
 (DRAW-010's app half); nothing further was built for it.

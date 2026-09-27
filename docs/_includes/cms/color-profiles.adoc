@@ -214,15 +214,19 @@ list, de-duplicated by hash, with whether anything references each profile; `ref
 seen unreferenced; `observe(_:now:)` answers the assets unreferenced for the window, the deleted-node retention) and
 `RemoveUnreferencedProfiles` "Remove unused profiles" marks them deleted if still unreferenced (not an undo step).
 `ProfileAssets.exportData(_:blob:in:)` answers the blob only when it hashes to the asset's sha256.  Conformance vector
-`registers/profile-asset-concurrent-creation`.  Not built: the *Profiles…* sheet and the profile menus' *In this document* section
-(WTApp), the scan's timer and the image-import call (WTSync, WTApp).
+`registers/profile-asset-concurrent-creation`.  The *Profiles…* sheet and the scan's timer are the app's (the next note); the
+image import creates the asset of an embedded profile in its own change (CMS-012's `ImportWriter`, through `ProfileAssets.ensure`).
 
 NOTE: As built by CMS-010's app half (`WTApp/Profiles/ProfilesSheet.swift`).  The Color Settings sheet's btn:[Profiles…] opens the
 *Profiles* sheet: a table of `ProfileAssets.list` (name, space, size, and what uses each profile -- "Working space" for the colour
 settings, the names of the objects that name it, or "Nothing (removed soon)") and btn:[Export…], which writes the registry's bytes for
 the hash through `ProfileAssets.exportData` to a chosen `.icc` file.  The reference scan's timer runs in the app
 (`ProfileScanTimer`: every 10 minutes each open document's `ProfileReferenceScan`, then `RemoveUnreferencedProfiles` for what is due).
-Not built: the profile menus' *In this document* section and the image-import call.
+The profile menus' *In this document* group (CMS-010's rest; `ColorSettings.documentProfiles`, `ColorSettingsModel.choices`,
+`ImageColorSectionModel.choices`): the Color Settings sheet's menus list, after *Bundled*, the profiles the settings name and every
+live profile asset of the menu's space once by hash (chosen earlier or embedded in images), and the Object panel's image *Source
+profile* menu lists the document's profiles of the image's model after the bundled and assigned ones.  Tests:
+`ColorEdgeTests.profileMenusListTheDocumentsProfiles`.
 
 NOTE: As built by CMS-015 (`WTInterchange/Colors/WideGamutOutput.swift`).  On `WTColor.OutputContext`:
 `widestSpace(of:)` / `widestSpaceUsed(in:)` (a `GamutReach` of sRGB, Display P3 or beyond, scanned over an export

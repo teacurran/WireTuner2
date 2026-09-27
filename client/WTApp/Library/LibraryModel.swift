@@ -326,6 +326,25 @@ final class LibraryModel {
         save()
     }
 
+    /// *Remove Local Copy* for a row (IO-035; the app's `LocalCopyRemoval`), when this Mac has a copy.
+    @ObservationIgnored var removeLocalCopy: (@MainActor (LibraryDocument) -> Void)?
+    @ObservationIgnored var hasLocalCopy: @MainActor (String) -> Bool = { _ in false }
+
+    /// *Storage almost full* notes by space id (the account's usage, IO-009's banner).
+    var storageNotes: [String: String] = [:]
+    /// Reads the usage again (the library window showing).
+    @ObservationIgnored var refreshStorage: @MainActor () -> Void = {}
+
+    /// The banner above the documents: the note of the space shown -- the current team's, or the
+    /// personal space's -- when it is at 90% of its storage or more.
+    var storageBanner: String? { storageNotes[currentSpace.id] }
+
+    /// The document's local copy was removed: it loses its offline badge.
+    func forgetLocalCopy(_ id: String) {
+        cache.offlineAvailable.remove(id)
+        save()
+    }
+
     // MARK: Creating
 
     /// The space and folder a new document goes to: the current folder of the current space,

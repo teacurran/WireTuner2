@@ -65,11 +65,17 @@ final class AvatarStripModel {
     static func activity(
         _ participant: RemoteParticipant, object: (SelectionID) -> String = { _ in "an object" },
         commentAnchor: (SelectionID) -> String? = { _ in nil }, page: (RemoteParticipant) -> Int? = { _ in nil },
-        branch: (String) -> String = { _ in "a branch" }
+        branch: (String) -> String = { _ in "a branch" }, canvas: (OpID) -> String = { _ in "a master page" }
     ) -> String {
         if participant.isFrozen { return "Reconnecting" }
         if participant.isIdle { return "Idle" }
         if !participant.branchID.isEmpty { return "Editing on branch \"\(branch(participant.branchID))\"" }
+        // On a master page's tab (DOC-012): "On Master A", or what they edit there.
+        if let node = participant.canvas {
+            let place = canvas(node)
+            if let first = participant.editing.first { return "Editing \(object(first)) on \(place)" }
+            return "On \(place)"
+        }
         if let first = participant.editing.first {
             if let anchor = commentAnchor(first) { return "Commenting on \(anchor)" }
             return participant.editing.count == 1 ? "Editing \(object(first))" : "Editing \(participant.editing.count) objects"
@@ -104,6 +110,9 @@ extension AvatarStripModel {
             page: { participant in
                 guard let visible = participant.viewport else { return nil }
                 return document.pages.firstIndex { $0.contains(visible.center) }
+            },
+            canvas: { node in
+                state.store.kind(node) == MasterPageFields.kind ? MasterCanvas.name(of: node, in: state) : ObjectNaming.name(of: node, in: state)
             }
         )
     }

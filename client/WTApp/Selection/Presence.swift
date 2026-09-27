@@ -69,6 +69,9 @@ struct RemoteParticipant: Identifiable, Hashable, Sendable {
     var spotlight: Bool
     /// The user they follow, if any.
     var followingUserID: String
+    /// The canvas their view shows when it is not the pasteboard (a master page's tab, DOC-012):
+    /// their cursor and selection are drawn only in a window showing it.
+    var canvas: OpID?
 
     /// A selected point: the contour element and the point element of a selected path.
     struct PointElement: Hashable, Sendable {
@@ -79,7 +82,7 @@ struct RemoteParticipant: Identifiable, Hashable, Sendable {
     init(id: String, name: String, colorIndex: Int, selection: [SelectionID] = [], selectionCount: Int? = nil, points: [PointElement] = [],
          editing: [SelectionID] = [], cursor: Point? = nil, tool: String = "", viewport: Rect? = nil, zoom: Double? = nil,
          page: SelectionID? = nil, caret: RemoteCaret? = nil, role: String = "", branchID: String = "", isIdle: Bool = false,
-         isFrozen: Bool = false, spotlight: Bool = false, followingUserID: String = "") {
+         isFrozen: Bool = false, spotlight: Bool = false, followingUserID: String = "", canvas: OpID? = nil) {
         self.id = id
         self.name = name
         self.colorIndex = colorIndex
@@ -99,6 +102,7 @@ struct RemoteParticipant: Identifiable, Hashable, Sendable {
         self.isFrozen = isFrozen
         self.spotlight = spotlight
         self.followingUserID = followingUserID
+        self.canvas = canvas
     }
 
     var color: Color { PresencePalette.color(at: colorIndex) }

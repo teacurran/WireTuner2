@@ -426,16 +426,21 @@ final class DocumentHandle: Identifiable, CommandSink {
         return run { model in try await model.perform(command) }
     }
 
+    /// Undo and redo do nothing while set (Inspect mode: nothing may change, COLLAB-035).
+    var historyLocked = false
+
     /// menu:Edit[Undo].
     @discardableResult
     func undo() -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        run { model in try await model.undo() }
+        guard !historyLocked else { return Task { nil } }
+        return run { model in try await model.undo() }
     }
 
     /// menu:Edit[Redo].
     @discardableResult
     func redo() -> Task<Wiretuner_Doc_V1_Change?, Never> {
-        run { model in try await model.redo() }
+        guard !historyLocked else { return Task { nil } }
+        return run { model in try await model.redo() }
     }
 
     /// The model's state was replaced wholesale (WTSync's `SyncEvent.stateReplaced`: a snapshot
@@ -484,8 +489,8 @@ final class DocumentHandle: Identifiable, CommandSink {
     /// The Edit menu's titles and states.
     var undoTitle: String { model?.undoTitle ?? "Undo" }
     var redoTitle: String { model?.redoTitle ?? "Redo" }
-    var canUndo: Bool { model?.canUndo ?? false }
-    var canRedo: Bool { model?.canRedo ?? false }
+    var canUndo: Bool { !historyLocked && (model?.canUndo ?? false) }
+    var canRedo: Bool { !historyLocked && (model?.canRedo ?? false) }
 
     /// Fit All's rectangle: every page.
     var allPagesBounds: Rect? { pageList.bounds }

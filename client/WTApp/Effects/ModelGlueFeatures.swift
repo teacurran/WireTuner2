@@ -16,10 +16,11 @@ final class ModelGlueFeatures {
     private(set) var links: LinkOverlayFeatures?
     private(set) var pathAlter: PathAlterFeatures?
     private(set) var pathOperations: PathOperationFeatures?
-    let inspect = InspectPanelModel()
+    let inspect: InspectPanelModel
 
     init(preferences: PreferenceStore) {
         self.preferences = preferences
+        inspect = InspectPanelModel(defaults: preferences.defaults)
     }
 
     func install(commands: CommandRegistry, panels: PanelRegistry, extensions: ExtensionRegistry,

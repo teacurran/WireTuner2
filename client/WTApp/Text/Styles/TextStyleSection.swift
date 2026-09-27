@@ -47,6 +47,11 @@ extension ObjectPanelModel {
     /// *Style*: `style` on every targeted paragraph, one change.
     @discardableResult
     func applyParagraphStyle(_ style: OpID) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        if let session = editingText, session.override != nil {
+            // Inside an instance: written to its text override (LIB-027).
+            let state = document.state
+            return session.applyOverrideStyle { range, text in try OverrideTextStyles.paragraphStyle(style, range: range, in: text, state: state) }
+        }
         let targets = textTargets
         guard !targets.isEmpty else { return nil }
         return perform(CommandBatch("Apply style", targets.map { ApplyParagraphStyle(node: $0.node, from: $0.from, to: $0.to, style: style) }))
@@ -55,6 +60,10 @@ extension ObjectPanelModel {
     /// *Character style*: `style` over the targets, or *None* (the cleared `style` mark).
     @discardableResult
     func applyCharacterStyle(_ style: OpID?) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        if let session = editingText, session.override != nil {
+            let state = document.state
+            return session.applyOverrideStyle { range, _ in try OverrideTextStyles.characterStyle(style, range: range, state: state) }
+        }
         let targets = textTargets.filter { !$0.range.isEmpty || editingText == nil }
         guard !targets.isEmpty else { return nil }
         let commands: [any WTModel.Command] = targets.map { target in
