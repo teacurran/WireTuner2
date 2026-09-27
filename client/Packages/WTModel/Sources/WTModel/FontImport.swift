@@ -195,7 +195,10 @@ struct ImportFontSettings: Command {
         let first = builder.append(Ops.elementInsert(WellKnown.settings, FontFields.classes, positions: keys, values: FontFields.fontValues {
             $0.classes = kept.map { side, offset, _ in
                 var stored = Wiretuner_Doc_V1_KernClass()
-                stored.name = "\(side == .left ? "kern1" : "kern2").\(offset + 1)"
+                // The class's own name (a UFO group's), else `kern1.<n>` / `kern2.<n>`.
+                let given = side == .left ? kerning.leftClassNames : kerning.rightClassNames
+                let name = offset < given.count ? given[offset] : ""
+                stored.name = KerningEditing.validClassName(name) ? name : "\(side == .left ? "kern1" : "kern2").\(offset + 1)"
                 stored.side = side.stored
                 return stored
             }

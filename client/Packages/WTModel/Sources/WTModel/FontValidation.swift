@@ -28,6 +28,8 @@ public struct FontProblem: Hashable, Sendable {
         case emptyFamilyOrStyle
         case invalidPostScriptName
         case tooManyGlyphs
+        /// The feature file does not compile (FONT-019): `line` and `column` say where.
+        case featureError
         // Warnings.
         case openContours
         case offGrid
@@ -40,8 +42,10 @@ public struct FontProblem: Hashable, Sendable {
         case tooManyPoints
         case missingNotdef
         case missingSpace
-        case featuresNotCompiled
-        case attachmentNotCompiled
+        /// Anchors that would attach but *Generate mark and mkmk* is off.
+        case markOmitted
+        /// Ligature glyphs named by their parts but *Generate liga* is off.
+        case ligaOmitted
     }
 
     public var level: Level
@@ -49,12 +53,17 @@ public struct FontProblem: Hashable, Sendable {
     /// The glyph concerned, when there is one.
     public var glyph: OpID?
     public var message: String
+    /// The feature file line and column (1-based) of a `featureError`.
+    public var line: Int?
+    public var column: Int?
 
-    public init(_ level: Level, _ kind: Kind, glyph: OpID? = nil, _ message: String) {
+    public init(_ level: Level, _ kind: Kind, glyph: OpID? = nil, _ message: String, line: Int? = nil, column: Int? = nil) {
         self.level = level
         self.kind = kind
         self.glyph = glyph
         self.message = message
+        self.line = line
+        self.column = column
     }
 }
 
@@ -91,19 +100,31 @@ public enum FontValidation {
         if !Kerning(state, index: index).isEmpty, font.omitGeneratedKern {
             result.append(FontProblem(.warning, .kerningOmitted, "The font has kerning but Generate kern is off."))
         }
-        if !font.features.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            result.append(FontProblem(.warning, .featuresNotCompiled, "The feature file is not compiled by the built-in compiler."))
-        }
+        result += featureProblems(font.features, glyphs: index)
         // Glyph level.
         let marks = Set(index.glyphs.flatMap { $0.anchors.filter { $0.role == .mark && !$0.isDuplicate }.map(\.attachmentName) })
         let bases = Set(index.glyphs.flatMap { $0.anchors.filter { $0.role == .base && !$0.isDuplicate }.map(\.attachmentName) })
-        if !marks.intersection(bases).isEmpty {
-            result.append(FontProblem(.warning, .attachmentNotCompiled, "Mark attachment is not compiled by the built-in compiler."))
+        if !marks.intersection(bases).isEmpty, font.omitGeneratedMark {
+            result.append(FontProblem(.warning, .markOmitted, "The font has anchors that attach but Generate mark is off."))
+        }
+        if font.omitGeneratedLiga, index.glyphs.contains(where: { !$0.skipExport && $0.ligatureParts(in: index) != nil }) {
+            result.append(FontProblem(.warning, .ligaOmitted, "The font has ligature glyphs but Generate liga is off."))
         }
         for glyph in index.glyphs {
             result += problems(of: glyph, outline: outlines[glyph.id, default: .empty], marks: marks, bases: bases)
         }
         return result.filter { $0.level == .error } + result.filter { $0.level == .warning }
+    }
+
+    /// The feature file's errors (FONT-019's checker, the compile's own check), each at its line
+    /// and column.  The standard glyphs generation may add count as known names.
+    static func featureProblems(_ features: String, glyphs index: GlyphIndex) -> [FontProblem] {
+        guard !features.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let names = index.glyphs.filter { !$0.skipExport }.map(\.name) + [".notdef", "space", "NULL", "CR"]
+        return FeatureChecker.check(features, glyphs: names).issues.filter { $0.severity == .error }.map { issue in
+            FontProblem(.error, .featureError, "Feature file line \(issue.location.line): \(issue.message)", line: issue.location.line,
+                        column: issue.location.column)
+        }
     }
 
     /// The checks of one glyph (Find Problems for the current glyph).

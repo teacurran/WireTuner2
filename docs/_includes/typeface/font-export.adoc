@@ -146,7 +146,11 @@ To export a UFO:
 . Choose menu:File[Export UFO…].
 . Choose whether glyph artwork is written *flattened* (as the generated outlines: components kept
   as components, everything else merged) or *as drawn* (each path as a contour, strokes as
-  contours with a note, overlaps intact -- the closest a UFO can get to your artwork).
+  contours, overlaps intact: the closest a UFO can get to your artwork).  The sheet lists the
+  glyphs whose strokes became contours; {product} itself keeps them as strokes when it opens the
+  package again.
+. Choose whether the generated features (kerning, mark attachment, ligatures) are added to the
+  feature file after your own text.
 . Click btn:[Export] and choose a location.  A `.ufo` package is written (UFO version 3).
 
 The UFO carries: every exported glyph's outline, components, anchors, width, codepoints and note;
@@ -314,7 +318,8 @@ split to keep every 16-bit offset in range.  There is no feature-file compiler: 
 error), and the generated `mark`, `mkmk` and `liga` features are not produced (anchors that would
 attach are a warning, `attachmentNotCompiled`); `FeatureGenerator`, `FeatureChecker` and a feature
 compiler came later with FONT-019 (`WTInterchange/Fonts/Features/`; see
-xref:opentype-features.adoc[OpenType features]).  Components are written decomposed (the flattened outline).  Identical
+xref:opentype-features.adoc[OpenType features]), which replaced both warnings (`featureError`,
+`markOmitted`, `ligaOmitted`).  Components are written decomposed (the flattened outline).  Identical
 sources give identical bytes (the `head` dates are zero unless `Options.date` is given).  The
 seam is still the neutral source, so a bundled compiler can replace this one without touching the
 model.  Core Text loads every generated font; fontTools reads them without complaint (checked by
@@ -328,8 +333,8 @@ listed in the import report as not read -- the decompiler into feature text is n
 `GDEF` is not read; composite glyphs placed by point matching are placed at their origin and
 reported.  `WTModel.FontImport` writes the import as a change group ("Import <file> [i/n]": glyph
 batches, then the settings and kerning), one undo step, with the grid's collision rules on an
-import into an existing document.  UFO export (FONT-023) is not built; UFO import came later with
-FONT-024 (`WTInterchange/Fonts/UFOReader.swift`, below).
+import into an existing document.  UFO import came later with FONT-024
+(`WTInterchange/Fonts/UFOReader.swift`) and UFO export with FONT-023 (`UFOWriter.swift`), below.
 
 NOTE: Deviations recorded by FONT-026 (UI half), FONT-025's menu item and FONT-027's option.  The
 Generate Fonts sheet lists `FontGeneration.snapshot`'s problems (errors block Generate; btn:[Show]
@@ -363,7 +368,50 @@ ATOMIC, at most 1 MiB; `FontFields.ufoLibPassthrough`) by one more change when o
 to write back.  Deviations: the field is on `FontProps` (`SettingsProps.font`), where the rest of the font's
 settings live; like the feature file it is written only when opening -- importing into an existing
 typeface keeps that typeface's own, and the report says so, as it does for a lib over 1 MiB.  Not built: the Open and *Import UFO into
-Typeface…* menu glue and the report sheet (WTApp), UFO export (FONT-023).
+Typeface…* menu glue and the report sheet (WTApp).
+
+NOTE: As built by FONT-023 (`WTInterchange/Fonts/UFOWriter.swift`, `WTModel/UFOExport.swift`,
+`WTApp/Typeface/ExportUFOSheet.swift`).  `UFOWriter` writes a UFO 3 package from a neutral
+`UFOPackage`: `metainfo.plist` (creator `com.villagecompute.wiretuner`), `fontinfo.plist` with every
+key `UFOReader` reads (plus `styleMapFamilyName`/`styleMapStyleName` and the hhea ascender and
+descender), `layercontents.plist`, `glyphs/contents.plist` and a GLIF 2 file per glyph (advance,
+unicodes, note, anchors, contours -- `move` for an open contour, `line`, `curve` with its two
+`offcurve` controls, a closed contour starting at its start point typed by the segment that returns
+to it -- components with the transform numbers that are not the identity's, and a lib with
+`public.markColor` from the grid's palette), `groups.plist`/`kerning.plist` (every class as
+`public.kern1.<name>`/`public.kern2.<name>`, an unnamed class by its first glyph, class values
+between groups and pairs between glyphs, which UFO precedence lets win as the model's lookup does),
+`features.fea`, and `lib.plist` (`public.glyphOrder`, `public.openTypeCategories` for every glyph that
+is not a base, and `ufo_lib_passthrough`'s keys under those).  Glyph files follow the UFO 3
+user-name convention; property lists have sorted keys and whole numbers are integers, so identical
+input gives identical bytes; the package is staged beside the target and swapped in.
+`UFOExport.package` builds the package from the generate snapshot (the exported glyphs, standard
+glyphs when asked, kinds, anchors, kerning with the class names) plus notes, mark colors, the feature
+file (the user's text, then with *Add the generated features* the generated part after
+`FeatureGenerator.marker`) and the passthrough lib.  *Flattened*: each glyph's own paths merged and
+finished as for a font (y up, counter-clockwise, extrema, whole units), components kept when their
+glyph is in the package and drawn in otherwise (a skipped or unselected glyph, a dangling or looping
+component).  *As drawn*: filled paths' contours as they stand, each stroke expanded to its outline,
+overlaps and directions untouched, and the glyph's objects as a pasteboard payload in its lib under
+`com.villagecompute.wiretuner.artwork`.  The reader now also reads each glyph's `note`, that artwork
+and `public.openTypeCategories`; `UFOImport` sets the note and the kind (over the all-`_`-anchors Mark
+rule), pastes a glyph's artwork onto its canvas in place of its contours (one Paste per batch), keeps
+anchors in file order (one insert per glyph with ascending keys) and imports `features.fea` without
+the generated part.  `FontImport` names an imported class by its UFO group (`kern1.<n>` only for a
+font's unnamed classes or an invalid name).  menu:File[Export UFO…] (`file.exportUFO`, File section 2,
+registered by `TypefaceFeatures`) opens the sheet: *Flattened*/*As drawn*, *Add .notdef and space when
+missing*, *Add the generated features to features.fea*; btn:[Export…] asks for `<PostScript
+name>.ufo` and writes it off the main actor; the sheet shows the result and the report.
+Deviations: (1) a flattened export starts each closed contour at its lowest, then leftmost, on-curve
+point and lists each side's classes by name -- flattening keeps no start points and a UFO keeps no
+class order, and this normalization is what makes export → import → export byte-identical
+(`UFOExportTests.exportImportExportIsByteIdentical`, `FontRoundTripTests.ufoDocumentUFO`).  (2) The
+as-drawn artwork lives in each glyph's lib, not in `lib.plist`, so the passthrough stays small and a
+glyph's data stays in its file.  (3) The "note" about strokes written as outlines is a line of the
+export report shown in the sheet, not text in the file, so a re-import does not grow the glyph's
+note.  (4) The `ufonormalizer`/`fontTools` validation and the fontc compile of the Done-when are
+not in the suite (no Python tool chain or fontc in CI); the checks are the reader round trip and the
+built-in compiler compiling what the reader reads.
 
 === Build tasks
 
@@ -459,6 +507,26 @@ Delivers:: Simulator scenarios: two glyphs claim one codepoint; rename collision
 Done when::
 * All scenarios converge to identical hashes and identical generated fonts on every client, and the expected review entries are produced.
 * Runs inside the TEST-001 CI budget.
+
+NOTE: As built by FONT-028 (`WTModelTests/FontRoundTripTests.swift`).  The corpus is three families
+built as documents in the test -- *Marlowe* (Basic Latin boxes, an even-odd ring, a stroked V,
+components, a pair and two classes, top anchors, `f_i`, a stylistic set), *Quill* (2048 units per
+em, Bold, curves, classes on both sides with an exception, a mark with base and mark anchors,
+`c_h`) and *Tern* (Latin-1 with the accented letters as components, a scaled component, an italic
+angle, pairs and classes) -- rather than committed OFL font files, so the suite needs no binaries
+or licenses and every value it checks is known.  OTF → document → OTF and TTF → document → TTF
+compare the two read fonts glyph by glyph: order, names, metrics, advance widths, the character map,
+outlines within 0.5 units (1.5 for TrueType, which converts to quadratics each way) as the largest
+distance between the outlines, and the kerning of every glyph pair; expected losses are asserted:
+anchors, and with them `mark`/`mkmk`, and the feature text are not read back from a font, while the
+ligature glyph is recognised by its name and `liga` is generated again.  UFO → document → UFO
+compares every glyph's outline, components, anchors, kind, advance and codepoints, the kerning, the
+features, names, metrics and OS/2 values, then every file byte for byte, and checks that the
+document's kinds survive.  The WOFF2 wrap of each family's OTF decodes (`WOFF2Reader`) to the same
+font.  A failure names the family, the glyph and the two values.  The twelve cases run in about ten
+seconds inside the WTModel package tests, so they run in its CI job.  Deviations: the corpus is
+synthetic (above); fontbakery and `woff2_decompress` are not run (no Python tool chain in CI; the
+WOFF2 check uses the built-in reader).
 
 NOTE: As built by FONT-029 (`WTTestSupportTests/Simulation/TypefaceScenarioTests.swift`; review rows in
 `WTSync/FontCollisionReview.swift` and `RemovedTargetReview.swift`, tests `WTSyncTests/SetupAndFontReviewTests`).  Eight

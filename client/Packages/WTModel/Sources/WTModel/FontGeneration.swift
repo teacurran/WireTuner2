@@ -10,7 +10,9 @@ import WTRender
 // exported glyph flattened (components resolved, strokes expanded, overlaps unioned unless kept),
 // flipped into the font's y-up convention, turned counter-clockwise, given points at its extremes
 // and rounded to whole units; the standard glyphs synthesized when asked; the kerning resolved to
-// glyph indices; then `WTInterchange.FontCompiler` writes the bytes.  Generation never changes the
+// glyph indices with the classes' names; since FONT-019 each glyph's kind and anchors and the
+// Features pane's generate switches, so the automatic features compile from the document; then
+// `WTInterchange.FontCompiler` writes the bytes.  Generation never changes the
 // document.
 
 /// The Generate Fonts sheet's options that reach the model.
@@ -109,14 +111,36 @@ public enum FontGeneration {
         let os2 = FontSource.OS2(weightClass: font.os2.weightClass, widthClass: font.os2.widthClass, vendorID: font.os2.vendorID, bold: font.os2.bold,
                                  italic: font.os2.italic, fsType: font.os2.fsType, panose: font.os2.panose)
         let kerning = font.omitGeneratedKern ? FontSource.Kerning() : self.kerning(Kerning(state, index: index), glyphs: origins)
-        let source = FontSource(names: names, metrics: metrics, os2: os2, glyphs: glyphs, kerning: kerning, features: font.features)
+        let source = FontSource(names: names, metrics: metrics, os2: os2, glyphs: glyphs, kerning: kerning, features: font.features,
+                                generateMark: !font.omitGeneratedMark, generateLiga: !font.omitGeneratedLiga)
         return Snapshot(source: source, glyphs: origins, problems: problems)
     }
 
-    /// A document glyph as the compiler takes it: its outline finished for the font.
+    /// A document glyph as the compiler takes it: its outline finished for the font, its kind,
+    /// and its anchors in font units (FONT-019).
     static func sourceGlyph(_ glyph: Glyph, outline: GlyphOutline?) -> FontSource.Glyph {
         FontSource.Glyph(name: glyph.name, codepoints: glyph.codepoints, advanceWidth: glyph.advanceWidth.rounded(),
-                         contours: finished(outline?.path.contours ?? []))
+                         contours: finished(outline?.path.contours ?? []), kind: kind(glyph.kind), anchors: anchors(glyph.anchors))
+    }
+
+    /// The compiler's glyph kind for the document's.
+    static func kind(_ kind: GlyphKind) -> FontSource.GlyphKind {
+        switch kind {
+        case .base: .base
+        case .mark: .mark
+        case .ligature: .ligature
+        case .component: .component
+        }
+    }
+
+    /// Anchors as the feature generator reads them: y flipped into the font and rounded, named
+    /// by the underscore convention for their role (an explicit Mark role on `top` reads `_top`,
+    /// an explicit Base role on `_top` reads `top`); duplicates (`top.dup2`) are left out.
+    static func anchors(_ anchors: [GlyphAnchorValue]) -> [FontSource.Anchor] {
+        anchors.filter { !$0.isDuplicate }.map { anchor in
+            let name = anchor.role == .mark ? "_" + anchor.attachmentName : anchor.attachmentName
+            return FontSource.Anchor(name: name, x: anchor.position.x.rounded(), y: (anchor.position.y == 0 ? 0 : -anchor.position.y).rounded())
+        }
     }
 
     /// Glyph-canvas contours (y down) as font contours: y flipped, counter-clockwise outer
@@ -152,6 +176,7 @@ public enum FontGeneration {
             return FontSource.Kerning.Pair(left: left, right: right, value: Int(pair.value.rounded()))
         }
         var leftClasses: [[Int]] = [], rightClasses: [[Int]] = []
+        var leftNames: [String] = [], rightNames: [String] = []
         var leftIndex: [OpID: Int] = [:], rightIndex: [OpID: Int] = [:]
         for kernClass in kerning.classes {
             let members = kernClass.members.compactMap { position[$0] }
@@ -159,16 +184,19 @@ public enum FontGeneration {
             if kernClass.side == .left {
                 leftIndex[kernClass.id] = leftClasses.count
                 leftClasses.append(members)
+                leftNames.append(kernClass.name)
             } else {
                 rightIndex[kernClass.id] = rightClasses.count
                 rightClasses.append(members)
+                rightNames.append(kernClass.name)
             }
         }
         let cells = kerning.effectiveCells.compactMap { cell -> FontSource.Kerning.ClassValue? in
             guard let left = leftIndex[cell.left], let right = rightIndex[cell.right] else { return nil }
             return FontSource.Kerning.ClassValue(left: left, right: right, value: Int(cell.value.rounded()))
         }
-        return FontSource.Kerning(pairs: pairs, leftClasses: leftClasses, rightClasses: rightClasses, classValues: cells)
+        return FontSource.Kerning(pairs: pairs, leftClasses: leftClasses, rightClasses: rightClasses, classValues: cells, leftClassNames: leftNames,
+                                  rightClassNames: rightNames)
     }
 
     /// Validates and compiles the document's font (menu:File[Generate Fonts…]).  Errors stop here.

@@ -70,6 +70,42 @@ import WTRender
         #expect(opened == [fixture.glyph("B"), fixture.glyph("C")])
     }
 
+    /// FONT-023: the Export UFO sheet writes a package the UFO reader reads back.
+    @Test func exportsAUFOPackage() async throws {
+        let fixture = try await drawnTypeface()
+        defer { fixture.close() }
+        let model = ExportUFOModel(document: fixture.document)
+        host(ExportUFOSheet(model: model, close: {}))
+        #expect(model.fileName == "Marlowe-Regular.ufo")
+        let folder = FileManager.default.temporaryDirectory.appending(path: "WireTunerUFO-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var asked: String?
+        model.chooseDestination = { name in
+            asked = name
+            return folder.appending(path: name)
+        }
+        let url = try #require(await model.exportAsking().value)
+        #expect(asked == "Marlowe-Regular.ufo" && model.written == url && model.message == "Exported Marlowe-Regular.ufo" && !model.isWorking)
+        let read = try UFOReader.read(at: url)
+        #expect(read.font.names.family == "Marlowe" && read.font.glyphs.contains { $0.name == "A" && !$0.contours.isEmpty })
+        #expect(read.font.kerning.value(read.font.glyphs.firstIndex { $0.name == "A" }!, read.font.glyphs.firstIndex { $0.name == "V" }!) == -80)
+        // As drawn, the artwork rides along; cancelling writes nothing; a place that cannot be written fails.
+        model.artwork = .asDrawn
+        model.addStandardGlyphs = false
+        model.generatedFeatures = false
+        host(ExportUFOSheet(model: model, close: {}))
+        let drawn = await model.export(to: url).value
+        let artwork = try UFOReader.read(at: url).artwork
+        #expect(drawn == url && artwork.contains { $0 != nil })
+        model.chooseDestination = { _ in nil }
+        #expect(await model.exportAsking().value == nil)
+        model.exportButton()
+        let file = folder.appending(path: "plain")
+        try Data().write(to: file)
+        #expect(await model.export(to: file.appending(path: "x.ufo")).value == nil && model.message?.hasPrefix("Exporting failed") == true)
+    }
+
     @Test func errorsBlockGeneratingAndInstalling() async throws {
         let fixture = await TypefaceWindowFixture.typeface()
         defer { fixture.close() }
@@ -291,7 +327,7 @@ import WTRender
         grid.model.select([fixture.glyph("A"), fixture.glyph("V")])
         #expect(validation(TypefaceFeatures.ID.openGlyph).isEnabled && validation(TypefaceFeatures.ID.removeGlyphs).isEnabled)
         for id in [TypefaceFeatures.ID.fontInfo, TypefaceFeatures.ID.generateFonts, TypefaceFeatures.ID.addGlyph, TypefaceFeatures.ID.convertMulti,
-                   TypefaceFeatures.ID.convertPageToGlyph] {
+                   TypefaceFeatures.ID.convertPageToGlyph, TypefaceFeatures.ID.exportUFO] {
             #expect(registry.perform(id))
             #expect(fixture.window.window?.attachedSheet != nil)
             if let sheet = fixture.window.window?.attachedSheet { fixture.window.window?.endSheet(sheet) }

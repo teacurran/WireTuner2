@@ -9,7 +9,7 @@ import WTProto
 
 /// The typeface features (the FONT epic's client-ui tasks; typeface-documents.adoc and the pages
 /// it links): menu:File[New Typeface…], menu:File[Open Font…], menu:File[Convert Document To],
-/// menu:File[Generate Fonts…], the Font and Glyph menus, the typeface window layout on every
+/// menu:File[Generate Fonts…], menu:File[Export UFO…], the Font and Glyph menus, the typeface window layout on every
 /// document window (`TypefaceWindowMode`) and the glyph tabs.  One object per app; the commands
 /// act on the front window.
 @MainActor
@@ -22,6 +22,7 @@ final class TypefaceFeatures {
         static let convertTypeface: CommandID = "file.convertTo.typeface"
         static let generateFonts: CommandID = "file.generateFonts"
         static let installForTesting: CommandID = "file.installForTesting"
+        static let exportUFO: CommandID = "file.exportUFO"
         static let fontInfo: CommandID = "font.info"
         static let metricsWindow: CommandID = "font.metrics"
         static let openGlyph: CommandID = "glyph.open"
@@ -220,6 +221,8 @@ final class TypefaceFeatures {
                     validation: needsTypeface, action: .perform { [unowned self] in presentGenerate() }),
             Command(id: ID.installForTesting, title: "Install for Testing", menu: MenuPath(file, section: 2), keywords: ["font", "test", "install"],
                     validation: needsTypeface, action: .perform { [unowned self] in installForTesting() }),
+            Command(id: ID.exportUFO, title: "Export UFO…", menu: MenuPath(file, section: 2), keywords: ["ufo", "export font", "font source"],
+                    validation: needsTypeface, action: .perform { [unowned self] in presentExportUFO() }),
             Command(id: ID.fontInfo, title: "Font Info…", menu: MenuPath(fontMenu), keywords: ["names", "metrics", "units per em", "os/2"],
                     validation: needsTypeface, action: .perform { [unowned self] in presentFontInfo() }),
             Command(id: ID.metricsWindow, title: "Metrics Window", key: KeyEquivalent("m", [.command, .option]), menu: MenuPath(fontMenu),
@@ -348,6 +351,14 @@ final class TypefaceFeatures {
         guard let controller = window() else { return nil }
         let model = generateModel(for: controller)
         return present("sheet.generateFonts", on: controller.window) { close in GenerateFontsSheet(model: model, close: close) }
+    }
+
+    /// menu:File[Export UFO…].
+    @discardableResult
+    func presentExportUFO() -> NSWindow? {
+        guard let controller = window() else { return nil }
+        let model = ExportUFOModel(document: gridDocument(of: controller))
+        return present("sheet.exportUFO", on: controller.window) { close in ExportUFOSheet(model: model, close: close) }
     }
 
     /// menu:File[Install for Testing]: an OTF of the front typeface with the *Test* suffix,

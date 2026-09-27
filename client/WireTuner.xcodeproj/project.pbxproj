@@ -19,6 +19,7 @@
 		057146C171DF8C3B6735BE2E /* TextRulerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2E07AD17818444D429773D2 /* TextRulerView.swift */; };
 		05AE60CFDD82B8429C235F13 /* ImageFeaturesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43111C0866CCD9A67A547789 /* ImageFeaturesTests.swift */; };
 		05B8D740063CBDD8EBA08861 /* UIGlueEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22A10E2D37804FA0C09807A5 /* UIGlueEdgeTests.swift */; };
+		05DC2381952A00157DF69394 /* ExportUFOSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0E96DA293FA6E5FF626EA8 /* ExportUFOSheet.swift */; };
 		0643546912A655B6884BD949 /* PackageHalvesGlue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E039576EB63703F4F34FEBEC /* PackageHalvesGlue.swift */; };
 		06C4A28E90A004BACE159BCB /* AccessBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09556E9FF5FA3B72366110B3 /* AccessBar.swift */; };
 		073DA193B1D4A9DB06F7D8F8 /* RegisterNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7F947927626CEFDBC841F3 /* RegisterNames.swift */; };
@@ -1319,6 +1320,7 @@
 		99004EFF99E9F8667CEA96FB /* ExtrudeSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtrudeSection.swift; sourceTree = "<group>"; };
 		99AB6466930C94CE01933ED1 /* InspectorRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorRegistry.swift; sourceTree = "<group>"; };
 		99B0DABCE3177EFE5931BF6B /* CollaborationServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationServices.swift; sourceTree = "<group>"; };
+		9B0E96DA293FA6E5FF626EA8 /* ExportUFOSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportUFOSheet.swift; sourceTree = "<group>"; };
 		9B18BFC41E9275223644EB3C /* ToolManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolManager.swift; sourceTree = "<group>"; };
 		9BA7996E13D4CC130804E833 /* FakeTokenEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeTokenEndpoint.swift; sourceTree = "<group>"; };
 		9CB682FFB3FD3469B5AB22F5 /* ClipboardFormats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardFormats.swift; sourceTree = "<group>"; };
@@ -1652,6 +1654,7 @@
 		078DD366594713F63C96BC6F /* Typeface */ = {
 			isa = PBXGroup;
 			children = (
+				9B0E96DA293FA6E5FF626EA8 /* ExportUFOSheet.swift */,
 				96BC3BDD8A93B985CFEB24C8 /* FindProblemsPanel.swift */,
 				03A56368A39E6A0D2A882D10 /* FontImportController.swift */,
 				ECE82C9B85BADAA72158442B /* FontInfoSheet.swift */,
@@ -3481,6 +3484,7 @@
 				5B93E5C1E879F30AE8B59ECC /* ExportPresets.swift in Sources */,
 				287513B66D5B57FAEC333DE9 /* ExportSettings.swift in Sources */,
 				763142E6EFD13D9E89B764F1 /* ExportSheetModel.swift in Sources */,
+				05DC2381952A00157DF69394 /* ExportUFOSheet.swift in Sources */,
 				D3F9F4DBFAD1C13788CE5C3F /* ExportViews.swift in Sources */,
 				5FB1C53C27873B3DAAC15679 /* ExportWebPresets.swift in Sources */,
 				6115183A3E516E6E8BE62AA9 /* ExtensionCatalog.swift in Sources */,

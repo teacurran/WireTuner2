@@ -253,10 +253,22 @@ text and maps error lines back to the user's text.  `FontCompiler` now checks th
 (errors block generation, at their line and column) and compiles user plus generated text.
 *Rename in feature file* is `RenameInFeatureFile` ("Rename in Feature File": a `TextDelete` per
 character and a `TextInsert` per occurrence, `\name` where the name is a keyword) with
-`RenameInFeatureFile.count(of:in:)` for the confirmation sheet.  Not built: `WTModel.FontGeneration`
-does not yet fill `FontSource`'s glyph kinds, anchors, kerning class names or generate switches (a
-core WTModel file, left to its owner; until then marks and ligatures are generated only from sources
-that set them), the Features editor window and the rename sheet's button (WTApp).
+`RenameInFeatureFile.count(of:in:)` for the confirmation sheet.  Not built: the Features editor
+window and the rename sheet's button (WTApp).
+
+NOTE: As built by FONT-019 (rest; `WTModel/FontGeneration.swift`, `FontValidation.swift`).
+`FontGeneration.snapshot` now fills `FontSource` from the document: each glyph's kind, its anchors
+(y flipped into font units and rounded; an anchor's explicit role wins over its name, so a Mark-role
+`top` is written `_top`; `.dup` duplicates are left out), the kerning classes' names (the model's
+`O` / `O_2` names, so the generated classes read `@kern1.O`), and *Generate mark and mkmk* and
+*Generate liga* from Font Info's switches.  Automatic `mark`, `mkmk` and `liga` therefore compile
+from real documents (`FontGenerationTests.automaticFeaturesCompileFromTheDocument`: Core Text forms
+`f_i` from "fi" and sets the grave on O's top anchor).  The validation list's two stand-in warnings
+went with it: `featuresNotCompiled` is replaced by the error `featureError` (the checker's errors in
+the user's text, each with its `line` and `column` on `FontProblem`; the standard glyphs generation
+may add count as known names), and `attachmentNotCompiled` by the warnings `markOmitted` (anchors that
+attach while *Generate mark* is off) and `ligaOmitted` (ligature glyphs named by their parts while
+*Generate liga* is off) -- the "likewise mark, liga" row of the validation table.
 
 === Build tasks
 

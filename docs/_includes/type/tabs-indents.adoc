@@ -226,8 +226,10 @@ is removed (`DeleteTabStop`); the left marker moves the left indent keeping the 
 was, the upper marker the first-line indent, the square both, the right marker the right indent
 (`SetParagraph`).  While a stop is dragged a dashed line runs down the block (*Track tab movement with
 vertical line*).  menu:View[Text Rulers] is shown or hidden for every window (user defaults
-`WTTextRulersShown`).  The Edit Tab sheet came with TYPE-024.  Not built: the
-conformance vector for `TabStop` (a `crdt-conformance` change, proposed).
+`WTTextRulersShown`).  The Edit Tab sheet came with TYPE-024.  The conformance vector for `TabStop`
+came later: `crdt-conformance/vectors/type/tab-stops-sequence-registers.textproto` (a SEQUENCE element
+with its kind, position and leader registers: concurrent moves, a delete against a leader edit, two
+stops added at one position), passing in WTCRDT and wt-crdt.
 
 NOTE: As built by TYPE-024 (`WTApp/Text/Ruler/EditTabSheet.swift`, one hook in `TextRulerView.swift`).  A
 double-click on the ruler opens the Edit Tab sheet for the stop within five view points, else for a

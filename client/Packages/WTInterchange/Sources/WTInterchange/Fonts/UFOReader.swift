@@ -9,7 +9,8 @@
 // (`public.glyphOrder`, the remaining glyphs after it by name, `.notdef` first) and the rest of
 // `lib.plist` as an opaque blob.  The result is an `ImportedFont` -- what WTModel's font import
 // writes -- plus what the OpenType reader has no place for.  Whatever is not read is listed in the
-// report.
+// report.  Since FONT-023 also each glyph's `note`, its as-drawn artwork (`UFOWriter.artworkKey` in
+// its lib) and its kind from `public.openTypeCategories`, so a WireTuner export reads back whole.
 
 import Foundation
 import WTGeometry
@@ -28,14 +29,26 @@ public struct UFOFont: Sendable {
     public var features: String
     /// `lib.plist` without the keys read here, as a binary property list (nil when empty).
     public var lib: Data?
+    /// Each glyph's `note`, parallel to `font.glyphs` (FONT-023).
+    public var notes: [String]
+    /// Each glyph's kind from `public.openTypeCategories`, parallel to `font.glyphs`; nil when the
+    /// lib does not name it (FONT-023).
+    public var kinds: [FontSource.GlyphKind?]
+    /// Each glyph's as-drawn artwork (`UFOWriter.artworkKey` in its lib), parallel to `font.glyphs`
+    /// (FONT-023).
+    public var artwork: [Data?]
 
-    public init(font: ImportedFont, formatVersion: Int, anchors: [[FontSource.Anchor]], markColors: [Int], features: String, lib: Data?) {
+    public init(font: ImportedFont, formatVersion: Int, anchors: [[FontSource.Anchor]], markColors: [Int], features: String, lib: Data?,
+                notes: [String]? = nil, kinds: [FontSource.GlyphKind?]? = nil, artwork: [Data?]? = nil) {
         self.font = font
         self.formatVersion = formatVersion
         self.anchors = anchors
         self.markColors = markColors
         self.features = features
         self.lib = lib
+        self.notes = notes ?? Array(repeating: "", count: font.glyphs.count)
+        self.kinds = kinds ?? Array(repeating: nil, count: font.glyphs.count)
+        self.artwork = artwork ?? Array(repeating: nil, count: font.glyphs.count)
     }
 }
 
@@ -112,11 +125,18 @@ public enum UFOReader {
         order += parsed.keys.filter { !ordered.contains($0) }.sorted()
         if let notdef = order.firstIndex(of: ".notdef"), notdef > 0 { order.insert(order.remove(at: notdef), at: 0) }
         lib["public.glyphOrder"] = nil
+        let categories = (lib[UFOWriter.categoriesKey] as? [String: String]).map { found in
+            lib[UFOWriter.categoriesKey] = nil
+            return found
+        }
         let index = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
 
         var glyphs: [ImportedFont.Glyph] = []
         var anchors: [[FontSource.Anchor]] = []
         var colors: [Int] = []
+        var notes: [String] = []
+        var kinds: [FontSource.GlyphKind?] = []
+        var artwork: [Data?] = []
         for name in order {
             let glyph = parsed[name]!
             let components = glyph.components.compactMap { component -> ImportedFont.Component? in
@@ -130,6 +150,10 @@ public enum UFOReader {
                                              components: components))
             anchors.append(glyph.anchors)
             colors.append(glyph.markColor.map(markColor) ?? 0)
+            notes.append(glyph.note)
+            artwork.append(glyph.artwork)
+            // A lib with categories names every glyph that is not a base.
+            kinds.append(categories.map { $0[name].flatMap(UFOWriter.kind(category:)) ?? .base })
         }
 
         let names = self.names(info)
@@ -138,7 +162,8 @@ public enum UFOReader {
         let kern = self.kerning(kerning, groups: groups, index: index, version: version, report: &report)
         let passthrough = lib.isEmpty ? nil : try? PropertyListSerialization.data(fromPropertyList: lib, format: .binary, options: 0)
         let font = ImportedFont(names: names, metrics: metrics, os2: os2, glyphs: glyphs, kerning: kern, report: report)
-        return UFOFont(font: font, formatVersion: version, anchors: anchors, markColors: colors, features: features, lib: passthrough)
+        return UFOFont(font: font, formatVersion: version, anchors: anchors, markColors: colors, features: features, lib: passthrough, notes: notes,
+                       kinds: kinds, artwork: artwork)
     }
 
     // MARK: Property lists
@@ -306,6 +331,8 @@ struct GlifGlyph {
     var components: [Component] = []
     var anchors: [FontSource.Anchor] = []
     var markColor: String?
+    var note = ""
+    var artwork: Data?
     /// What was not read or had to be repaired.
     var notes: [String] = []
 }
@@ -322,6 +349,7 @@ final class GlifParser: NSObject, XMLParserDelegate {
     private var glyph = GlifGlyph()
     private var contour: [Point]?
     private var inLib = false
+    private var inNote = false
     private var failure: String?
 
     /// The glyph in `data`.
@@ -333,17 +361,23 @@ final class GlifParser: NSObject, XMLParserDelegate {
             throw UFOReader.Failure.malformed("the glyph file \(file) does not parse" + (delegate.failure.map { ": \($0)" } ?? ""))
         }
         var glyph = delegate.glyph
-        glyph.markColor = markColor(in: data)
+        let lib = self.lib(in: data)
+        glyph.markColor = lib?["public.markColor"] as? String
+        glyph.artwork = lib?[UFOWriter.artworkKey] as? Data
         return glyph
     }
 
-    /// `public.markColor` from the glyph's `<lib>` (a property list dictionary).
+    /// `public.markColor` from the glyph's `<lib>`.
     static func markColor(in data: Data) -> String? {
+        lib(in: data)?["public.markColor"] as? String
+    }
+
+    /// The glyph's `<lib>` (a property list dictionary).
+    static func lib(in data: Data) -> [String: Any]? {
         guard let text = String(data: data, encoding: .utf8), let open = text.range(of: "<lib>"),
               let close = text.range(of: "</lib>", range: open.upperBound..<text.endIndex) else { return nil }
         let body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\">" + text[open.upperBound..<close.lowerBound] + "</plist>"
-        let lib = try? PropertyListSerialization.propertyList(from: Data(body.utf8), format: nil) as? [String: Any]
-        return lib?["public.markColor"] as? String
+        return try? PropertyListSerialization.propertyList(from: Data(body.utf8), format: nil) as? [String: Any]
     }
 
     private func number(_ attributes: [String: String], _ key: String, _ fallback: Double = 0) -> Double {
@@ -381,6 +415,8 @@ final class GlifParser: NSObject, XMLParserDelegate {
             glyph.components.append(GlifGlyph.Component(base: base, transform: transform))
         case "lib":
             inLib = true
+        case "note":
+            inNote = true
         case "image":
             glyph.notes.append("the background image was not imported.")
         case "guideline":
@@ -395,6 +431,10 @@ final class GlifParser: NSObject, XMLParserDelegate {
             inLib = false
             return
         }
+        if element == "note" {
+            inNote = false
+            return
+        }
         guard !inLib, element == "contour", let points = contour else { return }
         contour = nil
         // A UFO 2 anchor: one named point.
@@ -407,6 +447,10 @@ final class GlifParser: NSObject, XMLParserDelegate {
         } else if !points.isEmpty {
             glyph.notes.append("a contour of \(points.count) point\(points.count == 1 ? "" : "s") could not be read and was left out.")
         }
+    }
+
+    func parser(_ parser: XMLParser, foundCharacters string: String) {
+        if inNote, !inLib { glyph.note += string }
     }
 
     func parser(_ parser: XMLParser, parseErrorOccurred error: any Error) {

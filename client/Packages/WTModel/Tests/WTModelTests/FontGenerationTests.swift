@@ -99,6 +99,59 @@ import WTRender
         #expect(positions[3].x - positions[2].x == 570)
     }
 
+    /// FONT-019: kinds, anchors, class names and the generate switches reach the compiler, so the
+    /// automatic mark, liga and named-class kern features compile from the document.
+    @Test func automaticFeaturesCompileFromTheDocument() async throws {
+        var a = Replica(0xA)
+        var g = try Self.drawn(&a)
+        try a.perform(AddGlyphs([NewGlyph(name: "f_i", kind: .ligature)]))
+        g = Dictionary(uniqueKeysWithValues: GlyphIndex(a.state).glyphs.map { ($0.name, $0.id) })
+        try TypefaceFixture.box(0, -700, 500, 700, on: g["f"]!, in: &a)
+        try TypefaceFixture.box(0, -700, 200, 700, on: g["i"]!, in: &a)
+        try TypefaceFixture.box(0, -700, 650, 700, on: g["f_i"]!, in: &a)
+        try a.perform(SetGlyphWidth([g["f_i"]!], to: 650))
+        try a.perform(AddAnchor("top", at: Point(x: 300, y: -700), to: g["A"]!))
+        try a.perform(AddAnchor("top", at: Point(x: 350, y: -720), to: g["A"]!))
+        try a.perform(AddAnchor("top", at: Point(x: 350, y: -700), to: g["O"]!))
+        try a.perform(AddAnchor("_top", at: Point(x: 150, y: -700), to: g["gravecomb"]!))
+        try a.perform(AddAnchor("stem", at: Point(x: 150, y: -900), to: g["gravecomb"]!, role: .mark))
+        let snapshot = FontGeneration.snapshot(a.state)
+        let source = snapshot.source
+        let glyphA = try #require(source.glyphs.first { $0.name == "A" })
+        let grave = try #require(source.glyphs.first { $0.name == "gravecomb" })
+        #expect(glyphA.kind == .base && grave.kind == .mark && source.glyphs.first { $0.name == "f_i" }?.kind == .ligature)
+        // y up, the duplicate left out, an explicit Mark role written with the underscore.
+        #expect(glyphA.anchors == [FontSource.Anchor(name: "top", x: 300, y: 700)])
+        #expect(grave.anchors == [FontSource.Anchor(name: "_top", x: 150, y: 700), FontSource.Anchor(name: "_stem", x: 150, y: 900)])
+        #expect(source.kerning.leftClassNames == ["A"] && source.kerning.rightClassNames == ["O"])
+        #expect(source.generateMark && source.generateLiga && FeatureGenerator.generatedTags(source) == ["kern", "mark", "liga"])
+        let generated = FeatureGenerator.generated(source)
+        #expect(generated.contains("@kern1.A") && generated.contains("@kern2.O") && generated.contains("sub f i by f_i;"))
+        #expect(!snapshot.problems.contains { $0.level == .error })
+        // Core Text reads the compiled font: f i ligates, the grave sits on O's top anchor (A plus
+        // grave would compose to the Agrave glyph).
+        let result = try await FontGeneration.generate(a.state, format: .otf)
+        let provider = try #require(CGDataProvider(data: result.data as CFData))
+        let font = CTFontCreateWithGraphicsFont(try #require(CGFont(provider)), 1_000, nil, nil)
+        func glyphs(_ text: String) -> (glyphs: [CGGlyph], positions: [CGPoint]) {
+            let attributed = NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
+            let run = (CTLineGetGlyphRuns(CTLineCreateWithAttributedString(attributed)) as! [CTRun])[0]
+            let count = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: count), positions = [CGPoint](repeating: .zero, count: count)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+            return (glyphs, positions)
+        }
+        let ligature = glyphs("fi")
+        #expect(ligature.glyphs.count == 1 && Int(ligature.glyphs[0]) == source.glyphs.firstIndex { $0.name == "f_i" })
+        let marked = glyphs("O\u{300}")
+        #expect(marked.positions.count == 2 && marked.positions[1].x - marked.positions[0].x == 200, "\(marked)")
+        // The switches off: neither mark nor liga is generated.
+        try a.perform(SetGeneratedFeatures(mark: false, liga: false))
+        let off = FontGeneration.snapshot(a.state).source
+        #expect(!off.generateMark && !off.generateLiga && FeatureGenerator.generatedTags(off) == ["kern"])
+    }
+
     @Test func errorsStopGeneration() async throws {
         var a = Replica(0xA)
         try TypefaceFixture.typeface(&a, set: nil)
@@ -123,7 +176,8 @@ import WTRender
         try a.perform(OpsCommand("Older client", ops: [Ops.set(WellKnown.settings, [FontFields.name(3)], values: FontFields.fontValues {
             $0.names.postscript = "bad name"
         })]))
-        try a.perform(OpsCommand("Features", ops: [Ops.textInsert(WellKnown.settings, FontFields.features, "languagesystem DFLT dflt;")]))
+        try a.perform(OpsCommand("Features", ops: [Ops.textInsert(WellKnown.settings, FontFields.features,
+                                                                             "languagesystem DFLT dflt;\nfeature liga { sub A B by nope; } liga;\n")]))
         try a.perform(AddGlyphs([NewGlyph(scalar: 0x41), NewGlyph(scalar: 0x42), NewGlyph(scalar: 0x43), NewGlyph(scalar: 0x44),
                                  NewGlyph(scalar: 0x301), NewGlyph(scalar: 0x45)]))
         let g = Dictionary(uniqueKeysWithValues: GlyphIndex(a.state).glyphs.map { ($0.name, $0.id) })
@@ -158,13 +212,16 @@ import WTRender
         let problems = FontValidation.problems(in: a.state)
         let kinds = Set(problems.map(\.kind))
         for kind in [FontProblem.Kind.invalidMetrics, .emptyFamilyOrStyle, .invalidPostScriptName, .componentTooDeep, .missingNotdef, .missingSpace,
-                     .featuresNotCompiled, .offGrid, .openContours, .missingExtrema, .emptyGlyph, .tooManyPoints, .unusedBaseAnchor, .markWithoutBase,
+                     .featureError, .offGrid, .openContours, .missingExtrema, .emptyGlyph, .tooManyPoints, .unusedBaseAnchor, .markWithoutBase,
                      .duplicateAnchor] {
             #expect(kinds.contains(kind), "\(kind)")
         }
         #expect(problems.first { $0.kind == .offGrid }?.glyph == g["A"])
+        let feature = try #require(problems.first { $0.kind == .featureError })
+        #expect(feature.level == .error && feature.line == 2 && feature.column != nil && FontValidation.blocksGeneration(problems))
         #expect(FontValidation.glyphCountProblems(70_000).map(\.kind) == [.tooManyGlyphs] && FontValidation.glyphCountProblems(3).isEmpty)
-        // Dangling and looping components are errors; matching anchors mean mark attachment is not compiled.
+        // Dangling and looping components are errors; matching anchors with Generate mark off, and a
+        // ligature with Generate liga off, are warnings.
         var b = Replica(0xB)
         try TypefaceFixture.typeface(&b, set: nil)
         try b.perform(AddGlyphs([NewGlyph(scalar: 0x41), NewGlyph(scalar: 0x42), NewGlyph(scalar: 0x43)]))
@@ -176,8 +233,12 @@ import WTRender
         ]))
         try b.perform(AddAnchor("top", at: .zero, to: glyphA))
         try b.perform(AddAnchor("_top", at: .zero, to: glyphB))
+        #expect(!FontValidation.problems(in: b.state).contains { $0.kind == .markOmitted })
+        try b.perform(AddGlyphs([NewGlyph(scalar: 0x66), NewGlyph(scalar: 0x69), NewGlyph(name: "f_i", kind: .ligature)]))
+        #expect(!FontValidation.problems(in: b.state).contains { $0.kind == .ligaOmitted })
+        try b.perform(SetGeneratedFeatures(mark: false, liga: false))
         let errors = Set(FontValidation.problems(in: b.state).map(\.kind))
-        #expect(errors.isSuperset(of: [.danglingComponent, .componentLoop, .attachmentNotCompiled]))
+        #expect(errors.isSuperset(of: [.danglingComponent, .componentLoop, .markOmitted, .ligaOmitted]))
     }
 }
 
