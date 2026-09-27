@@ -100,9 +100,11 @@ periods and underscores and does not start with a digit.
 To open a glyph for drawing, double-click its cell or press kbd:[Return]; it opens in a tab
 (xref:glyph-editing.adoc[Editing glyphs]).
 
-To rename a glyph, select it and press kbd:[Return] with the label, or edit *Name* in the Glyph
-section of the Object panel.  A name in use by another glyph is refused with the other glyph
-shown.  Renaming a glyph never breaks components, kerning or anchors that refer to it: those
+To rename a glyph, select it and choose menu:Glyph[Rename Glyph…], press kbd:[Return] with the
+label, or edit *Name* in the Glyph section of the Object panel.  A name in use by another glyph is
+refused with the other glyph shown.  When your feature file uses the old name, the sheet says how
+often and offers btn:[Rename in Feature File], which renames those places too
+(xref:opentype-features.adoc[OpenType features]).  Renaming a glyph never breaks components, kerning or anchors that refer to it: those
 refer to the glyph itself, not its name.  Ligature names (`f_i`) do drive the automatic `liga`
 feature, so renaming a ligature changes what it substitutes.
 

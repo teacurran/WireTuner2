@@ -120,11 +120,16 @@ public enum FontValidation {
     /// and column.  The standard glyphs generation may add count as known names.
     static func featureProblems(_ features: String, glyphs index: GlyphIndex) -> [FontProblem] {
         guard !features.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
-        let names = index.glyphs.filter { !$0.skipExport }.map(\.name) + [".notdef", "space", "NULL", "CR"]
-        return FeatureChecker.check(features, glyphs: names).issues.filter { $0.severity == .error }.map { issue in
+        return FeatureChecker.check(features, glyphs: featureGlyphNames(index)).issues.filter { $0.severity == .error }.map { issue in
             FontProblem(.error, .featureError, "Feature file line \(issue.location.line): \(issue.message)", line: issue.location.line,
                         column: issue.location.column)
         }
+    }
+
+    /// The glyph names the feature file may use: every exported glyph and the standard glyphs
+    /// generation may add.
+    public static func featureGlyphNames(_ index: GlyphIndex) -> [String] {
+        index.glyphs.filter { !$0.skipExport }.map(\.name) + [".notdef", "space", "NULL", "CR"]
     }
 
     /// The checks of one glyph (Find Problems for the current glyph).

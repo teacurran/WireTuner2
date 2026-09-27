@@ -9,8 +9,9 @@ import WTProto
 
 /// The typeface features (the FONT epic's client-ui tasks; typeface-documents.adoc and the pages
 /// it links): menu:File[New Typeface…], menu:File[Open Font…], menu:File[Convert Document To],
-/// menu:File[Generate Fonts…], menu:File[Export UFO…], the Font and Glyph menus, the typeface window layout on every
-/// document window (`TypefaceWindowMode`) and the glyph tabs.  One object per app; the commands
+/// menu:File[Generate Fonts…], menu:File[Export UFO…], menu:File[Import UFO into Typeface…], the Font and Glyph
+/// menus, menu:Window[Features] (the Features editor) and menu:Edit[Insert Class from Suffix…], the typeface window
+/// layout on every document window (`TypefaceWindowMode`) and the glyph tabs.  One object per app; the commands
 /// act on the front window.
 @MainActor
 final class TypefaceFeatures {
@@ -23,6 +24,10 @@ final class TypefaceFeatures {
         static let generateFonts: CommandID = "file.generateFonts"
         static let installForTesting: CommandID = "file.installForTesting"
         static let exportUFO: CommandID = "file.exportUFO"
+        static let importUFO: CommandID = "file.importUFO"
+        static let featuresWindow: CommandID = "window.features"
+        static let insertClassFromSuffix: CommandID = "edit.insertClassFromSuffix"
+        static let renameGlyph: CommandID = "glyph.rename"
         static let fontInfo: CommandID = "font.info"
         static let metricsWindow: CommandID = "font.metrics"
         static let openGlyph: CommandID = "glyph.open"
@@ -46,6 +51,8 @@ final class TypefaceFeatures {
     static let notTypeface = "The document is not a typeface"
     static let noGlyph = "Select a glyph"
     static let noGlyphCanvas = "Open a glyph first"
+    static let noFeaturesEditor = "Open the Features editor first"
+    static let notUFO = "The folder is not a UFO package this version can read."
 
     let preferences: PreferenceStore
     /// The front document window.
@@ -64,10 +71,24 @@ final class TypefaceFeatures {
     private var thumbnails: [String: GlyphThumbnailSource] = [:]
     /// The Metrics windows by document id.
     private(set) var metrics: [String: MetricsWindowController] = [:]
-    /// Runs an open panel for font files (replaced in tests).
+    /// The Features editors by document id.
+    private(set) var featureEditors: [String: FeaturesEditorController] = [:]
+    /// The Features editor in the key window (replaced in tests).
+    var frontEditor: @MainActor () -> FeaturesEditorController? = { NSApp.keyWindow?.windowController as? FeaturesEditorController }
+    /// Runs an open panel for font files and UFO packages (replaced in tests).
     var chooseFontFile: @MainActor (NSWindow?) async -> URL? = { window in
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = FontImportController.contentTypes
+        panel.allowedContentTypes = FontImportController.contentTypes + [FontImportController.ufoType]
+        panel.canChooseDirectories = true
+        return await ModalUI.urls(panel, on: window).first
+    }
+    /// Runs an open panel for a UFO package (replaced in tests).
+    var chooseUFO: @MainActor (NSWindow?) async -> URL? = { window in
+        let panel = NSOpenPanel()
+        panel.title = "Import UFO into Typeface"
+        panel.allowedContentTypes = [FontImportController.ufoType]
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
         return await ModalUI.urls(panel, on: window).first
     }
     /// Shows a message (replaced in tests).
@@ -223,6 +244,13 @@ final class TypefaceFeatures {
                     validation: needsTypeface, action: .perform { [unowned self] in installForTesting() }),
             Command(id: ID.exportUFO, title: "Export UFO…", menu: MenuPath(file, section: 2), keywords: ["ufo", "export font", "font source"],
                     validation: needsTypeface, action: .perform { [unowned self] in presentExportUFO() }),
+            Command(id: ID.importUFO, title: "Import UFO into Typeface…", menu: MenuPath(file, section: 2), keywords: ["ufo", "import font", "font source"],
+                    validation: needsTypeface, action: .perform { [unowned self] in importUFOIntoTypeface() }),
+            Command(id: ID.featuresWindow, title: "Features", menu: MenuPath(StandardCommands.Menu.window), keywords: ["opentype", "fea", "feature file", "liga"],
+                    validation: needsTypeface, action: .perform { [unowned self] in showFeatures() }),
+            Command(id: ID.insertClassFromSuffix, title: "Insert Class from Suffix…", menu: MenuPath(StandardCommands.Menu.edit), keywords: ["feature", "class", "suffix"],
+                    validation: { [unowned self] in frontEditor() == nil ? .disabled(Self.noFeaturesEditor) : .enabled },
+                    action: .perform { [unowned self] in if let editor = frontEditor() { presentClassFromSuffix(on: editor) } }),
             Command(id: ID.fontInfo, title: "Font Info…", menu: MenuPath(fontMenu), keywords: ["names", "metrics", "units per em", "os/2"],
                     validation: needsTypeface, action: .perform { [unowned self] in presentFontInfo() }),
             Command(id: ID.metricsWindow, title: "Metrics Window", key: KeyEquivalent("m", [.command, .option]), menu: MenuPath(fontMenu),
@@ -233,6 +261,8 @@ final class TypefaceFeatures {
                     validation: needsTypeface, action: .perform { [unowned self] in presentAddGlyph() }),
             Command(id: ID.removeGlyphs, title: "Remove Glyph", menu: MenuPath(glyphMenu), keywords: ["delete glyph"],
                     validation: needsGlyphs, action: .perform { [unowned self] in removeSelectedGlyphs() }),
+            Command(id: ID.renameGlyph, title: "Rename Glyph…", menu: MenuPath(glyphMenu), keywords: ["glyph name", "feature file"],
+                    validation: needsGlyphs, action: .perform { [unowned self] in presentRenameGlyph() }),
             Command(id: ID.previousGlyph, title: "Previous Glyph", key: KeyEquivalent("left", [.command, .option]), menu: MenuPath(glyphMenu, section: 1),
                     validation: needsGlyphCanvas, action: .perform { [unowned self] in stepGlyph(by: -1) }),
             Command(id: ID.nextGlyph, title: "Next Glyph", key: KeyEquivalent("right", [.command, .option]), menu: MenuPath(glyphMenu, section: 1),
@@ -288,13 +318,15 @@ final class TypefaceFeatures {
     }
 
     /// menu:File[Open Font…]: an OTF, TTF or WOFF2 file, imported into the front typeface
-    /// document, or into a new typeface document when the front one is not a typeface.  The
-    /// import's report is shown when it has anything to say.
+    /// document, or into a new typeface document when the front one is not a typeface; a UFO
+    /// package always opens as a new typeface document.  The import's report is shown when it has
+    /// anything to say.
     @discardableResult
     func openFontFile() -> Task<[String]?, Never> {
         let front = window()
         return Task { [unowned self] in
             guard let url = await chooseFontFile(front?.window) else { return nil }
+            if FontImportController.isUFO(url) { return await openUFO(url).value }
             let target: DocumentHandle
             let newDocument: Bool
             if let front, DocumentKind(front.documentHandle.state) == .typeface {
@@ -313,6 +345,86 @@ final class TypefaceFeatures {
             if !report.isEmpty { alert("Imported “\(url.lastPathComponent)”", report.joined(separator: "\n"), front?.window) }
             return report
         }
+    }
+
+    /// A UFO package opened (menu:File[Open Font…], or handed to the app by the Finder): a new
+    /// typeface document named after the package, with everything the package holds; the report
+    /// is shown when it has anything to say.  Nil when no document can be made or the package
+    /// cannot be read (which an alert says).
+    @discardableResult
+    func openUFO(_ url: URL) -> Task<[String]?, Never> {
+        let front = window()
+        return Task { [unowned self] in
+            guard let created = createDocument(url.deletingPathExtension().lastPathComponent) else { return nil }
+            return await importUFO(url, into: created, newDocument: true, alertOn: front?.window)
+        }
+    }
+
+    /// menu:File[Import UFO into Typeface…]: the package's glyphs added to the front typeface,
+    /// colliding names and characters handled as the grid handles them and listed in the report.
+    @discardableResult
+    func importUFOIntoTypeface() -> Task<[String]?, Never> {
+        guard let front = window(), DocumentKind(front.documentHandle.state) == .typeface else { return Task { nil } }
+        let target = gridDocument(of: front)
+        return Task { [unowned self] in
+            guard let url = await chooseUFO(front.window) else { return nil }
+            return await importUFO(url, into: target, newDocument: false, alertOn: front.window)
+        }
+    }
+
+    private func importUFO(_ url: URL, into document: DocumentHandle, newDocument: Bool, alertOn window: NSWindow?) async -> [String]? {
+        switch await FontImportController(document: document).importUFO(url, newDocument: newDocument) {
+        case .failure(let error):
+            alert("“\(url.lastPathComponent)” could not be opened", (error as? UFOReader.Failure)?.description ?? Self.notUFO, window)
+            return nil
+        case .success(let report):
+            if !report.isEmpty { alert("Imported “\(url.lastPathComponent)”", report.joined(separator: "\n"), window) }
+            return report
+        }
+    }
+
+    /// Whether `url` is a UFO package, which then opens as a new typeface document (the app's
+    /// open-file hook).
+    func opens(_ url: URL) -> Bool {
+        guard FontImportController.isUFO(url) else { return false }
+        openUFO(url)
+        return true
+    }
+
+    /// menu:Window[Features]: one Features editor per document, with the document window's
+    /// collaborators and caret publishing.
+    @discardableResult
+    func showFeatures() -> FeaturesEditorController? {
+        guard let controller = window() else { return nil }
+        let document = gridDocument(of: controller)
+        if let existing = featureEditors[document.id] {
+            existing.show()
+            return existing
+        }
+        let grid = gridWindow(of: document.id) ?? controller
+        let editor = FeaturesEditorController(model: FeaturesEditorModel(document: document),
+                                              showGenerated: preferences[PreferenceCatalog.Typeface.showGeneratedFeatures],
+                                              presence: grid.presence) { [weak grid] caret in grid?.collaboration.publisher?.caret(caret) }
+        editor.presentSuffixSheet = { [unowned self, unowned editor] in presentClassFromSuffix(on: editor) }
+        editor.onClose = { [unowned self] in featureEditors[document.id] = nil }
+        featureEditors[document.id] = editor
+        editor.show()
+        return editor
+    }
+
+    /// menu:Edit[Insert Class from Suffix…] in a Features editor.
+    @discardableResult
+    func presentClassFromSuffix(on editor: FeaturesEditorController) -> NSWindow {
+        let model = ClassFromSuffixModel { [weak editor] suffix in editor?.model.insertClasses(suffix: suffix) ?? false }
+        return present("sheet.classFromSuffix", on: editor.window) { close in ClassFromSuffixSheet(model: model, close: close) }
+    }
+
+    /// menu:Glyph[Rename Glyph…]: the first targeted glyph.
+    @discardableResult
+    func presentRenameGlyph() -> NSWindow? {
+        guard let controller = window(), let glyph = targetGlyphs(in: controller).first else { return nil }
+        let model = RenameGlyphModel(document: gridDocument(of: controller), glyph: glyph, perform: controller.typefacePerform)
+        return present("sheet.renameGlyph", on: controller.window) { close in RenameGlyphSheet(model: model, close: close) }
     }
 
     /// menu:File[Convert Document To]: the sheet saying what happens.

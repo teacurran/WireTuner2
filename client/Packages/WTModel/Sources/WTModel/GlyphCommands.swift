@@ -339,14 +339,20 @@ public enum GlyphSet: Hashable, Sendable, CaseIterable {
 
 /// *Rename*: `SetFields(name)`, refused when the name is invalid or live on another glyph.
 /// "Rename glyph".
+///
+/// With `inFeatureFile` the same change also rewrites the feature file's uses of the old name
+/// (`RenameInFeatureFile`, the rename sheet's btn:[Rename in Feature File]; opentype-features.adoc,
+/// "Feature text vs. glyph rename").
 public struct RenameGlyph: Command {
     public var glyph: OpID
     public var name: String
+    public var inFeatureFile: Bool
     public var label: String { "Rename glyph" }
 
-    public init(_ glyph: OpID, to name: String) {
+    public init(_ glyph: OpID, to name: String, inFeatureFile: Bool = false) {
         self.glyph = glyph
         self.name = name
+        self.inFeatureFile = inFeatureFile
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
@@ -356,6 +362,9 @@ public struct RenameGlyph: Command {
         guard current.storedName != name || current.nameStatus != .stored else { return }
         guard !index.isNameTaken(name, except: glyph) else { throw GlyphEditError.nameTaken(name) }
         builder.append(Ops.set(glyph, [GlyphFields.name], values: GlyphFields.values { $0.name = name }))
+        if inFeatureFile {
+            try RenameInFeatureFile(current.name, to: name).execute(&builder, state: state)
+        }
     }
 }
 

@@ -7,7 +7,8 @@ import WTModel
 /// menu:File[Open Font…] and the New Typeface sheet's *From a font file…* (font-export.adoc,
 /// "Opening OTF and TTF files"; FONT-025): the file is read (`OpenTypeReader`; a WOFF2 file is
 /// unwrapped first), planned against the document (`FontImport.plan`) and written as one undo
-/// step; the plan's report comes back for the sheet to show.
+/// step; the plan's report comes back for the sheet to show.  A UFO package goes through
+/// `importUFO` (FONT-024).
 @MainActor
 struct FontImportController {
     let document: DocumentHandle
@@ -27,6 +28,28 @@ struct FontImportController {
     func importFile(_ url: URL, newDocument: Bool) -> Task<[String], Never>? {
         guard let data = try? Data(contentsOf: url), let font = Self.read(data, fileExtension: url.pathExtension) else { return nil }
         return importFont(font, fileName: url.lastPathComponent, newDocument: newDocument)
+    }
+
+    /// A `.ufo` package (UFO is a folder; the type is the extension's).
+    static let ufoType = UTType(filenameExtension: "ufo", conformingTo: .package) ?? .package
+
+    static func isUFO(_ url: URL) -> Bool { url.pathExtension.lowercased() == "ufo" }
+
+    /// Imports the UFO package at `url` (FONT-024): read off the main actor (`UFOReader`), planned
+    /// against the document (`UFOImport.plan`: collisions, anchors, colours, and for a new
+    /// document the feature file and the lib) and written as one undo step.  The plan's report,
+    /// or why the package could not be read.
+    func importUFO(_ url: URL, newDocument: Bool) async -> Result<[String], any Error> {
+        let read = await Task.detached { Result { try UFOReader.read(at: url) } }.value
+        switch read {
+        case .failure(let error):
+            return .failure(error)
+        case .success(let ufo):
+            await document.settle()
+            let plan = UFOImport.plan(ufo, fileName: url.lastPathComponent, into: document.state, newDocument: newDocument)
+            _ = await document.performGroup(plan.commands).value
+            return .success(plan.report)
+        }
     }
 
     /// Imports `font` once the document's model is open.

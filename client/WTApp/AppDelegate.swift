@@ -574,6 +574,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if images.inbox.opens(url) { return true }
         if SymbolTransferFeatures.opens(url) { return true }
         if StyleTransferModel.opens(url) { return true }
+        if typeface.opens(url) { return true }
         if deepLinks.opens(url) != nil { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }

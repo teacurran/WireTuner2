@@ -52,11 +52,23 @@ public enum FontGeneration {
 
     /// The compiler input of the document's font, with the validation list.
     public static func snapshot(_ state: EngineState, options: FontGenerationOptions = FontGenerationOptions()) -> Snapshot {
+        snapshot(state, options: options, flatten: true)
+    }
+
+    /// What the feature generator reads of the document's font -- glyph names, kinds, anchors,
+    /// kerning, the generate switches -- without flattening any outline (the Features editor's
+    /// *Generated* pane, FONT-022).  Glyphs have no contours and there is no validation list.
+    public static func featureSource(_ state: EngineState) -> FontSource {
+        snapshot(state, options: FontGenerationOptions(), flatten: false).source
+    }
+
+    static func snapshot(_ state: EngineState, options: FontGenerationOptions, flatten: Bool) -> Snapshot {
         let index = GlyphIndex(state)
         let font = FontInfo(state)
-        let flattened = GlyphFlattener.outlines(GlyphOutlines.sources(in: state, index: index), options: .init(keepOverlaps: options.keepOverlaps))
+        let flattened = flatten
+            ? GlyphFlattener.outlines(GlyphOutlines.sources(in: state, index: index), options: .init(keepOverlaps: options.keepOverlaps)) : [:]
         let outlines = Dictionary(uniqueKeysWithValues: flattened.map { (OpID($0.key), $0.value) })
-        let problems = FontValidation.problems(in: state, index: index, outlines: outlines)
+        let problems = flatten ? FontValidation.problems(in: state, index: index, outlines: outlines) : []
         let upm = Double(font.metrics.upm)
         var glyphs: [FontSource.Glyph] = []
         var origins: [OpID?] = []

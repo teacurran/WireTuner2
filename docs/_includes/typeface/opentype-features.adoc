@@ -50,7 +50,7 @@ is still on, the two are combined: yours first, then the generated rules.
 
 == The Features editor
 
-Open it with menu:Window[Features] (kbd:[Cmd+Option+E]).  It is a text editor for one file: the
+Open it with menu:Window[Features].  It is a text editor for one file: the
 font's feature file.  Its contents are stored in the document and shared, like everything else.
 
 The editor:
@@ -62,8 +62,8 @@ The editor:
 * Shows the *Generated* pane at the bottom -- read-only text of the automatic features -- so you
   can see what is already there and copy from it.  Toggle it with the *Show generated features*
   preference or the disclosure triangle.
-* Validates on demand with btn:[Check] (kbd:[Cmd+K]) and always before generating.  Errors list in
-  a strip under the editor; clicking one selects the line.
+* Validates as you type, on demand with btn:[Check] (kbd:[Cmd+K] while the editor is in front) and
+  always before generating.  Errors list in a strip under the editor; clicking one selects the line.
 
 A short primer on what to write, in the syntax the editor accepts:
 
@@ -103,7 +103,7 @@ appear in the Metrics window's *Features* pop-up for preview once they check cle
 (xref:kerning-metrics.adoc[Kerning and metrics]).
 
 To use a suffix convention in classes without listing every glyph, the editor offers
-menu:Edit[Insert Class from Suffix…]: type `.sc` and it inserts `@sc_from = [a b c …]` and
+menu:Edit[Insert Class from Suffix…] (also a button in the editor): type `.sc` and it inserts `@sc_from = [a b c …]` and
 `@sc_to = [a.sc b.sc c.sc …]` for every glyph in the font that has a `.sc` variant.
 
 == Previewing substitutions
@@ -228,7 +228,8 @@ FONT-019 came later and compiles it (its note below, `WTInterchange/Fonts/Featur
 
 NOTE: Deviations recorded by FONT-022.  Only the Features pane of Font Info (the three generate
 switches) is built.  The Features editor window waited for `FeatureChecker` and a feature compiler,
-which FONT-019 built later (`FeatureChecker.swift`, `FeatureCompiler.swift`); the window is not built.
+which FONT-019 built later (`FeatureChecker.swift`, `FeatureCompiler.swift`); the window came with
+FONT-022's editor note at the end of this page.
 
 NOTE: As built by FONT-019 (`WTInterchange/Fonts/Features/`: `FeatureSyntax.swift`,
 `FeatureChecker.swift`, `FeatureGenerator.swift`, `FeatureCompiler.swift`, `FeatureTables.swift`;
@@ -253,8 +254,8 @@ text and maps error lines back to the user's text.  `FontCompiler` now checks th
 (errors block generation, at their line and column) and compiles user plus generated text.
 *Rename in feature file* is `RenameInFeatureFile` ("Rename in Feature File": a `TextDelete` per
 character and a `TextInsert` per occurrence, `\name` where the name is a keyword) with
-`RenameInFeatureFile.count(of:in:)` for the confirmation sheet.  Not built: the Features editor
-window and the rename sheet's button (WTApp).
+`RenameInFeatureFile.count(of:in:)` for the confirmation sheet.  The Features editor window and
+the rename sheet's button came with FONT-022 (its note below).
 
 NOTE: As built by FONT-019 (rest; `WTModel/FontGeneration.swift`, `FontValidation.swift`).
 `FontGeneration.snapshot` now fills `FontSource` from the document: each glyph's kind, its anchors
@@ -269,6 +270,34 @@ the user's text, each with its `line` and `column` on `FontProblem`; the standar
 may add count as known names), and `attachmentNotCompiled` by the warnings `markOmitted` (anchors that
 attach while *Generate mark* is off) and `ligaOmitted` (ligature glyphs named by their parts while
 *Generate liga* is off) -- the "likewise mark, liga" row of the validation table.
+
+NOTE: As built by FONT-022's editor (`WTApp/Typeface/FeaturesEditor.swift`, `RenameGlyphSheet.swift`, commands in
+`TypefaceFeatures.swift`; `WTModel/FeatureFileEditing.swift`, `WTInterchange/Fonts/Features/FeatureEditing.swift`, new
+files; `RenameGlyph(_:to:inFeatureFile:)` in `GlyphCommands.swift`, `FontGeneration.featureSource`).  menu:Window[Features]
+opens one editor per document (`FeaturesEditorController`, an `NSTextView` in a window of its own): line numbers, syntax
+colours from `FeatureEditing.spans` (keywords, tags, glyph names, classes, numbers, strings, comments), the bracket
+matching the one at the caret tinted, red thick underlines under unknown glyph and class names with the checker's message
+and nearest name as the tooltip, kbd:[Control+Space] completing glyph names (or `@classes` the text defines) inside a
+`sub`/`pos`/`ignore`/`rsub`/`enum` rule -- one match is inserted, several are offered in a menu --, the error strip (every
+issue, errors red, warnings orange; a click selects the line), btn:[Check] (kbd:[Cmd+K] in the window), btn:[Insert Class
+from Suffix…] and menu:Edit[Insert Class from Suffix…] (`FeatureEditing.classesFromSuffix`: `@sc_from` / `@sc_to` at the
+caret), the *Generated* pane (read-only `FeatureGenerator.generated` of `FontGeneration.featureSource`, which reads names,
+kinds, anchors and kerning without flattening) behind a disclosure button whose starting state is the *Show generated
+features* preference, and the collaborators' carets and selections (published as a `TextCaret` on the settings node's
+`features` field).  The live check runs 300 ms after the last change against `FeatureFileContext` (the glyph names
+generation knows, the generated tags).  The text binding is not `TextEditingSession` (whose targets are text nodes) but
+`EditFeatureFile`: the characters a view range covers are deleted and the text inserted before the character after it
+(zero: the end), resolved when the change is built so a collaborator's concurrent edit does not move it; a keystroke joins
+the word's undo step (`UndoCoalescing.typing` on the settings node's `features` field, so a word, its space and any
+backspaces inside it are one step), a paste or completion is its own.  C0 controls other than tab and newline are not shown
+and the editor never writes them.  menu:Glyph[Rename Glyph…] (new; the grid had no rename) opens `RenameGlyphSheet`: the
+name (refused when invalid or taken) and, when the feature file writes the old name, "Used in the feature file, N places"
+with btn:[Rename in Feature File] (`RenameGlyph(inFeatureFile: true)`: the rename and `RenameInFeatureFile` in one change)
+beside btn:[Rename Glyph Only].  Deviations: the window has no keyboard shortcut (kbd:[Cmd+Option+E] is Quick Export's);
+completion is a menu, not an inline list; the preference sets the pane's state when the editor opens (the disclosure then
+toggles it for that window).  Not built: the Metrics window's *Features* pop-up (FONT-020's), a line-level review of
+concurrent edits to one feature block (the review sheet's), and XCUITest UI tests -- the flows are covered by unit tests
+that drive the window (`TypefaceFeaturesEditorTests`).
 
 === Build tasks
 

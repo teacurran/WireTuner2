@@ -157,7 +157,7 @@ The UFO carries: every exported glyph's outline, components, anchors, width, cod
 the font names, metrics and OS/2 values; kerning pairs and classes (as UFO groups `public.kern1.*`
 and `public.kern2.*`); the feature file text; the glyph order; and the mark colors.
 
-To import a UFO: menu:File[Open…] and choose the package, or menu:File[Import UFO into
+To import a UFO: menu:File[Open Font…] and choose the package, or menu:File[Import UFO into
 Typeface…] to add its glyphs to the current document.  Opening a UFO creates a new typeface
 document.  Everything above is read back; unknown data in the package's `lib` is kept and written
 back on export, so a round trip through {product} loses nothing another editor stored.
@@ -367,8 +367,8 @@ batches) with changes adding the anchors (y negated), the Mark kind for a glyph 
 ATOMIC, at most 1 MiB; `FontFields.ufoLibPassthrough`) by one more change when opening a UFO, for UFO export
 to write back.  Deviations: the field is on `FontProps` (`SettingsProps.font`), where the rest of the font's
 settings live; like the feature file it is written only when opening -- importing into an existing
-typeface keeps that typeface's own, and the report says so, as it does for a lib over 1 MiB.  Not built: the Open and *Import UFO into
-Typeface…* menu glue and the report sheet (WTApp).
+typeface keeps that typeface's own, and the report says so, as it does for a lib over 1 MiB.  The app glue came later (the next
+note but one).
 
 NOTE: As built by FONT-023 (`WTInterchange/Fonts/UFOWriter.swift`, `WTModel/UFOExport.swift`,
 `WTApp/Typeface/ExportUFOSheet.swift`).  `UFOWriter` writes a UFO 3 package from a neutral
@@ -412,6 +412,18 @@ export report shown in the sheet, not text in the file, so a re-import does not 
 note.  (4) The `ufonormalizer`/`fontTools` validation and the fontc compile of the Done-when are
 not in the suite (no Python tool chain or fontc in CI); the checks are the reader round trip and the
 built-in compiler compiling what the reader reads.
+
+NOTE: As built by FONT-024's app glue (`WTApp/Typeface/FontImportController.swift` `importUFO`, `TypefaceFeatures.swift`;
+one line in `AppDelegate.open(_:)`).  menu:File[Open Font…] also accepts a `.ufo` package (the panel can choose folders),
+which always opens as a new typeface document named after the package (`TypefaceFeatures.openUFO`); menu:File[Import UFO
+into Typeface…] (`file.importUFO`, File section 2, enabled for a typeface) adds a package's glyphs to the front typeface
+with the grid's collision rules.  The package is read off the main actor, `UFOImport.plan` is written as one undo group,
+and the report is shown in an alert when it has anything to say (a package that cannot be read says why: "Not a UFO
+package: no metainfo.plist").  A `.ufo` URL handed to the app (`application(_:open:)`) opens the same way.  Deviations:
+there is no report sheet (the alert, as for Open Font…); menu:File[Open…] is the Library, so UFOs open through Open
+Font…; the Finder hands `.ufo` packages to the app only once `client/project.yml` declares the type (a proposed
+`CFBundleDocumentTypes` / `UTImportedTypeDeclarations` entry for `org.unifiedfontobject.ufo`, conforming to
+`com.apple.package`; not in this change).
 
 === Build tasks
 
