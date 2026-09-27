@@ -51,14 +51,17 @@ class ValidationInterceptorTest {
 
         @Override
         public void request(int numMessages) {
+            // The fake call records nothing here: the tests only look at close().
         }
 
         @Override
         public void sendHeaders(Metadata headers) {
+            // The fake call records nothing here: the tests only look at close().
         }
 
         @Override
         public void sendMessage(Message message) {
+            // The fake call records nothing here: the tests only look at close().
         }
 
         @Override

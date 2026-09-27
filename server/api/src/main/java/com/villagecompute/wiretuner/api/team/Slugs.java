@@ -27,6 +27,14 @@ final class Slugs {
     /** At most {@code max} characters, without leading or trailing hyphens. */
     static String trim(String slug, int max) {
         String cut = slug.length() > max ? slug.substring(0, max) : slug;
-        return cut.replaceAll("^-+|-+$", "");
+        int start = 0;
+        int end = cut.length();
+        while (start < end && cut.charAt(start) == '-') {
+            start++;
+        }
+        while (end > start && cut.charAt(end - 1) == '-') {
+            end--;
+        }
+        return cut.substring(start, end);
     }
 }

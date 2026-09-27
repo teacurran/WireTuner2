@@ -36,7 +36,7 @@ import java.util.Map;
 public final class Engine {
 
     /** Version of the merge semantics this engine implements (docs/spec/crdt-model.adoc). */
-    public static final String VERSION = "0.5.0";
+    public static final String ENGINE_VERSION = "0.5.0";
 
     /** How long a deleted node stays restorable before garbage collection compacts it: 30 days. */
     public static final long DELETED_NODE_RETENTION_MS = 30L * 24 * 60 * 60 * 1000;
@@ -81,7 +81,7 @@ public final class Engine {
 
     /** The engine version, for health data and snapshot metadata. */
     public static String version() {
-        return VERSION;
+        return ENGINE_VERSION;
     }
 
     /** The merge table this engine uses. */

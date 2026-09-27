@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The address ranges the fetch proxy never connects to (data-merge.adoc, Fetch proxy and SSRF guard):
@@ -20,6 +21,25 @@ import java.util.List;
 public final class AddressPolicy {
 
     record Cidr(byte[] prefix, int bits) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Cidr(var thatPrefix, var thatBits)
+                    && Arrays.equals(prefix, thatPrefix)
+                    && bits == thatBits;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(Arrays.hashCode(prefix), bits);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "Cidr[prefix=" + java.util.HexFormat.of().formatHex(prefix)
+                    + ", bits=" + bits + "]";
+        }
 
         boolean contains(byte[] address) {
             int full = bits / 8;

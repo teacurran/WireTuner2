@@ -5,8 +5,10 @@ import com.villagecompute.wiretuner.crdt.schema.MergeTable.Policy;
 import com.villagecompute.wiretuner.crdt.schema.MergeTable.VariantPolicy;
 import com.villagecompute.wiretuner.doc.v1.FieldPath;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -41,6 +43,27 @@ final class PathResolver {
 
     /** One register write: where, the value ({@code null} = unset), and whether it is local-only. */
     record Assignment(RegisterPath path, byte[] value, boolean localOnly) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Assignment(var thatPath, var thatValue, var thatLocalOnly)
+                    && Objects.equals(path, thatPath)
+                    && Arrays.equals(value, thatValue)
+                    && localOnly == thatLocalOnly;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(path, Arrays.hashCode(value), localOnly);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "Assignment[path=" + path
+                    + ", value=" + Bytes.show(value)
+                    + ", localOnly=" + localOnly + "]";
+        }
     }
 
     /**

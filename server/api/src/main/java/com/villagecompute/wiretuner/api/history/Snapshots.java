@@ -1,6 +1,8 @@
 package com.villagecompute.wiretuner.api.history;
 
+import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.villagecompute.wiretuner.api.blob.BlobStore;
@@ -67,6 +69,32 @@ public class Snapshots {
 
     /** A snapshot ready to store: its key, zstd object, state hash (hex), decompressed size and node count. */
     public record Encoded(String key, byte[] object, String stateHash, long uncompressedSize, int nodeCount) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Encoded(var thatKey, var thatObject, var thatStateHash, var thatUncompressedSize,
+                    var thatNodeCount)
+                    && Objects.equals(key, thatKey)
+                    && Arrays.equals(object, thatObject)
+                    && Objects.equals(stateHash, thatStateHash)
+                    && uncompressedSize == thatUncompressedSize
+                    && nodeCount == thatNodeCount;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(key, Arrays.hashCode(object), stateHash, uncompressedSize, nodeCount);
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only (they can be large or secret). */
+        @Override
+        public String toString() {
+            return "Encoded[key=" + key
+                    + ", object=" + object.length + " bytes"
+                    + ", stateHash=" + stateHash
+                    + ", uncompressedSize=" + uncompressedSize
+                    + ", nodeCount=" + nodeCount + "]";
+        }
     }
 
     /** {@code engine}'s snapshot at {@code serverSeq} as the document's. */

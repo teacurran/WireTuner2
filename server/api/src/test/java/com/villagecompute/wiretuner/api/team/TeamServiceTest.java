@@ -187,14 +187,14 @@ class TeamServiceTest extends ServiceTestSupport {
 
     /** Every team `user` is on, read a page of 50 at a time until the cursor runs out. */
     List<Team> allTeams(String user) {
-        List<Team> teams = new java.util.ArrayList<>();
+        List<Team> found = new java.util.ArrayList<>();
         String cursor = "";
         do {
             ListTeamsResponse page = by(user).listTeams(ListTeamsRequest.newBuilder().setPageSize(50).setCursor(cursor).build());
-            teams.addAll(page.getTeamsList());
+            found.addAll(page.getTeamsList());
             cursor = page.getNextCursor();
         } while (!cursor.isEmpty());
-        return teams;
+        return found;
     }
 
     @Test

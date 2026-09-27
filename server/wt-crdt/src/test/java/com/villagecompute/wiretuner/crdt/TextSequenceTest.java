@@ -191,7 +191,8 @@ class TextSequenceTest {
         assertThat(Anchor.END).hasToString("after 0:0");
         TextMark mark = text.sortedMarks().get(0);
         assertThat(mark).isEqualTo(bold(9, Anchor.START, Anchor.END)).hasSameHashCodeAs(bold(9, Anchor.START, Anchor.END));
-        assertThat(mark).isNotEqualTo("mark");
+        Object word = "mark";
+        assertThat(mark).isNotEqualTo(word);
         assertThat(mark.value()).containsExactly(0xF0, 0x01, 0x01);
     }
 

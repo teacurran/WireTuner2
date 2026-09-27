@@ -145,7 +145,7 @@ public class CommentIndex {
             WHERE document_id = $1 AND element_counter = $2 AND element_replica = $3 AND %s
             """.formatted(newer("deleted_counter", "deleted_replica", "$5", "$6"));
 
-    static final String PREVIEW = """
+    static final String PREVIEW_SQL = """
             UPDATE comment SET preview = $4
             WHERE document_id = $1 AND element_counter = $2 AND element_replica = $3 AND preview = ''
             """;
@@ -319,7 +319,7 @@ public class CommentIndex {
             }
             case NewComments added when threads.containsKey(added.target()) -> comments(documentId, serverSeq, author,
                     added);
-            case Typed typed when threads.containsKey(typed.target()) -> pool.preparedQuery(PREVIEW).execute(Tuple.of(
+            case Typed typed when threads.containsKey(typed.target()) -> pool.preparedQuery(PREVIEW_SQL).execute(Tuple.of(
                     documentId, typed.element().counter(), typed.element().replica(), preview(typed.chars())))
                     .replaceWith(List.<Note>of());
             case Mentioned mentioned when threads.containsKey(mentioned.target()) -> mentions(documentId, author,

@@ -2,12 +2,14 @@ package com.villagecompute.wiretuner.crdt;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -44,6 +46,27 @@ public final class NodeStore {
 
     /** One set member with its history, as a snapshot holds it. */
     record MemberEntry(byte[] member, List<SetAddition> adds, List<SetRemoval> removes) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof MemberEntry(var thatMember, var thatAdds, var thatRemoves)
+                    && Arrays.equals(member, thatMember)
+                    && Objects.equals(adds, thatAdds)
+                    && Objects.equals(removes, thatRemoves);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(Arrays.hashCode(member), adds, removes);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "MemberEntry[member=" + Bytes.show(member)
+                    + ", adds=" + adds
+                    + ", removes=" + removes + "]";
+        }
     }
 
     /** One set with the history of every member, as a snapshot holds it. */

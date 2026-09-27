@@ -28,7 +28,7 @@ import jakarta.inject.Inject;
  * document that had changes then in {@code history_backfill}, with its head at the time; this job,
  * under its advisory lock, reads each queued document's log from its oldest retained change through
  * that head -- hot rows and cold segments, as catch-up reads them -- writes each change's index rows
- * ({@link ChangeIndex#WRITE}, which ignores rows already there, so changes indexed at ingest after V11
+ * ({@link ChangeIndex#WRITE_SQL}, which ignores rows already there, so changes indexed at ingest after V11
  * cost nothing), and takes the document off the queue. A document whose log cannot be read is left
  * queued for the next run. Once the queue is empty a run is one empty query.
  */
@@ -110,6 +110,6 @@ public class IndexBackfillJob {
         for (SequencedChange change : changes) {
             rows.add(ChangeIndex.entries(change.getChange()).tuple(documentId, change.getServerSeq()));
         }
-        return pool.preparedQuery(ChangeIndex.WRITE).executeBatch(rows).replaceWith(changes.size());
+        return pool.preparedQuery(ChangeIndex.WRITE_SQL).executeBatch(rows).replaceWith(changes.size());
     }
 }

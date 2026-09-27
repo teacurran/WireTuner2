@@ -45,7 +45,7 @@ class EngineTest {
 
     @Test
     void versionIsTheDeclaredConstant() {
-        assertThat(Engine.version()).isEqualTo(Engine.VERSION).matches("\\d+\\.\\d+\\.\\d+");
+        assertThat(Engine.version()).isEqualTo(Engine.ENGINE_VERSION).matches("\\d+\\.\\d+\\.\\d+");
         assertThat(new Engine().schema().kinds()).isEqualTo(Schema.generated().kinds());
     }
 

@@ -28,7 +28,7 @@ import jakarta.inject.Inject;
 public class CredentialVault {
 
     static final Duration TOKEN_TIMEOUT = Duration.ofSeconds(30);
-    static final long TOKEN_CAP = 1024 * 1024;
+    static final long TOKEN_CAP = 1024L * 1024;
     static final long EXPIRY_MARGIN_S = 60;
 
     /** An opened credential: its row and its secret. Lives for one call. */

@@ -1,6 +1,8 @@
 package com.villagecompute.wiretuner.api.persistence;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -19,6 +21,40 @@ public class TeamFontRepository {
     /** A font of a team's library with its blob's size and storage key. */
     public record Font(String sha256, UUID teamId, String fileName, String mediaType, byte[] faces, UUID uploadedBy,
             long uploadedMillis, long size, String storageKey) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Font(var thatSha256, var thatTeamId, var thatFileName, var thatMediaType,
+                    var thatFaces, var thatUploadedBy, var thatUploadedMillis, var thatSize, var thatStorageKey)
+                    && Objects.equals(sha256, thatSha256)
+                    && Objects.equals(teamId, thatTeamId)
+                    && Objects.equals(fileName, thatFileName)
+                    && Objects.equals(mediaType, thatMediaType)
+                    && Arrays.equals(faces, thatFaces)
+                    && Objects.equals(uploadedBy, thatUploadedBy)
+                    && uploadedMillis == thatUploadedMillis
+                    && size == thatSize
+                    && Objects.equals(storageKey, thatStorageKey);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(sha256, teamId, fileName, mediaType, Arrays.hashCode(faces), uploadedBy, uploadedMillis, size, storageKey);
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only (they can be large or secret). */
+        @Override
+        public String toString() {
+            return "Font[sha256=" + sha256
+                    + ", teamId=" + teamId
+                    + ", fileName=" + fileName
+                    + ", mediaType=" + mediaType
+                    + ", faces=" + faces.length + " bytes"
+                    + ", uploadedBy=" + uploadedBy
+                    + ", uploadedMillis=" + uploadedMillis
+                    + ", size=" + size
+                    + ", storageKey=" + storageKey + "]";
+        }
     }
 
     static final String SELECT = """

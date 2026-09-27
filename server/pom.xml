@@ -60,10 +60,11 @@
     <sonar.coverage.exclusions>**/generated-sources/**,**/generated-test-sources/**</sonar.coverage.exclusions>
 
     <!-- Defaults for `./mvnw -N flyway:migrate` against the compose database on the host; the
-         main-db-migrations compose job overrides all three with -D flags. -->
+         main-db-migrations compose job overrides them with -D flags. No password lives here: pass
+         it as -Dflyway.password=... or the FLYWAY_PASSWORD environment variable, which the plugin
+         reads itself (the compose database's is in docker-compose.yml). -->
     <flyway.url>jdbc:postgresql://localhost:5433/wiretuner</flyway.url>
     <flyway.user>wiretuner</flyway.user>
-    <flyway.password>wiretuner</flyway.password>
   </properties>
 
   <dependencyManagement>
@@ -177,7 +178,6 @@
           <configuration>
             <url>${flyway.url}</url>
             <user>${flyway.user}</user>
-            <password>${flyway.password}</password>
             <locations>
               <location>filesystem:${maven.multiModuleProjectDirectory}/api/src/main/resources/db/migration</location>
             </locations>

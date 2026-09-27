@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -35,6 +36,27 @@ public final class Envelope {
 
     /** A sealed secret: the master key id, the wrapped data key, and the secret's ciphertext. */
     public record Sealed(String keyId, byte[] wrappedKey, byte[] ciphertext) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Sealed(var thatKeyId, var thatWrappedKey, var thatCiphertext)
+                    && Objects.equals(keyId, thatKeyId)
+                    && Arrays.equals(wrappedKey, thatWrappedKey)
+                    && Arrays.equals(ciphertext, thatCiphertext);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(keyId, Arrays.hashCode(wrappedKey), Arrays.hashCode(ciphertext));
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only (they can be large or secret). */
+        @Override
+        public String toString() {
+            return "Sealed[keyId=" + keyId
+                    + ", wrappedKey=" + wrappedKey.length + " bytes"
+                    + ", ciphertext=" + ciphertext.length + " bytes" + "]";
+        }
     }
 
     private final String currentId;

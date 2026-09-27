@@ -84,6 +84,14 @@ public class PresenceStore {
         synchronized void cancel() {
             pending = null;
         }
+
+        /** The waiting update (null when cancelled), cleared, with the slot stamped as sent at {@code now}. */
+        synchronized PresenceUpdate takePending(long now) {
+            PresenceUpdate next = pending;
+            pending = null;
+            sentAt = now;
+            return next;
+        }
     }
 
     final Map<Key, Slot> slots = new ConcurrentHashMap<>();
@@ -133,12 +141,7 @@ public class PresenceStore {
     private void flushLater(UUID root, UUID documentId, long replica, Slot slot, long waitNanos) {
         Uni.createFrom().voidItem().onItem().delayIt().by(Duration.ofNanos(waitNanos))
                 .chain(() -> {
-                    PresenceUpdate next;
-                    synchronized (slot) {
-                        next = slot.pending;
-                        slot.pending = null;
-                        slot.sentAt = System.nanoTime();
-                    }
+                    PresenceUpdate next = slot.takePending(System.nanoTime());
                     return next == null ? Uni.createFrom().voidItem() : store(root, member(documentId, replica), next);
                 })
                 .subscribe().with(ignored -> { }, failure -> LOG.warnf(failure, "presence flush for %s failed", documentId));

@@ -57,7 +57,7 @@ import jakarta.inject.Inject;
 public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImplBase {
 
     /** ListBranches' default page; the proto caps it at 50. */
-    static final int PAGE = 50;
+    static final int DEFAULT_PAGE_SIZE = 50;
 
     static final Map<String, BranchState> STATES = Map.of(
             "active", BranchState.BRANCH_STATE_ACTIVE,
@@ -119,7 +119,7 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
     @Override
     public Uni<ListBranchesResponse> listBranches(ListBranchesRequest request) {
         UUID parentId = UUID.fromString(request.getParentDocumentId());
-        int pageSize = Cursors.pageSize(request.getPageSize(), PAGE);
+        int pageSize = Cursors.pageSize(request.getPageSize(), DEFAULT_PAGE_SIZE);
         long afterMicros = Long.MAX_VALUE;
         UUID afterId = new UUID(-1, -1);
         if (!request.getCursor().isEmpty()) {

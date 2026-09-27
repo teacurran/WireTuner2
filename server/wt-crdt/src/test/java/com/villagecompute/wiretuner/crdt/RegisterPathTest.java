@@ -21,7 +21,8 @@ class RegisterPathTest {
         assertThat(RegisterPath.of(150, 1, 13, 2)).isGreaterThan(RegisterPath.of(150, 1, 2));
         assertThat(RegisterPath.of(150, 1, 256)).isGreaterThan(RegisterPath.of(150, 1, 255));
         assertThat(RegisterPath.of(150, 1).child(1)).isEqualTo(name).hasSameHashCodeAs(name);
-        assertThat(name).isNotEqualTo("150.1.1").hasToString("150.1.1");
+        Object word = "150.1.1";
+        assertThat(name).isNotEqualTo(word).hasToString("150.1.1");
         assertThat(name.fields()).containsExactly(150, 1, 1);
     }
 

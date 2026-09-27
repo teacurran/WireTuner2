@@ -242,6 +242,7 @@ class DataPartsTest {
             assertThat(refusal(() -> CredentialVault.grant(bad.getBytes()))).startsWith(ErrorReasons.UPSTREAM_ERROR);
         }
         assertThat(CredentialVault.basic("Aladdin", "open sesame")).isEqualTo("QWxhZGRpbjpvcGVuIHNlc2FtZQ==");
+        assertThat(CredentialVault.TOKEN_CAP).isEqualTo(1_048_576L);
     }
 
     @Test

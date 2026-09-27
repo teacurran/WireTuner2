@@ -93,6 +93,17 @@ public class RateLimiter {
         double tokens;
         long expiresAt;
         Uni<Void> refill;
+
+        /** The refill in flight ended (granted or refused): the next shortfall starts another. */
+        synchronized void refillEnded() {
+            refill = null;
+        }
+
+        /** A lease came in: {@code granted} tokens to spend until {@code until} (System.nanoTime). */
+        synchronized void lease(long granted, long until) {
+            tokens = granted;
+            expiresAt = until;
+        }
     }
 
     record Pair(UUID account, UUID document) {
@@ -138,20 +149,13 @@ public class RateLimiter {
         return take(account, document, chunk)
                 .chain(wait -> wait == 0 ? Uni.createFrom().item(chunk)
                         : take(account, document, cost).map(exact -> exact == 0 ? (long) cost : -exact))
-                .onTermination().invoke(() -> {
-                    synchronized (allowance) {
-                        allowance.refill = null;
-                    }
-                })
+                .onTermination().invoke(allowance::refillEnded)
                 .chain(granted -> {
                     if (granted < 0) {
                         metrics.rateLimited();
                         return Uni.createFrom().failure(StatusExceptions.rateLimited(Duration.ofMillis(-granted)));
                     }
-                    synchronized (allowance) {
-                        allowance.tokens = granted;
-                        allowance.expiresAt = System.nanoTime() + LEASE_NANOS;
-                    }
+                    allowance.lease(granted, System.nanoTime() + LEASE_NANOS);
                     return Uni.createFrom().voidItem();
                 });
     }

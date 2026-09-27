@@ -246,6 +246,7 @@ public class TeamAccessTest extends SyncTestSupport {
                 .setAccountId(bob.toString()).build());
         event(bobs, DocumentEvent.EventCase.ACCESS_REMOVED);
         bobs.done.orTimeout(WAIT.toMillis(), TimeUnit.MILLISECONDS).join();
+        assertThat(bobs.done).isCompleted();
     }
 
     // -------------------------------------------------------------------------------- moves

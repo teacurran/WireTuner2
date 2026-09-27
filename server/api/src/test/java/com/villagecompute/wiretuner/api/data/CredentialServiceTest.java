@@ -262,10 +262,12 @@ class CredentialServiceTest extends DataTestSupport {
 
             @Override
             public void flush() {
+                // Nothing buffered, nothing to release.
             }
 
             @Override
             public void close() {
+                // Nothing buffered, nothing to release.
             }
         };
         java.util.logging.Logger logger = java.util.logging.Logger.getLogger(DataSourceGrpcService.class.getName());

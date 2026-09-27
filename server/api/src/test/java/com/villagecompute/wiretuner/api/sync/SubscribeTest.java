@@ -591,10 +591,12 @@ class SubscribeTest extends SyncTestSupport {
         SyncBus.Listener listener = new SyncBus.Listener() {
             @Override
             public void frame(ServerFrame frame) {
+                // The listener only has to exist on the channel; it ignores what arrives.
             }
 
             @Override
             public void resync() {
+                // The listener only has to exist on the channel; it ignores what arrives.
             }
 
             @Override
@@ -609,10 +611,12 @@ class SubscribeTest extends SyncTestSupport {
         bus.unlisten(doc, new SyncBus.Listener() {
             @Override
             public void frame(ServerFrame frame) {
+                // The listener only has to exist on the channel; it ignores what arrives.
             }
 
             @Override
             public void resync() {
+                // The listener only has to exist on the channel; it ignores what arrives.
             }
 
             @Override

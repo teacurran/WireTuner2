@@ -172,6 +172,21 @@ class PresenceTest extends SyncTestSupport {
         assertThat(gone.getState()).isEqualTo(PresenceState.PRESENCE_STATE_GONE);
     }
 
+    /** Taking a slot's waiting update clears it and stamps the send time; a cancelled slot yields null. */
+    @Test
+    void aSlotHandsOverItsWaitingUpdateOnce() {
+        PresenceStore.Slot slot = new PresenceStore.Slot(0);
+        PresenceUpdate update = PresenceUpdate.newBuilder().setTool("pen").build();
+        slot.pending = update;
+        assertThat(slot.takePending(42)).isSameAs(update);
+        assertThat(slot.pending).isNull();
+        assertThat(slot.sentAt).isEqualTo(42);
+        slot.pending = update;
+        slot.cancel();
+        assertThat(slot.takePending(99)).isNull();
+        assertThat(slot.sentAt).isEqualTo(99);
+    }
+
     static <T> T run(java.util.function.Supplier<io.smallrye.mutiny.Uni<T>> work) {
         try {
             return VertxContextSupport.subscribeAndAwait(work::get);

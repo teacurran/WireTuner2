@@ -1,7 +1,9 @@
 package com.villagecompute.wiretuner.api.library;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -54,6 +56,25 @@ public class ColorLibraryGrpcService extends MutinyColorLibraryServiceGrpc.Color
 
     /** A library found for Fetch, with its stored colors in manual mode. */
     record Found(Listed listed, byte[] colors) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Found(var thatListed, var thatColors)
+                    && Objects.equals(listed, thatListed)
+                    && Arrays.equals(colors, thatColors);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(listed, Arrays.hashCode(colors));
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only (they can be large or secret). */
+        @Override
+        public String toString() {
+            return "Found[listed=" + listed
+                    + ", colors=" + colors.length + " bytes" + "]";
+        }
     }
 
     @Inject

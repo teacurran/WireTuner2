@@ -759,10 +759,10 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
                     : person(doc, previous, false).map(response::setPreviousOwner);
             return built.flatMap(done -> changed(principal, doc, affected, done.build()));
         }).flatMap(outcome -> !moved ? Uni.createFrom().item(outcome) : Uni.createFrom().item(new Outcome<>(
-                outcome.response(), outcome.documentId(), withMoved(outcome.notices(), doc, principal))));
+                outcome.response(), outcome.documentId(), withMoved(outcome.notices(), doc))));
     }
 
-    private List<Notice> withMoved(List<Notice> notices, Document doc, Principal principal) {
+    private List<Notice> withMoved(List<Notice> notices, Document doc) {
         List<Notice> all = new ArrayList<>(notices);
         Participant actor = notices.get(0).event().getMembersChanged().getActor();
         all.add(new Notice(null, DocumentEvent.newBuilder().setMoved(Moved.newBuilder()
@@ -813,10 +813,10 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
                                 .map(role -> new Notice(account, roleEvent(role, everyone.getMembersChanged().getActor()))))
                         .collect().asList()
                         .map(personal -> {
-                            List<Notice> notices = new ArrayList<>();
-                            notices.add(new Notice(null, everyone));
-                            notices.addAll(personal);
-                            return new Outcome<>(response, doc.id, notices);
+                            List<Notice> all = new ArrayList<>();
+                            all.add(new Notice(null, everyone));
+                            all.addAll(personal);
+                            return new Outcome<>(response, doc.id, all);
                         }));
     }
 

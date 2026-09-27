@@ -52,7 +52,7 @@ public final class ChangeIndex {
     /** One change's index rows: the nodes it names and the names it gives. */
     public record Entries(List<OpId> nodes, List<Named> names) {
 
-        /** The arguments of {@link #WRITE} for the change at {@code serverSeq}. */
+        /** The arguments of {@link #WRITE_SQL} for the change at {@code serverSeq}. */
         public Tuple tuple(UUID documentId, long serverSeq) {
             Tuple tuple = Tuple.of(documentId, serverSeq);
             for (Object column : columns()) {
@@ -76,7 +76,7 @@ public final class ChangeIndex {
      * Inserts one change's index rows ($1 document, $2 server_seq, $3/$4 node replicas and counters,
      * $5..$8 named nodes' replicas, counters, kinds and names).
      */
-    public static final String WRITE = """
+    public static final String WRITE_SQL = """
             WITH n AS (
                 INSERT INTO change_node (document_id, node_replica, node_counter, server_seq)
                 SELECT $1, t.r, t.c, $2 FROM unnest($3::bigint[], $4::bigint[]) AS t(r, c)
@@ -118,7 +118,7 @@ public final class ChangeIndex {
         for (int i = 0; i < changes.size(); i++) {
             rows.add(entries(changes.get(i)).tuple(documentId, firstSeq + i));
         }
-        return client.preparedQuery(WRITE).executeBatch(rows).replaceWithVoid();
+        return client.preparedQuery(WRITE_SQL).executeBatch(rows).replaceWithVoid();
     }
 
     /**

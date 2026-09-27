@@ -30,4 +30,11 @@ public record TextMark(OpId id, Anchor start, Anchor end, byte[] value, MarkKey 
     public int hashCode() {
         return Objects.hash(id, start, end, Arrays.hashCode(value), key);
     }
+
+    /** {@inheritDoc} The value shows as hex. */
+    @Override
+    public String toString() {
+        return "TextMark[id=" + id + ", start=" + start + ", end=" + end + ", value=" + Bytes.show(value) + ", key=" + key
+                + "]";
+    }
 }

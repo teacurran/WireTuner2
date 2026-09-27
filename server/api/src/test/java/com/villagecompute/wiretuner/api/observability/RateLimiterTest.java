@@ -134,4 +134,17 @@ class RateLimiterTest extends ServiceTestSupport {
         limiter.purge();
         assertThat(limiter.leases()).isZero();
     }
+    /** The allowance's own lock guards a lease and the end of a refill (S2445: no lock on a parameter). */
+    @Test
+    void anAllowanceTakesALeaseAndEndsARefillUnderItsOwnLock() {
+        RateLimiter.Allowance allowance = new RateLimiter.Allowance();
+        allowance.refill = Uni.createFrom().voidItem();
+        allowance.lease(32, 1_234L);
+        assertThat(allowance.tokens).isEqualTo(32.0);
+        assertThat(allowance.expiresAt).isEqualTo(1_234L);
+        assertThat(allowance.refill).isNotNull();
+        allowance.refillEnded();
+        assertThat(allowance.refill).isNull();
+        assertThat(allowance.tokens).isEqualTo(32.0);
+    }
 }

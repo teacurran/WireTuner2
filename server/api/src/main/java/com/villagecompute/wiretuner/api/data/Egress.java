@@ -5,11 +5,13 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
@@ -58,10 +60,61 @@ public class Egress {
 
     /** One logical request. {@code headers} are already validated; the credential is among them. */
     public record Request(String method, URI url, Map<String, String> headers, byte[] body, Duration timeout, long cap) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Request(var thatMethod, var thatUrl, var thatHeaders, var thatBody, var thatTimeout,
+                    var thatCap)
+                    && Objects.equals(method, thatMethod)
+                    && Objects.equals(url, thatUrl)
+                    && Objects.equals(headers, thatHeaders)
+                    && Arrays.equals(body, thatBody)
+                    && Objects.equals(timeout, thatTimeout)
+                    && cap == thatCap;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(method, url, headers, Arrays.hashCode(body), timeout, cap);
+        }
+
+        /** {@inheritDoc} The body shows as its length, the headers by name: the credential is among them. */
+        @Override
+        public String toString() {
+            return "Request[method=" + method
+                    + ", url=" + url
+                    + ", headers=" + headers.keySet()
+                    + ", body=" + (body == null ? "null" : body.length + " bytes")
+                    + ", timeout=" + timeout
+                    + ", cap=" + cap + "]";
+        }
     }
 
     /** The response to a request, after same-host redirects; {@code url} is where it came from. */
     public record Reply(int status, List<Map.Entry<String, String>> headers, byte[] body, URI url) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Reply(var thatStatus, var thatHeaders, var thatBody, var thatUrl)
+                    && status == thatStatus
+                    && Objects.equals(headers, thatHeaders)
+                    && Arrays.equals(body, thatBody)
+                    && Objects.equals(url, thatUrl);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(status, headers, Arrays.hashCode(body), url);
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only, and headers by name only. */
+        @Override
+        public String toString() {
+            return "Reply[status=" + status
+                    + ", headers=" + headers.stream().map(Map.Entry::getKey).toList()
+                    + ", body=" + body.length + " bytes"
+                    + ", url=" + url + "]";
+        }
 
         /** The first value of a header (case-insensitive), or null. */
         public String header(String name) {

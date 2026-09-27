@@ -304,13 +304,13 @@ class BranchRefinementsTest extends HistoryTestSupport {
             push(ALICE, null, parent, a.change("Main " + i, DocOps.noop()));
         }
         List<SequencedChange> hot = log(parent);
-        assertThat(hot.subList(1, 5)).allMatch(c -> c.getAuthor().getUserId().equals(bob.toString()));
+        assertThat(hot.subList(1, 5)).isNotEmpty().allMatch(c -> c.getAuthor().getUserId().equals(bob.toString()));
 
         run(() -> snapshotter.snapshot(parent));
         assertThat(run(() -> compactor.compact(parent))).isPositive();
         assertThat(count("SELECT min(server_seq) FROM change_log WHERE document_id = ?", parent)).isGreaterThan(5);
         List<SequencedChange> cold = log(parent);
-        assertThat(cold.subList(1, 5)).allMatch(c -> c.getAuthor().getUserId().equals(bob.toString()));
+        assertThat(cold.subList(1, 5)).isNotEmpty().allMatch(c -> c.getAuthor().getUserId().equals(bob.toString()));
 
         List<HistoryRow> rows = TestUsers.as(versions, ALICE).listHistory(ListHistoryRequest.newBuilder()
                 .setDocumentId(parent.toString()).build()).getRowsList();

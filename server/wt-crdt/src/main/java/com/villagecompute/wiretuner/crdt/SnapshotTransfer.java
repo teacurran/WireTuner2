@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Chunked snapshot transfer (docs/spec/crdt-model.adoc, "Snapshots"; {@code SnapshotFrame} in
@@ -21,6 +22,25 @@ public final class SnapshotTransfer {
 
     /** Assembled frames: the header and the {@code DocumentSnapshot} bytes. */
     public record Assembled(SnapshotHeader header, byte[] snapshot) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Assembled(var thatHeader, var thatSnapshot)
+                    && Objects.equals(header, thatHeader)
+                    && Arrays.equals(snapshot, thatSnapshot);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(header, Arrays.hashCode(snapshot));
+        }
+
+        /** {@inheritDoc} Byte arrays show as their length only (they can be large or secret). */
+        @Override
+        public String toString() {
+            return "Assembled[header=" + header
+                    + ", snapshot=" + snapshot.length + " bytes" + "]";
+        }
     }
 
     private SnapshotTransfer() {

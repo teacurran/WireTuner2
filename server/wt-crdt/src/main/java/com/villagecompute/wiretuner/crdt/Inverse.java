@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
@@ -75,10 +76,61 @@ public record Inverse(List<Step> steps) {
     /** A {@code SetAdd} of a member ({@code wasPresent}: whether it was a member before); undo removes it. */
     public record MemberAdded(OpId node, RegisterPath set, byte[] member, OpId tag, boolean wasPresent, MemberField field)
             implements Step {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof MemberAdded(var thatNode, var thatSet, var thatMember, var thatTag,
+                    var thatWasPresent, var thatField)
+                    && Objects.equals(node, thatNode)
+                    && Objects.equals(set, thatSet)
+                    && Arrays.equals(member, thatMember)
+                    && Objects.equals(tag, thatTag)
+                    && wasPresent == thatWasPresent
+                    && Objects.equals(field, thatField);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(node, set, Arrays.hashCode(member), tag, wasPresent, field);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "MemberAdded[node=" + node
+                    + ", set=" + set
+                    + ", member=" + Bytes.show(member)
+                    + ", tag=" + tag
+                    + ", wasPresent=" + wasPresent
+                    + ", field=" + field + "]";
+        }
     }
 
     /** A {@code SetRemove} that took a member out; undo adds it back. */
     public record MemberRemoved(OpId node, RegisterPath set, byte[] member, MemberField field) implements Step {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof MemberRemoved(var thatNode, var thatSet, var thatMember, var thatField)
+                    && Objects.equals(node, thatNode)
+                    && Objects.equals(set, thatSet)
+                    && Arrays.equals(member, thatMember)
+                    && Objects.equals(field, thatField);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(node, set, Arrays.hashCode(member), field);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "MemberRemoved[node=" + node
+                    + ", set=" + set
+                    + ", member=" + Bytes.show(member)
+                    + ", field=" + field + "]";
+        }
     }
 
     /** A {@code TextInsert}; undo deletes the characters. */
@@ -92,6 +144,34 @@ public record Inverse(List<Step> steps) {
     /** A {@code TextMark}; undo re-applies each character's prior value of the attribute. */
     public record TextMarked(OpId node, RegisterPath text, OpId mark, MarkKey key, byte[] value, List<PriorFormat> prior)
             implements Step {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof TextMarked(var thatNode, var thatText, var thatMark, var thatKey, var thatValue,
+                    var thatPrior)
+                    && Objects.equals(node, thatNode)
+                    && Objects.equals(text, thatText)
+                    && Objects.equals(mark, thatMark)
+                    && Objects.equals(key, thatKey)
+                    && Arrays.equals(value, thatValue)
+                    && Objects.equals(prior, thatPrior);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(node, text, mark, key, Arrays.hashCode(value), prior);
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "TextMarked[node=" + node
+                    + ", text=" + text
+                    + ", mark=" + mark
+                    + ", key=" + key
+                    + ", value=" + Bytes.show(value)
+                    + ", prior=" + prior + "]";
+        }
     }
 
     /** How a SET field encodes its members, so an inverse can write one back. */
@@ -131,6 +211,25 @@ public record Inverse(List<Step> steps) {
 
     /** One register beneath a deleted newline: the path after the character's element segment, and its value. */
     public record ParagraphRegister(List<RegisterPath.Segment> suffix, byte[] value) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof ParagraphRegister(var thatSuffix, var thatValue)
+                    && Objects.equals(suffix, thatSuffix)
+                    && Arrays.equals(value, thatValue);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(suffix, Arrays.hashCode(value));
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "ParagraphRegister[suffix=" + suffix
+                    + ", value=" + Bytes.show(value) + "]";
+        }
     }
 
     /** A character a local {@code TextDelete} deleted, with its scalar, attribute values and paragraph registers. */
@@ -139,6 +238,25 @@ public record Inverse(List<Step> steps) {
 
     /** What formatted a character before a local mark: the winning value of its attribute ({@code null}: none). */
     public record PriorFormat(OpId character, byte[] value) {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof PriorFormat(var thatCharacter, var thatValue)
+                    && Objects.equals(character, thatCharacter)
+                    && Arrays.equals(value, thatValue);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(character, Arrays.hashCode(value));
+        }
+
+        /** {@inheritDoc} Byte arrays show as hex. */
+        @Override
+        public String toString() {
+            return "PriorFormat[character=" + character
+                    + ", value=" + Bytes.show(value) + "]";
+        }
     }
 
     // ---- Undo
@@ -349,12 +467,12 @@ public record Inverse(List<Step> steps) {
                 }
             }
             for (List<DeletedChar> run : runs) {
-                long first = counter;
-                OpId last = run.get(run.size() - 1).id();
-                add(Ops.textInsert(node, path, last, text.successor(last), run.stream().mapToInt(DeletedChar::scalar).toArray()));
+                long base = counter;
+                OpId tail = run.get(run.size() - 1).id();
+                add(Ops.textInsert(node, path, tail, text.successor(tail), run.stream().mapToInt(DeletedChar::scalar).toArray()));
                 List<OpId> ids = new ArrayList<>();
                 for (int i = 0; i < run.size(); i++) {
-                    ids.add(new OpId(first + i, replica));
+                    ids.add(new OpId(base + i, replica));
                 }
                 List<byte[]> formats = new ArrayList<>();
                 for (DeletedChar c : run) {

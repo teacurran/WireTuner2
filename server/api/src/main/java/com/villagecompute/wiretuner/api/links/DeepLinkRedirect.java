@@ -22,7 +22,7 @@ import jakarta.ws.rs.core.Response;
 @Path("/d")
 public class DeepLinkRedirect {
 
-    static final Pattern ID = Pattern.compile("[0-9]{1,20}-[0-9]{1,20}");
+    static final Pattern ID = Pattern.compile("\\d{1,20}-\\d{1,20}");
 
     @GET
     @Path("{document}")
@@ -52,7 +52,7 @@ public class DeepLinkRedirect {
         UUID parsed;
         try {
             parsed = UUID.fromString(document);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return Optional.empty();
         }
         if (!parsed.toString().equalsIgnoreCase(document)) {
@@ -77,7 +77,7 @@ public class DeepLinkRedirect {
         for (String half : id.split("-")) {
             try {
                 Long.parseUnsignedLong(half);
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException _) {
                 return false;
             }
         }

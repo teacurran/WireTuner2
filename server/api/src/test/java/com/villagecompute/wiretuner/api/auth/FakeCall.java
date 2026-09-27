@@ -41,14 +41,17 @@ final class FakeCall extends ServerCall<Object, Object> {
 
     @Override
     public void request(int numMessages) {
+        // The fake call records nothing here: the tests only look at close().
     }
 
     @Override
     public void sendHeaders(Metadata headers) {
+        // The fake call records nothing here: the tests only look at close().
     }
 
     @Override
     public void sendMessage(Object message) {
+        // The fake call records nothing here: the tests only look at close().
     }
 
     @Override

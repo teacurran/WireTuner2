@@ -22,4 +22,10 @@ public record TextAttribute(MarkKey key, byte[] value, OpId mark) {
     public int hashCode() {
         return Objects.hash(key, Arrays.hashCode(value), mark);
     }
+
+    /** {@inheritDoc} The value shows as hex. */
+    @Override
+    public String toString() {
+        return "TextAttribute[key=" + key + ", value=" + Bytes.show(value) + ", mark=" + mark + "]";
+    }
 }

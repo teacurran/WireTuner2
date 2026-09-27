@@ -167,11 +167,17 @@ public final class TextSequence {
         chars.put(id, c);
         List<Char> siblings;
         if (underRight) {
-            siblings = rightChar.leftChildren == null ? rightChar.leftChildren = new ArrayList<>() : rightChar.leftChildren;
+            if (rightChar.leftChildren == null) {
+                rightChar.leftChildren = new ArrayList<>();
+            }
+            siblings = rightChar.leftChildren;
         } else if (leftChar == null) {
             siblings = rootChildren;
         } else {
-            siblings = leftChar.rightChildren == null ? leftChar.rightChildren = new ArrayList<>() : leftChar.rightChildren;
+            if (leftChar.rightChildren == null) {
+                leftChar.rightChildren = new ArrayList<>();
+            }
+            siblings = leftChar.rightChildren;
         }
         int index = -Collections.binarySearch(siblings, c, BY_ID) - 1;
         if (index > 0) {
@@ -434,7 +440,7 @@ public final class TextSequence {
 
     /** The document-order index of every character, by id. */
     Map<OpId, Integer> orderIndex() {
-        Map<OpId, Integer> index = new HashMap<>(chars.size() * 2);
+        Map<OpId, Integer> index = HashMap.newHashMap(chars.size());
         int position = 0;
         for (Block block : blocks) {
             for (Char c : block.items) {

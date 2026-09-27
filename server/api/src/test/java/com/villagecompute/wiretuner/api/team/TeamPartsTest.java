@@ -21,6 +21,9 @@ class TeamPartsTest {
         assertThat(Slugs.derive(longName)).hasSize(64).matches("a{64}");
         assertThat(Slugs.withSuffix("a".repeat(64), "abc123")).hasSize(64).endsWith("-abc123");
         assertThat(Slugs.trim("-" + "b".repeat(62) + "-cd", 64)).isEqualTo("b".repeat(62));
+        // Only leading and trailing runs go; hyphens inside stay.
+        assertThat(Slugs.trim("--a--b--", 64)).isEqualTo("a--b");
+        assertThat(Slugs.trim("---", 64)).isEmpty();
     }
 
     @Test

@@ -34,4 +34,9 @@ final class Bytes {
     static String hex(byte[] bytes) {
         return HexFormat.of().formatHex(bytes);
     }
+
+    /** {@code bytes} as hex for a record's {@code toString}, or {@code null}. */
+    static String show(byte[] bytes) {
+        return bytes == null ? "null" : hex(bytes);
+    }
 }

@@ -40,7 +40,6 @@ public class DnsStub implements QuarkusTestResourceLifecycleManager {
     static final int TYPE_AAAA = 28;
 
     private DatagramSocket socket;
-    private Thread server;
 
     @Override
     public Map<String, String> start() {
@@ -49,7 +48,7 @@ public class DnsStub implements QuarkusTestResourceLifecycleManager {
         } catch (SocketException e) {
             throw new IllegalStateException(e);
         }
-        server = Thread.ofPlatform().daemon().name("dns-stub").start(this::serve);
+        Thread.ofPlatform().daemon().name("dns-stub").start(this::serve);
         return Map.of("wt.dns.host", "127.0.0.1", "wt.dns.port", Integer.toString(socket.getLocalPort()),
                 "wt.dns.timeout-ms", "2000");
     }
@@ -65,7 +64,7 @@ public class DnsStub implements QuarkusTestResourceLifecycleManager {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 socket.receive(packet);
-                byte[] reply = answer(buffer, packet.getLength());
+                byte[] reply = answer(buffer);
                 socket.send(new DatagramPacket(reply, reply.length, packet.getSocketAddress()));
             } catch (IOException e) {
                 // socket closed at shutdown
@@ -73,7 +72,7 @@ public class DnsStub implements QuarkusTestResourceLifecycleManager {
         }
     }
 
-    static byte[] answer(byte[] query, int length) {
+    static byte[] answer(byte[] query) {
         int at = 12;
         StringBuilder name = new StringBuilder();
         while (query[at] != 0) {

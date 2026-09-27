@@ -34,10 +34,11 @@ class TreeTest {
         assertThat(engine.store().placement(A)).isEqualTo(new Placement(LAYERS, new byte[] {(byte) 0x80}, A));
         assertThat(engine.store().placement(A).position()).containsExactly(0x80);
         assertThat(engine.store().placement(A).toString()).isEqualTo("4:0/80@1:1");
+        Object word = "x";
         assertThat(engine.store().placement(A)).isNotEqualTo(new Placement(LAYERS, new byte[] {1}, A))
                 .isNotEqualTo(new Placement(A, new byte[] {(byte) 0x80}, A))
                 .isNotEqualTo(new Placement(LAYERS, new byte[] {(byte) 0x80}, B))
-                .isNotEqualTo("x")
+                .isNotEqualTo(word)
                 .hasSameHashCodeAs(new Placement(LAYERS, new byte[] {(byte) 0x80}, A));
         assertThat(engine.store().moveLog()).extracting(MoveLogEntry::op).containsExactly(A, B, C);
     }

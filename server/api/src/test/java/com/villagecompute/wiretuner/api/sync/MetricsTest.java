@@ -63,6 +63,7 @@ class MetricsTest extends SyncTestSupport {
 
             @Override
             public void onCompleted() {
+                // The test only counts what arrives; completion needs no action.
             }
         });
         upload.onNext(PushChangesRequest.newBuilder().setDocumentId(doc.toString()).addChanges(change(replica, 2))

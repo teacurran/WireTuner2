@@ -33,7 +33,7 @@ public class WtMetrics {
     @Inject
     MeterRegistry registry;
 
-    private final Map<UUID, AtomicInteger> subscriptions = new ConcurrentHashMap<>();
+    private final Map<UUID, AtomicInteger> openByDocument = new ConcurrentHashMap<>();
     private final Map<UUID, AtomicLong> stableLags = new ConcurrentHashMap<>();
 
     /** Registers the in-flight push gauge over the queue's size. */
@@ -84,13 +84,13 @@ public class WtMetrics {
 
     /** A subscription opened on the document. */
     public void subscribed(UUID document) {
-        subscriptions.computeIfAbsent(document, d -> registry.gauge(SUBSCRIPTIONS, Tags.of(DOCUMENT, d.toString()),
+        openByDocument.computeIfAbsent(document, d -> registry.gauge(SUBSCRIPTIONS, Tags.of(DOCUMENT, d.toString()),
                 new AtomicInteger())).incrementAndGet();
     }
 
     /** A subscription on the document ended; the last one removes the document's gauges. */
     public void unsubscribed(UUID document) {
-        subscriptions.computeIfPresent(document, (d, open) -> {
+        openByDocument.computeIfPresent(document, (d, open) -> {
             if (open.decrementAndGet() > 0) {
                 return open;
             }

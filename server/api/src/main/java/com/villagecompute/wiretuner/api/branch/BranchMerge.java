@@ -220,7 +220,9 @@ public class BranchMerge {
         Long[] replicas = changes.stream().map(c -> c.getChange().getReplica()).toArray(Long[]::new);
         Long[] seqs = changes.stream().map(c -> c.getChange().getSeq()).toArray(Long[]::new);
         return connection.preparedQuery(HELD).execute(Tuple.of(parentId, replicas, seqs)).invoke(rows -> {
-            for (Row row : rows) {
+            var held = rows.iterator();
+            if (held.hasNext()) {
+                Row row = held.next();
                 throw StatusExceptions.replicaConflict(row.getLong(0), row.getLong(1));
             }
         }).replaceWithVoid();
