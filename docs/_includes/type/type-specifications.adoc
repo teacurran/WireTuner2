@@ -150,7 +150,7 @@ draws scaled capitals instead and works with any font.
 == Alignment
 
 Left, center, right or justified, per paragraph, from the *Alignment* pop-up in the Object
-panel's Text section.  Alignment is a paragraph setting and is
+panel's Text section, menu:Text[Align] or the Text toolbar's alignment buttons.  Alignment is a paragraph setting and is
 described with the rest of them on xref:paragraphs.adoc[Paragraphs].
 
 == Leading
@@ -176,9 +176,10 @@ Changing the size keeps the extra.
 |The value as a percentage of the size.  `120%` is *auto* leading, the default.
 |===
 
-To set leading, choose the mode from the pop-up beside the *Leading* field (Object panel or
-Text toolbar) and type the value; or choose menu:Text[Leading > Solid], menu:Text[Leading >
-Auto] or menu:Text[Leading > Other…] for a sheet with both controls.  Dragging a block's top
+To set leading, choose the mode from the *Leading* pop-up in the Object panel's text section
+and type the value beside it; or choose menu:Text[Leading > Solid], menu:Text[Leading > Auto] or
+menu:Text[Leading > Other…] (also btn:[Leading] in the Text toolbar) for a sheet with both
+controls.  Dragging a block's top
 or bottom center handle adjusts it by eye (xref:type-tools.adoc[The type adjustment tools]).
 
 == Kerning and range kerning
@@ -197,8 +198,7 @@ kerns the whole block.
 
 Raises (positive) or lowers (negative) selected characters from the baseline, in points, from
 the *Baseline shift* field or kbd:[Control+Option+↑] / kbd:[Control+Option+↓].  A raised
-baseline plus a smaller size is how you make a superscript "™" or a footnote mark; the
-menu:Text[Type Style > Superscript] and *Subscript* commands apply that combination for you.
+baseline plus a smaller size is how you make a superscript "™" or a footnote mark.
 
 == Horizontal scale
 

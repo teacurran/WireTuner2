@@ -201,7 +201,7 @@ levels below 25% and above 800% are commands without a menu item (the palette an
 reach them), because the View menu table keeps Magnification at 25%--800%.  Where this page names
 only a submenu its items are the Text menu's: Font ▸ lists the families (read when it opens), Size ▸
 the presets, Smaller, Larger and Other…, Style ▸ the four styles and the family's other faces
-(TYPE-017's note on xref:type-tools.adoc[Type tools]); Align ▸ and Leading ▸ are still placeholders.  `MenuContext` gained
+(TYPE-017's note on xref:type-tools.adoc[Type tools]); Align ▸ and Leading ▸ are the Text menu's (the rch note there).  `MenuContext` gained
 `importedGraphic`, `swatchesArea` (the Swatches panel's empty area) and `colorBox`.  Hit targets:
 the display list tells paths, text, bitmaps, groups and clipping groups apart; the other kinds are
 stub targets in tests until their nodes exist; guides and presence markers resolve through
@@ -216,6 +216,29 @@ but the native menu does not show.  A panel tab's menu is the Options menu's fra
 (`PanelTabButton.menu(for:)`).  The Edit menu's Delete is titled *Clear*, as this page names it,
 and Select All is no longer a text-menu item.  The "UI tests" are unit tests of the builder and of
 `DocumentWindowController.contextMenu(at:)`.
+
+NOTE: As built by the control reachability audit (rch; `WTApp/Menus/ReachabilityFeatures.swift`, a new
+file, and `ContextMenuTarget.swift`).  Hit targets now read the node's model kind first, so charts,
+connectors, symbol instances, envelopes, images and placed files get their own items (before, they
+read as a group or a path and their kind items never showed).  A guide under the pointer (objects
+win) opens the guide menu through `ContextMenuResolver.guide`, set per window; *Release Guide*
+(`ReleaseGuides` onto the picking layer) and *Delete Guide* (`DeleteGuides`) act on that guide and its
+coincident ones, and *Lock Guide* / *Unlock Guide* toggles menu:View[Guides > Lock] -- guides lock all
+together (grid-guides.adoc has no per-guide lock), a deviation.  Placeholders wired to what exists:
+*Enter Group* subselects every member of the selected groups (grouping.adoc's *Contents* row does the
+same); *Edit Contents* subselects a clip group's contents; *Reroute* clears a connector's run offsets
+(`SetConnectorRunOffsets([])`, automatic routing) and *Detach Ends* frees both ends where they are
+(`SetConnectorEnd`), one change each ("Reroute", "Detach Ends"); *Reverse Direction* reverses paths
+(`ReverseContours`) and connectors together; *Name…* and *Note…* open a one-field sheet writing
+`SetNameOrNote` for every selected object; *Link…* opens the Navigation panel, where links are
+attached (urls.adoc); *Add to Library…* runs menu:Modify[Symbol > Convert to Symbol] and shows the
+Library panel; *Trace…* chooses the Trace tool; *Edit With* is *Edit in External Editor* (the default
+image editor, as the Object panel's btn:[Edit With…]); *Duplicate Page* (`DuplicatePage` of the active
+page), *Remove Page* (the Page tool's removal, confirming when objects go) and *Go to Page* (focuses the
+status bar's page field); *Rename Document…* (a sheet renaming the library entry) and *Show in Library*;
+*Go to <name>'s Page* (the collaborator's page from presence).  Still placeholders, on the audit's
+allow-list (`ControlReachabilityTests.notBuilt`): *Remove Overlap*, *Release Contents*, *Convert to
+Editable* and *Hide <name>'s Cursor*.
 
 === Build tasks
 

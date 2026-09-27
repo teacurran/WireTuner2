@@ -9,7 +9,7 @@ every preference by category.
 == The Preferences window
 
 To open Preferences::
-Choose menu:WireTuner[Preferences…] or press kbd:[Cmd+,].  The window has a category list
+Choose menu:WireTuner[Settings…] or press kbd:[Cmd+,].  The window has a category list
 on the left and the settings for the chosen category on the right.  Changes apply as you make
 them; there is no OK button.
 

@@ -410,7 +410,7 @@ menu:{product}[Settings… > Automation] turns this on for every source you conn
 Turn on *Preview* in the Data panel and every placeholder, bound object and barcode on the
 canvas shows the current record.  Step through records with the arrows, type a number, or
 choose menu:File[Data Merge > Next Record] and menu:File[Data Merge > Previous Record] (give them
-keys under menu:{product}[Settings… > Shortcuts]).  The preview is live: edit the text
+keys in menu:Edit[Keyboard Shortcuts…]).  The preview is live: edit the text
 around a placeholder, move a bound image, restyle a barcode, and the preview follows.
 
 The preview is yours alone.  It changes nothing in the document, collaborators do not see it,

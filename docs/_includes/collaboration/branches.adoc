@@ -53,7 +53,7 @@ and you see theirs likewise (xref:presence.adoc[Presence]).
 
 To compare a branch with its parent:
 
-. In the branch, choose menu:File[Branch > Compare with Main…]; or in the parent, choose the
+. In the branch, choose menu:File[Branch > Compare With…]; or in the parent, choose the
   branch under menu:File[Branch > Compare With].
 . The Review Changes sheet opens in *compare* mode.  It lists every object that differs between
   the branch and the parent as it is now, with the same filters and preview as after an
@@ -70,7 +70,7 @@ branch was created are kept; where both changed the same object, you decide.
 
 To merge a branch:
 
-. In the branch, choose menu:File[Branch > Merge into Main…]; or in the parent, choose the
+. In the branch, choose menu:File[Branch > Merge…]; or in the parent, choose the
   branch under menu:File[Branch > Merge].
 . {product} merges the branch's changes into the parent *in a preview* and opens the Review
   Changes sheet with the branch as "mine" and the parent as "theirs", exactly as after an

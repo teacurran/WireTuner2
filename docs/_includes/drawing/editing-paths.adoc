@@ -391,7 +391,9 @@ to WTGeometry's `Contour.simplified` (GEO-004), which keeps corners of 60° or m
 segments.  `SimplifyPaths` ("Simplify") writes each contour it can shorten as all-new points (every old
 point deleted), so a concurrent point edit is *edit vs delete* and the review lists the path once;
 at amount 0, or where nothing shortens, it writes nothing.  `SimplifyPaths.preview` is what btn:[Apply]
-shows.  Reverse Direction is `ReverseContours` (one `reversed` write per contour).
+shows.  Reverse Direction is `ReverseContours` (one `reversed` write per contour); the menu item and
+the Extension Operations entry reverse the selected paths and connectors in one change (rch; before,
+they took connectors only).
 `CorrectDirection` ("Correct Direction") turns the closed contours whose direction disagrees with
 their nesting depth -- a contour inside an even number of the others runs with positive signed
 area, one inside an odd number with negative -- writing `reversed` only; open and degenerate

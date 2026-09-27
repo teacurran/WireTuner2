@@ -59,9 +59,9 @@ color settings (xref:color-management.adoc[Color management]).  Converting on ex
 more predictable results than letting the receiving application convert.  Spot colors survive
 in PDF, EPS and PSD; other formats convert them to process and the sheet says so.
 
-Hidden layers:: Objects on hidden layers are left out unless *Include hidden layers* is turned
-on in menu:File[Document Settings > Output Options] (xref:printing.adoc[Printing]).  Guides,
-the grid and non-printing layers never export.
+Hidden layers:: Objects on hidden layers are left out of an export.  (Printing can include
+them: *Include hidden layers* in the Print sheet, xref:printing.adoc[Printing].)  Guides, the
+grid and non-printing layers never export.
 
 Effects and transparency:: Live effects, transparency and blends export at full fidelity to
 formats that can carry them and are flattened or rasterized for the rest.  The rules are on

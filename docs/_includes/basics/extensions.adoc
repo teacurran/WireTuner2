@@ -132,6 +132,13 @@ Repeat.  Manage Extensions is a sheet on the front document window, or a window 
 is open.  Where the Extensions menu sits in the menu bar is `MenuTreeBuilder.standardMenuOrder`'s
 business.
 
+NOTE: As built by the control reachability audit (rch; `WTApp/Menus/ReachabilityFeatures.swift`).
+*Reverse Direction* runs menu:Modify[Alter Path > Reverse Direction] (paths and connectors, one change)
+and *File Info…* runs menu:File[Document Info…].  *Remove Overlap* and *Trap…* are still stubs
+("… is coming soon"): no model command removes a path's self-overlap in place (proposed DRAW-060), and no
+page specifies trapping (proposed PRINT-060).  `ControlReachabilityTests` fails when any other
+extension, menu item or toolbar item is a stub or placeholder.
+
 === Build tasks
 
 [[BASIC-031]]

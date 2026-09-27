@@ -270,8 +270,9 @@ writes the whole end with the attachment point there now, or "Free" for a free o
 handles edit them).  The Pointer rule: the Pointer's drag and the arrow keys leave connectors out
 of the `MoveObjects` they write, and a selection of connectors alone neither moves nor copies
 (kbd:[Option]-drag); with the objects it joins selected, those move and the connector follows.  The
-Modify menu's Connector submenu (Reroute, Detach Ends) stays a placeholder: this page does not
-specify those commands.  *Deviation*: the UI tests of DRAW-036's *Done when* are unit tests hosted
+Modify menu's Connector submenu: *Reroute* clears the run offsets (automatic routing again) and
+*Detach Ends* frees both ends at the points they are drawn at, one change each (rch; this page
+does not specify them further).  *Deviation*: the UI tests of DRAW-036's *Done when* are unit tests hosted
 in the app driving the tool with the canvas's events (`ConnectorToolTests`: all 16 side pairs
 between two boxes, an end dragged to a third box and to empty canvas, a run handle, hover and
 clicks; `ConnectorCommandTests`: Reverse Direction, the Object panel section, the Pointer rule, a

@@ -47,7 +47,7 @@ to the front.  If the panel is already open and in front, choosing it again clos
 group or collapses a docked one.
 
 To open the Find & Replace Graphics or Select panel::
-These are also in menu:Edit[Find & Replace] and menu:Edit[Select].
+Find & Replace Graphics is also menu:Edit[Find and Replace > Graphics…]; both are in the Window menu.
 
 To activate a panel in a group::
 Click its tab.  The front tab is marked by the glass selection under it.  Tabs show an icon, a
@@ -355,6 +355,11 @@ window keeps its own dock views, so the glass sidebar is an inset `NSGlassEffect
 not over it); a group's tab strip stays when it holds one panel (so its tab can be dragged onto another
 strip); hovering a drag over a tab does not spring-load it (the strip highlights instead); the top and
 bottom strips keep a row of groups without dividers or the insertion line.
+
+NOTE: As built by the control reachability audit (rch).  The *Select* panel is the Find & Replace
+panel's body on a state of its own opened on its *Select* tab (`ReachabilityFeatures.selectPanel`);
+before, it was a placeholder body.  `ControlReachabilityTests` fails when any registered panel is a
+placeholder or has no Window menu item.
 
 NOTE: As built by BASIC-007 (`WTApp/Help/`).  The Help panel searches a catalog of the guide's pages
 generated from `docs/guide` (`HelpCatalog.swift`: slug, title, group, first paragraph, section headings

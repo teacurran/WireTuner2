@@ -209,7 +209,7 @@ xref:color-tables.adoc[Color tables].
 
 The color list is one list for everyone.  When a collaborator adds, renames, reorders or
 removes a swatch you see it happen in your panel within a moment, and the change is theirs in
-menu:File[History].  Nothing you are doing is interrupted: if you are typing a name when a
+menu:File[Show History].  Nothing you are doing is interrupted: if you are typing a name when a
 swatch moves, your field stays open.
 
 Two people editing the *same* swatch's color at the same moment cannot both win: the later

@@ -27,10 +27,10 @@ kbd:[Option+Shift]:: Draws a constrained shape from the center.
 kbd:[Space]:: Repositions the shape while you are still dragging; release kbd:[Space] to go
 back to sizing it.  Works for polygons and stars too.
 
-The *constrain angle* is a document setting, normally 0°, that tilts every constrained
-operation: at 15°, kbd:[Shift] snaps lines to 15°, 60°, 105° and so on, and rectangles and
-ellipses are drawn rotated by 15°.  Set it in menu:File[Document Settings > Constrain]
-(xref:document-panel.adoc[Document panel]).
+The *constrain angle* is a setting, normally 0°, that tilts every constrained operation: at
+15°, kbd:[Shift] snaps lines to 15°, 60°, 105° and so on, and rectangles and ellipses are drawn
+rotated by 15°.  Set it as *Constrain angle* in menu:{product}[Settings… > Object]
+(xref:preferences.adoc[Preferences]).
 
 The new shape takes the current default stroke and fill
 (xref:default-attributes.adoc[Default attributes]) and is selected when you release.

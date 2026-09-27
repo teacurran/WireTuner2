@@ -102,7 +102,7 @@ To replace a color:
 
 The defaults White, Black, None and Registration cannot be replaced.  To replace colors by
 *attribute* -- every object whose stroke is red, say, whether named or not -- use
-menu:Edit[Find & Replace] (xref:find-replace.adoc[Find and replace]).
+menu:Edit[Find and Replace > Graphics…] (xref:find-replace.adoc[Find and replace]).
 
 === Randomizing named colors
 

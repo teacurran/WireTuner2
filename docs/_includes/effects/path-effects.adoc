@@ -195,7 +195,7 @@ count each time.  Applied several times to a circle it produces a snowflake-like
 
 To fractalize a selected object:
 
-* Click btn:[Fractalize] on the Operations toolbar (menu:Extensions[Distort > Fractalize]).
+* Click btn:[Fractalize] on the Operations toolbar (menu:Extensions[Create > Fractalize]).
   Apply again for more detail; watch the point count in the Object panel.
 
 == Mirror
@@ -561,7 +561,7 @@ steps and kbd:[Esc] abandoning it.  Adding and deleting points and the Freeform 
 expose the outline as the envelope's path (`SceneObject.path`, `elementPoints`), which WTModel's scene does not do yet.
 Tests: `EnvelopeUITests`.
 
-NOTE: *Fractalize* (menu:Extensions[Distort > Fractalize] and the Extension Operations toolbar) now runs WTModel's
+NOTE: *Fractalize* (menu:Extensions[Create > Fractalize] and the Extension Operations toolbar) now runs WTModel's
 `Fractalize` (`WTApp/Effects/PathAlterFeatures.swift`); the app's own kernel described under FX-030 above is removed.
 
 NOTE: As built by FX-034 (`WTApp/Effects/EmbossFeatures.swift`; `WTModel/EmbossCommand.swift`, a new file).  Emboss applies

@@ -65,7 +65,7 @@ applications]).
 
 === Image information
 
-To see everything {product} knows about an image, choose menu:Object[Image Info…] or click the
+To see everything {product} knows about an image, choose menu:Object[Image > Image Info…] or click the
 information button in the Object panel.  The popover lists the file name, format, pixel size,
 stored and effective resolution, color mode and depth, alpha, embedded color profile, the
 stored file size, and who placed the image and when (from the document's history).

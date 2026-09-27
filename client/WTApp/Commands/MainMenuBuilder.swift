@@ -64,6 +64,7 @@ enum MainMenuBuilder {
         let menuBar = NSMenu(title: "Main")
         for case let .submenu(title, items) in tree.menus {
             let menu = menu(title: title, nodes: items, registry: registry, target: target)
+            if menuBar.items.isEmpty { addServicesMenu(to: menu) }
             let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
             item.submenu = menu
             menuBar.addItem(item)
@@ -71,6 +72,27 @@ enum MainMenuBuilder {
             if title == helpMenuTitle { NSApp.helpMenu = menu }
         }
         return menuBar
+    }
+
+    static let servicesTitle = "Services"
+
+    /// menu:WireTuner[Services] (exporting.adoc, "The Share menu and Services"): the system's
+    /// Services submenu, before the Hide items (after the separator above them), installed as
+    /// `NSApp.servicesMenu` so AppKit fills it for the selection.
+    static func addServicesMenu(to menu: NSMenu) {
+        let services = NSMenu(title: servicesTitle)
+        let item = NSMenuItem(title: servicesTitle, action: nil, keyEquivalent: "")
+        item.submenu = services
+        item.identifier = NSUserInterfaceItemIdentifier("menu.app.services")
+        let hide = menu.items.firstIndex { ($0.representedObject as? CommandID) == StandardCommands.ID.hide }
+        if let hide, hide > 0, menu.items[hide - 1].isSeparatorItem {
+            menu.insertItem(item, at: hide - 1)
+            menu.insertItem(.separator(), at: hide - 1)
+        } else {
+            menu.addItem(.separator())
+            menu.addItem(item)
+        }
+        NSApp.servicesMenu = services
     }
 
     /// Builds the current menu bar from a registry and the active shortcut set.

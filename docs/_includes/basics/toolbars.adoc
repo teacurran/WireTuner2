@@ -310,8 +310,12 @@ primary action (a click selects the visible member, press-and-hold opens the lis
 offers the tool's options), not a 250 ms timer.  The Tools panel is a panel of the panel framework
 (two columns in a side dock, one row when its host is wider than tall), so it docks left, right,
 top and bottom and floats as a panel group until BASIC-011's `ToolbarHost`.  The wells show the
-first selected object's fill and stroke; Swap, None and Default change the colours new objects get
-and are disabled while something is selected, until the appearance commands land.  The snap
+first selected object's fill and stroke; with nothing selected Swap, None and Default change the
+colours new objects get, and with objects selected they change the objects (rch: *Swap* writes the
+selection's shared stroke colour as its fill and the fill as its stroke -- disabled while the objects'
+colours differ --, *None* the active well's paint to no colour, *Default* the document's default fill
+and stroke; one `ApplyColor` change each, "Swap Stroke and Fill", "Default Colors"; the panel's
+buttons run the same commands).  The snap
 toggles are window view state saved with the window state (`SnapSettings`) until the local
 store's `view` table.  Tools with options open a placeholder sheet; option persistence arrives with
 each tool.  `UnimplementedTool` shows its "coming soon" HUD as a text layer over the canvas for

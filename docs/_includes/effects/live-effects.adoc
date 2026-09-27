@@ -74,7 +74,7 @@ To hide an effect without removing it:
 
 TIP: Effects are copied with the object, are part of graphic styles
 (xref:styles.adoc[Styles]), and can be pasted onto other objects with
-menu:Edit[Paste Attributes] (xref:default-attributes.adoc[Default attributes]).
+menu:Edit[Special > Paste Attributes] (xref:default-attributes.adoc[Default attributes]).
 
 === Effects and the rest of the object
 

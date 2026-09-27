@@ -267,6 +267,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.attachExtras(window)
             self?.attachImageLinkAndAccessibility(window)
             self?.attachPackageGlue(window)
+            self?.attachReachability(window)
         }
         environment.userName = { accountModel.profile?.displayName ?? "" }
         let palette = toolPalette
@@ -368,6 +369,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installScripting()
         installLibraryTransfer()
         installSubjectCommands()
+        installReachability()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()

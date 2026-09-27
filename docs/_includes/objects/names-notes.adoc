@@ -258,8 +258,9 @@ input stops at 256 and 8,192 characters.  `EngineState.displayName(of:)` is the 
 kind's name (`NodeKind.title`); `namedLabel` gives `Move "name"` for one named object, used by the
 Pointer's drag, arrow-key nudges and the Object panel's X and Y.  The Info toolbar names the object
 under the Pointer.  `AppendNote` appends a line to notes (the keep-both tagging helper).  The note
-field is a growing `TextField` (two to six lines) rather than an `NSTextView`; menu:Object[Name…]
-and *Note…* stay placeholders.
+field is a growing `TextField` (two to six lines) rather than an `NSTextView`.  menu:Object[Name…]
+and *Note…* (and the object context menus' items) open a one-field sheet with the selection's shared
+value that writes `SetNameOrNote` for every selected object on btn:[OK] (rch).
 
 NOTE: As built by OBJ-040's UI (`WTApp/Panels/DescriptionSection.swift`; `WTModel/ObjectDescriptions.swift`,
 a new file).  `SetAlt` (input stops at 512 characters) and `SetDecorative` write `CommonProps.alt` and

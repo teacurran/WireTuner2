@@ -1,5 +1,6 @@
 import Foundation
 import WTGeometry
+import WTModel
 import WTRender
 
 /// The kinds of object a canvas context menu distinguishes (context-menus.adoc, "A single
@@ -22,6 +23,24 @@ enum ContextObjectKind: String, CaseIterable, Hashable, Sendable {
         case .symbolInstance: .symbolInstance
         case .chart: .chart
         case .envelope: .envelope
+        }
+    }
+
+    /// The kind a node reads as: its model kind where the menu has items for it (charts,
+    /// connectors, symbol instances, envelopes, blends, images, placed files, text), else what its
+    /// display item reads as (rch: charts, connectors, instances and envelopes drew as groups or
+    /// paths, so their own items never showed).
+    init(kind: NodeKind?, item: DisplayItem) {
+        switch kind {
+        case .blend?: self = .blend
+        case .chart?: self = .chart
+        case .connector?: self = .connector
+        case .instance?: self = .symbolInstance
+        case .envelope?: self = .envelope
+        case .image?: self = .bitmap
+        case .placedFile?: self = .importedGraphic
+        case .text?: self = .text
+        default: self.init(item: item)
         }
     }
 
@@ -93,7 +112,7 @@ struct ContextMenuResolver {
                 selection.model.set(Selection([hit.id]))
             }
             let kinds = selection.model.ids.compactMap { id in
-                document.object(for: id).map { $0.kind == .blend ? .blend : ContextObjectKind(item: $0.item) }
+                document.object(for: id).map { ContextObjectKind(kind: $0.kind, item: $0.item) }
             }
             return .objects(kinds.isEmpty ? [.path] : kinds)
         }

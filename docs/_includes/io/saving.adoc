@@ -95,7 +95,7 @@ while offline, it is marked *pending* in the panel and takes its place in the sh
 when your changes upload.
 
 If you would rather kbd:[Cmd+S] work silently, as a reflex, turn off *Ask for a version name
-when saving* in menu:{product}[Settings… > Documents].  Each press then creates a version named
+when saving* in menu:{product}[Settings… > Document].  Each press then creates a version named
 with the date and time and shows a brief confirmation.
 
 == Duplicating a document
@@ -111,7 +111,7 @@ To make a copy of the document at an *earlier* point, restore that version as a 
 
 == Restoring a version
 
-menu:File[Restore a Version…] opens the History panel scrolled to the named versions.  From
+menu:File[Restore Version…] opens the History panel scrolled to the named versions.  From
 there you can:
 
 Restore as a copy:: Creates a new document holding the document as it was at that version.
@@ -165,7 +165,7 @@ have never opened on this Mac cannot be opened without a connection
 (xref:creating-opening.adoc[Creating and opening documents]).
 
 {product} writes a compact copy of the whole document to disk at the *Snapshot interval*
-(menu:{product}[Settings… > Documents], default every 5 minutes) and when the window closes.
+(menu:{product}[Settings… > Document], default every 5 minutes) and when the window closes.
 This is not a save -- every change is already on disk within a quarter of a second of being made
 -- it only makes reopening faster.  At the same moments, if the document changed, {product}
 refreshes the document's picture in the library window (xref:creating-opening.adoc[Creating
@@ -234,7 +234,7 @@ Quitting while changes are waiting shows a sheet:
 *Quit When Uploaded* keeps the app running only as long as it takes, then quits on its own.
 *Quit Now* is always safe: nothing is lost, and the next launch resumes the uploads for those
 documents in the background before you even open them.  Turn the sheet off with *Warn when
-quitting with changes waiting* in menu:{product}[Settings… > Documents].
+quitting with changes waiting* in menu:{product}[Settings… > Document].
 
 == Storage [[storage]]
 

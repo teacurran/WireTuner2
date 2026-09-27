@@ -225,7 +225,7 @@ Do one of the following:
 * Choose it from the menu:Scripts[] menu.
 * Press kbd:[Cmd+/] and type its name in the command palette
   (xref:workspace.adoc[The workspace]).
-* Give it a keyboard shortcut under menu:{product}[Settings… > Shortcuts]: scripts are listed
+* Give it a keyboard shortcut in menu:Edit[Keyboard Shortcuts…]: scripts are listed
   in the *Scripts* group like any command (xref:customizing.adoc[Customizing shortcuts and
   toolbars]).
 * Click btn:[Run] in the Script Editor.

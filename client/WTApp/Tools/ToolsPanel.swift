@@ -421,11 +421,11 @@ struct ToolWellsView: View {
             }
             .frame(width: 44, height: 40, alignment: .topLeading)
             HStack(spacing: 2) {
-                small("arrow.left.arrow.right", "Swap", identifier: "tools.wells.swap") { model.swapWells() }
-                small("nosign", "None", identifier: "tools.wells.none") { model.setActiveWellToNone() }
-                small("circle.lefthalf.filled", "Default", identifier: "tools.wells.default") { model.restoreDefaultWells() }
+                small("arrow.left.arrow.right", "Swap", identifier: "tools.wells.swap") { model.perform(ToolPanelCommands.ID.swap) }
+                small("nosign", "None", identifier: "tools.wells.none") { model.perform(ToolPanelCommands.ID.none) }
+                small("circle.lefthalf.filled", "Default", identifier: "tools.wells.default") { model.perform(ToolPanelCommands.ID.restoreDefault) }
             }
-            .disabled(!model.canEditWells)
+            .disabled(!model.canEditWells && model.coloring == nil)
         }
     }
 

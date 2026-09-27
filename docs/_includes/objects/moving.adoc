@@ -93,11 +93,11 @@ selection's nearest point to the target when you grabbed a fill.
 |Any position along another object's path.
 
 |Snap to Guides
-|menu:View[Snap to Guides]
+|menu:View[Guides > Snap to Guides]
 |Ruler guides (xref:grid-guides.adoc[Grid and guides]).
 
 |Snap to Grid
-|menu:View[Snap to Grid]
+|menu:View[Grid > Snap to Grid]
 |Grid intersections.
 |===
 

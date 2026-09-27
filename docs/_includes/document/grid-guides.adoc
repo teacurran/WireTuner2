@@ -29,7 +29,7 @@ or not the grid is visible.
 
 To set the grid size and snapping style:
 
-. Choose menu:View[Grid > Edit…].
+. Choose menu:View[Grid > Edit Grid…].
 . Type the *Grid size* in the document's units.
 . Choose how objects snap:
 * *Relative grid* selected: an object keeps its offset within a grid cell, so an object that

@@ -40,7 +40,7 @@ are those of the visible part.
 == Cropping to a shape with Paste Inside
 
 To crop an image to any shape -- an ellipse, a rounded rectangle, lettering, a traced outline
--- draw the shape, cut the image, select the shape and choose menu:Edit[Paste Inside].  The
+-- draw the shape, cut the image, select the shape and choose menu:Edit[Paste Contents].  The
 image becomes the contents of a clipping path and can be moved inside it.  The full procedure,
 including how to move and release the contents, is on xref:clipping-paths.adoc[Clipping
 paths].  Paste Inside and the Crop tool combine: a rectangular crop stays in effect on an image

@@ -48,7 +48,7 @@ To move an object on the grid:
   object at the new position.
 
 Moving an attached object with the Pointer tool or the arrow keys takes it *off* the grid,
-keeping its current perspective appearance.  With menu:View[Snap to Grid] on, objects moved
+keeping its current perspective appearance.  With menu:View[Grid > Snap to Grid] on, objects moved
 with the Pointer tool snap to the perspective grid lines but do not gain perspective.
 
 To flip an object on the grid:
@@ -381,7 +381,7 @@ wrapper in the Text Editor (`TextEditorFeatures.show`).  Moving attached objects
 `MoveOffGrid`: each wrapper is released as *Release with Perspective* releases it -- the baked drawing as a group,
 already moved by the drag -- and the wrapper deleted, while other objects in the selection move as `MoveObjects` moves
 them; one change "Move".  While the window shows the grid, every page's plane lines are `SnapSources.gridLines`, which
-snap (at guide priority) only with menu:View[Snap to Grid] on; nothing gains perspective from them.
+snap (at guide priority) only with menu:View[Grid > Snap to Grid] on; nothing gains perspective from them.
 
 === Build tasks
 
