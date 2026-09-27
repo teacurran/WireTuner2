@@ -323,7 +323,17 @@ page* (`SetDeleted(page, false)`).  The *Done when* UI tests are unit tests host
 NOTE: As built by DOC-006's remainder, model half (`WTModel/ZeroPages.swift`).  `ZeroPages.removedOnBothSides(base:local:remote:merged:)`
 detects the zero-pages case for the reconcile measurement -- the merged state has no live page while the base had some and each
 side's changes deleted pages -- and `ZeroPages.reviewMessage` is the entry's text; the next command touching pages already writes
-the page (`AddPages`).  Not built: the review row itself in `Divergence` and the review sheet (WTSync, WTApp).
+the page (`AddPages`).  The review row is the next note.
+
+NOTE: As built by DOC-006's review row, unified with DOC-031's (`WTModel/ZeroPages.swift`, `WTSync/Divergence.swift`,
+`ReviewModel.swift`, `WTApp/Review/ReviewSheetModel.swift`).  The divergence measurement has no base state, so
+`ZeroPages.removedOnBothSides(local:remote:merged:)` reads the case from the merged state and the two sides' changes: no
+live page, and each side deleted a page -- still deleted in the merged state, so a later restore counts for nothing -- that
+the other did not.  `Divergence.zeroPages` (and `ReviewModel.zeroPages`) is always listed; the entry has no choice, so it
+makes the decision at least *Review what changed* and holds nothing (the outbox is not held for it).  The review sheet shows
+"All pages were removed; a page was added." (*Removed by both*) among the conflicts, with no choice -- the document already
+reads as one Letter page and the next page command writes it.  Tests: `ZeroPagesTests` (WTModel), `ZeroPagesReviewTests` and
+`SetupAndFontReviewTests` (WTSync), `ModelGlueFeaturesTests` (WTApp), `DocumentSetupScenarioTests` (WTTestSupport).
 
 === Build tasks
 
@@ -383,4 +393,20 @@ Delivers:: Simulator scenarios for this chapter: resize race, remove-vs-draw, mo
 Done when::
 * All scenarios converge to identical hashes on every client and the expected review entries are produced.
 * Runs inside the TEST-001 CI budget.
+
+NOTE: As built by DOC-031 (`WTTestSupportTests/Simulation/DocumentSetupScenarioTests.swift`; rows in `WTSync/RemovedTargetReview.swift`,
+`Divergence.swift`, `ReviewModel.swift`, `WTModel/ZeroPages.swift`; tests `WTSyncTests/SetupAndFontReviewTests`).  Nine scenarios,
+the first eight live (within a dropped connection) and after 12 hours offline, three clients each, about 15 s together: a resize
+race (*Same attribute*, *Geometry*), remove vs. draw, move vs. move, a reorder race, zero pages, master edit vs. child release
+(*Released stale master*, then *Update the copies*), a guide drag race (*Same attribute*, *Guides*), guide delete vs. move, and 24
+simulated hours of page edits on two clients (no row).  Rows the chapter names that were not built, built here: "objects created on
+a page that was removed" is `RemovedTargetEntry.Kind.removedPage` (an object created directly on a layer whose bounds' centre lies in
+the bleed rectangle of a page the other side removed; *Restore*, the page's `deleted` false); the zero-pages entry is
+`Divergence.zeroPages`/`ReviewModel.zeroPages` from `ZeroPages.removedOnBothSides(local:remote:merged:)` (the measurement has no base
+state), which makes the decision at least *Review what changed* but holds nothing -- one implementation with DOC-006's review
+row (the note under "Client"); and a guide deleted while the other side moved it
+is *Edited and deleted* on the page with the element's `deleted` flag as the property (*Guides removed*) and *Restore* writing it
+false (grid-guides.adoc).  Deviations: two moves of one page are two *Same attribute* rows -- the page (*Origin*) and each object on
+it (*Transform*) -- rather than one *move vs move* row, since `MovePage` writes registers; *Both moved* is a reorder of one page on
+both sides (*Position*).
 endif::spec[]

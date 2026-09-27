@@ -97,7 +97,10 @@ characters -- an insert's run, a delete's range, a mark's anchors, a paragraph r
 newline, tombstones included, ends).  `Noop`s count for nothing.  Objects under `comments (0:12)`
 are left out of both sets; on the settings node, `output_area`, `print` and the `local_only`
 fields are left out, `color` and `document_kind`/`font` writes are recorded as always-listed
-settings, and every other settings field is an ordinary register.  Beyond the literal overlap
+settings, and every other settings field is an ordinary register.  The settings node holds independent
+settings rather than one object, so it is listed only for a conflict of its own (a register or element both
+wrote, a paragraph of the feature file both edited), never as *Both edited* because each side wrote a
+different setting (FONT-029's finding).  Beyond the literal overlap
 two cases are listed as `edit vs delete`: an object with an open (unresolved, not deleted)
 thread anchored to it that the remote side deleted (comments.adoc), and an object edited on one
 side whose ancestor the other side deleted (the entry names the ancestor).  Kinds are all

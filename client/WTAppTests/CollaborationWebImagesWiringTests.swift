@@ -178,8 +178,7 @@ import WTSync
         root(BranchChooserSheet.self)?.finish(nil)
         world.features.presentChooser(compare: false)
         root(BranchChooserSheet.self)?.finish(.some("b-1"))
-        try await Task.sleep(for: .milliseconds(100))
-        #expect(world.opened.value.contains { $0.hasPrefix("branch-new") } && world.opened.value.contains("b-1 Cover"))
+        #expect(await eventually { world.opened.value.contains { $0.hasPrefix("branch-new") } && world.opened.value.contains("b-1 Cover") })
         // A branch window's archive, restore, rename and trash from the menu.
         let branchWindow = CollaborationWorld(document: .memory(id: "b-1", title: "Catalogue — Cover"), branches: [BranchInfo(id: "b-1", parentID: parent.id, name: "Cover")])
         defer { branchWindow.close() }
@@ -187,14 +186,12 @@ import WTSync
         await branchOfWindow.load()
         let registry = branchWindow.environment.commands
         registry.perform(CollaborationFeatures.ID.archiveBranch)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(branchWindow.ui.branches.current?.state == .archived)
+        #expect(await eventually { branchWindow.ui.branches.current?.state == .archived })
         registry.perform(CollaborationFeatures.ID.archiveBranch)
         registry.perform(CollaborationFeatures.ID.renameBranch)
         #expect(branchWindow.sheets.value.last?.identifier?.rawValue == CollaborationFeatures.branchSheet)
         registry.perform(CollaborationFeatures.ID.trashBranch)
-        try await Task.sleep(for: .milliseconds(50))
-        #expect(branchWindow.opened.value.last?.hasPrefix(parent.id) == true)
+        #expect(await eventually { branchWindow.opened.value.last?.hasPrefix(parent.id) == true })
         branchWindow.client.fails = true
         let restored = await branchOfWindow.setArchived(false)
         #expect(!restored && branchOfWindow.message?.contains("restored") == true)

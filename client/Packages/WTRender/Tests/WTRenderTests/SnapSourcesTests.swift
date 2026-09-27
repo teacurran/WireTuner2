@@ -155,6 +155,12 @@ import WTGeometry
         #expect(SnapFeedback(grid) == .grid(Point(x: 100, y: 100)))
         let segment = SnapResult(point: .zero, candidate: .segment(CubicBezier(p0: .zero, p1: .zero, p2: .zero, p3: .zero)), candidateIndex: 0, kind: .path, distance: 0)
         #expect(SnapFeedback(segment) == .path(.zero))
+        // Perspective grid lines snap with Snap to Grid only (FX-043).
+        let lines = DisplayPath(polygon: [Point(x: 99, y: -50), Point(x: 99, y: 250)], closed: false).contours + [Contour(segments: [], closed: false)]
+        let perspective = SnapSources(gridLines: lines)
+        let snapped = try #require(SnapEngine(toggles: SnapToggles(grid: true)).resolve(Self.query, sources: perspective))
+        #expect(snapped.point.x == 99)
+        #expect(SnapEngine().resolve(Self.query, sources: perspective) == nil, "Snap to Grid off")
         // An invalid grid is not a candidate.
         #expect(SnapEngine(toggles: SnapToggles(grid: true)).candidates(near: Self.query, sources: SnapSources(grid: GridSpec(size: 0))).isEmpty)
     }

@@ -786,4 +786,27 @@ Delivers:: Scripted simulator and UI scenarios: concurrent replies, resolve vs. 
 Done when::
 * Every scenario asserts hash convergence on all clients, the exact panel rows and unread counts on each, and the notification rows on the server.
 * Screenshots of the pins, the thread popover and the Comments panel are captured into `docs/images` for this page.
+
+NOTE: As built by COLLAB-034, the simulator half (`WTTestSupportTests/Simulation/CommentCaseScenarioTests.swift`,
+`WTTestSupport/Simulation/SimComments.swift`).  `SimServer` keeps the server's record of comments as COLLAB-030 and COLLAB-031
+built it (`SimComments`: the parse by field path, the ownership rule, threads, comments, notifications with the 24-hour mention rule
+and `team:` expansion, `GetUnread`, `MarkRead`, the digest job with `SimServer.mailbox` standing for mailpit) and accepts a
+commenter's change when the rule allows it, pushing `CommentEvent`s to the recipients' sessions; it also merges branches
+(`SimServer.mergeBranch`, SRV-011's replay without exclusions).  Eight scenarios, three clients (Priya and Tom editors, Cy a
+commenter): concurrent replies, resolve vs. reopen, edit vs. delete, pin drag vs. pin drag, a comment on an object deleted at the
+same moment then restored, offline commenting with mentions delivered on sync (rows dated at landing, the live session told, one
+digest mail ten minutes later, never twice), the commenter role's refusal, and branch comments merged into the parent.  Each asserts
+convergence, every client's panel rows (`CommentThreadModel` with the server's unread as overlay: number, object, state, comments,
+badge) and the server's notification rows.  Two bugs found and fixed: *(a)* a commenter could not comment -- `SyncClient` sent
+nothing while the role was viewer or commenter, and `AccessController` made the store read-only -- so a commenter's document is now
+read-only but for comments (`LocalStore.setReadOnly(_:commentsAllowed:)`, `CommentFields.onlyComments`), its comment changes are
+sent (`SyncClient.isCommenter`), and only unsent non-comment changes freeze the outbox (`WTSyncTests/CommenterSyncTests`); *(b)* the
+server gave a branch, a Fork or a Duplicate no record of the source's comments and a merge gave the parent none of the branch's, so
+a commenter was refused on a thread from before the fork and on a thread merged from a branch, and unread counts left merged comments
+out -- `CommentIndex.copyRecord` now copies the threads and comments up to the fork point with the copy, and
+`CommentIndex.mergeRecord` adds the branch's record to the parent's in the replay's transaction (new rows at the replay's first seq,
+`resolved` and `deleted` by op id), without notifying again (`CommentServiceTest.branchCommentsAreAnsweredOnTheBranchAndMergeIntoTheParentsRecord`).
+Not built: the UI scenarios and screenshots, and the digest asserted against the compose stack's mailpit (the server's
+`CommentServiceTest` asserts the mail through Quarkus' mock mailbox); a copy's extra changes (a Fork's unsent comments) are still not
+indexed.
 endif::spec[]

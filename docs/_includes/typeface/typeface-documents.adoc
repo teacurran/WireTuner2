@@ -442,8 +442,19 @@ NOTE: As built by FONT-004, in part (`WTApp/Typeface/GlyphCanvasUnits.swift`, on
 `Document/DocumentSetupWindow.swift` and `Panels/ObjectPanelSections.swift`).  On a glyph tab the rulers
 count in font units (one per stored point) from the glyph's origin, y upward, and the Object panel's
 *Y* shows font y: typing y = 700 stores −700; arrow-key nudges move by the nudge distance, one unit
-per point.  Not built: the Transform panel's font y, the 10-unit grid default and text converted to
-paths when pasted into a glyph.
+per point.  The rest is the next note.
+
+NOTE: As built by FONT-004's remainder (`WTModel/GlyphPaste.swift`, `PageSetup.swift`; `WTApp/Typeface/GlyphCanvasUnits.swift`,
+one line each in `Panels/TransformPanel.swift`, `Document/CanvasFurniture.swift`, `Document/DocumentSetupWindow.swift` and
+`Document/ObjectEditing.swift`).  The Transform panel's *Center Y* shows and takes font y on a glyph canvas (its Move *Y*
+already counts upward).  A glyph canvas draws and snaps to `PageList.glyphGrid`: 10 units from the glyph's origin unless the
+document wrote a grid size of its own (`DocumentSettings.gridIsSet`).  Paste and Paste In Front/Behind on a glyph tab go
+through `GlyphCanvasUnits.pasted`: when the payload holds text, it is pasted into a scratch document
+(`GlyphPaste.scratch`, the carried colours left for the real paste), each text block's `TextToPaths.conversion` is taken with
+the tab's engine, and `GlyphPaste.outlined` rebuilds the payload with each block replaced by the group Convert to Paths
+makes (glyph paths, the block's own rectangle, inline graphics moved in) -- the real `Paste` is then one change.  Linked
+text, which Convert to Paths refuses, stays text.  The *Done when* UI test is an app-hosted unit test
+(`TypefaceToolTests`).
 
 === Build tasks
 

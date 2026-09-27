@@ -30,6 +30,13 @@ struct TraceSettings: Codable, Equatable {
         get { tracerName.flatMap(Trace.Tracer.init(rawValue:)) ?? .classic }
         set { tracerName = newValue.rawValue }
     }
+    /// *Trace layers*: the raw value of `TraceLayers`; nil (settings saved before it) reads as *All*.
+    var layersName: String?
+
+    var layers: TraceLayers {
+        get { layersName.flatMap(TraceLayers.init(rawValue:)) ?? .all }
+        set { layersName = newValue.rawValue }
+    }
 
     static let key = "trace.options"
 
@@ -94,6 +101,11 @@ struct WandSelection: Equatable {
                 }
             }
         }
+    }
+
+    /// Whether the pixel at `(x, y)` is selected.
+    func contains(x: Int, y: Int) -> Bool {
+        x >= 0 && y >= 0 && x < width && y < height && mask[y * width + x] == 1
     }
 
     /// *Tab*: the selection inverted.
@@ -203,10 +215,29 @@ final class TraceTool: Tool {
         }
     }
 
+    /// What the wand options popover does with the selection.
+    enum WandAction: String, CaseIterable, Identifiable {
+        /// *Trace selection*: the selected pixels with the current options.
+        case trace
+        /// *Convert selection edge*: one closed path along the selection's boundary, unfilled.
+        case edge
+
+        var id: String { rawValue }
+        var title: String { self == .trace ? "Trace selection" : "Convert selection edge" }
+    }
+
     /// A wand click: the area under the image (or the view) is sampled once, then each click
-    /// adds or takes away a connected area of colour.
+    /// adds or takes away a connected area of colour; a plain click inside the selection opens
+    /// the wand options popover.
     func pick(at point: Point, modifiers: KeyModifiers) {
         guard let context else { return }
+        if let wand, modifiers.isDisjoint(with: [.shift, .option]), let inverse = wand.transform.inverted() {
+            let pixel = inverse.apply(point)
+            if wand.selection.contains(x: Int(pixel.x), y: Int(pixel.y)) {
+                features.showWandOptions(self, context.host.viewport.toView(point), context)
+                return
+            }
+        }
         if wand == nil || !(wand!.area.contains(point)) || !(modifiers.contains(.shift) || modifiers.contains(.option)) {
             guard let area = features.sampleArea(at: point, in: context), let sampled = features.sample(area, in: context, clip: false) else { return }
             wand = (sampled.bitmap, sampled.transform, area, WandSelection(width: sampled.bitmap.width, height: sampled.bitmap.height))
@@ -225,6 +256,16 @@ final class TraceTool: Tool {
         wand = (bitmap, transform, area, selection)
         context?.host.setNeedsOverlayDisplay()
         context?.host.showStatusMessage("\(selection.count) pixels selected: Return traces them, E converts the edge, Tab inverts")
+    }
+
+    /// The popover's btn:[Trace]: runs `action` on the selection and ends it.
+    @discardableResult
+    func perform(_ action: WandAction) -> Task<Void, Never>? {
+        guard let context, let current = wand else { return nil }
+        wand = nil
+        context.host.setNeedsOverlayDisplay()
+        return features.traceSelection(current.bitmap, selection: current.selection, transform: current.transform, area: current.area,
+                                       edgeOnly: action == .edge, in: context)
     }
 
     func flagsChanged(_ e: CanvasEvent) {
@@ -301,6 +342,10 @@ final class TraceFeatures {
     @ObservationIgnored var isCached: @MainActor (String) -> Bool = { _ in true }
     /// Where an image's pixels are on this Mac.
     @ObservationIgnored var blobURL: @MainActor (String) -> URL? = { _ in nil }
+    /// Shows the wand options popover at a view point (replaceable in tests).
+    @ObservationIgnored var showWandOptions: @MainActor (TraceTool, Point, ToolContext) -> Void = { tool, point, context in
+        WandOptionsPopover.show(for: tool, at: point, in: context)
+    }
 
     init(preferences: PreferenceStore) {
         self.preferences = preferences
@@ -331,7 +376,7 @@ final class TraceFeatures {
     /// The image under `point`, the area the wand samples: its frame (the view's visible area
     /// over no image).
     func sampleArea(at point: Point, in context: ToolContext) -> Rect? {
-        if let mark = WindowImages.marks(in: context.document.state).last(where: { $0.frame.contains(point) }) {
+        if let mark = marks(in: context.document.state).last(where: { $0.frame.contains(point) }) {
             guard isCached(mark.assetID) else {
                 refuse(mark.name, in: context)
                 return nil
@@ -352,11 +397,19 @@ final class TraceFeatures {
     /// lies outside it to paper), else the canvas rendered at *Resolution*.
     func sample(_ rect: Rect, in context: ToolContext, clip: Bool) -> (bitmap: Trace.Bitmap, transform: WTGeometry.AffineTransform)? {
         let state = context.document.state
-        if let mark = WindowImages.marks(in: state).last(where: { $0.frame.contains(rect.center) }), let node = mark.node,
+        if let mark = marks(in: state).last(where: { $0.frame.contains(rect.center) }), let node = mark.node,
            let url = blobURL(mark.assetID), let sampled = Self.imageBitmap(node, url: url, state: state) {
             return clip ? (Self.clipped(sampled.bitmap, transform: sampled.transform, to: rect), sampled.transform) : sampled
         }
-        return Trace.Sampling.render(context.document.displayList, rect: rect, pixelsPerPoint: settings.resolution)
+        return Trace.Sampling.render(settings.layers.filter(context.document.displayList, in: state), rect: rect, pixelsPerPoint: settings.resolution)
+    }
+
+    /// The placed images on the *Trace layers* choice's layers.
+    func marks(in state: EngineState) -> [PlacedImageMark] {
+        let layers = settings.layers
+        guard layers != .all else { return WindowImages.marks(in: state) }
+        let order = LayerOrder(state)
+        return WindowImages.marks(in: state).filter { mark in mark.node.map { layers.includes(node: $0, in: state, order: order) } ?? false }
     }
 
     /// An image node's pixels (at most 2,048 on the long edge) and the map from them to the pasteboard.
@@ -415,7 +468,7 @@ final class TraceFeatures {
 
     /// The name of a placeholder image under `rect`, if any.
     func placeholder(under rect: Rect, in context: ToolContext) -> String? {
-        WindowImages.marks(in: context.document.state).first { $0.frame.intersects(rect) && !isCached($0.assetID) }?.name
+        marks(in: context.document.state).first { $0.frame.intersects(rect) && !isCached($0.assetID) }?.name
     }
 
     private func run(_ bitmap: Trace.Bitmap, transform: WTGeometry.AffineTransform, source: OpID?, options: Trace.Options, in context: ToolContext) -> Task<Void, Never> {
@@ -540,6 +593,10 @@ struct TraceOptionsSheet: View {
             Toggle("Centerline", isOn: $features.settings.centerline)
             Toggle("Uniform lines", isOn: $features.settings.uniform)
             Stepper("Resolution \(Int(features.settings.resolution * 72)) ppi", value: $features.settings.resolution, in: 1...8, step: 1)
+            Picker("Trace layers", selection: $features.settings.layers) {
+                ForEach(TraceLayers.allCases, id: \.self) { Text($0.title).tag($0) }
+            }
+            .accessibilityIdentifier("trace.layers")
             Stepper("Wand tolerance \(features.settings.tolerance)", value: $features.settings.tolerance, in: 0...255)
             HStack {
                 Spacer()
@@ -548,5 +605,50 @@ struct TraceOptionsSheet: View {
         }
         .padding(16)
         .frame(width: 320)
+    }
+}
+
+/// The wand options popover (tracing.adoc, "Tracing an area of color"): a click inside the
+/// selection offers *Trace selection* or *Convert selection edge*, then btn:[Trace].
+struct WandOptionsView: View {
+    let tool: TraceTool
+    let close: @MainActor () -> Void
+    @State var action: TraceTool.WandAction = .trace
+
+    static func trace(_ tool: TraceTool, _ action: TraceTool.WandAction, close: @escaping @MainActor () -> Void) -> () -> Void {
+        {
+            close()
+            tool.perform(action)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("", selection: $action) {
+                ForEach(TraceTool.WandAction.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.radioGroup)
+            .labelsHidden()
+            .accessibilityIdentifier("trace.wand.action")
+            HStack {
+                Spacer()
+                Button("Trace", action: Self.trace(tool, action, close: close)).keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("trace.wand.trace")
+            }
+        }
+        .padding(12)
+        .frame(width: 240)
+    }
+}
+
+/// Presents `WandOptionsView` in an `NSPopover` beside the click.
+@MainActor
+enum WandOptionsPopover {
+    static func show(for tool: TraceTool, at point: Point, in context: ToolContext) {
+        guard let view = context.host as? NSView else { return }
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView: WandOptionsView(tool: tool) { [weak popover] in popover?.close() })
+        popover.show(relativeTo: NSRect(x: point.x - 2, y: point.y - 2, width: 4, height: 4), of: view, preferredEdge: .maxY)
     }
 }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.hibernate.reactive.mutiny.Mutiny;
+
 import com.villagecompute.wiretuner.api.comments.CommentOps.CommentOp;
 import com.villagecompute.wiretuner.api.comments.CommentOps.CreateThread;
 import com.villagecompute.wiretuner.api.comments.CommentOps.ElementWrite;
@@ -30,6 +32,7 @@ import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
+import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -146,6 +149,76 @@ public class CommentIndex {
             UPDATE comment SET preview = $4
             WHERE document_id = $1 AND element_counter = $2 AND element_replica = $3 AND preview = ''
             """;
+
+    /**
+     * A copy's record of comments (COLLAB-034): the source's threads created and comments written up to
+     * the fork point, so a commenter can answer them on the copy (a branch, a Fork, a Duplicate) and
+     * unread counts include them. Session placeholders.
+     */
+    static final String COPY_THREADS = """
+            INSERT INTO comment_thread (document_id, node_counter, node_replica, opener_account_id, resolved,
+                                        resolved_counter, resolved_replica, created_seq)
+            SELECT ?2, node_counter, node_replica, opener_account_id, resolved, resolved_counter, resolved_replica, created_seq
+            FROM comment_thread WHERE document_id = ?1 AND created_seq <= ?3
+            ON CONFLICT DO NOTHING
+            """;
+
+    static final String COPY_COMMENTS = """
+            INSERT INTO comment (document_id, thread_counter, thread_replica, element_counter, element_replica,
+                                 author_account_id, deleted, deleted_counter, deleted_replica, preview, server_seq)
+            SELECT ?2, c.thread_counter, c.thread_replica, c.element_counter, c.element_replica, c.author_account_id,
+                   c.deleted, c.deleted_counter, c.deleted_replica, c.preview, c.server_seq
+            FROM comment c JOIN comment_thread t ON t.document_id = ?2 AND t.node_counter = c.thread_counter
+                 AND t.node_replica = c.thread_replica
+            WHERE c.document_id = ?1 AND c.server_seq <= ?3
+            ON CONFLICT DO NOTHING
+            """;
+
+    /**
+     * A branch merge's record (COLLAB-034): every thread and comment of the branch's record joins the
+     * parent's, at the replay's first seq when new; {@code resolved} and {@code deleted} by
+     * last-writer-wins. No notification: the branch's sessions were told when the comments landed there.
+     */
+    static final String MERGE_THREADS = """
+            INSERT INTO comment_thread AS p (document_id, node_counter, node_replica, opener_account_id, resolved,
+                                             resolved_counter, resolved_replica, created_seq)
+            SELECT $2, node_counter, node_replica, opener_account_id, resolved, resolved_counter, resolved_replica, $3
+            FROM comment_thread WHERE document_id = $1
+            ON CONFLICT (document_id, node_counter, node_replica) DO UPDATE
+                SET resolved = EXCLUDED.resolved, resolved_counter = EXCLUDED.resolved_counter,
+                    resolved_replica = EXCLUDED.resolved_replica
+                WHERE %s
+            """.formatted(newer("p.resolved_counter", "p.resolved_replica", "EXCLUDED.resolved_counter",
+            "EXCLUDED.resolved_replica"));
+
+    static final String MERGE_COMMENTS = """
+            INSERT INTO comment AS p (document_id, thread_counter, thread_replica, element_counter, element_replica,
+                                      author_account_id, deleted, deleted_counter, deleted_replica, preview, server_seq)
+            SELECT $2, thread_counter, thread_replica, element_counter, element_replica, author_account_id, deleted,
+                   deleted_counter, deleted_replica, preview, $3
+            FROM comment WHERE document_id = $1
+            ON CONFLICT (document_id, thread_counter, thread_replica, element_counter, element_replica) DO UPDATE
+                SET deleted = EXCLUDED.deleted, deleted_counter = EXCLUDED.deleted_counter,
+                    deleted_replica = EXCLUDED.deleted_replica
+                WHERE %s
+            """.formatted(newer("p.deleted_counter", "p.deleted_replica", "EXCLUDED.deleted_counter",
+            "EXCLUDED.deleted_replica"));
+
+    /** Gives a copy the source's record of comments up to the fork point, in the caller's session. */
+    public static Uni<Void> copyRecord(Mutiny.Session session, UUID sourceId, UUID copyId, long atSeq) {
+        return session.createNativeQuery(COPY_THREADS).setParameter(1, sourceId).setParameter(2, copyId)
+                .setParameter(3, atSeq).executeUpdate()
+                .chain(() -> session.createNativeQuery(COPY_COMMENTS).setParameter(1, sourceId).setParameter(2, copyId)
+                        .setParameter(3, atSeq).executeUpdate())
+                .replaceWithVoid();
+    }
+
+    /** Adds a merged branch's record of comments to its parent's, the replay starting at {@code firstSeq}. */
+    public static Uni<Void> mergeRecord(SqlClient client, UUID branchId, UUID parentId, long firstSeq) {
+        return client.preparedQuery(MERGE_THREADS).execute(Tuple.of(branchId, parentId, firstSeq))
+                .chain(() -> client.preparedQuery(MERGE_COMMENTS).execute(Tuple.of(branchId, parentId, firstSeq)))
+                .replaceWithVoid();
+    }
 
     /** The digest quotes at most this many characters of a comment (comments.adoc, Server). */
     static final int PREVIEW_CHARS = 200;

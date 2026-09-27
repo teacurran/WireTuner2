@@ -99,6 +99,23 @@ enum TextAttributeClipboard {
 enum TextEyedropper {
     /// What the tool last picked up from text.
     static var sampled: TextAttributeSet?
+    /// The tool's options (copying-type.adoc, "The Eyedropper on text": "the same two toggles
+    /// for repeated use"); nil applies both groups.
+    static var preferences: PreferenceStore?
+
+    /// *Apply character attributes* and *Apply paragraph attributes*, on by default.
+    static let applyCharacter = PreferenceKey<Bool>("tools.eyedropper.text_character", "Apply character attributes", category: .text, default: true,
+                                                    control: .toggle, help: "copying-type")
+    static let applyParagraph = PreferenceKey<Bool>("tools.eyedropper.text_paragraph", "Apply paragraph attributes", category: .text, default: true,
+                                                    control: .toggle, help: "copying-type")
+
+    /// Which groups an kbd:[Option]-click applies: kbd:[Shift] the character attributes only,
+    /// kbd:[Cmd] the paragraph ones only, each only when its toggle is on.
+    static func groups(_ modifiers: KeyModifiers, preferences: PreferenceStore?) -> (character: Bool, paragraph: Bool) {
+        let character = preferences.map { $0[applyCharacter] } ?? true
+        let paragraph = preferences.map { $0[applyParagraph] } ?? true
+        return (character && !modifiers.contains(.command), paragraph && !modifiers.contains(.shift))
+    }
 
     /// The text block under `point` (pasteboard) and the character offset there.
     static func hit(_ point: Point, context: ToolContext) -> (node: OpID, offset: Int)? {
@@ -121,7 +138,9 @@ enum TextEyedropper {
         guard let (node, offset) = hit(e.pasteboardPoint, context: context), let text = context.document.state.textNode(node) else { return false }
         if e.modifiers.contains(.option) {
             guard let set = sampled else { return false }
-            let filtered = set.filtered(character: !e.modifiers.contains(.command), paragraph: !e.modifiers.contains(.shift))
+            let groups = groups(e.modifiers, preferences: preferences)
+            guard groups.character || groups.paragraph else { return true }
+            let filtered = set.filtered(character: groups.character, paragraph: groups.paragraph)
             context.commandSink.perform(PasteTextAttributes(filtered, to: [TextAttributeTarget(node: node)]))
             return true
         }

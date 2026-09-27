@@ -74,7 +74,7 @@ final class CanvasFurniture {
     /// The grid dots in the visible area (`GridRendering`: thinned below 4 px spacing), from the
     /// active page's zero point.
     func drawGrid(_ pages: PageList, in ctx: CGContext, viewport: Viewport) {
-        guard let item = GridRendering.item(pages.grid(on: document.activePage), in: viewport.visiblePasteboardBounds, zoom: viewport.zoom,
+        guard let item = GridRendering.item(GlyphCanvasUnits.grid(of: document), in: viewport.visiblePasteboardBounds, zoom: viewport.zoom,
                                             color: style().grid),
               case .fill(let fill) = item else { return }
         let path = CGMutablePath()

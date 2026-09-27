@@ -2,6 +2,7 @@ import Foundation
 import Synchronization
 import WTCRDT
 import WTCRDTSchema
+import WTModel
 import WTProto
 @testable import WTSync
 
@@ -130,7 +131,14 @@ actor FakeSyncServer {
         }
     }
 
-    private func checkWriter() throws {
+    /// A commenter may write comments only (comments.adoc, "Commenter role"), as the server's rule
+    /// allows for its own threads (COLLAB-034).
+    private func checkWriter(_ change: Wiretuner_Doc_V1_Change) throws {
+        if role == .commenter {
+            var state = EngineState()
+            for entry in log { state.apply(entry.change, serverSeq: entry.serverSeq) }
+            if CommentFields.onlyComments(change.ops, in: state) { return }
+        }
         guard role == .editor || role == .owner else {
             throw SyncCallError(code: SyncCallError.permissionDenied, reason: .roleInsufficient, message: "not an editor")
         }
@@ -144,7 +152,7 @@ actor FakeSyncServer {
         if retired.contains(change.replica) {
             throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .replicaExpired, message: "retired")
         }
-        try checkWriter()
+        try checkWriter(change)
         let bytes = try change.serializedData()
         let last = UInt64(accepted[change.replica]?.count ?? 0)
         if change.seq <= last {

@@ -95,6 +95,20 @@ enum StoreSchema {
                 ALTER TABLE meta ADD COLUMN moved_through_seq INTEGER;
                 """)
         }
+        // COLLAB-024: calls queued offline (history.adoc, "Offline behavior"), sent after the
+        // outbox drains -- `NameVersion` first -- keyed by the call's own id (a version's UUIDv7)
+        // and kept in the order they were queued.
+        migrator.registerMigration("collab-2") { db in
+            try db.execute(sql: """
+                CREATE TABLE pending_calls (
+                    ord INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id TEXT NOT NULL UNIQUE,
+                    kind TEXT NOT NULL,
+                    payload BLOB NOT NULL,
+                    created_at REAL NOT NULL
+                );
+                """)
+        }
         return migrator
     }
 }

@@ -188,7 +188,8 @@ NOTE: As built by OBJ-027's UI (`WTApp/Edit/EditFeatures.swift`, `GroupSection.s
 (kbd:[Cmd+Shift+V]) performs `PasteContents` with the pasteboard's objects into the one selected closed path or clip group;
 menu:Edit[Cut Contents] (kbd:[Cmd+Shift+X]) writes `CutContents.payload` to the pasteboard and performs `CutContents`.  The
 Object panel's group section shows *Clip path* (its name, or *No clip path*) with *Choose Clip Path…*, a menu of the group's
-children that can clip (`ChooseClipPath`), and the *Contents* row.  The contents handle is not built.
+children that can clip (`ChooseClipPath`), and the *Contents* row.  The contents handle came with OBJ-028's app half
+(`WTApp/Objects/ShapeHandles.swift`, below).
 
 NOTE: As built by OBJ-028, model and render halves (`WTModel/ClipRendering.swift`, a hook in `DocumentScene.swift`).  A clip
 group with a usable clip path and live contents draws three slots: the clip path's fills (with the effects attached to them), the

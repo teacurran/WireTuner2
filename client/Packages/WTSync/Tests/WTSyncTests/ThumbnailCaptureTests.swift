@@ -95,9 +95,33 @@ final class CountingRenderer: Sendable {
         await capture.start()
         try await Self.edit(harness.store)
         try await eventually("captured") { renderer.count == 1 }
-        try await Task.sleep(for: .milliseconds(80))
-        #expect(renderer.count == 1)   // unchanged since: nothing more
+        // Three more intervals with the document unchanged since: nothing more.
+        let ticks = await capture.ticks
+        try await eventually("three more intervals") { await capture.ticks >= ticks + 3 }
+        #expect(renderer.count == 1)
         #expect(try await capture.close() == nil)
+        try await harness.stop()
+    }
+
+    @Test func aCloseDuringATimerCaptureWaitsForItAndDrawsOnce() async throws {
+        let harness = try await BlobHarness()
+        let gate = AsyncStream<Void>.makeStream()
+        let calls = Mutex(0)
+        let capture = await ThumbnailCapture(store: harness.store, queue: harness.queue, interval: .seconds(3600)) { _ in
+            calls.withLock { $0 += 1 }
+            for await _ in gate.stream { break }
+            return Data("png".utf8)
+        }
+        try await Self.edit(harness.store)
+        let running = Task { try await capture.captureIfChanged() }
+        try await eventually("rendering") { calls.withLock { $0 } == 1 }
+        let closing = Task { try await capture.close() }
+        try await eventually("the close waiting") { await capture.requests == 2 }
+        gate.continuation.yield()
+        gate.continuation.finish()
+        #expect(try await running.value != nil)
+        #expect(try await closing.value == nil, "the state was captured")
+        #expect(calls.withLock { $0 } == 1)
         try await harness.stop()
     }
 

@@ -90,6 +90,8 @@ final class CanvasView: NSView, CanvasHost {
     var colorDrop: CanvasColorDrop?
     /// A colour dropped on text (TYPE-030): answers whether it took the drop, before `colorDrop`.
     var textColorDrop: (@MainActor (NSPasteboard, Point) -> Bool)?
+    /// Text dragged in from another application (TYPE-009): into a block or as a new one.
+    var textDrop: CanvasTextDrop?
     /// More overlay drawing after the tool's (the spelling underlines, TYPE-014), in view points.
     var overlayExtras: [@MainActor (CGContext, Viewport) -> Void] = []
     /// Objects dragged in from a document window (OBJ-013): pasted at the drop point; nil
@@ -159,7 +161,8 @@ final class CanvasView: NSView, CanvasHost {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier(Self.accessibilityIdentifier)
         setAccessibilityLabel("Canvas")
-        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType, StyleDrag.type, TeamLibraryDrag.type])
+        registerForDraggedTypes([.fileURL, ColorDrag.type, .color, ObjectDragging.type, SystemObjectPasteboard.legacyType, StyleDrag.type, TeamLibraryDrag.type]
+                                + TextPasting.dropTypes)
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
@@ -188,6 +191,10 @@ final class CanvasView: NSView, CanvasHost {
         if ObjectDragging.carriesObjects(sender.draggingPasteboard) { return objectDrop != nil ? .copy : [] }
         if StyleCanvasDrop.carriesStyle(sender.draggingPasteboard) { return styleDrop != nil ? .copy : [] }
         if TeamLibraryDrag.carries(sender.draggingPasteboard) { return TeamLibraryDrag.drop != nil ? .copy : [] }
+        if ColorDrag.read(from: sender.draggingPasteboard, defaultSpace: .sRGB) == nil, let textDrop, textDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport) {
+            overlay.setNeedsDisplay()
+            return .copy
+        }
         guard let colorDrop else { return [] }
         let over = colorDrop.update(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers())
         overlay.setNeedsDisplay()
@@ -196,6 +203,7 @@ final class CanvasView: NSView, CanvasHost {
 
     override func draggingExited(_ sender: (any NSDraggingInfo)?) {
         colorDrop?.exit()
+        textDrop?.exit()
         overlay.setNeedsDisplay()
     }
 
@@ -215,6 +223,10 @@ final class CanvasView: NSView, CanvasHost {
             return TeamLibraryDrag.perform(sender.draggingPasteboard, at: viewport.toPasteboard(dropPoint(sender)), in: document)
         }
         defer { overlay.setNeedsDisplay() }
+        if ColorDrag.read(from: sender.draggingPasteboard, defaultSpace: .sRGB) == nil,
+           textDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, plain: dragModifiers().contains(.option)) != nil {
+            return true
+        }
         if let textColorDrop, textColorDrop(sender.draggingPasteboard, dropPoint(sender)) { return true }
         return colorDrop?.drop(sender.draggingPasteboard, at: dropPoint(sender), viewport: viewport, modifiers: dragModifiers()) != nil
     }

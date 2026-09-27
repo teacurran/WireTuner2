@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 import com.villagecompute.wiretuner.api.auth.DocumentRoles;
 import com.villagecompute.wiretuner.api.auth.Principal;
 import com.villagecompute.wiretuner.api.auth.Role;
+import com.villagecompute.wiretuner.api.comments.CommentIndex;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.history.ChangeIndex;
 import com.villagecompute.wiretuner.api.history.DocumentStates;
@@ -190,6 +191,8 @@ public class DocumentCopies {
                         .chain(() -> snapshot(doc.id, copy.atSeq(), engine))
                         .chain(() -> documentBlobs.copyReferences(source.id(), doc.id))
                         .chain(() -> Panache.getSession().chain(session -> ChangeIndex.copyNames(session, source.id(),
+                                doc.id, copy.atSeq())))
+                        .chain(() -> Panache.getSession().chain(session -> CommentIndex.copyRecord(session, source.id(),
                                 doc.id, copy.atSeq())))
                         .chain(() -> appendAll(doc, copy.atSeq(), plan.appended()))
                         .chain(() -> Multi.createFrom().iterable(plan.callerReplicas().entrySet())

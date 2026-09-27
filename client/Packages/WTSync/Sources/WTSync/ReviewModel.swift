@@ -201,6 +201,11 @@ public struct ReviewModel: Sendable, Hashable {
     public var rescaleRows: [RescaleEntry] = []
     /// The "placed an instance of a removed symbol" and "uses a removed style" rows.
     public var removedTargets: [RemovedTargetEntry] = []
+    /// The "All pages were removed; a page was added." row (`ZeroPages.reviewMessage`, pages.adoc):
+    /// both sides removed pages and none was left.
+    public var zeroPages = false
+    /// Glyph, codepoint, class and pair collisions claimed on both sides (FONT-029).
+    public var fontCollisions: [FontCollisionEntry] = []
     /// For `.recovered`: what salvage re-issued and dropped.
     public var recovered: SalvageReport?
     public var documentActions: [DocumentAction]
@@ -233,6 +238,8 @@ public struct ReviewModel: Sendable, Hashable {
         releaseOverlaps = divergence.releaseOverlaps
         rescaleRows = divergence.rescaleRows
         removedTargets = divergence.removedTargets
+        zeroPages = divergence.zeroPages
+        fontCollisions = divergence.fontCollisions
         recovered = nil
         documentActions = mode == .readOnly ? [] : [.keepMerged, .saveCopy, .keepBranch]
     }
@@ -301,9 +308,17 @@ public struct ReviewModel: Sendable, Hashable {
         return ops.isEmpty ? nil : OpsCommand("Use My Version", ops: ops)
     }
 
-    /// *Restore* for `edit vs delete`: `deleted = false` (the edits are already on the object).
+    /// *Restore* for `edit vs delete`: `deleted = false` (the edits are already on the object), or
+    /// on the deleted elements for an element deleted while the other side edited it (DOC-031).
     public static func restore(_ entry: ReviewEntry) -> OpsCommand {
-        OpsCommand("Restore", ops: [Ops.setDeleted(entry.node, false)])
+        let elements = entry.properties.compactMap { conflict -> RegisterPath? in
+            guard case .elementDeleted(let path) = conflict.property, case .flag(true)? = conflict.merged else { return nil }
+            return path
+        }
+        guard !elements.isEmpty, !entry.properties.contains(where: { $0.property == .deleted }) else {
+            return OpsCommand("Restore", ops: [Ops.setDeleted(entry.node, false)])
+        }
+        return OpsCommand("Restore", ops: [Ops.elementDelete(entry.node, elements, deleted: false)])
     }
 }
 

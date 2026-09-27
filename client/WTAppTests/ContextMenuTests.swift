@@ -27,7 +27,7 @@ import WTRender
 
     static let common: [String?] = [
         "Cut", "Copy", "Paste", "Clear", "Duplicate", "Clone", nil, "Group", "Ungroup", nil, "Lock", "Unlock", nil,
-        "Arrange", "Align", "Transform", nil, "Hide Selection", "Add to Library…", "Name…", "Note…", "Link…", nil, "Select", "Object Panel",
+        "Arrange", "Align", "Transform", nil, "Hide Selection", "Add to Library…", "Name…", "Note…", "Link…", "Copy Link", nil, "Select", "Object Panel",
     ]
 
     static let kindItems: [ContextObjectKind: [String?]] = [

@@ -69,6 +69,10 @@ final class TypeWindowParts {
             let space: RenderColor.Space = preferences[PreferenceCatalog.Colors.defaultColorSpace] == "srgb" ? .sRGB : .displayP3
             return TextColorDrop(window: window).drop(pasteboard, at: point, defaultSpace: space) != nil
         }
+        // Text dragged in (TYPE-009), with the caret that follows it.
+        let textDrop = CanvasTextDrop(window: window)
+        window.canvas.textDrop = textDrop
+        window.canvas.overlayExtras.append { [weak textDrop] ctx, viewport in textDrop?.draw(in: ctx, viewport: viewport) }
         return result
     }
 

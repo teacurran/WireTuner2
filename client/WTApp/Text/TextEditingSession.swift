@@ -627,13 +627,14 @@ final class TextEditingSession {
 
     // MARK: Pasteboard
 
-    /// menu:Edit[Copy]: the selected characters as plain text.  False with nothing selected.
+    /// menu:Edit[Copy]: the selected characters as plain text, and with every attribute as a
+    /// `TextClip` for a paste into WireTuner text (TYPE-009).  False with nothing selected.
     @discardableResult
     func copy() -> Bool {
         let string = selectedText
         guard !string.isEmpty else { return false }
-        pasteboard.clearContents()
-        pasteboard.setString(string, forType: .string)
+        let clip = node.flatMap { TextClip(copying: selectedRange, of: $0, in: document.state) }
+        TextPasting.write(string, clip: clip, to: pasteboard)
         return true
     }
 
@@ -644,13 +645,38 @@ final class TextEditingSession {
         }
     }
 
-    var canPaste: Bool { pasteboard.string(forType: .string)?.isEmpty == false }
+    var canPaste: Bool { TextPasting.canRead(pasteboard) }
 
-    /// menu:Edit[Paste]: plain text at the insertion point or over the selection, line ends as
-    /// paragraph ends.
+    /// menu:Edit[Paste] (TYPE-009): the pasteboard's text at the insertion point or over the
+    /// selection -- a WireTuner copy with every attribute, rich text with its formatting, plain
+    /// text in the insertion point's look, line ends as paragraph ends.  One change, "Paste".
     func paste() {
-        guard let string = pasteboard.string(forType: .string), !string.isEmpty else { return }
-        insert(string.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n"), typing: false)
+        guard let clip = TextPasting.clip(from: pasteboard) else { return }
+        paste(clip)
+    }
+
+    /// menu:Edit[Paste and Match Style]: the pasteboard's characters in the look around the
+    /// insertion point.
+    func pasteAndMatchStyle() {
+        guard let clip = TextPasting.clip(from: pasteboard) else { return }
+        paste(clip, matchStyle: true)
+    }
+
+    /// Pastes `clip` (a paste, or text dropped at the insertion point).
+    func paste(_ clip: TextClip, matchStyle: Bool = false) {
+        guard !clip.isEmpty else { return }
+        enqueue { $0.applyPaste(clip, matchStyle: matchStyle) }
+    }
+
+    private func applyPaste(_ clip: TextClip, matchStyle: Bool) {
+        goalX = nil
+        // Before the block exists, and inside an instance, the characters are typed.
+        guard override == nil, case .node(let node) = target, let text else { return applyInsert(clip.string, typing: false) }
+        let range = selectedRange
+        let look = (clip.plain || matchStyle) && !pendingFormat.isEmpty ? pendingFormat : nil
+        perform(PasteText(node: node, from: anchor, to: focus, clip: clip, matchStyle: matchStyle, look: look))
+        pendingFormat = []
+        if !range.isEmpty { collapse(to: text.anchor(at: range.upperBound)) } else { changed() }
     }
 
     // MARK: Input method

@@ -59,8 +59,16 @@ final class DataSession {
     private(set) var preview = DataPreviewState()
     /// The `{{param}}` values typed in the panel (local; the defaults are the document's).
     var params: [String: String] = [:]
-    /// The hosts the last script source run reached through `wt.fetch` (*Show Hosts*).
+    /// The hosts the last script source run reached through `wt.fetch` (*Show Hosts*), kept in
+    /// the local store per source so a relaunch still lists them (DATA-015).
     private(set) var scriptHosts: [String] = []
+    /// Where a script source's hosts are kept: the document's `LocalStore` (`ScriptSourceHosts`);
+    /// a document without one keeps them for the session.
+    struct HostStorage {
+        var load: @MainActor (OpID) async -> [String]
+        var save: @MainActor (OpID, [String]) async -> Void
+    }
+    @ObservationIgnored var hostStorage: HostStorage
 
     /// The resolved records (mapping, transforms, formats), rebuilt when the records or the data
     /// block change.
@@ -81,9 +89,26 @@ final class DataSession {
         self.services = services
         self.blobs = blobs
         self.preferences = preferences
+        hostStorage = Self.localStore(of: document)
         lastState = document.state
         records = RecordSet(model: DataModel(document.state), source: nil, raw: [])
         token = document.observe { [weak self] change in self?.documentDidChange(change) }
+    }
+
+    /// The document's `LocalStore` rows; in memory without one.
+    static func localStore(of document: DocumentHandle) -> HostStorage {
+        var memory: [OpID: [String]] = [:]
+        return HostStorage(
+            load: { [weak document] source in
+                if let store = await document?.openedModel()?.backend as? LocalStore { return (try? await store.scriptHosts(source: source)) ?? [] }
+                return memory[source] ?? []
+            },
+            save: { [weak document] source, hosts in
+                memory[source] = ScriptSourceHosts.normalized(hosts)
+                guard let store = await document?.openedModel()?.backend as? LocalStore else { return }
+                try? await store.setScriptHosts(hosts, source: source)
+            }
+        )
     }
 
     /// Stops following the document (the window closed).
@@ -153,6 +178,7 @@ final class DataSession {
             set(nil, origin: .none)
             return
         }
+        scriptHosts = source.kind == .script ? await hostStorage.load(source.id) : []
         switch source.kind {
         case .file:
             if await readFile(source) { return }
@@ -302,6 +328,7 @@ final class DataSession {
         switch result {
         case .success(let output):
             scriptHosts = output.hosts
+            await hostStorage.save(source.id, output.hosts)
             set(output.table, origin: .fetched(clock()))
             return true
         case .failure(let error):

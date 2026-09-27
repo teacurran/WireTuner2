@@ -13,8 +13,9 @@ import WTProto
 /// the row's `AppearanceProps` list number, since the typed props cannot show how the lists
 /// interleave, and texts 5: one record per TEXT field holding live characters, its `FieldPath` as
 /// field 1 and its contents as a `RichText` field 2 -- live characters numbered 1 ... n on
-/// replica 0, paragraphs on the newlines, one mark per span).  No assets are carried: swatches, styles, symbols and brushes are not nodes yet,
-/// and colours are inline.
+/// replica 0, paragraphs on the newlines, one mark per span), plus library 6: the `ClipboardLibrary`
+/// of the swatches, styles and symbols the objects reference (LIB-022), and colors 7: one
+/// `LibraryColor` per swatch the objects (and that library) name (COLOR-019, `PastedColors`).
 public struct ClipboardPayload: Hashable, Sendable {
     /// The pasteboard type.
     public static let pasteboardType = "com.villagecompute.wiretuner.objects"
@@ -31,20 +32,29 @@ public struct ClipboardPayload: Hashable, Sendable {
     /// the swatches, styles and symbols they reference and each styled object's resolved look.
     /// Field 6 of the encoding; set by `carryingLibrary(from:)`.
     public var library: ClipboardLibrary?
+    /// The named colours the objects use -- and, once `carryingLibrary(from:)` has run, the ones
+    /// the library's styles and symbols use -- keyed by source swatch id (COLOR-019,
+    /// `PastedColors`).  Field 7 of the encoding.  Every paste resolves swatches through these
+    /// with the clash rule; a library's carried swatches are not imported by name.
+    public var colors: [Wiretuner_Lib_V1_LibraryColor]
 
-    public init(nodes: [NodeTree], layerNames: [String] = [], bounds: Rect? = nil, sourceDocument: String = "", library: ClipboardLibrary? = nil) {
+    public init(nodes: [NodeTree], layerNames: [String] = [], bounds: Rect? = nil, sourceDocument: String = "", library: ClipboardLibrary? = nil,
+                colors: [Wiretuner_Lib_V1_LibraryColor] = []) {
         self.nodes = nodes
         self.layerNames = layerNames
         self.bounds = bounds
         self.sourceDocument = sourceDocument
         self.library = library
+        self.colors = colors
     }
 
-    /// This payload with the library of `state` its objects need in another document.
+    /// This payload with the library of `state` its objects need in another document, and the
+    /// colours that library's styles and symbols name besides the objects' own.
     public func carryingLibrary(from state: EngineState) -> ClipboardPayload {
         var out = self
         let library = ClipboardLibrary(referencedBy: nodes, from: state)
         out.library = library.isEmpty ? nil : library
+        out.colors = PastedColors.carried(nodes + library.package.resources.map(\.tree) + library.package.symbols, from: state)
         return out
     }
 
@@ -64,6 +74,7 @@ public struct ClipboardPayload: Hashable, Sendable {
             if let rect = Objects.bounds(of: node, in: state) { bounds = bounds.union(rect) }
         }
         self.bounds = bounds.isNull ? nil : bounds
+        colors = PastedColors.carried(self.nodes, from: state)
     }
 
     public var isEmpty: Bool { nodes.isEmpty }
@@ -85,6 +96,7 @@ public struct ClipboardPayload: Hashable, Sendable {
         }
         if !sourceDocument.isEmpty { out += Wire.field(5, Array(sourceDocument.utf8)) }
         if let library { out += Wire.field(6, library.encoded()) }
+        for color in colors { out += Wire.field(7, Wire.bytes { try color.serializedBytes() }) }
         return out
     }
 
@@ -107,6 +119,7 @@ public struct ClipboardPayload: Hashable, Sendable {
         var bounds: Rect?
         var source = ""
         var library: ClipboardLibrary?
+        var colors: [Wiretuner_Lib_V1_LibraryColor] = []
         for field in fields {
             switch field.number {
             case 1:
@@ -121,11 +134,14 @@ public struct ClipboardPayload: Hashable, Sendable {
                 source = String(decoding: field.payload, as: UTF8.self)
             case 6:
                 library = ClipboardLibrary(decoding: field.payload)
+            case 7:
+                // A colour that does not read is left out; its references keep their cached colour.
+                if let color = try? Wiretuner_Lib_V1_LibraryColor(serializedBytes: field.payload) { colors.append(color) }
             default:
                 continue
             }
         }
-        self.init(nodes: nodes, layerNames: names, bounds: bounds, sourceDocument: source, library: library)
+        self.init(nodes: nodes, layerNames: names, bounds: bounds, sourceDocument: source, library: library, colors: colors)
     }
 
     private static func decode(_ bytes: [UInt8]) -> NodeTree? {
@@ -199,6 +215,10 @@ public struct Paste: Command {
     /// from another document bakes style looks onto, LIB-022).
     func execute(_ builder: inout ChangeBuilder, state: EngineState, mapping: inout [OpID: OpID]) throws {
         guard !payload.isEmpty else { return }
+        // Named colours first (COLOR-019): the missing swatches are created in this change and the
+        // pasted references name the destination's swatches.
+        let colors = try PastedColors.resolve(payload.colors, state: state, builder: &builder)
+        let nodes = PastedColors.rewrite(payload.nodes, mapping: colors, schema: state.schema)
         // References between copied nodes -- across the pasted objects -- point at the copies.
         var placed: [NodeTree] = []
         defer { NodeCopier.rewriteReferences(in: placed, mapping: mapping, builder: &builder) }
@@ -209,7 +229,7 @@ public struct Paste: Command {
             let active = try PathEditing.ensureLayer(&builder, state: state, preferred: layer)
             var created: [String: OpID] = [:]
             let order = LayerOrder(state)
-            for (index, tree) in payload.nodes.enumerated() {
+            for (index, tree) in nodes.enumerated() {
                 var parent = active
                 if rememberLayerInfo, index < payload.layerNames.count, !payload.layerNames[index].isEmpty {
                     let name = payload.layerNames[index]
@@ -233,7 +253,7 @@ public struct Paste: Command {
             var above = true
             if case .behind = placement { above = Arranging.clipPath(of: parent, in: state) == anchor }
             let keys = try Arranging.keys(next: anchor, above: above, count: payload.nodes.count, in: state)
-            for (tree, key) in zip(payload.nodes, keys) {
+            for (tree, key) in zip(nodes, keys) {
                 placed.append(try place(tree, delta: .zero, parent: parent, key: key, state: state, builder: &builder, mapping: &mapping))
             }
         }
@@ -380,7 +400,7 @@ public struct LastTransform: Hashable, Sendable {
 extension Wiretuner_Doc_V1_Change {
     /// The nodes the change created whose parent was not created by it too: the top-level copies
     /// of a paste or duplicate, in order.  Swatches, styles, symbols, brushes and assets a paste
-    /// brought from another document are not among them.
+    /// brought from another document (a library's or carried colours, COLOR-019) are not among them.
     public var createdRoots: [OpID] {
         let created = Set(createdObjects)
         let collections = LibraryCopying.collections.union([WellKnown.symbols])

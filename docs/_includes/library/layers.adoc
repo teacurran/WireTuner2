@@ -699,8 +699,8 @@ remembered layer, clearing the memory; a remembered layer that is gone falls bac
 Deviations: grouping keeps its members' layers in `GroupProps.layer_origins` (OBJ-016, by node
 reference), not in `origin_layer`, and copy carries names in `ClipboardPayload.layerNames` (`Paste`
 creates a missing layer in the same change, OBJ-010), so neither writes `origin_layer`; join/split
-(OBJ-024) and clipping (OBJ-027) are not built yet and are to call `LayerMemory.record` before an object
-leaves its layer and `restoreLayer` when it comes back.  The Done-when round trip, cross-document paste
+(OBJ-024, `WTModel/JoinSplit.swift`) and clipping (OBJ-027, `WTModel/Clipping.swift`) came later but do not
+call `LayerMemory.record` before an object leaves its layer or `restoreLayer` when it comes back.  The Done-when round trip, cross-document paste
 and two concurrent pastes creating two layers of one name are WTModel tests
 (`LibraryLayerMemoryTests`); the conformance vector is `library/origin-layer-atomic`.  The
 review-sheet side (no conflict rows for the two pastes) is WTSync's measurement, unchanged: two

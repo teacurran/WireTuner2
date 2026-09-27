@@ -52,6 +52,33 @@ public enum CommentFields {
         state.store.kind(node) == kind
     }
 
+    /// Whether every op of `ops` concerns comments only -- a thread created under `comments (0:12)`,
+    /// a write whose path is under a thread, a thread deleted or moved, or a `Noop` -- so a
+    /// commenter may make it (comments.adoc, "Commenter role"; COLLAB-034).  Whose comments they
+    /// are is the server's to check.
+    public static func onlyComments(_ ops: [Wiretuner_Doc_V1_Op], in state: EngineState) -> Bool {
+        func underThread(_ path: Wiretuner_Doc_V1_FieldPath) -> Bool { path.segments.first?.field == kind }
+        return ops.allSatisfy { op in
+            switch op.op {
+            case .create(let create)?:
+                if case .commentThread? = create.props.kind { OpID(create.parent) == collection } else { false }
+            case .set(let set)?: set.paths.allSatisfy(underThread)
+            case .move(let move)?: isThread(OpID(move.node), in: state) && OpID(move.parent) == collection
+            case .setDeleted(let setDeleted)?: isThread(OpID(setDeleted.node), in: state)
+            case .elementInsert(let insert)?: underThread(insert.sequence)
+            case .elementMove(let move)?: underThread(move.element)
+            case .elementDelete(let delete)?: delete.elements.allSatisfy(underThread)
+            case .textInsert(let insert)?: underThread(insert.text)
+            case .textDelete(let delete)?: underThread(delete.text)
+            case .textMark(let mark)?: underThread(mark.text)
+            case .setAdd(let add)?: underThread(add.set)
+            case .setRemove(let remove)?: underThread(remove.set)
+            case .noop?: true
+            case nil: false
+            }
+        }
+    }
+
     /// Sparse `NodeProps` holding `thread` at `comment_thread`.
     static func values(_ build: (inout Wiretuner_Doc_V1_CommentThreadProps) -> Void) -> Wiretuner_Doc_V1_NodeProps {
         var thread = Wiretuner_Doc_V1_CommentThreadProps()

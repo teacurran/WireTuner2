@@ -348,6 +348,37 @@ Colors, Stroke, Fills, Effects, Typography and Text sections, the `inspect.unit`
 pop-ups are the panel's own state), kbd:[Option]-click to save a PNG, the attribution flash and remote-selection
 inspection.  Tests: `ModelGlueFeaturesTests`, `WTModelTests/ExportSnapshotGlueTests`.
 
+NOTE: As built by COLLAB-038 (`WTModel/DeepLink.swift`, `WTApp/Collaboration/DeepLinks.swift`,
+`api/.../links/DeepLinkRedirect.java`).  `DeepLink` formats and parses the three `wiretuner://doc/…`
+forms and the API's web form, which is `https://<host>/d/<document id>` with `/n/<id>` for a node and
+`/t/<id>` for a thread (the thread form is an addition); it also reads the Comments panel's link as first
+built (`wiretuner://document/<id>?thread=<counter>.<replica>`), whose *Copy Link* now writes
+`wiretuner://doc/<id>/thread/<counter>-<replica>`, the form the comment digest already mails.
+`DeepLinkLanding.decide` is the landing rule: a document link lands on the document; nothing is decided
+about a node until the session has caught up (`SyncClient.isCaughtUp`: the session is up and the log is
+applied through the head its `Welcome` named, the replay after it included -- or it cannot catch up:
+offline, signed out, failed, or a window without a session); then a live object is selected, a live
+thread opened, a deleted one (or a thread no longer shown) is "That object was deleted", and a node the
+caught-up document does not hold is "That object isn't in this document" (a status-bar message).
+menu:Edit[Copy Link to Object] and the object context menu's *Copy Link* (a `ContextMenuCatalog` entry
+after *Link…*) copy the first selected object's link as a URL and as plain text.  The URL handler
+(`AppDelegate.open`) hands a link to `DeepLinkFeatures.open`: the document's window comes forward, or
+opens through the library as a Handoff does (`ContinuityOpener`'s rules: a trashed document and one that
+cannot be opened show the Library with a message); once caught up the page holding the object's centre
+becomes the active page, the view centres on it and it is selected; for a viewer Inspect mode is entered
+and the Inspect panel shown.  A document the library cannot give while online shows the request page
+(a window with the document's id -- its name cannot be read without access -- a message field and
+btn:[Request Access], `ShareService.RequestAccess`); offline without a copy on this Mac the Library shows
+"Available when online: document <id>".  The redirect is a JAX-RS resource on the API's HTTP port:
+`GET /d/<uuid>`, `/d/<uuid>/n/<counter>-<replica>` and `/d/<uuid>/t/<counter>-<replica>` answer 302 to
+the `wiretuner://` URL with `Cache-Control: no-store` and `Referrer-Policy: no-referrer`, anything else
+404; it holds no database handle and needs no sign-in (`DeepLinkRedirectTest`).  Deviation: the UI tests
+of *Done when* are app-hosted (`WTAppTests/DeepLinkFeatureTests`: a link opens a closed document and
+selects the node only after the catch-up, a deleted node posts the notice, a viewer lands in Inspect mode
+with the node selected and the panel shown, a document without access shows the request page); the
+5,000-changes-behind case is `WTSyncTests/CaughtUpTests` (the flag turns only once all 5,000 are applied)
+with the app's landing waiting on it.
+
 === Build tasks
 
 [[COLLAB-035]]

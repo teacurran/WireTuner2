@@ -165,7 +165,8 @@ final class ObjectEditing: CommandSink {
     @discardableResult
     func paste() -> Task<Void, Never>? {
         guard let payload else { return nil }
-        return performSelectingCreated(pasting(Paste(payload, placement: .top(layer: activeLayer, center: visibleCenter()), rememberLayerInfo: rememberLayerInfo())))
+        return performSelectingCreated(pasting(Paste(GlyphCanvasUnits.pasted(payload, in: document), placement: .top(layer: activeLayer, center: visibleCenter()),
+                                                     rememberLayerInfo: rememberLayerInfo())))
     }
 
     /// menu:Edit[Special > Paste In Front] / *Paste Behind*: next to the top (or bottom)
@@ -173,14 +174,15 @@ final class ObjectEditing: CommandSink {
     @discardableResult
     func paste(inFront: Bool) -> Task<Void, Never>? {
         guard let payload, let anchor = anchor(top: inFront) else { return nil }
-        return performSelectingCreated(pasting(Paste(payload, placement: inFront ? .inFront(of: anchor) : .behind(anchor))))
+        return performSelectingCreated(pasting(Paste(GlyphCanvasUnits.pasted(payload, in: document), placement: inFront ? .inFront(of: anchor) : .behind(anchor))))
     }
 
-    /// A paste of objects copied in another document brings what they need from it: swatches and
-    /// styles matched by name (a same-named style kept, the objects' looks baked as overrides),
-    /// symbols as a paste of instances takes them (`PasteFromDocument`); a payload without that
+    /// A paste of objects copied in another document brings what they need from it: swatches by
+    /// COLOR-019's clash rule, styles matched by name (a same-named style kept, the objects' looks
+    /// baked as overrides), symbols as a paste of instances takes them (`PasteFromDocument`); a
+    /// payload without that
     /// library still brings the symbols of the pasteboard's symbol package (`SymbolClipboard`).
-    /// From this document, a plain paste.
+    /// From this document, a plain paste (its carried colours find their own swatches).
     func pasting(_ paste: Paste) -> any WTModel.Command {
         guard paste.payload.sourceDocument != document.id else { return paste }
         if paste.payload.library != nil { return PasteFromDocument(paste) }
@@ -310,7 +312,7 @@ final class ObjectEditing: CommandSink {
         // Connectors follow the objects they join (connectors.adoc): they are not moved themselves.
         let movable = current.ids.map(\.opID).filter { document.state.nodeKind($0) != .connector }
         guard !movable.isEmpty else { return nil }
-        return NamedChange.move(MoveObjects(movable, by: delta), nodes: movable, state: document.state)
+        return NamedChange.move(MoveOffGrid.command(movable, by: delta, in: document.state), nodes: movable, state: document.state)
     }
 
     /// An arrow press: nudges by `delta`, grouping a burst of presses (key repeat) into one undo

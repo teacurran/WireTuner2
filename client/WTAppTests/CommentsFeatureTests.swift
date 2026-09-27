@@ -87,7 +87,7 @@ struct CommentWorld {
         // Preference changes redraw every window.
         world.setup.environment.preferences.set(true, for: PreferenceCatalog.Sync.pinsFollowFilter)
         world.setup.environment.preferences.set(true, for: PreferenceCatalog.Document.askVersionName)
-        #expect(world.features.link("doc", OpID(counter: 3, replica: 4)).absoluteString == "wiretuner://document/doc?thread=3.4")
+        #expect(world.features.link("doc", OpID(counter: 3, replica: 4)).absoluteString == "wiretuner://doc/doc/thread/3-4")
     }
 
     @Test func postingReplyingEditingReactingResolvingAndDeleting() async throws {
@@ -126,7 +126,7 @@ struct CommentWorld {
         _ = await comments.delete(entry.comments[1].id, in: thread)?.value
         #expect(comments.model[thread]?.comments.count == 1)
         comments.copyLink(thread)
-        #expect(world.features.pasteboard.string(forType: .string)?.contains("thread=") == true)
+        #expect(world.features.pasteboard.string(forType: .string)?.contains("/thread/") == true)
         _ = await comments.deleteThread(thread)?.value
         #expect(comments.model[thread] == nil && comments.openThread == nil)
         // Nothing happens for unknown threads or comments.

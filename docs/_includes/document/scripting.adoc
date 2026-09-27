@@ -465,8 +465,8 @@ is replaced.  `ScriptRecordSource.records` runs a script source's `records(param
 records the hosts `wt.fetch` reached.  `wt.fetch` resolves through `ScriptFetching`
 (`WTSync.DataScriptFetcher`, the server's `Proxy`), logging each request to the console;
 `wt.records` (`all`, `current`, `fields`) reads the `RecordSet` a run is given, and `wt.ui` and
-`wt.records.merge` go to `ScriptHost`.  The Script Editor panel, the Scripts menu, the consent
-sheet and *Show Hosts* are WTApp's and not built.
+`wt.records.merge` go to `ScriptHost`.  The Script Editor, the Scripts menu, the consent sheet and
+*Show Hosts* are WTApp's, built by DATA-013, DATA-014 and DATA-010 (`WTApp/Scripts/`, `WTApp/Data/`; below).
 
 [[as-built-editor]]
 ==== As built (DATA-013, DATA-014; the WTApp half of DATA-012)

@@ -86,6 +86,8 @@ extension AppDelegate {
         panels.groupDefaults[HistoryPanelModel.group] = panels.groupDefaults[HistoryPanelModel.group] ?? PanelGroupDefaults(position: 13, isOpen: false)
         _ = panels.registerIfAbsent(HistoryPanel.descriptor(model: history))
         let layout = layout, versions = versions
+        history.queuedVersions = { window in await versions.saver(for: window.documentHandle).pendingVersions() }
+        versions.versionsChanged = { _ in Task { await history.load() } }
         for command in HistoryPanel.commands(show: { layout.showPanel(HistoryPanelModel.panelID) },
                                              nameVersion: { if let window = documents.activeWindowController { _ = versions.saveVersion(from: window) } },
                                              window: { documents.activeWindowController }) {

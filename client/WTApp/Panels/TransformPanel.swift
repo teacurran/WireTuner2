@@ -157,6 +157,16 @@ struct TransformPanelBody: View {
         }
     }
 
+    /// The y the centre field shows for stored `y`: font y (upward) on a glyph canvas (FONT-004).
+    static func shownY(_ y: Double, selection: ActiveSelection?) -> Double {
+        selection?.document.map { GlyphCanvasUnits.shown(y: y, in: $0) } ?? y
+    }
+
+    /// The stored y for a typed centre `y`.
+    static func storedY(_ y: Double, selection: ActiveSelection?) -> Double {
+        selection?.document.map { GlyphCanvasUnits.stored(y: y, in: $0) } ?? y
+    }
+
     /// A number field bound to one of the model's values.
     static func field(_ title: String, _ value: Binding<Double>, unit: MeasureUnit, identifier: String) -> MeasureField {
         MeasureField(title: title, value: value.wrappedValue, unit: unit, identifier: identifier) { value.wrappedValue = $0 }
@@ -204,8 +214,8 @@ struct TransformPanelBody: View {
                     MeasureField(title: "Center X", value: center?.x, units: units, identifier: "transform.center.x") {
                         Self.setCenter($0, horizontal: true, state: state, selection: selection)
                     }
-                    MeasureField(title: "Center Y", value: center?.y, units: units, identifier: "transform.center.y") {
-                        Self.setCenter($0, horizontal: false, state: state, selection: selection)
+                    MeasureField(title: "Center Y", value: center.map { Self.shownY($0.y, selection: selection) }, units: units, identifier: "transform.center.y") {
+                        Self.setCenter(Self.storedY($0, selection: selection), horizontal: false, state: state, selection: selection)
                     }
                 }
                 Stepper("Copies: \(state.model.copies)", value: $state.model.copies, in: 0...1000).accessibilityIdentifier("transform.copies")

@@ -415,4 +415,27 @@ import WTRender
         try replica.perform(MovePin(thread, to: Point(x: 1, y: 1), on: other, in: replica.state))
         #expect(Self.model(replica)[thread]?.anchorName == "Object")
     }
+
+    /// COLLAB-034: what a commenter may write -- comments only.
+    @Test func onlyCommentsTellsCommentChangesFromOthers() throws {
+        var replica = Replica(0xC)
+        let object = try Self.withObject(&replica)
+        let thread = try Self.thread(&replica, on: object)
+        let opener = try #require(Self.model(replica)[thread]?.opener.id)
+        let state = replica.state
+        let reply = try #require(try replica.perform(Reply(to: thread, author: "tom", body: CommentBody("Yes"))))
+        #expect(CommentFields.onlyComments(reply.ops, in: replica.state))
+        let comment = CommentFields.comment(opener)
+        var noop = Wiretuner_Doc_V1_Op()
+        noop.noop = Wiretuner_Doc_V1_Noop()
+        let ops = [Ops.move(thread, parent: CommentFields.collection, position: [0x90]), Ops.setDeleted(thread),
+                   Ops.elementMove(thread, comment, position: [0x90]), Ops.elementDelete(thread, [comment]),
+                   Ops.textDelete(thread, CommentFields.body(opener), first: opener, count: 1),
+                   Ops.setRemove(thread, CommentFields.reactions(opener), values: Wiretuner_Doc_V1_NodeProps()), noop]
+        #expect(CommentFields.onlyComments(ops, in: state))
+        #expect(!CommentFields.onlyComments([Ops.setDeleted(object)], in: state))
+        #expect(!CommentFields.onlyComments([Ops.move(thread, parent: object, position: [0x90])], in: state))
+        #expect(!CommentFields.onlyComments([Wiretuner_Doc_V1_Op()], in: state))
+        #expect(!CommentFields.onlyComments([Ops.create(parent: CommentFields.collection, position: [0x90], props: Wiretuner_Doc_V1_NodeProps())], in: state))
+    }
 }

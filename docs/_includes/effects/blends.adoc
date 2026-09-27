@@ -346,7 +346,8 @@ apply to path key objects (a rectangle's derived points have no element ids).  A
 shows the model's sentence in the status bar on release.  menu:Modify[Combine > Blend] and
 menu:Extensions[Create > Blend] are disabled with that sentence when the selection cannot be
 blended; *Join Blend to Path* is `modify.combine.joinBlendToPath` in the Combine submenu; *Split*
-acts on joined blends only (OBJ-024's path Split is not built); *Blend Steps…* opens a one-field
+acts on joined blends (OBJ-024's path Split came later, `WTModel/JoinSplit.swift`, in the same menu
+item, `WTApp/Edit/EditFeatures.swift`); *Blend Steps…* opens a one-field
 sheet; menu:Modify[Ungroup] and menu:Modify[Blend > Release] release blends (`ReleaseBlend`, beside
 `Ungroup` for the rest of a mixed selection).  In the panel *Steps* shows 0 with "Chosen from the
 color difference" until it is written.

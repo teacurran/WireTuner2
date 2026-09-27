@@ -562,7 +562,8 @@ instead: a Swift compiler with no third-party code that writes CFF or glyf/loca 
 metric, name, cmap and post tables, and the kerning model straight into GPOS, from a neutral
 `FontSource`.  Generated OTF, TTF and WOFF2 load in Core Text, and imported fonts round-trip.
 What it cannot do is compile feature files: a user's feature file, and generated `mark`, `mkmk`
-and `liga`, are reported as warnings, FONT-019 is not built, and composite glyphs are written
+and `liga`, are reported as warnings, FONT-019 was not yet built (it came later, with a feature
+compiler in Swift, `WTInterchange/Fonts/Features/`), and composite glyphs are written
 decomposed.  `FontSource` is the seam, so fontc replaces the compiler without touching the
 model once the build machines carry a Rust toolchain.  Rejected for now: fontmake (a Python
 runtime in the app) and writing a feature compiler in Swift (a project of its own).

@@ -866,8 +866,9 @@ effects are titled "↳ Bend" under their element, an unknown kind "Unsupported 
 {product})".  The forms cover Bend, Duet, Expand Path, Ragged, Sketch and Transform with every option
 of the tables, and Corners (*Radius*, *Style*, *All* / *Selected points*, btn:[Add Selection],
 btn:[Remove Selection]) and Combine (*Operation*, with the "Combine applies to groups" note); the
-raster and Transparency forms (FX-008, FX-014), the Corners widgets and the rectangle's dimmed
-*Radius* (FX-047) and Combine's btn:[Expand] (FX-049) are not built, and those kinds show a note.
+raster and Transparency forms came later with FX-008 and FX-014 (`RasterEffectForms.swift`), the
+Corners widgets and the rectangle's dimmed *Radius* with FX-047 (`CornerWidgets.swift`) and
+Combine's btn:[Expand] with FX-049 (in this file), each recorded in its own note.
 A centre or move typed in one field writes the ATOMIC point with the other coordinate as it
 stands; *Copies* and *Miter limit* clamp to their ranges; only *Width* of Expand Path shows an
 out-of-range stored value in red.  The centre handles and the Duet axis arm are a canvas handle

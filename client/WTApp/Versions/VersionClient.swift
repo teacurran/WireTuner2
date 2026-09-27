@@ -2,6 +2,7 @@ import Foundation
 import GRPCCore
 import SwiftProtobuf
 import WTProto
+import WTSync
 
 /// `VersionService.NameVersion`, the one version RPC menu:File[Save Version…] needs (saving.adoc,
 /// "Saving a version"; IO-003).  A protocol so the saving is tested against fakes.
@@ -12,19 +13,7 @@ protocol VersionClient: Sendable {
 /// The request, built apart from the call so it is tested without a server.
 enum VersionRequests {
     static func nameVersion(documentID: String, version: PendingVersion, anchor: LocalChangeRef?) -> Wiretuner_Docs_V1_NameVersionRequest {
-        var message = Wiretuner_Docs_V1_NameVersionRequest()
-        message.documentID = documentID
-        message.versionID = version.id
-        message.serverSeq = version.serverSeq
-        if let anchor {
-            var id = Wiretuner_Doc_V1_OpId()
-            id.counter = anchor.counter
-            id.replica = anchor.replica
-            message.throughLocalChange = id
-        }
-        message.name = version.name
-        message.note = version.note
-        return message
+        version.request(documentID: documentID, anchor: anchor)
     }
 }
 

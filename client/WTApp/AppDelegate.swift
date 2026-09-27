@@ -129,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var images = ImageFeatures(preferences: preferences)
     /// Handoff and Spotlight continuations (IO-035, IO-036).
     let continuity = ContinuityOpener()
+    let deepLinks = DeepLinkFeatures()
     /// The Align, Transform and Find & Replace panels and their menu items (OBJ-019, OBJ-033, TYPE-022).
     private(set) lazy var editingPanels = EditingPanels(defaults: preferences.defaults)
     /// The Spotlight items of the documents on this Mac (IO-035).
@@ -330,6 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installImports()
         installVersions()
         installContinuity()
+        installDeepLinks()
         CollaborationCommands.install(into: commands, window: { documents.activeWindowController }, preferences: preferences)
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
@@ -557,7 +559,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `wiretuner://invite/<token>` (and an invitation's web link handed to the app): the
-    /// library comes forward with the Join Team sheet.
+    /// library comes forward with the Join Team sheet.  A deep link (`wiretuner://doc/…`, COLLAB-038)
+    /// opens its document there.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { open(url) }
     }
@@ -566,6 +569,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func open(_ url: URL) -> Bool {
         if images.inbox.opens(url) { return true }
         if SymbolTransferFeatures.opens(url) { return true }
+        if deepLinks.opens(url) != nil { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }
             return true

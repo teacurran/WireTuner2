@@ -365,7 +365,23 @@ shows a wall or the floor.  *Deviations*: *Show* is window state (as the page gr
 the overlay and the tool use `PlaneMap`, a copy of WTRender's internal `PlaneProjector` homography (the tests hold the two
 to the same drawing); the built-in grid is reshaped only after it is defined (the tool says so).  *Not built yet*: the
 grid-line and wall-edge handles and the arrow badge cursor, kbd:[Option]-drag grid creation, kbd:[Cmd+Option]-double-click
-text editing, and the Pointer tool's detach with Snap to Grid.  Tests: `PerspectiveUITests`.
+text editing, and the Pointer tool's detach with Snap to Grid (the next note).  Tests: `PerspectiveUITests`.
+
+NOTE: As built by FX-043's remainder (`WTModel/PerspectiveGridEdits.swift`; `WTApp/Tools/PerspectiveTool.swift`,
+`Effects/PerspectiveGeometry.swift`; `WTRender/Pages/SnapSources.swift`; one line each in `Tools/PointerTool.swift`,
+`Document/ObjectEditing.swift` and `Document/DocumentSetupWindow.swift`).  `PerspectiveGridDrawing.edges` are each shown
+wall's near edge (the plane's u = 0 line) and the floor's front edge across the page; with the Perspective tool they drag
+after the vanishing points and the horizon -- a wall edge writes `left_wall_x` or `right_wall_x` ("Move wall"), the floor
+edge `floor_front_y` ("Move floor").  Pointing at any live line (a vanishing point, the horizon, an edge; the built-in grid
+included) switches the pointer to the arrow with a small arrow badge (`PerspectiveTool.badgeCursor`, through
+`PointerTracking`).  kbd:[Option]-dragging any of them is `ForkGrid`: a copy of the grid named in sequence ("Grid 2") is
+inserted, made the page's grid and given the dragged registers, one change "Define grid", the original untouched;
+kbd:[Option+Shift] stays `CloneOnGrid`.  kbd:[Cmd+Option]-double-click on attached text opens the text node inside the
+wrapper in the Text Editor (`TextEditorFeatures.show`).  Moving attached objects with the Pointer tool or the arrow keys is
+`MoveOffGrid`: each wrapper is released as *Release with Perspective* releases it -- the baked drawing as a group,
+already moved by the drag -- and the wrapper deleted, while other objects in the selection move as `MoveObjects` moves
+them; one change "Move".  While the window shows the grid, every page's plane lines are `SnapSources.gridLines`, which
+snap (at guide priority) only with menu:View[Snap to Grid] on; nothing gains perspective from them.
 
 === Build tasks
 

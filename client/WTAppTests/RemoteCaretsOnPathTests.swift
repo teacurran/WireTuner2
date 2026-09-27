@@ -29,6 +29,8 @@ import WTRender
         // Across the glyphs as drawn: within the block's painted bounds, which follow the path.
         let bounds = try #require(document.object(for: SelectionID(text))?.bounds).applying(viewport.pasteboardToView)
         #expect(midX >= bounds.minX - 2 && midX <= bounds.maxX + 2 && bounds.height > bounds.width, "on the vertical path")
+        // And that is on the path where it was drawn, at x = 200 (not shifted by the block's 40 pt offset).
+        #expect(bounds.minX > 190 && bounds.maxX < 215 && midX > 195 && midX < 215, "\(bounds) \(midX)")
         // Further along the text is further down the path.
         priya.caret = RemoteCaret(node: SelectionID(text), position: chars[6])
         let later = try #require(overlay.carets([priya]).first)

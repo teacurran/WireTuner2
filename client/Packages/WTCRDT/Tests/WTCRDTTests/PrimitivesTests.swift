@@ -170,6 +170,30 @@ import WTProto
         #expect(wins && !loses && !replayed)
         #expect(store.writes(.zero, path).count == 2)
         #expect(store.nodes == [.zero])
+        // The winner replayed is ignored too; newer writes one after another each win and join
+        // the log once, in arrival order.
+        let winnerReplayed = store.write(.zero, path, nil, OpID(counter: 2, replica: 1))
+        let newer = (3...200).map { store.write(.zero, path, [UInt8($0)], OpID(counter: UInt64($0), replica: 1)) }
+        let oldReplayed = store.write(.zero, path, [3], OpID(counter: 3, replica: 1))
+        let newestReplayed = store.write(.zero, path, [200], OpID(counter: 200, replica: 1))
+        #expect(!winnerReplayed && newer.allSatisfy { $0 } && !oldReplayed && !newestReplayed)
+        #expect(store.register(.zero, path)?.op == OpID(counter: 200, replica: 1))
+        #expect(store.writes(.zero, path).map(\.op.counter) == [2, 1] + (3...200).map(UInt64.init))
+    }
+
+    /// A snapshot restores registers without their log: replaying the write a register holds
+    /// joins the log once, and an older write still loses.
+    @Test func aRestoredRegisterTakesItsReplayOnce() {
+        var store = NodeStore()
+        let path = RegisterPath([1, 1, 1])
+        let op = OpID(counter: 5, replica: 1)
+        store.restore(created: [:], registers: [.zero: [path: Register(value: [5], op: op)]], deleted: [:], elements: [:], sets: [:], texts: [:],
+                      sequenced: [], replicas: [:], tree: Tree())
+        let replay = store.write(.zero, path, [5], op)
+        let again = store.write(.zero, path, [5], op)
+        let older = store.write(.zero, path, [4], OpID(counter: 4, replica: 1))
+        #expect(replay && !again && !older)
+        #expect(store.writes(.zero, path).map(\.op.counter) == [5, 4] && store.register(.zero, path)?.op == op)
     }
 }
 

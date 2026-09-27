@@ -247,6 +247,71 @@ struct ImageWorld {
         withExtendedLifetime(imageHost) {}
     }
 
+    @Test func aClickInsideTheSelectionOpensTheWandOptions() async throws {
+        let registry = ToolRegistry()
+        let environment = TestEnvironment()
+        let trace = TraceFeatures(preferences: environment.preferences)
+        trace.install(tools: registry)
+        trace.settings.resolution = 1
+        let setup = SetupWindow(tools: [try #require(registry.descriptor(for: TraceTool.id))])
+        defer { setup.close() }
+        let page = setup.page.rect
+        await setup.document.addRectangles([Rect(x: page.minX + 20, y: page.minY + 20, width: 30, height: 30)])
+        setup.window.toolManager.select(TraceTool.id)
+        let tool = try #require(setup.window.toolManager.activeTool as? TraceTool)
+        trace.showProgress = { _, _ in }
+        var shown: [Point] = []
+        trace.showWandOptions = { _, point, _ in shown.append(point) }
+        let inside = Point(x: page.minX + 30, y: page.minY + 30)
+        tool.pick(at: inside, modifiers: [])
+        #expect(shown.isEmpty && tool.wand?.selection.isEmpty == false)
+        // A plain click inside the selection opens the popover and keeps the selection.
+        tool.pick(at: inside, modifiers: [])
+        #expect(shown.count == 1 && tool.wand != nil)
+        // Convert selection edge: one unfilled path.
+        let before = setup.document.changeCount
+        #expect(tool.perform(.edge) != nil && tool.wand == nil)
+        #expect(await eventually { setup.document.changeCount > before })
+        #expect(tool.perform(.trace) == nil, "nothing selected")
+        // Trace selection from the view's button.
+        tool.pick(at: inside, modifiers: [])
+        var closed = false
+        Render.view(WandOptionsView(tool: tool) {})
+        WandOptionsView.trace(tool, .trace) { closed = true }()
+        #expect(closed && tool.wand == nil)
+        #expect(TraceTool.WandAction.allCases.map(\.title) == ["Trace selection", "Convert selection edge"])
+        // The real popover needs a view host; a recording host shows nothing.
+        let host = RecordingHost(viewport: setup.window.viewport)
+        WandOptionsPopover.show(for: tool, at: inside, in: ToolContext(document: setup.document, host: host))
+        withExtendedLifetime(host) {}
+    }
+
+    @Test func traceLayersLimitWhatTheToolSees() async throws {
+        let environment = TestEnvironment()
+        let trace = TraceFeatures(preferences: environment.preferences)
+        let setup = SetupWindow(tools: [])
+        defer { setup.close() }
+        let page = setup.page.rect
+        let ids = await setup.document.addRectangles([Rect(x: page.minX + 20, y: page.minY + 20, width: 30, height: 30)])
+        let state = setup.document.state
+        #expect(trace.settings.layers == .all && TraceLayers.foreground.includes(node: ids[0].opID, in: state))
+        #expect(!TraceLayers.background.includes(node: ids[0].opID, in: state))
+        #expect(!TraceLayers.foreground.includes(node: OpID(counter: 999, replica: 9), in: state) && TraceLayers.all.includes(node: OpID(counter: 999, replica: 9), in: state))
+        let list = setup.document.displayList
+        #expect(TraceLayers.all.filter(list, in: state) == list)
+        #expect(TraceLayers.background.filter(list, in: state).isEmpty && !TraceLayers.foreground.filter(list, in: state).isEmpty)
+        // A background-only trace of the rectangle's area samples nothing but paper.
+        trace.settings.layers = .background
+        let rect = Rect(x: page.minX + 20, y: page.minY + 20, width: 30, height: 30)
+        let host = RecordingHost(viewport: setup.window.viewport)
+        defer { withExtendedLifetime(host) {} }
+        let sampled = try #require(trace.sample(rect, in: ToolContext(document: setup.document, host: host), clip: true))
+        #expect(sampled.bitmap.pixels.allSatisfy { $0 == 255 })
+        #expect(trace.marks(in: state).isEmpty)
+        #expect(TraceSettings.load(environment.preferences.defaults).layers == .background, "kept in the preferences")
+        #expect(TraceLayers.allCases.map(\.title) == ["All", "Foreground", "Background"])
+    }
+
     @Test func wandSelectionsAndSettings() throws {
         var pixels = [UInt8](repeating: 255, count: 4 * 4 * 4)
         for index in [5, 6, 9, 10] { pixels[index * 4] = 0 }
@@ -257,6 +322,7 @@ struct ImageWorld {
         selection.apply(bitmap, x: 9, y: 9, tolerance: 10, subtract: false)
         selection.apply(try #require(Trace.Bitmap(width: 2, height: 2, pixels: [UInt8](repeating: 0, count: 16))), x: 0, y: 0, tolerance: 0, subtract: false)
         #expect(selection.count == 4)
+        #expect(selection.contains(x: 1, y: 1) && !selection.contains(x: 0, y: 0) && !selection.contains(x: -1, y: 9))
         selection.invert()
         #expect(selection.count == 12)
         let masked = selection.masked(bitmap)

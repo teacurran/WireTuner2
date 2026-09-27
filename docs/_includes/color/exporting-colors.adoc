@@ -243,7 +243,23 @@ each team's libraries from `ColorLibraryClient` (`GRPCColorLibraryTransport.http
 opens *Update from Library…* with the three-way listing ticked where the library changed.
 menu:File[Make Team Color Library…] (a team picker) and menu:File[Publish Library Version] are
 disabled without a document or a client and, once a listing has fallen back to the cache, offline
-with the explanation.  *Not done*: paste carrying named colours (the clipboard's, not this panel's).
+with the explanation.  Paste carrying named colours is the note below.
+
+NOTE: As built by COLOR-019's paste half (`WTModel/PastedColors.swift`, `Clipboard.swift`).  A copy carries every swatch
+its objects name -- found through `ColorUses`, a tint with its base -- as `LibraryColor` records in `ClipboardPayload`
+field 7 (field 6 is LIB-022's `ClipboardLibrary`), keyed by the source swatch's node id (`counter.replica`, a tint's `tint_of` its base's key).  `Paste` resolves
+them before creating the objects, in the same change: a destination swatch of the same name and value (a tint: same base
+and strength) is reused, a protected swatch maps by name, a missing one is created (fresh node id, its group kept) and one
+whose name is taken by a different value arrives under its mix-values name (reusing a swatch that already holds that
+name and value); then every pasted `ColorRef` naming a carried swatch -- registers, nested messages, text marks' fills
+and paragraph settings, rewritten through the merge table (`ColorRefRewriter`) -- points at the destination's swatch with
+its colour cached.  A paste in the same document finds its own swatches and adds nothing; a payload without colours
+(an older copy) pastes its references as they were.  One swatch rule for every paste: the app's copy also carries LIB-022's
+`ClipboardLibrary` (`carryingLibrary(from:)`, which adds the colours its styles and symbols name), and the cross-document
+`PasteFromDocument` resolves the carried colours first with this clash rule, rewrites the objects', the library's and the
+baked looks' swatch references to the destination's, and leaves those swatches out of the package it imports -- so swatches
+are never matched by name alone there; only a swatch the payload does not carry as a colour still is.  The *Done when* UI test
+is a `WTModel` test (`PastedColorsTests`, including the cross-document path).
 
 NOTE: As built by COLOR-018's sheet (`WTApp/ColorLibraries/ColorLibraryExportSheet.swift`).  The
 Swatches Options menu's *Export…* lists the document's colours with their tints indented, the

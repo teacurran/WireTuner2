@@ -82,6 +82,8 @@ final class VersionFeatures {
     var recordDocument: @MainActor (_ name: String, _ source: String) -> String? = { _, _ in nil }
     /// Opens the document `id` titled `name` in a new window without the new-document template.
     var openDocument: @MainActor (_ id: String, _ name: String) -> DocumentHandle? = { _, _ in nil }
+    /// A document's pending versions changed (one queued or sent): the History panel reloads.
+    var versionsChanged: @MainActor (_ documentID: String) -> Void = { _ in }
     private(set) var savers: [String: VersionSaving] = [:]
     private var statusTokens: [String: UUID] = [:]
 
@@ -91,6 +93,9 @@ final class VersionFeatures {
         let local = local(document)
         let saver = VersionSaving(documentID: document.id, storage: local.storage, head: local.head)
         saver.now = now
+        saver.makeID = { UUIDv7.make() }
+        let changed = versionsChanged, id = document.id
+        saver.onChange = { changed(id) }
         if let client {
             let token = accessToken
             saver.send = { request in try await client.nameVersion(request, accessToken: try await token()) }

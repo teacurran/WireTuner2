@@ -141,6 +141,11 @@ public actor SimServer {
         var presence: [UInt64: Wiretuner_Sync_V1_PresenceUpdate] = [:]
         /// A branch's parent (COLLAB-019): its roles are the parent's.
         var parent: String?
+        /// The server's record of comments (COLLAB-030, COLLAB-034).
+        var comments = SimComments()
+        /// A branch's fork point and how far of its log was merged into the parent (SRV-011).
+        var forkSeq: UInt64 = 0
+        var mergedThrough: UInt64 = 0
 
         var head: UInt64 { UInt64(log.count) }
     }
@@ -165,6 +170,10 @@ public actor SimServer {
     private var busDownUntil: ContinuousClock.Instant?
     private var databaseDownUntil: ContinuousClock.Instant?
     private var loseNextReply = false
+    /// Teams by id and their members, for `team:<id>` mentions (COLLAB-034).
+    public var teams: [String: [String]] = [:]
+    /// The digest mails sent (the compose stack's mailpit), oldest first.
+    public private(set) var mailbox: [SimComments.Mail] = []
     private let mergeTable = WTCRDTSchemaPackage.mergeTableResource() ?? Data()
 
     public init(clock: SimClock, options: Options = Options()) {
@@ -453,10 +462,11 @@ public actor SimServer {
     private func accept(_ change: Wiretuner_Doc_V1_Change, in id: String, caller: SimCaller) throws -> UInt64 {
         var doc = try document(id)
         let role = try role(doc, caller.account)
-        guard role == .editor || role == .owner else {
+        guard role == .editor || role == .owner || role == .commenter else {
             stats.roleRefusals += 1
             throw SyncCallError(code: SyncCallError.permissionDenied, reason: .roleInsufficient, message: "not an editor")
         }
+        let commentOps = SimComments.parse(change)
         try live(doc, change.replica)
         try bound(doc, change.replica, caller)
         let bytes = try change.serializedData()
@@ -477,6 +487,10 @@ public actor SimServer {
             stats.validationFailures += 1
             throw SyncCallError(code: SyncCallError.invalidArgument, reason: .validationFailed, message: "change outside the limits")
         }
+        if let why = doc.comments.refusal(commentOps, caller: caller.account, role: role) {
+            stats.roleRefusals += 1
+            throw SyncCallError(code: SyncCallError.permissionDenied, reason: .roleInsufficient, message: "editor or the comment's author (\(why))")
+        }
         let now = clock.nowMs()
         doc.bindings[change.replica] = caller
         var row = doc.replicas[change.replica] ?? ReplicaRow(lastSeenMs: now)
@@ -493,8 +507,11 @@ public actor SimServer {
         doc.horizons.append(SimCollectionPoint(seq: min(row.horizon.seq, change.baseServerSeq), timeMs: row.horizon.timeMs))
         doc.accepted[change.replica, default: []].append(bytes)
         doc.serverSeqOf[change.replica, default: []].append(entry.serverSeq)
+        let roles = doc.parent.flatMap { documents[$0]?.roles } ?? doc.roles
+        let notes = doc.comments.index(commentOps, author: caller.account, nowMs: now, canOpen: { roles[$0] != nil }, teams: teams)
         documents[id] = doc
         stats.accepted += 1
+        notify(notes, in: id, author: entry.author)
         broadcast(entry, in: id)
         if options.snapshotEvery > 0 && doc.head % UInt64(options.snapshotEvery) == 0 {
             takeSnapshot(id)
@@ -841,7 +858,11 @@ extension SimServer {
         }
         var branch = Doc(id: request.branchDocumentID)
         branch.parent = parent.id
+        branch.forkSeq = fork
         for entry in parent.log.prefix(Int(fork)) {
+            // The branch's record of comments starts as the parent's through the fork (COLLAB-034).
+            branch.comments.index(SimComments.parse(entry.change), author: parent.bindings[entry.change.replica]?.account ?? "",
+                                  nowMs: clock.nowMs(), canOpen: { _ in false }, notify: false)
             branch.log.append(entry)
             branch.horizons.append(SimCollectionPoint(seq: 0, timeMs: 0))
             branch.accepted[entry.change.replica, default: []].append((try? entry.change.serializedData()) ?? Data())
@@ -878,6 +899,61 @@ extension SimServer {
     /// The parent of `document`, when it is a branch.
     public func parent(of document: String) -> String? {
         documents[document]?.parent
+    }
+
+    /// `BranchService.MergeBranch` as built (SRV-011; branches.adoc, "Merge semantics"), without
+    /// exclusions or resolutions: an editor on the parent replays the branch's changes after its
+    /// fork (or its last merge) into the parent as they are, in branch-log order, at the parent's
+    /// next seqs with their authors on the branch, and tells the parent's sessions.  A replayed
+    /// (replica, seq) the parent already holds is `REPLICA_CONFLICT`.  Returns the parent seqs the
+    /// replay took.
+    @discardableResult
+    public func mergeBranch(_ branchID: String, token: String, device: String) throws -> ClosedRange<UInt64>? {
+        try available()
+        try checkDevice(device)
+        let caller = SimCaller(account: try account(token), device: device)
+        let branch = try document(branchID)
+        guard let parentID = branch.parent else {
+            throw SyncCallError(code: SyncCallError.notFound, reason: .documentNotFound, message: "\(branchID) is not a branch")
+        }
+        var parent = try document(parentID)
+        let role = try role(parent, caller.account)
+        guard role == .editor || role == .owner else {
+            throw SyncCallError(code: SyncCallError.permissionDenied, reason: .roleInsufficient, message: "not an editor")
+        }
+        let replayed = branch.log.dropFirst(Int(max(branch.forkSeq, branch.mergedThrough)))
+        for entry in replayed where UInt64(parent.accepted[entry.change.replica]?.count ?? 0) >= entry.change.seq {
+            stats.conflicts += 1
+            throw SyncCallError(code: SyncCallError.failedPrecondition, reason: .replicaConflict, message: "replica held by the parent")
+        }
+        let before = parent.head
+        let point = parent.collectionPoint ?? SimCollectionPoint(seq: 0, timeMs: 0)
+        var entries: [Wiretuner_Sync_V1_SequencedChange] = []
+        for var entry in replayed {
+            entry.serverSeq = parent.head + 1
+            parent.log.append(entry)
+            parent.horizons.append(point)
+            parent.accepted[entry.change.replica, default: []].append((try? entry.change.serializedData()) ?? Data())
+            parent.serverSeqOf[entry.change.replica, default: []].append(entry.serverSeq)
+            // The branch's comments join the parent's record, without notifying again (COLLAB-034).
+            parent.comments.index(SimComments.parse(entry.change), author: branch.bindings[entry.change.replica]?.account ?? "",
+                                  nowMs: clock.nowMs(), canOpen: { _ in false }, notify: false)
+            entries.append(entry)
+        }
+        documents[parentID] = parent
+        documents[branchID]?.mergedThrough = branch.head
+        stats.accepted += entries.count
+        for entry in entries { broadcast(entry, in: parentID) }
+        return entries.isEmpty ? nil : (before + 1)...parent.head
+    }
+
+    /// The caller `token` names and their role on `document` (roles through a branch's parent),
+    /// for services beside the sync service (`SimVersionService`): `UNAUTHENTICATED`, `NOT_FOUND`
+    /// or `PERMISSION_DENIED` as the sync calls answer them, `UNAVAILABLE` while the node is down.
+    public func authorize(token: String, document id: String) throws -> (account: String, role: Wiretuner_Account_V1_DocumentRole) {
+        try available()
+        let account = try account(token)
+        return (account, try role(try document(id), account))
     }
 }
 
@@ -941,5 +1017,74 @@ public struct SimServerTransport: SyncTransport {
         AsyncThrowingStream { continuation in
             Task { await server.fetchSnapshot(request, token: token, device: device, continuation) }
         }
+    }
+}
+
+extension SimServer {
+    // MARK: Comments (COLLAB-030, COLLAB-031, COLLAB-034)
+
+    /// Sets the members of team `id` (a `team:<id>` mention notifies those who can open the document).
+    public func setTeam(_ id: String, members: [String]) {
+        teams[id] = members
+    }
+
+    /// Pushes each notification as a `CommentEvent` to its recipient's sessions on `document`.
+    func notify(_ notes: [SimComments.Notification], in document: String, author: Wiretuner_Sync_V1_Participant) {
+        for note in notes {
+            send(to: document, account: note.account, .with {
+                $0.event.comment = .with {
+                    $0.thread = note.thread.proto
+                    $0.comment = .with { $0.counter = note.comment.counter; $0.replica = note.comment.replica }
+                    $0.author = author
+                    $0.kind = switch note.kind {
+                    case .mention: .mention
+                    case .reply: .reply
+                    case .resolved: .resolved
+                    }
+                }
+            })
+        }
+    }
+
+    /// The server's record of comments in `document`.
+    public func comments(_ document: String) -> SimComments {
+        documents[document]?.comments ?? SimComments()
+    }
+
+    /// The `comment_notification` rows of `document`, oldest first.
+    public func notifications(_ document: String) -> [SimComments.Notification] {
+        comments(document).notifications
+    }
+
+    /// `CommentService.GetUnread` for `account` in `document`.
+    public func unread(_ account: String, in document: String) -> [SimComments.Unread] {
+        comments(document).unread(for: account)
+    }
+
+    /// `CommentService.MarkRead`.
+    public func markRead(_ account: String, in document: String, thread: OpID, through: OpID) {
+        documents[document]?.comments.markRead(account, thread: thread, through: through, nowMs: clock.nowMs())
+    }
+
+    /// Whether `account` has a live session on `document` (`LiveSessions`).
+    public func isLive(_ account: String, on document: String) -> Bool {
+        subscribers.values.contains { $0.document == document && $0.caller.account == account }
+    }
+
+    /// One run of the Comment digest job over every document; returns the mails it sent, which
+    /// are also kept in `mailbox`.  `mailsOff` are the accounts that turned *Email me when I'm
+    /// mentioned* off.
+    @discardableResult
+    public func runCommentDigest(mailsOff: Set<String> = []) -> [SimComments.Mail] {
+        let now = clock.nowMs()
+        var sent: [SimComments.Mail] = []
+        for id in documents.keys.sorted() {
+            let names = users
+            let mails = documents[id]!.comments.digest(document: id, nowMs: now, live: { self.isLive($0, on: id) }, mailsOff: mailsOff,
+                                                       names: { names[$0]?.name ?? "" })
+            sent += mails
+        }
+        mailbox += sent
+        return sent
     }
 }

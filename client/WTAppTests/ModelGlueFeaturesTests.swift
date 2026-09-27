@@ -308,4 +308,15 @@ import WTSync
         model.setFilter(.mine)
         #expect(model.dataChoices.isEmpty && model.performData("Restore") == nil)
     }
+
+    @Test func theReviewTellsWhenAllPagesWereRemoved() async throws {
+        let document = DocumentHandle.memory(title: "Pages")
+        var review = ReviewModel(recovered: SalvageReport(reason: .conflict))
+        review.zeroPages = true
+        let model = ReviewSheetModel(review: review, merged: document.state, context: ReviewHarness().context(document))
+        #expect(model.filter == .conflicts && model.rows.map(\.name) == ["All pages were removed; a page was added."])
+        #expect(model.rows.first?.data == .zeroPages && model.rows.first?.kind == "Removed by both")
+        #expect(model.dataChoices.isEmpty && model.actions.isEmpty && model.performData("Restore") == nil)
+        Render.view(ReviewSheetView(model: model), size: CGSize(width: 800, height: 560))
+    }
 }

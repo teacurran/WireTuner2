@@ -301,7 +301,8 @@ public final class Simulation {
             if state == .needsReview && !client.keepsMergedResult {
                 throw failure("\(client.name) waits for a review nobody will settle", clients: waiting)
             }
-            guard try await client.store.outboxCount() == 0, state == .saved else { return false }
+            // A viewer's or commenter's session is read-only (a commenter still sends comments).
+            guard try await client.store.outboxCount() == 0, state == .saved || state == .readOnly(.role) else { return false }
             seqs[client.documentID, default: []].insert(await client.store.lastServerSeq)
         }
         for (document, applied) in seqs {

@@ -106,6 +106,9 @@ public actor LocalStore: DocumentBackend {
     private let options: Options
     /// Whether local changes are refused (`setReadOnly`).
     public private(set) var isReadOnly = false
+    /// Whether, while read-only, changes that concern comments only are still accepted (a
+    /// commenter's role; `setReadOnly(_:commentsAllowed:)`).
+    public private(set) var allowsComments = false
     private var database: DatabaseQueue?
     private var core: DocumentCore
     private var diverged = false
@@ -316,7 +319,12 @@ public actor LocalStore: DocumentBackend {
     }
 
     public func perform(_ command: any Command, recording: DocumentCore.Recording) throws -> DocumentUpdate {
-        guard !isReadOnly else { throw Failure.readOnly }
+        if isReadOnly {
+            guard allowsComments else { throw Failure.readOnly }
+            var builder = ChangeBuilder(replica: core.replica, startCounter: core.state.clock.peek)
+            try command.execute(&builder, state: core.state)
+            guard CommentFields.onlyComments(builder.ops, in: core.state) else { throw Failure.readOnly }
+        }
         let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
             guard let outcome = try core.perform(command, recording: recording) else { return nil }
             applied = true
@@ -338,7 +346,12 @@ public actor LocalStore: DocumentBackend {
     }
 
     private func reverse(_ body: (inout DocumentCore) -> DocumentCore.Outcome?) throws -> DocumentUpdate {
-        guard !isReadOnly else { throw Failure.readOnly }
+        if isReadOnly {
+            var trial = core
+            guard allowsComments, let ops = body(&trial)?.change?.ops, CommentFields.onlyComments(ops, in: core.state) else {
+                throw Failure.readOnly
+            }
+        }
         let change = try write { db, applied -> Wiretuner_Doc_V1_Change? in
             guard let outcome = body(&core) else { return nil }
             applied = true
@@ -828,13 +841,84 @@ public actor LocalStore: DocumentBackend {
         }
     }
 
+    // MARK: Pending calls and local history (COLLAB-024)
+
+    /// The calls of `kind` queued on this Mac, in the order they were queued.
+    public func pendingCalls(kind: String) throws -> [PendingCall] {
+        guard let database else { throw Failure.closed }
+        return try database.read { db in
+            try Row.fetchAll(db, sql: "SELECT id, kind, payload, created_at FROM pending_calls WHERE kind = ? ORDER BY ord", arguments: [kind])
+                .map { PendingCall(id: $0["id"], kind: $0["kind"], payload: $0["payload"], createdAt: Date(timeIntervalSince1970: $0["created_at"])) }
+        }
+    }
+
+    /// Makes the calls of `kind` exactly `calls`: a call already queued keeps its place (and takes
+    /// the new payload), new ones go last, missing ones are removed.  One transaction.
+    public func replacePendingCalls(kind: String, with calls: [PendingCall]) throws {
+        try write { db, _ in
+            let ids = calls.map(\.id)
+            let existing = try String.fetchAll(db, sql: "SELECT id FROM pending_calls WHERE kind = ?", arguments: [kind])
+            for id in existing where !ids.contains(id) {
+                try db.execute(sql: "DELETE FROM pending_calls WHERE id = ?", arguments: [id])
+            }
+            for call in calls {
+                try db.execute(sql: """
+                    INSERT INTO pending_calls (id, kind, payload, created_at) VALUES (?, ?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+                    """, arguments: [call.id, kind, call.payload, call.createdAt.timeIntervalSince1970])
+            }
+        }
+    }
+
+    /// What the local `changes` table can show of the history (history.adoc, "Offline behavior"):
+    /// the sequenced changes it still holds (remote ones and this Mac's acknowledged ones), the
+    /// unsent ones, and the oldest seq whose state `state(atServerSeq:)` can rebuild.
+    public func localHistory() throws -> LocalHistory {
+        guard let database else { throw Failure.closed }
+        let head = core.lastServerSeq
+        return try database.read { db in
+            var floor: UInt64 = 0
+            if let snapshot = try Int64.fetchOne(db, sql: "SELECT server_seq FROM snapshot WHERE id = 1") {
+                floor = UInt64(sql: snapshot)
+            }
+            // A local change the snapshot holds must be sequenced at or before the seq rebuilt.
+            let unsequenced = try Bool.fetchOne(db, sql: "SELECT EXISTS (SELECT 1 FROM changes WHERE in_snapshot = 1 AND local = 1 AND server_seq IS NULL)")!
+            if unsequenced {
+                floor = head &+ 1
+            } else if let latest = try Int64.fetchOne(db, sql: "SELECT MAX(server_seq) FROM changes WHERE in_snapshot = 1 AND local = 1") {
+                floor = max(floor, UInt64(sql: latest))
+            }
+            let rows = try Row.fetchAll(db, sql: """
+                SELECT server_seq, local, label, data FROM changes
+                WHERE server_seq IS NOT NULL OR local = 1 ORDER BY (server_seq IS NULL), server_seq, id
+                """)
+            var sequenced: [LocalHistory.Entry] = []
+            var unsent: [LocalHistory.Entry] = []
+            for row in rows {
+                let change = try Self.change(row["data"])
+                let serverSeq: Int64? = row["server_seq"]
+                let entry = LocalHistory.Entry(serverSeq: serverSeq.map(UInt64.init(sql:)), label: row["label"], local: row["local"],
+                                               replica: change.replica, wallTime: Date(timeIntervalSince1970: Double(change.wallTimeMs) / 1000))
+                if entry.serverSeq == nil { unsent.append(entry) } else { sequenced.append(entry) }
+            }
+            return LocalHistory(head: head, rebuildableFrom: floor, sequenced: sequenced, unsent: unsent)
+        }
+    }
+
     // MARK: Access (COLLAB-014)
 
     /// Refuses (or accepts again) local changes: `perform`, `undo` and `redo` throw
     /// `Failure.readOnly` while set, so no local change enters the outbox while the caller cannot
     /// edit (sharing.adoc, "When your access changes mid-session").  Remote changes still apply.
     public func setReadOnly(_ readOnly: Bool) {
+        setReadOnly(readOnly, commentsAllowed: false)
+    }
+
+    /// `setReadOnly`, still accepting changes that concern comments only when `commentsAllowed`
+    /// (a commenter: comments.adoc, "Who may do what"; COLLAB-034).
+    public func setReadOnly(_ readOnly: Bool, commentsAllowed: Bool) {
         isReadOnly = readOnly
+        allowsComments = readOnly && commentsAllowed
     }
 
     /// Closes the store and deletes its directory (the caller's access was removed, and the offer

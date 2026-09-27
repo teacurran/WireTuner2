@@ -9,21 +9,6 @@ import WTRender
 import WTText
 @testable import WireTuner
 
-/// Puts path `path` under text `text` with `on_path` set, as TYPE-041's attach will (a test stand-in).
-struct AttachTextToPath: WTModel.Command {
-    let text: OpID
-    let path: OpID
-    var props = Wiretuner_Doc_V1_TextOnPathProps.with { $0.top = .baseline; $0.bottom = .baseline }
-    var label: String { "Attach to Path" }
-
-    func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
-        builder.append(Ops.move(path, parent: text, position: [0x80]))
-        var values = Wiretuner_Doc_V1_NodeProps()
-        values.text.onPath = props
-        builder.append(Ops.set(text, [SetTextOnPath.base.child(4), SetTextOnPath.base.child(5)], values: values))
-    }
-}
-
 /// TYPE-006 (the Text Block section) and TYPE-043 (the Text on path section and its handle).
 @Suite(.serialized) @MainActor struct TextBlockSectionTests {
     static func model(_ document: DocumentHandle, _ nodes: [OpID]) -> ObjectPanelModel {

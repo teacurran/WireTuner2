@@ -728,8 +728,10 @@ anchor moves to the newest outbox change with the same label (re-anchoring); an 
 know (`NOT_FOUND`) is sent again without it.  Deviation: `pending_versions` is not a table of its own but
 the `pending_versions` key of the store's `view` table (JSON), because the local store's schema is
 WTSync's and the rows need no query; it survives relaunch and rotation all the same.  The History panel
-that would mark a version pending is not built yet, and the two-client test is a unit test with two
-savers against one fake server rather than a simulator run.
+(`WTApp/History/HistoryPanel.swift`) did not mark a version pending, and the two-client test is a unit test with two
+savers against one fake server rather than a simulator run.  (COLLAB-024 moved the queue into WTSync as `VersionQueue`
+and its rows into the local store's `pending_calls` table; the History panel lists them as pending, and the simulator
+runs the offline case -- history.adoc, COLLAB-024.)
 +
 NOTE: As built by IO-004 (`WTModel/DocumentDuplicate.swift`, `WTApp/Versions/VersionCommands.swift`,
 `LibraryModel.recordDocument`).  menu:File[Duplicate] (kbd:[Cmd+Shift+S]) captures the document's state,

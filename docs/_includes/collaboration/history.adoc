@@ -558,4 +558,26 @@ Done when::
 * A version named offline appears in the panel immediately as pending and becomes a server version after reconnect with the correct seq (simulator test).
 * Killing the app with a pending name does not lose it.
 * Merge test: the outbox order is unaffected by the queued call (hash equality after reconnect).
+
+NOTE: As built by COLLAB-024 (`WTSync/PendingVersions.swift`, `WTSync/LocalHistory.swift`, the store's
+`pending_calls`; `WTApp/History/HistoryPanel.swift`; simulator `WTTestSupportTests/Simulation/HistoryScenarioTests`,
+with `SimVersionService` answering `NameVersion` and `ListVersions` as SRV-011 does).  IO-003's version queue moved
+from WTApp into WTSync as `VersionQueue` (WTApp's `VersionSaving` is its alias), so the simulator drives the app's code.
+A queued `NameVersion` is a row of the local store's new `pending_calls` table (migration `collab-2`: the call's id --
+the version's UUIDv7 -- its kind, the request as the payload, the time; kept in queue order, and `MarkRead` can join it
+later), replacing IO-003's `pending_versions` view value, which the first read moves into the table.  The queue sends a
+version once the last local change it includes is acknowledged -- `flush` on every *Saved to cloud* (`follow` over the
+sync client's transitions in the simulator, the window's sync status in the app) -- so the outbox drains first and is
+never held or reordered by the call.  `LocalStore.localHistory()` reads what the panel shows offline: the sequenced
+changes the store holds, the unsent ones (*Not yet synced*, newest first) and `rebuildableFrom`, the oldest seq
+`state(atServerSeq:)` can rebuild (the snapshot's seq, raised past any local change the snapshot holds; nothing while
+one of those is unsent).  The panel lists the pending versions in bold italics ("Before print · pending") above the
+unsent changes, and reloads whenever the queue changes.  Offline (no client, or the call failed) it keeps the page read
+earlier this session -- else the local log's sessions (one replica, gaps under 10 minutes, the author from the session's
+roster, "You" for this Mac) -- and a row the local log cannot rebuild shows *Available when online* in place of its
+actions.  `HistoryCache` (WTSync) keeps the pages read this session per document; a live remote change past the head
+they were read at drops the timeline's head pages and the node-history pages of the nodes it names (a page continued by
+a cursor lies below the head and stays), and the panel reads the timeline again only when the page shown went; a local
+change refreshes only the unsent group; btn:[Refresh], rename and delete drop everything.  Deviation: the History panel
+still shows a collaborator's newly named version on the next remote change or refresh (no version event exists).
 endif::spec[]

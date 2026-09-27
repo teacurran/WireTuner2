@@ -174,10 +174,16 @@ public struct NodeStore: Sendable {
     /// Returns whether the write now holds the register.
     @discardableResult
     mutating func write(_ node: OpID, _ path: RegisterPath, _ value: [UInt8]?, _ op: OpID) -> Bool {
-        let history = log[node, default: [:]][path, default: []]
-        guard !history.contains(where: { $0.op == op }) else { return false }
+        // The register holds the newest op of its log (a snapshot restores registers with an
+        // empty log), so an op newer than the register's -- every local write -- is not in the
+        // log and the scan is skipped: repeated writes to one register stay linear.  The log is
+        // appended in place, never through a copy.
+        let current = registers[node]?[path]
+        if let current, op <= current.op, log[node]?[path]?.contains(where: { $0.op == op }) == true {
+            return false
+        }
         log[node, default: [:]][path, default: []].append(Write(node: node, path: path, value: value, op: op))
-        if let current = registers[node]?[path], current.op > op {
+        if let current, current.op > op {
             return false
         }
         registers[node, default: [:]][path] = Register(value: value, op: op)

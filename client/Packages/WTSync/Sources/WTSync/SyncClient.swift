@@ -140,6 +140,9 @@ public actor SyncClient {
     private var token: String?
     private var needsSignIn = false
     private var readOnly: ReadOnlyReason?
+    /// Whether the role is commenter: read-only (`.role`) for everything but comments, whose
+    /// changes are still sent (comments.adoc, "Who may do what"; COLLAB-034).
+    private var commenter = false
     /// The outbox held by `holdOutbox` (COLLAB-014).
     private var accessHold = false
     private var errorDetail: String?
@@ -307,6 +310,12 @@ public actor SyncClient {
 
     /// Why the document is read-only, if it is.
     public var readOnlyReason: ReadOnlyReason? { readOnly }
+    /// Whether the caller is a commenter: the document is read-only but for comments, which sync.
+    public var isCommenter: Bool { commenter }
+    /// Whether the session is up and has applied the log through the head its `Welcome` named
+    /// (the replay that follows it included): what a deep link waits for before it selects
+    /// (COLLAB-038).
+    public var isCaughtUp: Bool { sessionUp && applied >= welcomeHead }
 
     /// Reverts the document to the server's state and uploads nothing, with or without a review
     /// pending: *Discard*, and *Save as a Copy…* after the fork holds the unsent work (COLLAB-014),
@@ -655,9 +664,11 @@ public actor SyncClient {
             readOnly = .clientTooOld
         } else if role == .viewer || role == .commenter {
             readOnly = .role
+            commenter = role == .commenter
         } else if (role == .editor || role == .owner) && (readOnly == .role || readOnly == .roleInsufficient) {
             readOnly = nil
         }
+        if role == .editor || role == .owner || role == .viewer { commenter = false }
     }
 
     private func handle(_ event: Wiretuner_Sync_V1_DocumentEvent) async throws {
@@ -892,7 +903,19 @@ public actor SyncClient {
 
     // MARK: Pushing (SYNC-003, SYNC-005)
 
-    private var canPush: Bool { readOnly == nil && errorDetail == nil && pendingReview?.holdsOutbox != true && !accessHold }
+    private var canPush: Bool {
+        (readOnly == nil || readOnly == .role && commenter) && errorDetail == nil && pendingReview?.holdsOutbox != true && !accessHold
+    }
+
+    /// `canPush`, and for a commenter only while every unsent change concerns comments: anything
+    /// else waits for the access offer (`AccessController`) and is never sent (COLLAB-034).
+    private func pushAllowed() async -> Bool {
+        guard canPush else { return false }
+        guard readOnly == .role && commenter else { return true }
+        guard let changes = try? await store.outbox() else { return false }
+        let state = await store.read { $0 }
+        return changes.allSatisfy { CommentFields.onlyComments($0.ops, in: state) }
+    }
 
     /// Sends the outbox for as long as the session lasts.
     private func pushLoop() async throws -> SessionEnd {
@@ -910,10 +933,12 @@ public actor SyncClient {
                         pausedUntil = nil
                         try await Task.sleep(until: until, clock: .continuous)
                     }
-                    if canPush {
+                    // Asked after the pause and again before each send: the state can change at
+                    // any suspension (a role, a hold, an error).
+                    if await pushAllowed() {
                         try await splitOversized()
                     }
-                    if canPush && !options.gatewayMode {
+                    if !options.gatewayMode, await pushAllowed() {
                         let upcoming = try await upcoming()
                         if isBacklog(upcoming) {
                             try await upload(upcoming)
@@ -921,7 +946,7 @@ public actor SyncClient {
                         }
                     }
                 }
-                if canPush && !draining {
+                if !draining, await pushAllowed() {
                     let token = try await accessToken()
                     if options.gatewayMode {
                         if inFlight == 0 {

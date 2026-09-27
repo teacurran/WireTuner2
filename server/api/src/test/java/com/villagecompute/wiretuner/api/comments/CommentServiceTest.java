@@ -38,7 +38,11 @@ import org.junit.jupiter.api.Test;
 import com.villagecompute.wiretuner.account.v1.PreferenceValue;
 import com.villagecompute.wiretuner.account.v1.Preferences;
 import com.villagecompute.wiretuner.account.v1.SetPreferencesRequest;
+import com.villagecompute.wiretuner.api.ServiceTestSupport;
 import com.villagecompute.wiretuner.api.TestUsers;
+import com.villagecompute.wiretuner.docs.v1.BranchServiceGrpc;
+import com.villagecompute.wiretuner.docs.v1.CreateBranchRequest;
+import com.villagecompute.wiretuner.docs.v1.MergeBranchRequest;
 import com.villagecompute.wiretuner.api.comments.CommentOps.Id;
 import com.villagecompute.wiretuner.api.grpc.ErrorReasons;
 import com.villagecompute.wiretuner.api.sync.LiveSessions;
@@ -426,6 +430,43 @@ class CommentServiceTest extends SyncTestSupport {
         backward.apply(log.get(2).getChange(), log.get(2).getServerSeq());
         backward.apply(log.get(1).getChange(), log.get(1).getServerSeq());
         assertThat(backward.stateHash()).isEqualTo(forward.stateHash());
+    }
+
+    // -------------------------------------------------------------------------------- branches
+
+    @GrpcClient("branches")
+    BranchServiceGrpc.BranchServiceBlockingStub branches;
+
+    /**
+     * COLLAB-034's finding: a branch took no record of comments from its parent and a merge gave none
+     * back, so a commenter could not answer a thread from before the fork on the branch, nor on main a
+     * thread merged from the branch, and main's unread counts left the merged comments out.
+     */
+    @Test
+    void branchCommentsAreAnsweredOnTheBranchAndMergeIntoTheParentsRecord() {
+        UUID doc = shared();
+        long alices = replicaId();
+        Id alicesThread = new Id(100, alices);
+        push(ALICE, doc, changeOf(alices, 1, 100, createThread(COMMENTS), reply(alicesThread, comment(alice.toString()))));
+        UUID branch = ServiceTestSupport.uuid7();
+        TestUsers.as(branches, BOB).createBranch(CreateBranchRequest.newBuilder().setParentDocumentId(doc.toString())
+                .setBranchDocumentId(branch.toString()).setName("Comments").build());
+        long carols = replicaId();
+        long bobs = replicaId();
+        Id bobsThread = new Id(300, bobs);
+        push(CAROL, branch, changeOf(carols, 1, 200, reply(alicesThread, comment(carol.toString()))));
+        push(BOB, branch, changeOf(bobs, 1, 300, createThread(COMMENTS), reply(bobsThread, comment(bob.toString()))));
+        assertThat(unread(ALICE, branch).getTotal()).isEqualTo(2);
+
+        TestUsers.as(branches, BOB).mergeBranch(MergeBranchRequest.newBuilder().setBranchDocumentId(branch.toString()).build());
+        push(CAROL, doc, changeOf(replicaId(), 1, 400, reply(bobsThread, comment(carol.toString()))));
+        assertThat(unread(ALICE, doc).getTotal()).isEqualTo(3);
+        assertThat(notifications(bob, doc, "reply")).isEqualTo(1);
+        // A second merge of nothing new changes nothing; a resolve on the branch after it is merged by op id.
+        push(BOB, branch, changeOf(bobs, 2, 500, resolve(bobsThread, true)));
+        TestUsers.as(branches, BOB).mergeBranch(MergeBranchRequest.newBuilder().setBranchDocumentId(branch.toString()).build());
+        assertThat(value("SELECT resolved FROM comment_thread WHERE document_id = ? AND node_counter = 300 AND node_replica = ?",
+                doc, bobs)).isEqualTo(true);
     }
 
     // ---------------------------------------------------------------------------------- digest

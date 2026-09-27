@@ -72,7 +72,7 @@ final class CommentsFeatures {
     var role: @MainActor (String) -> DocumentRole = { _ in .owner }
     /// The link *Copy Link* puts on the pasteboard.
     var link: @MainActor (String, OpID) -> URL = { document, thread in
-        URL(string: "wiretuner://document/\(document)?thread=\(thread.counter).\(thread.replica)")!
+        DeepLink(documentID: document, target: .thread(thread)).url
     }
     var pasteboard: NSPasteboard = .general
     /// Shows a panel by id.

@@ -515,8 +515,8 @@ field's space (bundled, the document's own, installed), and a file from an insta
 the user touched, and btn:[OK] writes those over the document as it is then, so a collaborator's
 change to another setting while the sheet was open survives; the current-value labels follow the
 document.  *Deviations*: the sheet is SwiftUI hosted in a window sheet rather than an `NSPanel` of
-pop-up buttons; *Other…* registers the profile in this process's registry only (CMS-008's blob
-upload is not built); the Document panel button waits for the Document panel; the *Monitor
+pop-up buttons; *Other…* registered the profile in this process's registry only until CMS-008's blob
+upload glue (`WTApp/Color/ProfileBlobGlue.swift`, below); the Document panel came later (`WTApp/Panels/DocumentPanel.swift`) without the button; the *Monitor
 profile* row is still the chooser the preferences catalog had, and *Embedded image profiles* is the
 Import row of xref:preferences.adoc[Preferences], where that page's table puts it.
 
@@ -534,10 +534,9 @@ pending custom profile of a state (downloaded once, lazily, verified against its
 Until then `ColorSettings.pending` is set and the renderer draws through the bundled default of
 the profile's space; on arrival the caller re-reads `ColorSettings` and invalidates -- nothing is
 written.  WTSync reaches `WTColor` through WTModel's dependency on WTRender (no Package.swift
-change).  The WTApp glue is not built: *Other…* in the Color Settings sheet should call `load`
-instead of registering in-process only, the document handle should `install()` once, pass
-`isAvailable` to `ColorSettings`, call `requestMissing` when the colour settings change and
-redraw on `arrivals`; the 2 s end-to-end figure needs that glue and is not measured.
+change).  The WTApp glue came with the note below (`WTApp/Color/ProfileBlobGlue.swift`): *Other…*
+in the Color Settings sheet calls `load` instead of registering in-process only, the registry is
+installed once, and missing profiles are requested; the 2 s end-to-end figure is not measured.
 
 NOTE: As built by CMS-009 (`WTSync/ColorSettingsReview.swift`).  The measurement already listed
 `DocumentSetting.colorSettings` for a remote write under `SettingsProps.color` (SYNC-006); a local
@@ -552,8 +551,7 @@ it -- and the choices: `useMine` (offered only when the local side changed the c
 and `useTheirs`, each a `ColorSettingsChoice`, `ChangeColorSettings` with the row's label, so it
 is one undoable change writing only the registers that differ.  *Use mine* writes the whole local
 colour settings back, including a profile the other side changed.  The review sheet's row is
-WTApp's and not built: `ReviewSheetModel` should show `title` and `changes`' `line`s for the
-setting entry and perform `useMine` / `useTheirs` instead of the no-op `useTheirs` it has now.
+WTApp's and is built by the note below (`WTApp/Review/ReviewSheetModel.swift`).
 
 NOTE: The WTApp glue of CMS-008 and CMS-009 is built (`WTApp/Color/ProfileBlobGlue.swift`,
 `ColorSettingsSheet.swift`, `WTApp/Review/ReviewSheetModel.swift`).  One `ProfileBlobs` over the app's

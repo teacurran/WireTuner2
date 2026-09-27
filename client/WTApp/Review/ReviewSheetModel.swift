@@ -83,6 +83,9 @@ final class ReviewSheetModel {
         case rescale(RescaleEntry)
         /// An instance of a removed symbol, or an object using a removed style (LIB-023).
         case removedTarget(RemovedTargetEntry)
+        /// Both sides removed different pages and none was left (DOC-006, DOC-031): told, no
+        /// choice -- the document reads as one Letter page and the next page command writes it.
+        case zeroPages
     }
 
     /// One conflicting attribute: both values and which the merge kept.
@@ -140,7 +143,7 @@ final class ReviewSheetModel {
         remoteNodes = remote.flatMap { change in RegisterNames.touched(by: change).map { ($0.node, change.replica) } }
             .filter { remoteSeen.insert($0.0).inserted && merged.store.exists($0.0) }
         filter = review.entries.isEmpty && review.mergeRuns.isEmpty && review.removedFields.isEmpty && review.releaseOverlaps.isEmpty
-            && review.rescaleRows.isEmpty && review.removedTargets.isEmpty ? .everything : .conflicts
+            && review.rescaleRows.isEmpty && review.removedTargets.isEmpty && !review.zeroPages ? .everything : .conflicts
         selectedID = nil
         selectedID = rows.first?.id
     }
@@ -201,7 +204,7 @@ final class ReviewSheetModel {
             Row(id: entry.id, node: entry.object, name: ObjectNaming.name(of: entry.object, in: merged), kind: entry.kind.title, entry: nil,
                 data: .removedTarget(entry))
         }
-        return merges + releases + rescales + removed
+        return merges + releases + rescales + removed + (review.zeroPages ? [Self.zeroPagesRow] : [])
     }
 
     /// "Page 3 from Master A".
@@ -227,6 +230,10 @@ final class ReviewSheetModel {
         for entry in review.entries where rescale(for: entry) != nil { reviewed.insert(entry.id) }
         return context.perform(command)
     }
+
+    /// "All pages were removed; a page was added." (pages.adoc, "Merge semantics").
+    static let zeroPagesRow = Row(id: "zero-pages", node: WellKnown.pages, name: ZeroPages.reviewMessage,
+                                  kind: "Removed by both", entry: nil, data: .zeroPages)
 
     /// "Two merge runs: 3 pages and 4 pages".
     static func mergeRunsName(_ conflict: MergeRunConflict) -> String {
@@ -402,6 +409,7 @@ final class ReviewSheetModel {
         case .release(let overlap): return overlap.choices.map(\.title)
         case .rescale(let entry): return [entry.reason.actionTitle]
         case .removedTarget(let entry): return entry.choices.map(\.title)
+        case .zeroPages: return []
         }
     }
 
@@ -431,6 +439,8 @@ final class ReviewSheetModel {
                 message = "\(title) could not be applied: \(error.localizedDescription)"
                 return nil
             }
+        case .zeroPages:
+            return nil
         }
     }
 

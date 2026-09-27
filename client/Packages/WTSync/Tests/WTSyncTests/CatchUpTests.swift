@@ -22,7 +22,7 @@ import WTProto
 
     @Test func aNeverSeenDocumentBootstrapsFromTheSnapshot() async throws {
         let server = try await server(count: 60, snapshot: 45)
-        let harness = try await Harness(server: server)
+        let harness = try await Harness(server: server, options: steadyOptions())
         await harness.client.start()
         try await harness.waitFor(.saved)
         #expect(await server.fetchSnapshotCalls == 1)
@@ -30,11 +30,15 @@ import WTProto
         try await harness.waitForTransition("saved") { _ in true }
         #expect(harness.transitions.all.first?.to == .saved)
         try await harness.expectConverged()
+        // The collector drains the event stream on its own task: wait until it has the tail's
+        // closing progress before reading what came before it.
+        let done = CatchUpProgress(phase: .changes, completed: 15, total: 15)
+        try await harness.waitForEvent("the tail's progress") { if case .catchUp(done) = $0 { true } else { false } }
         let events = harness.events.all
         #expect(events.contains { if case .stateReplaced(45) = $0 { true } else { false } })
         let progress = events.compactMap { if case .catchUp(let progress) = $0 { progress } else { nil } }
         #expect(progress.contains { $0.phase == .snapshot && $0.fraction == 1 })
-        #expect(progress.last == CatchUpProgress(phase: .changes, completed: 15, total: 15))
+        #expect(progress.last == done)
         try await harness.stop()
     }
 
@@ -88,7 +92,7 @@ import WTProto
 
     @Test func acceptedChangesTheSnapshotHoldsAreAcknowledged() async throws {
         let server = FakeSyncServer()
-        let harness = try await Harness(server: server)
+        let harness = try await Harness(server: server, options: steadyOptions())
         try await harness.edit(3)
         // The pushes got in, but the client never heard: the snapshot now holds them.
         for seq in 1...3 {

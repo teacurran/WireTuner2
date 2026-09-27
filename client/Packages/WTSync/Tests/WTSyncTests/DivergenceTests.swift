@@ -372,10 +372,13 @@ extension Fixture {
         world.theirs([Fixture.settings([2, 31, 1]), Fixture.settings([2, 30])])
         let divergence = world.measure()
         #expect(divergence.entries.isEmpty && divergence.localObjects == 0 && divergence.decision(.standard) == .silentMerge)
-        // Other settings are ordinary registers of the settings node.
+        // Other settings are ordinary registers of the settings node, listed when both wrote one;
+        // two different settings are not an overlap (FONT-029).
         world.mine([Fixture.settings([2, 3])])
         world.theirs([Fixture.settings([2, 4])])
-        #expect(world.measure().entries.map(\.kind) == [.bothEdited])
+        #expect(world.measure().entries.isEmpty)
+        world.theirs([Fixture.settings([2, 3])])
+        #expect(world.measure().entries.map(\.kind) == [.sameRegister])
     }
 
     @Test func remoteColorSettingsAreAlwaysListed() throws {
@@ -423,7 +426,8 @@ extension Fixture {
         #expect(entry.properties.allSatisfy { $0.kept == .theirs })
         #expect(ReviewModel.useMine(entry)?.ops == [Ops.elementMove(.wellKnown(1), path, position: [0x70]),
                                                      Ops.elementDelete(.wellKnown(1), [path], deleted: false)])
-        // Inserting into the same sequence and writing sets on both sides is only "both edited".
+        // Inserting into the same sequence and writing sets on both sides is only "both edited" --
+        // which the settings node, a holder of independent settings, never is (FONT-029).
         var other = Divergent()
         let layer = other.layers(1)[0]
         var tags = Wiretuner_Doc_V1_NodeProps()
@@ -432,7 +436,7 @@ extension Fixture {
                     Ops.setAdd(layer, RegisterPath([150, 1, 30]), values: Wiretuner_Doc_V1_NodeProps())])
         other.theirs([Ops.elementInsert(.wellKnown(1), sizes, positions: [[0x82]], values: tags),
                       Ops.setRemove(layer, RegisterPath([150, 1, 30]), values: Wiretuner_Doc_V1_NodeProps())])
-        #expect(other.measure().entries.map(\.kinds) == [[.bothEdited], [.bothEdited]])
+        #expect(other.measure().entries.map(\.kinds) == [[.bothEdited]] && other.measure().entries.map(\.node) == [layer])
     }
 
     @Test func noopsAndUnreadablePathsCountForNothing() {

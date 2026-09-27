@@ -57,9 +57,14 @@ public struct SnapSources: Sendable {
     public var excludedItems: Set<Int>
     /// Smart guides (OBJ-038), recomputed by the tool as the drag goes.
     public var smartGuides: [SnapGuide]
+    /// Lines of the perspective grid shown (perspective.adoc, "With Snap to Grid on, objects moved
+    /// with the Pointer tool snap to the perspective grid lines"; FX-043): snapped along with
+    /// *Snap to Grid*, at guide priority.
+    public var gridLines: [Contour]
 
     public init(grid: GridSpec? = nil, guides: [SnapGuide] = [], guideObjects: [Contour] = [], displayList: DisplayList? = nil,
-                index: RTree<Int>? = nil, excludedItems: Set<Int> = [], smartGuides: [SnapGuide] = []) {
+                index: RTree<Int>? = nil, excludedItems: Set<Int> = [], smartGuides: [SnapGuide] = [], gridLines: [Contour] = []) {
+        self.gridLines = gridLines
         self.grid = grid
         self.guides = guides
         self.guideObjects = guideObjects
@@ -135,6 +140,9 @@ public struct SnapEngine: Hashable, Sendable {
         }
         if toggles.smartGuides {
             result += sources.smartGuides.map(SnapCandidate.smartGuide)
+        }
+        if toggles.grid {
+            result += sources.gridLines.filter { !$0.segments.isEmpty }.map(SnapCandidate.guideObject)
         }
         if toggles.grid, let grid = sources.grid, grid.isValid {
             let lattice = grid.relative ? grid.snapGrid.relative(to: dragOrigin ?? point) : grid.snapGrid

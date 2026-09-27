@@ -57,8 +57,8 @@ The Eyedropper tool (kbd:[I]) samples and applies with a click:
 . kbd:[Option]-click other text or blocks to apply them.
 
 Hold kbd:[Shift] while kbd:[Option]-clicking to apply character attributes only; hold
-kbd:[Cmd] to apply paragraph attributes only.  The tool's options popover has the same two
-toggles for repeated use.
+kbd:[Cmd] to apply paragraph attributes only.  The tool's options (double-click the Eyedropper in
+the Tools panel) have the same two toggles for repeated use.
 
 == Working with others
 
@@ -114,7 +114,13 @@ Attributes] and *Paste Attributes* take text first (the Text tool's range, else 
 fall back to the object commands.  The Eyedropper: a click on text picks its attributes up at the
 character under the pointer (the colour pick goes on as before), an kbd:[Option]-click on text applies
 them, with kbd:[Shift] the character attributes only, with kbd:[Cmd] the paragraph ones only.
-Deviation: the options popover's two toggles are not built; *Paste Attributes* keeps no key equivalent.
+Deviation: *Paste Attributes* keeps no key equivalent.
+
+NOTE: As built by TYPE-031's remainder (`WTApp/Text/TextAttributeClipboard.swift`, `Color/Eyedropper/EyedropperFeatures.swift`).
+The Eyedropper's options -- a double-click on it in the Tools panel, the sheet the other tools' options use rather than a
+popover -- hold *Apply character attributes* and *Apply paragraph attributes* (preferences `tools.eyedropper.text_character`
+and `tools.eyedropper.text_paragraph`, both on).  An kbd:[Option]-click applies the groups whose toggle is on, kbd:[Shift]
+and kbd:[Cmd] still narrowing to one; with both off it applies nothing.
 
 === Build tasks
 

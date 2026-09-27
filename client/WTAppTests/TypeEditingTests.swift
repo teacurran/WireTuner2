@@ -456,10 +456,20 @@ struct TypeWorld {
         await world.edit(node, select: 1..<1)
         let nudger = TypeNudger.nudger(for: world.window.objectEditing)
         #expect(TypeNudger.nudger(for: world.window.objectEditing) === nudger)
-        nudger.pause = .milliseconds(200)
+        let pause = ManualPause()
+        nudger.sleep = { [pause] duration in await pause.wait(duration) }
+        defer {
+            nudger.sleep = { try await Task.sleep(for: $0) }
+            pause.end()
+        }
         let before = world.document.undoTitle
         for _ in 0..<10 { #expect(nudger.nudge(TypeNudge(kind: .kerning, delta: 1))) }
-        try await Task.sleep(for: .milliseconds(400))
+        // Each nudge restarts the pause; nothing is written until one passes.
+        #expect(await eventually { pause.waiting == 10 })
+        #expect(pause.durations.allSatisfy { $0 == TypeNudger.pause } && nudger.pending?.delta == 10)
+        #expect(world.document.undoTitle == before)
+        pause.end()
+        #expect(await eventually { nudger.pending == nil && nudger.written != nil })
         _ = await nudger.written?.value
         await world.settle()
         // Kerning at the insertion point: a span-1 mark on the character before it.
@@ -534,6 +544,28 @@ struct TypeWorld {
 }
 
 /// Mark values for the app tests.
+/// A pause the test ends: `wait` suspends until `end`.
+@MainActor
+final class ManualPause {
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var durations: [Duration] = []
+
+    /// How many waits are suspended.
+    var waiting: Int { waiters.count }
+
+    func wait(_ duration: Duration) async {
+        durations.append(duration)
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    /// Ends every suspended wait.
+    func end() {
+        let ended = waiters
+        waiters = []
+        for waiter in ended { waiter.resume() }
+    }
+}
+
 enum TextFixtureMarks {
     static func mark(_ build: (inout Wiretuner_Doc_V1_TextMarkValue) -> Void) -> Wiretuner_Doc_V1_TextMarkValue {
         var value = Wiretuner_Doc_V1_TextMarkValue()

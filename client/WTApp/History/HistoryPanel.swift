@@ -14,6 +14,12 @@ import WTSync
 /// selected compare with each other (*Older* / *Newer*).  Named versions are renamed and deleted
 /// from their context menu; rows older than the retention window are summarized and only named
 /// versions among them act.
+///
+/// Offline (COLLAB-024; history.adoc, "Offline behavior"): versions named but not yet sent are
+/// listed as pending under *Not yet synced* with the unsent changes; the timeline read earlier this
+/// session (`HistoryCache`), or before that the local log's sessions, stays listed, and rows whose
+/// state the local log cannot rebuild show *Available when online*.  A live change drops only the
+/// cached pages it can change, and the timeline is read again only when the shown page went.
 @MainActor
 @Observable
 final class HistoryPanelModel {
@@ -32,6 +38,15 @@ final class HistoryPanelModel {
     private(set) var selection: [String] = []
     private(set) var message: String?
     private(set) var loadedDocument: String?
+    /// Versions named here that wait for their changes to upload (*Not yet synced*).
+    private(set) var pendingVersions: [PendingVersion] = []
+    /// The last read of the timeline failed or had no network: rows the local log cannot rebuild
+    /// show *Available when online*.
+    private(set) var isOffline = false
+    /// What the local log holds (nil: a document without a local store).
+    private(set) var local: LocalHistory?
+    /// Timeline pages read this session, per document.
+    @ObservationIgnored private(set) var caches: [String: HistoryCache<HistoryPage>] = [:]
 
     @ObservationIgnored var window: @MainActor () -> DocumentWindowController? = { nil }
     @ObservationIgnored var client: @MainActor () -> (any HistoryClient)? = { nil }
@@ -41,6 +56,14 @@ final class HistoryPanelModel {
         guard let store = window.session?.store else { return [] }
         return ((try? await store.outbox()) ?? []).map(\.label).reversed()
     }
+    /// The front document's versions waiting to be named on the server.
+    @ObservationIgnored var queuedVersions: @MainActor (DocumentWindowController) async -> [PendingVersion] = { _ in [] }
+    /// What the window's local store holds of the history.
+    @ObservationIgnored var localHistory: @MainActor (DocumentWindowController) async -> LocalHistory? = { window in
+        try? await window.session?.store?.localHistory()
+    }
+    /// A replica's author, for the local log's sessions.
+    @ObservationIgnored var author: @MainActor (DocumentWindowController, UInt64) -> String? = { window, replica in window.session?.author(of: replica)?.name }
     @ObservationIgnored var makeID: @MainActor () -> String = { UUIDv7.make() }
     @ObservationIgnored var showVersion: @MainActor (EngineState, String, DocumentWindowController, VersionWindows.Actions) -> Void = { state, name, window, actions in
         VersionWindows.shared.open(state, document: window.documentHandle.title, version: name, environment: window.environment, actions: actions)
@@ -59,20 +82,78 @@ final class HistoryPanelModel {
         }
         let document = window.documentHandle.id
         pending = await outbox(window)
+        pendingVersions = await queuedVersions(window)
+        local = await localHistory(window)
+        let key = currentKey
         guard let client = client() else {
             message = "History needs the network."
-            loadedDocument = document
+            showOffline(window, document, key)
             return
         }
         do {
             let page = try await client.history(of: document, cursor: "", query: query, expandSession: expanded ?? 0)
-            rows = page.rows
-            retainedFromSeq = page.retainedFromSeq
+            caches[document, default: HistoryCache()].store(page, for: key, head: local?.head ?? 0)
+            show(page, document)
+            isOffline = false
             message = nil
-            loadedDocument = document
         } catch {
             message = "History could not be read: \(error.localizedDescription)"
+            showOffline(window, document, key)
         }
+    }
+
+    private var currentKey: HistoryCache<HistoryPage>.Key { .timeline(cursor: "", query: query, expandSession: expanded ?? 0) }
+
+    private func show(_ page: HistoryPage, _ document: String) {
+        rows = page.rows
+        retainedFromSeq = page.retainedFromSeq
+        loadedDocument = document
+    }
+
+    /// Offline: the page read earlier, else (another document's rows on show) the local log's sessions.
+    private func showOffline(_ window: DocumentWindowController, _ document: String, _ key: HistoryCache<HistoryPage>.Key) {
+        isOffline = true
+        if let page = caches[document]?.page(key) {
+            show(page, document)
+        } else if loadedDocument != document || rows.isEmpty {
+            show(HistoryPage(rows: localRows(window), nextCursor: "", retainedFromSeq: 0), document)
+        }
+    }
+
+    /// The local log's sessions as timeline rows, newest first.
+    func localRows(_ window: DocumentWindowController) -> [HistoryRow] {
+        (local?.sessions() ?? []).map { session in
+            let entries = session.entries
+            let changes = entries.reversed().map { HistoryChange(serverSeq: $0.serverSeq ?? 0, label: $0.label, wallTime: $0.wallTime, nodes: [], names: []) }
+            return .session(HistorySession(author: author(window, session.replica) ?? (session.local ? "You" : "Someone"),
+                                           firstSeq: entries.first?.serverSeq ?? 0, lastSeq: entries.last?.serverSeq ?? 0,
+                                           startedAt: entries.first?.wallTime, endedAt: entries.last?.wallTime,
+                                           changeCount: entries.count, branch: nil, changes: changes))
+        }
+    }
+
+    /// A live change reached the window's document: the cached pages it can change go, and the
+    /// timeline is read again only when the page shown went (the unsent group always follows).
+    func liveChange(_ change: Wiretuner_Doc_V1_Change?, remote: Bool, in window: DocumentWindowController) async {
+        let document = window.documentHandle.id
+        if remote, let change, var cache = caches[document] {
+            let seq = await window.session?.store?.lastServerSeq ?? cache.head + 1
+            cache.apply(change, serverSeq: seq)
+            caches[document] = cache
+        }
+        if remote, caches[document]?.page(currentKey) == nil {
+            await load()
+        } else {
+            pending = await outbox(window)
+            pendingVersions = await queuedVersions(window)
+            local = await localHistory(window)
+        }
+    }
+
+    /// btn:[Refresh]: the timeline read again, whatever is cached.
+    func refresh() async {
+        if let document = window()?.documentHandle.id { caches[document]?.removeAll() }
+        await load()
     }
 
     /// Expands `session` (or collapses it, when it is the expanded one).
@@ -102,8 +183,17 @@ final class HistoryPanelModel {
     /// Older than the retention window: shown summarized.
     func isSummarized(_ row: HistoryRow) -> Bool { row.serverSeq < retainedFromSeq }
 
-    /// Whether View, Restore and Compare act on `row`.
-    func isActionable(_ row: HistoryRow) -> Bool { row.version != nil || !isSummarized(row) }
+    /// Whether View, Restore and Compare act on `row`: offline, only on a row the local log can
+    /// rebuild.
+    func isActionable(_ row: HistoryRow) -> Bool {
+        guard row.version != nil || !isSummarized(row) else { return false }
+        return !isAvailableWhenOnline(row)
+    }
+
+    /// Offline, and the local log cannot rebuild the row's state: *Available when online*.
+    func isAvailableWhenOnline(_ row: HistoryRow) -> Bool {
+        isOffline && !(local?.canRebuild(row.serverSeq) ?? false)
+    }
 
     /// "Priya · 14:02–15:40 · 312 changes", or the summarized "Priya · 14 March · 312 changes".
     func title(_ row: HistoryRow) -> String {
@@ -230,7 +320,7 @@ final class HistoryPanelModel {
         guard !trimmed.isEmpty, trimmed != version.name, let client = client() else { return }
         do {
             try await client.rename(version: version.id, name: trimmed, note: nil)
-            await load()
+            await refresh()
         } catch {
             message = "The version could not be renamed: \(error.localizedDescription)"
         }
@@ -241,18 +331,19 @@ final class HistoryPanelModel {
         guard let client = client() else { return }
         do {
             try await client.delete(version: version.id)
-            await load()
+            await refresh()
         } catch {
             message = "The version could not be deleted: \(error.localizedDescription)"
         }
     }
 
-    /// The front window changed, or its document did: the timeline is read again (a
-    /// collaborator's version appears on the next remote change or refresh).
+    /// The front window's document changed: `liveChange` (a collaborator's version appears on
+    /// the next remote change or refresh).
     func follow(_ window: DocumentWindowController) {
         window.documentHandle.observe { [weak self, weak window] change in
-            guard change.summary.origin == .remote, let self, let window, self.window() === window else { return }
-            Task { await self.load() }
+            guard let self, let window, self.window() === window else { return }
+            let remote = change.summary.origin == .remote
+            Task { await self.liveChange(change.change, remote: remote, in: window) }
         }
     }
 }
@@ -264,6 +355,7 @@ struct HistoryPanelBody: View {
     @State private var newName = ""
 
     static func loading(_ model: HistoryPanelModel) -> () -> Void { { Task { await model.load() } } }
+    static func refreshing(_ model: HistoryPanelModel) -> () -> Void { { Task { await model.refresh() } } }
     static func viewing(_ model: HistoryPanelModel, _ row: HistoryRow) -> () -> Void { { Task { await model.view(row) } } }
     static func restoring(_ model: HistoryPanelModel, _ row: HistoryRow) -> () -> Void { { Task { await model.restore(row) } } }
     static func comparing(_ model: HistoryPanelModel, _ row: HistoryRow) -> () -> Void { { Task { await model.compareWithCurrent(row) } } }
@@ -278,12 +370,15 @@ struct HistoryPanelBody: View {
                 TextField("Search history", text: $model.query).onSubmit(Self.loading(model)).accessibilityIdentifier("history.search")
                 Toggle("Hide comments", isOn: $model.hideComments).toggleStyle(.checkbox).accessibilityIdentifier("history.hideComments")
                 Button("Compare", action: Self.comparingSelected(model)).disabled(model.selection.count != 2).accessibilityIdentifier("history.compare")
-                Button(action: Self.loading(model)) { Image(systemName: "arrow.clockwise") }.help("Refresh").accessibilityIdentifier("history.refresh")
+                Button(action: Self.refreshing(model)) { Image(systemName: "arrow.clockwise") }.help("Refresh").accessibilityIdentifier("history.refresh")
             }
             if let message = model.message { Text(message).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("history.message") }
             List {
-                if !model.pending.isEmpty {
+                if !model.pending.isEmpty || !model.pendingVersions.isEmpty {
                     Section("Not yet synced") {
+                        ForEach(model.pendingVersions) { version in
+                            Text("\(version.name) · pending").italic().fontWeight(.bold).accessibilityIdentifier("history.pendingVersion")
+                        }
                         ForEach(Array(model.pending.enumerated()), id: \.offset) { Text($0.element).italic() }
                     }
                 }
@@ -326,6 +421,9 @@ struct HistoryRowView: View {
                 Text(model.title(row)).fontWeight(row.version != nil ? .bold : .regular)
                     .foregroundStyle(model.isActionable(row) ? .primary : .secondary)
                 Spacer()
+                if model.isAvailableWhenOnline(row) && (row.version != nil || !model.isSummarized(row)) {
+                    Text("Available when online").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("history.availableWhenOnline")
+                }
                 if model.isActionable(row) {
                     Button("View", action: HistoryPanelBody.viewing(model, row)).accessibilityIdentifier("history.view")
                     Button("Restore", action: HistoryPanelBody.restoring(model, row)).accessibilityIdentifier("history.restore")

@@ -281,8 +281,18 @@ run with `Trace.trace` off the main actor behind a progress sheet with btn:[Canc
 `PlaceTrace`: one group named "Trace of <object>" directly above the traced object (the top of the
 current layer over nothing), one change "Trace".  The options (colours, grays, noise, conformity,
 outer edge, centerline, uniform, resolution, wand tolerance) persist in the preferences' defaults.
-A placeholder image is refused with a message.  Not built: *Trace layers* choices and the wand
-options popover.
+A placeholder image is refused with a message.  The *Trace layers* choices and the wand options popover are
+the next note.
+
+NOTE: As built by IMG-023's remainder (`WTModel/TraceLayers.swift`; `WTApp/Images/TraceTool.swift`).  *Trace layers*
+(*All*, *Foreground*, *Background*) is a picker in the options sheet, kept with the other trace options
+(`TraceSettings.layersName`; settings saved before it read as *All*).  `TraceLayers.includes` takes the printing layers as
+*Foreground* and the non-printing ones as *Background*; the Guides layer is never traced, and an object on no layer only
+with *All*.  The choice limits the images the tool samples from (`TraceFeatures.marks`) and the canvas it renders
+(`TraceLayers.filter` keeps the display list's top-level items on those layers).  A plain click inside the wand's
+selection opens the wand options popover (`WandOptionsPopover`, an `NSPopover` beside the click) with *Trace selection*
+and *Convert selection edge* and btn:[Trace]; the selection is traced (or its edge made one unfilled path) and ends.
+kbd:[Return] and kbd:[E] remain as shortcuts for the two choices.
 
 NOTE: As built by IMG-029 (`WTRender/Trace/TraceSegmenter.swift`, `CoreMLClassMapper.swift`).  The segmenter is
 `WTRender.Trace.Segmenter` (the trace kernel's home).  `Trace.runPhoto(_:options:subjects:classMap:transform:progress:isCancelled:)`

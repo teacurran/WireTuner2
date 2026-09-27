@@ -15,8 +15,10 @@ import WTProto
 //   symbol import.
 // * A copy of objects carries a `ClipboardLibrary` in its payload: the `SymbolPackage` of what the
 //   objects reference (swatches, styles with their parents, symbols) and each styled object's
-//   resolved look.  `PasteFromDocument` imports the package the way a paste of instances does (a
-//   same-named style is left alone; a missing one is created, parents first) and then writes, on
+//   resolved look; its swatches also travel as the payload's colours (COLOR-019), which
+//   `PasteFromDocument` resolves first with the clash rule.  It imports the rest of the package
+//   the way a paste of instances does (a same-named style is left alone; a missing one is
+//   created, parents first) and then writes, on
 //   each pasted object, overrides for every category whose look in this document differs from the
 //   look it had -- so it looks identical and shows the plus sign.
 // * Styles are unique by name on read: two live graphic styles with one name (two people
@@ -121,8 +123,10 @@ public struct ClipboardLibrary: Hashable, Sendable {
     }
 }
 
-/// menu:Edit[Paste] of objects copied in another document: the library they carry is imported
-/// first -- swatches and styles matched by name, a missing style created with its parents,
+/// menu:Edit[Paste] of objects copied in another document: the colours they carry are resolved
+/// with COLOR-019's clash rule (`PastedColors`: same name and value reused, same name and another
+/// value renamed to its mix values), then the library is imported -- styles matched by name (and
+/// any swatch not carried as a colour), a missing style created with its parents,
 /// symbols as a paste of instances takes them (`PasteWithSymbols`) -- then the objects are pasted
 /// with their references pointing at this document's nodes, and each styled object gets overrides
 /// for every category whose look here differs from the look it was copied with.  One change,
@@ -137,15 +141,31 @@ public struct PasteFromDocument: Command {
     public var label: String { paste.label }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
-        guard let library = paste.payload.library else { return try paste.execute(&builder, state: state) }
-        var importer = SymbolImporter(package: Self.needed(library.package, by: paste.payload.nodes, in: state), state: state)
+        guard var library = paste.payload.library else { return try paste.execute(&builder, state: state) }
+        // The carried colours first, with COLOR-019's clash rule (`PastedColors`): the objects', the
+        // styles' and the symbols' swatch references then name this document's swatches, and the
+        // package's copies of those swatches are not imported by name.
+        let colors = try PastedColors.resolve(paste.payload.colors, state: state, builder: &builder)
+        let carried = Set(paste.payload.colors.map(\.key))
+        library.package.resources = library.package.resources.compactMap { item in
+            if item.collection == WellKnown.swatches, let source = item.tree.source, carried.contains(PastedColors.key(source)) { return nil }
+            var item = item
+            item.tree = PastedColors.rewrite([item.tree], mapping: colors, schema: state.schema)[0]
+            return item
+        }
+        let nodes = PastedColors.rewrite(paste.payload.nodes, mapping: colors, schema: state.schema)
+        var importer = SymbolImporter(package: Self.needed(library.package, by: nodes, in: state), state: state)
         try importer.run(extra: [], alwaysCopy: false, builder: &builder)
         var rewritten = paste
-        rewritten.payload.nodes = paste.payload.nodes.map { importer.rewrite($0) }
+        rewritten.payload.nodes = nodes.map { importer.rewrite($0) }
         rewritten.payload.library = nil
+        rewritten.payload.colors = []
         var mapping: [OpID: OpID] = [:]
         try rewritten.execute(&builder, state: state, mapping: &mapping)
-        let looks = library.looks.mapValues { $0.rewritten(schema: state.schema) { importer.mapping[$0] } }
+        let looks = library.looks.mapValues { look in
+            StyleLook(props: PastedColors.rewrite([NodeTree(props: look.props)], mapping: colors, schema: state.schema)[0].props)
+                .rewritten(schema: state.schema) { importer.mapping[$0] }
+        }
         try StyleBaking.bake(looks, onto: mapping, state: state, builder: &builder)
     }
 

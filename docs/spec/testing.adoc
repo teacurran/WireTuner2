@@ -251,8 +251,10 @@ review and in restore (COLLAB-032, `CommentScenarioTests`), the colour list (COL
 `SwatchScenarioTests`) and data merge (DATA-023, `DataMergeScenarioTests`, with `SimDataService`
 standing in for the data service), the collaboration guide's cases against two API nodes
 (COLLAB-003, `CollaborationCaseScenarioTests`, through `SimCluster`, `SimulationBackend.cluster`),
-layers, symbols and styles (LIB-023, `LibraryScenarioTests`) and instance overrides (LIB-028,
-`OverrideScenarioTests`); together they add about 20 s to the suite.
+layers, symbols and styles (LIB-023, `LibraryScenarioTests`), instance overrides (LIB-028,
+`OverrideScenarioTests`), comments under concurrency against the server's record of comments (COLLAB-034,
+`CommentCaseScenarioTests`), pages, masters and guides (DOC-031, `DocumentSetupScenarioTests`) and typefaces with
+generated fonts compared (FONT-029, `TypefaceScenarioTests`); together they add about 55 s to the suite.
 
 == Geometry and rendering
 

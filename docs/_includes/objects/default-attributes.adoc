@@ -123,7 +123,8 @@ edit of an object (`DocumentDefaults.following`, applied by `DocumentHandle.comm
 preference is on) in `AlsoChangingDefaults`: the edit, then -- in the same change, labelled "… (and
 defaults)" -- the default stack replaced by a copy of the edited object's live fills and strokes.
 `SetDefaultsStyle` writes `defaults.style` and replaces the stack with the style's attributes in one
-change; a dangling style reads as Normal.  The Styles panel that chooses it is not built yet.
+change; a dangling style reads as Normal.  The Styles panel chooses it (a click with nothing selected,
+`SelectGraphicStyleAsDefaults`; `WTApp/Styles/StylesPanelModel.swift`).
 Deviations: effects are not copied onto new objects (their attachments name fill and stroke elements of
 the defaults), a new object's fills always sit below its strokes (`PathEditing.appearanceInserts`), and
 text tools keep their own defaults (`defaults.text` is TYPE's).  The conformance vector is not added here

@@ -1356,7 +1356,8 @@ survive) and `ConvertBarcodesToPaths` ("Convert to Paths": one path of the bars'
 the barcode's transform and stack; an unencodable barcode is left alone).  Bound fields are
 substituted since DATA-003 (`RecordSubstitution.barcodeValue`, below): in the preview, in *Merge to
 Pages* copies and in merged output, and a value the symbology cannot encode is a report row.  The
-Object panel section and the *Insert Barcode…* menu item (WTApp) are not built.
+Object panel section and the *Insert Barcode…* menu item are DATA-018's WTApp half
+(`WTApp/Data/DataObjectSections.swift`, `DataFeatures.swift`; "Barcodes", below).
 
 [[as-built-client]]
 ==== As built (DATA-003; DATA-010, DATA-016, DATA-019, DATA-020 and DATA-021 model and client halves)
@@ -1408,8 +1409,9 @@ last complete fetch per document and source (JSON under `Caches/WireTuner/DataSo
 the RPCs.  `GRPCDataSourceTransport` maps a rejection's `ErrorInfo` reason and metadata (`host`,
 `admins`) and `RetryInfo` to `DataServiceError`.  `DataScriptFetcher` is `wt.fetch`: on
 `HOST_NOT_ALLOWED` in a personal document it asks the window's consent closure once per host, puts
-the host on the account's scope and retries.  The Web API, credentials and *Show Hosts* sheets and
-the Document Info host list are WTApp's and not built.
+the host on the account's scope and retries.  The Web API, credentials and *Show Hosts* sheets are
+DATA-010's WTApp half (`WTApp/Data/DataWebSource.swift`, `DataCredentials.swift`, below); the
+Document Info host list is not built.
 
 Preview (DATA-016, model half)::
 `DocumentDisplayListBuilder.substitution` (a `RecordSubstitution`) draws placeholders with the
@@ -1447,7 +1449,8 @@ nothing is written; `WTInterchange.MergeExport` writes one PDF or one PDF per re
 with `MergeFileNames` (the export tokens plus `{field}`, collisions suffixed ` 2`, ` 3` ...) and
 stops after the current record when its progress closure says so.  One file per record is flat in
 memory; *One file* collects the pages before writing (the PDF writer is not incremental).  The
-`PrintPlanView` integration, the merge sheet and the progress sheet are WTApp's and not built.
+merge sheet and its progress are DATA-021's WTApp half (`WTApp/Data/DataMerge.swift`, below); the
+`PrintPlanView` integration is not built.
 
 Review rows and multi-client scenarios (DATA-023; `WTSync/DataMergeReview.swift`, simulator `WTTestSupportTests/Simulation/DataMergeScenarioTests`)::
 * `Divergence.measure` adds two kinds of row beside the object entries, both always listed (like
@@ -1471,8 +1474,9 @@ use in the merged state, `deletedLocally` says which side deleted it, and *Resto
 `RestoreField`.  A deletion nobody else touched a use of is not listed.
 * Embedded samples are never listed: a write under `DataSource.sample` (settings field 81, element,
 field 5) is left out of the touch sets, as print settings are.  Other concurrent writes to the
-settings node still make the ordinary settings row: two people adding fields meet as *Both edited*
-on the document settings, two renaming one field as *Same attribute* with both names.
+settings node still make the ordinary settings row when they meet on one register: two renaming one
+field are *Same attribute* with both names; two people adding fields write no register in common and are
+not listed (the settings node is never *Both edited*: FONT-029, reconcile.adoc).
 * The scenarios run against the in-process server in every `swift test` of WTTestSupport (and in
 `make client-sim`): rename vs bind, delete vs placeholder (the row and its *Restore*), duplicate
 names, URL vs header, sample race, two merge runs with each choice, merge vs template edit, an API
@@ -1603,7 +1607,8 @@ each row; clicking one previews that record.
 (the export sheet's last options are not read).  *Print Merge* opens the Print dialog on
 `MergePrintView`: `knowsPageRange` is the merged page count, `rectForPage` each output page's
 template rectangle, and a page is drawn (as a one-page vector PDF) only when the print loop asks.
-The printing chapter's own pane is not built, so the dialog is the standard one.
+The merge does not use the printing chapter's pane (`WTApp/Print/PrintPane.swift`), so the dialog
+is the standard one.
 
 NOTE: The review sheet lists DATA-023's rows (`WTApp/Review/ReviewSheetModel.swift`): after the object conflicts, one row per
 *two merge runs* ("Two merge runs: 3 pages and 4 pages", *Both merged*) with *Keep both, one after the other*, *Remove
@@ -1616,8 +1621,17 @@ unless a copy is already here -- the same library script with an unchanged sourc
 (or the free name "Name 2" a copy took) -- which `existingCopy(in:)` names; a taken name gets the next free "Name N".
 `CachingFieldTransformer` wraps a `FieldTransforming` (the runtime's `ScriptTransformer`) so each (script, value, record, field) runs
 once per resolution, failures uncached so every failing record is reported.  A 10,000-record script source resolves to the same
-records as the same data from a CSV (test).  Not built: persisting a script source's hosts in the local store and the `Proxy`
-audit test (WTSync).
+records as the same data from a CSV (test).  The hosts store and the `Proxy` test are the next note.
+
+NOTE: As built by DATA-015's WTSync remainder (`WTSync/ScriptSourceHosts.swift`; one hook in `WTApp/Data/DataSession.swift`).
+A script source's run records the hosts its `wt.fetch` reached in the document's `LocalStore` `view` table, one row per
+source (`data.script_hosts.<counter>-<replica>`, lower case, each once, sorted), replacing the previous run's;
+`DataSession` loads them when the source is loaded, so *Show Hosts* lists them after a relaunch without running the script
+(a document without a local store keeps them for the session).  `ScriptSourceHostsTests` runs a script source whose
+`records` calls `wt.fetch` with a credential over the in-process gRPC `DataSourceService`: one `Proxy` call names the
+document, the URL and the credential with the token (the fake service's audit row -- the server's own audit rows are
+`FetchAuditTest`'s), the runtime's own `fetch`, `XMLHttpRequest` and `WebSocket` throw `SandboxError`, and no `URLSession`
+request leaves the process.
 
 === Build tasks
 

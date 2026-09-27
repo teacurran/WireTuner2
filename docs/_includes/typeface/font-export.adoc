@@ -312,8 +312,9 @@ and `post` (2.0 names for TTF, 3.0 for OTF).  The kerning model compiles straigh
 split to keep every 16-bit offset in range.  There is no feature-file compiler: the user's
 `features` text is not compiled (a non-empty file is a warning, `featuresNotCompiled`, not an
 error), and the generated `mark`, `mkmk` and `liga` features are not produced (anchors that would
-attach are a warning, `attachmentNotCompiled`); `FeatureGenerator` and `FeatureChecker`
-(FONT-019) are not built.  Components are written decomposed (the flattened outline).  Identical
+attach are a warning, `attachmentNotCompiled`); `FeatureGenerator`, `FeatureChecker` and a feature
+compiler came later with FONT-019 (`WTInterchange/Fonts/Features/`; see
+xref:opentype-features.adoc[OpenType features]).  Components are written decomposed (the flattened outline).  Identical
 sources give identical bytes (the `head` dates are zero unless `Options.date` is given).  The
 seam is still the neutral source, so a bundled compiler can replace this one without touching the
 model.  Core Text loads every generated font; fontTools reads them without complaint (checked by
@@ -327,7 +328,8 @@ listed in the import report as not read -- the decompiler into feature text is n
 `GDEF` is not read; composite glyphs placed by point matching are placed at their origin and
 reported.  `WTModel.FontImport` writes the import as a change group ("Import <file> [i/n]": glyph
 batches, then the settings and kerning), one undo step, with the grid's collision rules on an
-import into an existing document.  UFO export and import (FONT-023, FONT-024) are not built.
+import into an existing document.  UFO export (FONT-023) is not built; UFO import came later with
+FONT-024 (`WTInterchange/Fonts/UFOReader.swift`, below).
 
 NOTE: Deviations recorded by FONT-026 (UI half), FONT-025's menu item and FONT-027's option.  The
 Generate Fonts sheet lists `FontGeneration.snapshot`'s problems (errors block Generate; btn:[Show]
@@ -457,4 +459,23 @@ Delivers:: Simulator scenarios: two glyphs claim one codepoint; rename collision
 Done when::
 * All scenarios converge to identical hashes and identical generated fonts on every client, and the expected review entries are produced.
 * Runs inside the TEST-001 CI budget.
+
+NOTE: As built by FONT-029 (`WTTestSupportTests/Simulation/TypefaceScenarioTests.swift`; review rows in
+`WTSync/FontCollisionReview.swift` and `RemovedTargetReview.swift`, tests `WTSyncTests/SetupAndFontReviewTests`).  Eight
+scenarios, each but the last live (within a dropped connection) and after 12 hours offline, three clients each, about 15 s
+together: Å encoded on B while another adds *Aring* for it; C and O both renamed *eacute*; 1000→2048 with scale while three
+glyphs are drawn on; A V set on both sides and O V created on both; a left class *O* created on both; feature-file typing in
+different blocks, then in one line; B removed while drawn on; and 24 simulated hours of glyph work on two clients.  Every run
+converges and, offline, every client's `FontGeneration.generate` (date fixed) returns the same bytes.  The review rows the pages
+name for claims were not built, so this task built them: `Divergence.fontCollisions` (`FontCollisionEntry`, always listed, holding
+the outbox) lists a glyph name, codepoint, class name and side, or kerning pair claimed on both sides of the reconnect -- "Two glyphs
+named eacute" (*Remove duplicate* when the losers have no artwork or components, *Rename…*, whose name the sheet asks for), "Two
+glyphs encode U+00C5 'Å'" (*Move to this glyph*, *Remove from other*), "Two left classes named O" (*Merge classes*), "Two
+kerning pairs for O V" (*Keep the latest*, `SetKernPair` with the used value, which deletes the others) -- each choice one change;
+and `RemovedTargetEntry.Kind.removedGlyph` lists an object drawn on a glyph the other side removed ("Drawn on a glyph that was
+removed", *Restore*: the glyph's `deleted` false, which re-attaches the object).  Found and fixed: the settings node, which holds
+the kerning, classes and feature file, was listed *Both edited* whenever both sides wrote different settings (two classes, two
+feature blocks); it is now listed only for a conflict of its own (reconcile.adoc's SYNC-006 note).  Deviations: a pair value set
+on both sides is the settings node's *Same attribute* row (*Font*), as every font setting is a register of that node; feature text
+edited in one line is its *Same text* row.
 endif::spec[]

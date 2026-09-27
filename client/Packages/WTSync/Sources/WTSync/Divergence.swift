@@ -145,6 +145,15 @@ public struct Divergence: Sendable, Hashable {
     /// Instances of a symbol and objects using a graphic style the other side removed
     /// (library.adoc, styles.adoc): always listed.
     public var removedTargets: [RemovedTargetEntry] = []
+    /// Both sides removed different pages of the document and none is left (pages.adoc, "Add
+    /// pages while the other side removes the only other page"; DOC-006, DOC-031): always listed,
+    /// with the entry `ZeroPages.reviewMessage`, so both people learn what happened; it has no
+    /// choice, so it makes the decision at least *Review what changed* but holds nothing.  The
+    /// next command touching pages writes the page.
+    public var zeroPages = false
+    /// Glyph names and codepoints, kerning classes and pairs claimed on both sides (glyph-grid.adoc,
+    /// kerning-metrics.adoc): always listed (FONT-029).
+    public var fontCollisions: [FontCollisionEntry] = []
 
     /// Objects changed on both sides (setting entries not counted).
     public var overlapCount: Int { entries.lazy.filter { $0.setting == nil }.count }
@@ -153,7 +162,7 @@ public struct Divergence: Sendable, Hashable {
     /// removed field, a release overlap or an object drawn while the font was rescaled.
     public var hasRows: Bool {
         !entries.isEmpty || !mergeRuns.isEmpty || !removedFields.isEmpty || !releaseOverlaps.isEmpty || !rescaleRows.isEmpty
-            || !removedTargets.isEmpty
+            || !removedTargets.isEmpty || zeroPages || !fontCollisions.isEmpty
     }
 
     /// Whether a row holds the outbox without an overlap: every row but a font-metric setting
@@ -161,7 +170,7 @@ public struct Divergence: Sendable, Hashable {
     /// touched overlaps it (font-info.adoc, "The always-list rule for font-level metrics").
     var holdsRows: Bool {
         entries.contains { $0.setting != .fontMetrics } || !mergeRuns.isEmpty || !removedFields.isEmpty
-            || !releaseOverlaps.isEmpty || !rescaleRows.isEmpty || !removedTargets.isEmpty
+            || !releaseOverlaps.isEmpty || !rescaleRows.isEmpty || !removedTargets.isEmpty || !fontCollisions.isEmpty
     }
 
     /// The decision rules with `preferences`.
@@ -186,6 +195,10 @@ public struct Divergence: Sendable, Hashable {
         }
         if holdsRows {
             return .perObject
+        }
+        if zeroPages {
+            // Nothing to decide, but never merged without a word.
+            return .suggestReview
         }
         if localOps >= preferences.autoMergeBelow || remoteOps >= preferences.autoMergeBelow
             || gap > preferences.suggestReviewAfter || !remoteComplete {
@@ -226,8 +239,14 @@ public struct Divergence: Sendable, Hashable {
             candidates.formUnion(mine.nodes.keys.filter { state.store.kind($0) == Scope.glyphKind })
         }
         for node in candidates {
-            entries.append(scope.entry(node, mine: mine.nodes[node] ?? NodeTouch(), theirs: theirs.nodes[node] ?? NodeTouch(),
-                                       anchored: anchored.contains(node), deletedAncestor: ancestors[node]))
+            let entry = scope.entry(node, mine: mine.nodes[node] ?? NodeTouch(), theirs: theirs.nodes[node] ?? NodeTouch(),
+                                    anchored: anchored.contains(node), deletedAncestor: ancestors[node])
+            // The settings node holds independent document settings (kerning pairs and classes, the
+            // feature file, grid, units...), not one object: it is listed for a conflict of its own
+            // -- a register or element both wrote, a paragraph both edited -- never as *Both edited*
+            // because each side wrote a different setting (FONT-029).
+            if node == .wellKnown(1) && entry.kinds == [.bothEdited] { continue }
+            entries.append(entry)
         }
         for setting in DocumentSetting.allCases {
             guard let replicas = theirs.settings[setting] else { continue }
@@ -241,7 +260,9 @@ public struct Divergence: Sendable, Hashable {
                           removedFields: DataMergeReview.removedFields(local: local, remote: remote, state: state),
                           releaseOverlaps: ReleaseReview.overlaps(local: local, remote: remote, state: state),
                           rescaleRows: FontRescaleReview.rows(local: local, remote: remote, state: state),
-                          removedTargets: RemovedTargetReview.rows(local: local, remote: remote, state: state))
+                          removedTargets: RemovedTargetReview.rows(local: local, remote: remote, state: state),
+                          zeroPages: ZeroPages.removedOnBothSides(local: local, remote: remote, merged: state),
+                          fontCollisions: FontCollisionReview.rows(local: local, remote: remote, state: state))
     }
 }
 
@@ -552,6 +573,23 @@ struct Scope {
             properties.append(PropertyConflict(property: .elementDeleted(path), mine: .flag(write.value), theirs: .flag(other.value),
                                                merged: current.map { .flag($0.value) }, kept: Self.side(current?.op, write.op, other.op)))
         }
+        // An element one side deleted while the other wrote inside it or moved it -- a guide
+        // deleted while dragged (grid-guides.adoc, "Delete vs. move"; DOC-031): edit vs. delete on
+        // that element, restored by writing its `deleted` false.
+        for (deleter, writer) in [(mine, theirs), (theirs, mine)] {
+            for (path, write) in deleter.elementDeletes where write.value && writer.elementDeletes[path] == nil {
+                let prefix = path.segments
+                guard writer.elementPositions[path] != nil
+                        || writer.paths.contains(where: { $0.segments.count > prefix.count && Array($0.segments.prefix(prefix.count)) == prefix })
+                else { continue }
+                kinds.insert(.editVsDelete)
+                let current = state.store.element(node, path)?.deleted?.current
+                properties.append(PropertyConflict(property: .elementDeleted(path), mine: mine.elementDeletes[path].map { .flag($0.value) },
+                                                   theirs: theirs.elementDeletes[path].map { .flag($0.value) },
+                                                   merged: current.map { .flag($0.value) },
+                                                   kept: Self.side(current?.op, mine.elementDeletes[path]?.op, theirs.elementDeletes[path]?.op)))
+            }
+        }
         if let a = mine.move, let b = theirs.move {
             kinds.insert(.moveVsMove)
             let current = state.store.placement(node)
@@ -574,7 +612,10 @@ struct Scope {
             kinds.insert(.bothEdited)
         }
         properties.sort { $0.property < $1.property }
-        let deleted = merged?.value == true
+        let elementDeleted = properties.contains { conflict in
+            if case .elementDeleted = conflict.property, case .flag(true)? = conflict.merged { true } else { false }
+        }
+        let deleted = merged?.value == true || elementDeleted
         let actions: [ReviewAction] = kinds.contains(.editVsDelete)
             ? (deleted ? [.restore, .useTheirs] : [.useMine, .useTheirs])
             : [.useMine, .useTheirs, .keepBoth]

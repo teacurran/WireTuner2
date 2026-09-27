@@ -425,7 +425,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
         let movable = nodes.filter { context.document.state.nodeKind($0) != .connector }
         guard !movable.isEmpty else { return nil }
         return copy ? DuplicateObjects(nodes, offset: .translation(delta), label: "Copy")
-            : NamedChange.move(MoveObjects(movable, by: delta), nodes: movable, state: context.document.state)
+            : NamedChange.move(MoveOffGrid.command(movable, by: delta, in: context.document.state), nodes: movable, state: context.document.state)
     }
 
     private func commitMove(_ delta: Vector, copy: Bool) {

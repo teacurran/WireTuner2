@@ -68,6 +68,8 @@ final class TypeNudger {
 
     unowned let editing: ObjectEditing
     var pause: Duration = TypeNudger.pause
+    /// Waits out the pause (tests replace it to end the pause themselves).
+    var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     /// The nudge adding up, its node and the live range it applies to.
     private(set) var pending: (kind: TypeNudge.Kind, delta: Double, target: TextEditingSession.Target, range: Range<Int>)?
     private var timer: Task<Void, Never>?
@@ -95,9 +97,9 @@ final class TypeNudger {
         let delta = (pending?.delta ?? 0) + nudge.delta
         pending = (nudge.kind, delta, target, range)
         timer?.cancel()
-        let pause = pause
+        let pause = pause, sleep = sleep
         timer = Task { [weak self] in
-            try? await Task.sleep(for: pause)
+            try? await sleep(pause)
             guard !Task.isCancelled else { return }
             self?.flush()
         }

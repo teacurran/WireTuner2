@@ -121,14 +121,9 @@ import WTSync
         Self.offline(base)
         let first = try #require(await base.ana.perform(AddFields("email"))).insertedElements(WellKnown.settings, DataFieldsPaths.fields)[0]
         let second = try #require(await base.ben.perform(AddFields("Email"))).insertedElements(WellKnown.settings, DataFieldsPaths.fields)[0]
-        // Both wrote the settings node: one *Both edited* row, no register in common.
-        try await Self.reconnect(sim, base)
-        try await base.ben.waitFor("needs review") { $0 == .needsReview }
-        let review = try #require(await base.ben.client.pendingReview)
-        #expect(review.entries.map(\.node) == [WellKnown.settings] && review.entries[0].kind == .bothEdited)
-        try await base.ben.keepMerged()
-        try await sim.settle()
-        try await sim.expectConverged()
+        // Both inserted into the settings node's fields, no register in common: nothing to decide,
+        // so nothing is listed (the settings node is never *Both edited*, FONT-029).
+        try await Self.reconnectQuietly(sim, base)
         let (kept, suffixed) = first < second ? (first, second) : (second, first)
         for client in base.clients {
             let model = DataModel(client.state)

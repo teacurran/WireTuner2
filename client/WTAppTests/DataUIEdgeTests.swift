@@ -317,5 +317,11 @@ import WTSync
         await world.session.refresh()
         #expect(world.session.scriptHosts == ["data.example.com"] || world.session.scriptHosts == ["Data.Example.com"])
         #expect(HostsModel.referenced(world.session).contains { $0.by == "Script" })
+        // Kept for the source (DATA-015): another session on the document lists them before any run.
+        let reopened = DataSession(document: world.document)
+        reopened.hostStorage = world.session.hostStorage
+        await reopened.load()
+        #expect(reopened.scriptHosts == ["data.example.com"])
+        reopened.close()
     }
 }

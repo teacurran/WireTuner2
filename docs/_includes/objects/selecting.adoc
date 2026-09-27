@@ -329,7 +329,7 @@ colour); *Fill and Stroke* compares both.  Candidates are the page's (the docume
 `AttributeQuery.candidates`, which leaves out hidden, locked and Guides layers; locked objects and members of locked groups are left
 out too.  The sample is always in the result, and kbd:[Shift] (`adding`) keeps the earlier selection first.  *Shape* is the slot
 IMG-030 fills: `SelectSimilar.items(classifier:)` offers it only when a `ShapeClassifying` is installed.  Nothing is written.  The
-menu items and the status-bar message are WTApp's (not built).
+menu items and the status-bar message are WTApp's, built by OBJ-042's app half (`WTApp/Objects/CombineAndSimilar.swift`, below).
 
 NOTE: As built by OBJ-042's app half (`WTApp/Objects/CombineAndSimilar.swift`, `SelectSimilarCommands`).
 menu:Edit[Select > Similar > Fill / Stroke / Fill and Stroke] (and *Shape* when a `ShapeClassifying` is installed) run

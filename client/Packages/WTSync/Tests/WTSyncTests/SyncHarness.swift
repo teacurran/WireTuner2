@@ -22,6 +22,17 @@ func fastOptions(gateway: Bool = false) -> SyncClient.Options {
     return options
 }
 
+/// `fastOptions` for a test that asserts one uninterrupted session (the transitions it sees, the
+/// calls the server counts): `FakeSyncServer` sends no heartbeats, so with the 3 s heartbeat a
+/// loaded machine that starves the client's tasks for 3 s ends the session and the test sees a
+/// reconnect it is not about.  The heartbeat itself is `SyncClientTests`' subject, with its own
+/// timeout.
+func steadyOptions() -> SyncClient.Options {
+    var options = fastOptions()
+    options.heartbeatTimeout = .seconds(600)
+    return options
+}
+
 struct Timeout: Error, CustomStringConvertible {
     let description: String
 }

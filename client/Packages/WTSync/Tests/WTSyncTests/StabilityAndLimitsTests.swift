@@ -48,8 +48,11 @@ import WTProto
         let polled = await server.acks.count - before
         #expect(polled >= 3 && polled <= 12, "\(polled) polls in a second")
         await server.update { $0.stableCap = nil }
-        try await harness.waitForEvent("risen") { if case .stable(3) = $0 { true } else { false } }
-        try await Task.sleep(for: .milliseconds(300))
+        // The poll that learns the rise is answered 3, and so is the one ack that confirms it:
+        // after the second answer of 3 nothing more goes up.
+        try await eventually("risen and confirmed") {
+            harness.events.all.filter { if case .stable(3) = $0 { true } else { false } }.count >= 2
+        }
         let settled = await server.acks.count
         try await Task.sleep(for: .milliseconds(400))
         #expect(await server.acks.count == settled)

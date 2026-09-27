@@ -21,6 +21,7 @@ enum ContextMenuCatalog {
         static let pasteBehind: CommandID = "edit.special.pasteBehind"
         static let editWith: CommandID = "edit.editWith"
         static let links: CommandID = "edit.links"
+        static let copyLinkToObject: CommandID = "edit.copyLinkToObject"
         static let superselect: CommandID = "edit.select.superselect"
         static let subselect: CommandID = "edit.select.subselect"
 
@@ -160,6 +161,7 @@ enum ContextMenuCatalog {
             stub(ID.pasteBehind, "Paste Behind", MenuPath(edit, "Special", section: 1)),
             stub(ID.editWith, "Edit With", MenuPath(edit, section: 1)),
             stub(ID.links, "Links…", MenuPath(edit, section: 1)),
+            stub(ID.copyLinkToObject, "Copy Link to Object", MenuPath(edit, section: 1)),
             stub(ID.superselect, "Superselect", MenuPath(edit, SelectionCommands.submenu, section: 1)),
             stub(ID.subselect, "Subselect", MenuPath(edit, SelectionCommands.submenu, section: 1)),
 
@@ -327,7 +329,7 @@ enum ContextMenuCatalog {
             + commands(ID.group, ID.ungroup) + [.separator]
             + commands(ID.lock, ID.unlock) + [.separator]
             + [arrangeSubmenu] + (multiple ? [combineSubmenu] : []) + [alignSubmenu, transformSubmenu] + [.separator]
-            + commands(ids.hideSelection, ID.addToLibrary, ID.name, ID.note, ID.link) + [.separator]
+            + commands(ids.hideSelection, ID.addToLibrary, ID.name, ID.note, ID.link) + [.command(ID.copyLinkToObject, title: "Copy Link"), .separator]
             + [selectSubmenu, .command(PanelCommands.ID.show("object"), title: "Object Panel")]
     }
 

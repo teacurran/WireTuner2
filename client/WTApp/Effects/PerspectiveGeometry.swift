@@ -126,6 +126,10 @@ struct PerspectiveGridDrawing: Equatable {
     let leftHidden: Bool
     let rightHidden: Bool
     let floorHidden: Bool
+    /// The draggable edge lines (perspective.adoc, "a wall's edge line", "the floor's front edge";
+    /// FX-043): each shown wall's near edge and the floor's front edge across the page, pasteboard
+    /// space, with the field a drag writes.
+    let edges: [(start: Point, end: Point, field: PerspectiveFields.GridField)]
 
     static func == (lhs: PerspectiveGridDrawing, rhs: PerspectiveGridDrawing) -> Bool {
         lhs.page == rhs.page && lhs.spec == rhs.spec && lhs.grid == rhs.grid && lhs.planes == rhs.planes
@@ -180,6 +184,49 @@ struct PerspectiveGridDrawing: Equatable {
         if !onePoint { points.append((spec.rightVP, .rightVP)) }
         if spec.effectiveVanishingPoints == 3 { points.append((spec.verticalVP, .verticalVP)) }
         vanishingPoints = points
+        var edges: [(start: Point, end: Point, field: PerspectiveFields.GridField)] = []
+        func wallEdge(_ plane: PerspectiveSpec.Plane, _ field: PerspectiveFields.GridField) {
+            let (origin, _, v) = PlaneMap.axes(spec, plane: plane)
+            let height = Self.reach(v, origin: origin, cell: spec.effectiveCellSize)
+            let map = PlaneMap(spec, plane: plane)
+            edges.append((map.apply(.zero), map.apply(Point(x: 0, y: height)), field))
+        }
+        if !stored.leftHidden { wallEdge(onePoint ? .wall : .leftWall, .leftWallX) }
+        if !stored.rightHidden && !onePoint { wallEdge(.rightWall, .rightWallX) }
+        if !stored.floorHidden {
+            edges.append((Point(x: page.rect.minX, y: spec.floorFrontY), Point(x: page.rect.maxX, y: spec.floorFrontY), .floorFrontY))
+        }
+        self.edges = edges
+    }
+
+    /// The edge within `radius` view points of view point `point`, nearest first.
+    func edge(near point: Point, viewport: Viewport, radius: Double) -> PerspectiveFields.GridField? {
+        edges.map { edge in (edge.field, Self.distance(point, viewport.toView(edge.start), viewport.toView(edge.end))) }
+            .filter { $0.1 <= radius }.min { $0.1 < $1.1 }?.0
+    }
+
+    /// The distance from `point` to the segment `a`–`b`.
+    static func distance(_ point: Point, _ a: Point, _ b: Point) -> Double {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let length = dx * dx + dy * dy
+        let t = length == 0 ? 0 : max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length))
+        return point.distance(to: Point(x: a.x + t * dx, y: a.y + t * dy))
+    }
+}
+
+extension PerspectiveGridDrawing {
+    /// The perspective grid lines objects snap to with *Snap to Grid* (perspective.adoc: "objects
+    /// moved with the Pointer tool snap to the perspective grid lines but do not gain
+    /// perspective"): every page's shown planes' lines, while the window shows the grid.
+    @MainActor
+    static func snapLines(of document: DocumentHandle) -> [Contour] {
+        guard PerspectiveTool.showsGrid(document) else { return [] }
+        let state = document.state
+        return document.pageList.pages.flatMap { page in
+            PerspectiveGridDrawing(page: page, state: state).planes.flatMap { plane in
+                plane.lines.map { Contour(polygon: [$0.0, $0.1], closed: false) }
+            }
+        }
     }
 }
 
@@ -194,5 +241,10 @@ enum PerspectivePageCoordinates {
 
     static func horizon(_ y: Double, page: Rect) -> Double {
         page.maxY - y
+    }
+
+    /// A wall's near-edge x as stored, from pasteboard x.
+    static func wallX(_ x: Double, page: Rect) -> Double {
+        x - page.minX
     }
 }

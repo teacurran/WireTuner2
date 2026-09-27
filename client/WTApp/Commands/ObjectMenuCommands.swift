@@ -12,6 +12,7 @@ enum ObjectMenuCommands {
 
     enum ID {
         static let pasteInFront: CommandID = "edit.special.pasteInFront"
+        static let pasteAndMatchStyle: CommandID = "edit.pasteAndMatchStyle"
         static let transformAgain: CommandID = "modify.transform.again"
         static let addPoints: CommandID = "extensions.distort.addPoints"
     }
@@ -43,10 +44,17 @@ enum ObjectMenuCommands {
             Command(id: ID.pasteInFront, title: "Paste In Front", key: KeyEquivalent("v", [.command, .option]), menu: MenuPath(edit, "Special", section: 1),
                     keywords: ["paste"], validation: selected({ $0.canPasteNextToSelection }, reason: "Select an object and copy something first"),
                     action: run { $0.paste(inFront: true) }),
+            // With the Text tool's insertion point the key is *Paste and Match Style* (TYPE-009).
             Command(id: ids.pasteBehind, title: "Paste Behind", key: KeyEquivalent("v", [.command, .option, .shift]), menu: MenuPath(edit, "Special", section: 1),
                     contexts: [.pasteboard, .page], keywords: ["paste"],
-                    validation: selected({ $0.canPasteNextToSelection }, reason: "Select an object and copy something first"),
-                    action: run { $0.paste(inFront: false) }),
+                    validation: selected({ $0.textSession?.canPaste == true || $0.canPasteNextToSelection }, reason: "Select an object and copy something first"),
+                    action: run { editing in
+                        if let text = editing.textSession { text.pasteAndMatchStyle() } else { editing.paste(inFront: false) }
+                    }),
+            Command(id: ID.pasteAndMatchStyle, title: "Paste and Match Style", menu: MenuPath(edit, section: 1),
+                    contexts: [.textEditing], keywords: ["paste", "plain text", "strip formatting"],
+                    validation: selected({ $0.textSession?.canPaste == true }, reason: "Place the insertion point in text and copy some text first"),
+                    action: run { $0.textSession?.pasteAndMatchStyle() }),
             Command(id: ids.group, title: "Group", key: KeyEquivalent("g", .command), menu: MenuPath(modify, section: 0),
                     contexts: ContextMenuCatalog.objectContexts, validation: selected(), action: run { $0.group() }),
             Command(id: ids.ungroup, title: "Ungroup", key: KeyEquivalent("g", [.command, .shift]), menu: MenuPath(modify, section: 0),

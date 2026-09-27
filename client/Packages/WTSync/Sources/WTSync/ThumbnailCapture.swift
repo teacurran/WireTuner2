@@ -26,6 +26,13 @@ public actor ThumbnailCapture {
     let render: Renderer
     private var captured: Marker?
     private var timer: Task<Void, Never>?
+    /// The capture running or run most recently: the next waits for it, so a close during a
+    /// timer's capture does not render the same state a second time.
+    private var running: Task<String?, any Error>?
+    /// How many timer intervals have passed and how many captures were asked for (tests wait on
+    /// them instead of on the wall clock).
+    private(set) var ticks = 0
+    private(set) var requests = 0
 
     /// A capture for `store`'s document queueing on `queue`; `interval` is the snapshot interval
     /// (offline.adoc: five minutes).  The document as opened counts as captured.
@@ -50,6 +57,17 @@ public actor ThumbnailCapture {
     /// the queued blob's hash, or nil when nothing changed or nothing was drawn.
     @discardableResult
     public func captureIfChanged() async throws -> String? {
+        requests += 1
+        let previous = running
+        let task = Task {
+            _ = try? await previous?.value
+            return try await captureOnce()
+        }
+        running = task
+        return try await task.value
+    }
+
+    private func captureOnce() async throws -> String? {
         let marker = await Self.marker(of: store)
         guard marker != captured else { return nil }
         let state = await store.read { $0 }
@@ -69,8 +87,13 @@ public actor ThumbnailCapture {
                 try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, let self else { return }
                 _ = try? await self.captureIfChanged()
+                await self.tick()
             }
         }
+    }
+
+    private func tick() {
+        ticks += 1
     }
 
     /// The window is closing: stops the timer and captures once more if the document changed.

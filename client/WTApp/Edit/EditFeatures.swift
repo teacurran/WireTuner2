@@ -257,6 +257,10 @@ final class EditFeatures {
     func pasteRichest(on window: DocumentWindowController) async -> Bool {
         let pasteboard = Self.pasteboard(of: window)
         let types = Self.types(of: pasteboard)
+        // Rich and plain text become a text block holding it (TYPE-009).
+        if let format = ClipboardReader.richest(in: types), [.rtf, .plainText].contains(format) {
+            return await pasteTextBlock(on: window, from: pasteboard)
+        }
         guard let scene = try? ClipboardReader.readRichest(types: types, data: { pasteboard.data(forType: NSPasteboard.PasteboardType($0)) }) else { return false }
         return await place(scene, on: window)
     }

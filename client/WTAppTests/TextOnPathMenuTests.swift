@@ -119,4 +119,36 @@ import WTText
         let blockFrame = TextFrames.frame(of: try #require(fixture.document.textLayout(for: block)))
         #expect(blockFrame.minX == 0 && blockFrame.minY == 0 && blockFrame.width > 1)
     }
+
+    /// A text block away from the origin attached to a path by performing the command directly
+    /// (not through the menu): the glyphs are drawn on the path where it was, not moved by the
+    /// block's own position.  (App tests once had a stand-in `AttachTextToPath` from before
+    /// TYPE-041 that moved the path under the text without re-expressing its transform; it
+    /// shadowed the real command and drew both shifted by the block's offset.)
+    @Test func textAttachedDirectlyIsDrawnOnThePathWhereItWas() async throws {
+        let document = DocumentHandle.memory(title: "Attach")
+        let text = try #require(await document.addText("Hello path", at: Point(x: 40, y: 40)))
+        let path = try #require(await document.addPath([Point(x: 200, y: 20), Point(x: 200, y: 380)]))
+        _ = await document.perform(AttachTextToPath(text: text, path: path.opID)).value
+        await document.settle()
+        #expect(TextOnPathMenu.isOnPath(text, in: document.state))
+        let bounds = try #require(document.object(for: SelectionID(text))?.bounds)
+        #expect(bounds.minX > 190 && bounds.maxX < 215 && bounds.minY > 15 && bounds.minY < 30, "\(bounds)")
+        // The pixels drawn: ink only along the path, none where the shifted glyphs would be.
+        let size = 400
+        let image = try #require(CoreGraphicsRenderer().renderBitmap(document.displayList, viewport: Viewport(size: Size(width: Double(size), height: Double(size)))))
+        var bytes = [UInt8](repeating: 0, count: size * size * 4)
+        let context = try #require(CGContext(data: &bytes, width: size, height: size, bitsPerComponent: 8, bytesPerRow: size * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        context.draw(image, in: CGRect(x: 0, y: 0, width: size, height: size))
+        var inked: [(x: Int, y: Int)] = []
+        for row in 0..<130 {
+            for x in 150..<300 {
+                let i = (row * size + x) * 4
+                if Int(bytes[i]) + Int(bytes[i + 1]) + Int(bytes[i + 2]) < 200, bytes[i + 3] > 200 { inked.append((x, row)) }
+            }
+        }
+        #expect(!inked.isEmpty)
+        #expect(inked.allSatisfy { $0.x >= 190 && $0.x <= 215 }, "\(inked.map(\.x).min() ?? 0)...\(inked.map(\.x).max() ?? 0)")
+    }
 }

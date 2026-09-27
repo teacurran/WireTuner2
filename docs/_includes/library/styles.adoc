@@ -659,8 +659,10 @@ name is taken is added as "Name 2" (the first free number), or with *Replace sty
 place (the registers that differ written, the stack replaced when it differs, its role kept).  The cross-document paste: a copy
 carries a `ClipboardLibrary` in field 6 of the objects payload (not a second pasteboard type) -- the `SymbolPackage` of what the
 objects reference and each styled object's resolved look (its canonical stack and halftone) -- and a paste from another document
-is `PasteFromDocument`: of the package only what the objects need is imported (a same-named style here is left alone and brings
-none of its parents; a missing one is created with its parents), the objects are pasted pointing at this document's nodes, and each
+is `PasteFromDocument`: the swatches go first through COLOR-019's clash rule (the payload's carried colours, `PastedColors`:
+same name and value reused, same name and another value renamed to its mix values; exporting-colors.adoc), then of the package
+only what the objects need is imported (a same-named style here is left alone and brings none of its parents; a missing one is
+created with its parents), the objects are pasted pointing at this document's nodes, and each
 styled object gets overrides in every category whose look here differs from the one it was copied with, so it looks identical and
 shows the plus sign; one change labelled as the paste.  This also carries instances' symbols across documents (LIB-013's missing
 pasteboard glue).  Styles read unique by name: of several live graphic styles with one name the smallest node id keeps it and the

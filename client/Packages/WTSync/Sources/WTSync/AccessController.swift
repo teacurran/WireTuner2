@@ -1,4 +1,5 @@
 import Foundation
+import WTModel
 import WTProto
 
 /// Role changes during a session (COLLAB-014; sharing.adoc, "When your access changes
@@ -107,10 +108,14 @@ public actor AccessController {
     func apply(_ state: SyncState) async {
         var next = status
         if case .readOnly(let reason) = state {
-            await store.setReadOnly(true)
+            // A commenter still writes comments (COLLAB-034): only other changes freeze.
+            let isCommenter = await client.isCommenter
+            let commenter = reason == .role && isCommenter
+            await store.setReadOnly(true, commentsAllowed: commenter)
             next.editable = false
             next.reason = reason
-            if reason != .clientTooOld && !frozen, let unsent = try? await store.outboxCount(), unsent > 0 {
+            let sendable = commenter ? await onlyCommentsUnsent() : false
+            if reason != .clientTooOld && !frozen, !sendable, let unsent = try? await store.outboxCount(), unsent > 0 {
                 frozen = true
                 await client.holdOutbox(true)
                 next.unsent = unsent
@@ -122,6 +127,13 @@ public actor AccessController {
             next.reason = nil
         }
         publish(next)
+    }
+
+    /// Whether every unsent change concerns comments only (a commenter may send those).
+    private func onlyCommentsUnsent() async -> Bool {
+        guard let changes = try? await store.outbox() else { return false }
+        let state = await store.read { $0 }
+        return changes.allSatisfy { CommentFields.onlyComments($0.ops, in: state) }
     }
 
     private func publish(_ next: Status) {

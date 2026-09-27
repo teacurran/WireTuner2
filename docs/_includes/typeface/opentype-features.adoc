@@ -224,11 +224,11 @@ rules); `GlyphContours` holds the finishing steps (y flip, directions, extrema, 
 quadratic conversion).  A component nesting deeper than eight levels reads as a placeholder at
 the ninth.  Kerning reaches the font through `GPOS` directly, not through generated feature text,
 and the feature file is not compiled (see xref:font-export.adoc[Generating and exchanging fonts]);
-FONT-019 is not built.
+FONT-019 came later and compiles it (its note below, `WTInterchange/Fonts/Features/`).
 
 NOTE: Deviations recorded by FONT-022.  Only the Features pane of Font Info (the three generate
-switches) is built.  The Features editor window waits for `FeatureChecker` and a feature compiler,
-which FONT-018 and FONT-019 did not build.
+switches) is built.  The Features editor window waited for `FeatureChecker` and a feature compiler,
+which FONT-019 built later (`FeatureChecker.swift`, `FeatureCompiler.swift`); the window is not built.
 
 NOTE: As built by FONT-019 (`WTInterchange/Fonts/Features/`: `FeatureSyntax.swift`,
 `FeatureChecker.swift`, `FeatureGenerator.swift`, `FeatureCompiler.swift`, `FeatureTables.swift`;

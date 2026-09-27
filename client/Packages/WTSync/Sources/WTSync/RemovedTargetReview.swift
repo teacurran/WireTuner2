@@ -1,5 +1,6 @@
 import Foundation
 import WTCRDT
+import WTGeometry
 import WTModel
 import WTProto
 
@@ -16,11 +17,19 @@ public struct RemovedTargetEntry: Sendable, Hashable, Identifiable {
     public enum Kind: Sendable, Hashable {
         case removedSymbol
         case removedStyle
+        /// An object created on a page the other side removed (pages.adoc, "Delete a page vs. add
+        /// objects on it"; DOC-031): it lives on the pasteboard where the page was.
+        case removedPage
+        /// An object drawn on a glyph the other side removed (typeface-documents.adoc, "Glyph
+        /// deleted vs. objects drawn on it"; FONT-029): it shows on the Sketches pasteboard.
+        case removedGlyph
 
         public var title: String {
             switch self {
             case .removedSymbol: "Placed an instance of a removed symbol"
             case .removedStyle: "Uses a removed style"
+            case .removedPage: "Created on a page that was removed"
+            case .removedGlyph: "Drawn on a glyph that was removed"
             }
         }
     }
@@ -59,7 +68,13 @@ public struct RemovedTargetEntry: Sendable, Hashable, Identifiable {
 
     public var id: String { "removed-target:\(object)" }
 
-    public var choices: [Choice] { kind == .removedSymbol ? [.restore, .release] : [.restore, .keepLook] }
+    public var choices: [Choice] {
+        switch kind {
+        case .removedSymbol: [.restore, .release]
+        case .removedStyle: [.restore, .keepLook]
+        case .removedPage, .removedGlyph: [.restore]
+        }
+    }
 
     /// The choice as one change; nil when it writes nothing or is not offered.
     public func command(_ choice: Choice, in state: EngineState) throws -> (any Command)? {
@@ -68,7 +83,15 @@ public struct RemovedTargetEntry: Sendable, Hashable, Identifiable {
         switch choice {
         case .restore:
             guard !restore.isEmpty else { return nil }
-            return OpsCommand(kind == .removedSymbol ? "Restore Symbol" : "Restore Style", ops: restore)
+            let label = switch kind {
+            case .removedSymbol: "Restore Symbol"
+            case .removedStyle: "Restore Style"
+            case .removedPage: "Restore Page"
+            case .removedGlyph: "Restore Glyph"
+            }
+            // A page's or glyph's objects are not its children: restoring it writes it alone
+            // (a glyph's objects still name it as their canvas, so they re-attach).
+            return OpsCommand(label, ops: kind == .removedPage || kind == .removedGlyph ? [Ops.setDeleted(target, false)] : restore)
         case .release:
             return try RemovedTargetReview.against(restored: restore, in: state, ReleaseInstances([object], label: "Release Instance"))
         case .keepLook:
@@ -109,7 +132,51 @@ public enum RemovedTargetReview {
                 }
             }
         }
-        return rows.sorted { $0.object < $1.object }
+        return (rows + removedPageRows(local: local, remote: remote, state: state) + removedGlyphRows(local: local, remote: remote, state: state))
+            .sorted { $0.object < $1.object }
+    }
+
+    /// Objects one side created or placed on the canvas of a glyph the other side removed (the
+    /// `canvas` register read alone: the dangling reference reads unset through the props).
+    static func removedGlyphRows(local: [Wiretuner_Doc_V1_Change], remote: [Wiretuner_Doc_V1_Change], state: EngineState) -> [RemovedTargetEntry] {
+        var rows: [RemovedTargetEntry] = []
+        for (removers, drawers) in [(remote, local), (local, remote)] {
+            let glyphs = removals(removers, state: state).filter { state.store.kind($0.key) == GlyphFields.kind }
+            guard !glyphs.isEmpty else { continue }
+            for node in touched(drawers) where state.isLive(node) {
+                let kind = state.store.kind(node)
+                guard kind != 0, kind != GlyphFields.kind, let bytes = state.store.register(node, RegisterPath([kind, 1, 5]))?.value,
+                      let common = try? Wiretuner_Doc_V1_CommonProps(serializedBytes: bytes), common.hasCanvas,
+                      let authors = glyphs[OpID(common.canvas.id)] else { continue }
+                rows.append(RemovedTargetEntry(kind: .removedGlyph, object: node, target: OpID(common.canvas.id), authors: authors.sorted()))
+            }
+        }
+        return rows
+    }
+
+    /// Objects one side created directly on a layer whose bounds' centre lies in the bleed
+    /// rectangle of a page the other side removed (and that is still removed).
+    static func removedPageRows(local: [Wiretuner_Doc_V1_Change], remote: [Wiretuner_Doc_V1_Change], state: EngineState) -> [RemovedTargetEntry] {
+        var rows: [RemovedTargetEntry] = []
+        for (removers, creators) in [(remote, local), (local, remote)] {
+            let pages = removals(removers, state: state).filter { state.store.kind($0.key) == PageFields.kind }
+            guard !pages.isEmpty else { continue }
+            let rects = pages.keys.sorted().map { page -> (OpID, Rect) in
+                let props = state.props(page).page
+                let geometry = PageGeometry(props.geometry)
+                let rect = Rect(x: props.origin.x, y: props.origin.y, width: geometry.width, height: geometry.height)
+                return (page, rect.insetBy(dx: -props.bleed, dy: -props.bleed))
+            }
+            for change in creators {
+                for (op, id) in zip(change.ops, change.opIDs) {
+                    guard case .create(let create)? = op.op, state.isLive(id), state.nodeKind(OpID(create.parent)) == .layer,
+                          let center = AttributeQuery.bounds(of: id, in: state)?.center,
+                          let page = rects.first(where: { $0.1.contains(center) })?.0 else { continue }
+                    rows.append(RemovedTargetEntry(kind: .removedPage, object: id, target: page, authors: pages[page]!.sorted()))
+                }
+            }
+        }
+        return rows
     }
 
     /// Nodes `changes` left deleted, with who deleted them (merged state still deleted).

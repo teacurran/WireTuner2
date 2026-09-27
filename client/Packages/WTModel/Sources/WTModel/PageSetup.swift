@@ -274,6 +274,9 @@ public struct CustomPageSize: Identifiable, Hashable, Sendable {
 public struct GridSettings: Hashable, Sendable {
     /// Points between grid lines when the document never set one: one pica.
     public static let defaultSize = 12.0
+    /// Units between grid lines on a glyph canvas when the document never set a grid
+    /// (typeface-documents.adoc, "the grid defaults to 10 units"; FONT-004).
+    public static let glyphDefaultSize = 10.0
 
     public var size: Double
     public var relative: Bool
@@ -297,6 +300,8 @@ public struct DocumentSettings: Hashable, Sendable {
     public var customPageSizes: [CustomPageSize]
     public var customUnits: [CustomUnit]
     public var guidesLocked: Bool
+    /// Whether the document wrote a grid size of its own (a glyph canvas otherwise uses 10 units).
+    public var gridIsSet = false
 
     public init(_ state: EngineState) {
         self.init(state.props(WellKnown.settings).settings)
@@ -321,6 +326,7 @@ public struct DocumentSettings: Hashable, Sendable {
         printerResolution = stored.printerResolution == 0 ? Self.defaultPrinterResolution : Int(stored.printerResolution)
         grid = GridSettings(size: stored.grid.size > 0 && stored.grid.size.isFinite ? stored.grid.size : GridSettings.defaultSize,
                             relative: stored.grid.relative)
+        gridIsSet = stored.grid.size > 0 && stored.grid.size.isFinite
         guidesLocked = stored.guidesLocked
     }
 
@@ -494,5 +500,11 @@ public struct PageList: Hashable, Sendable {
     /// of `page` (the first page by default).
     public func grid(on page: Page? = nil) -> GridSpec {
         GridSpec(size: settings.grid.size, origin: (page ?? pages[0]).zeroPoint, relative: settings.grid.relative)
+    }
+
+    /// The grid of a glyph canvas (FONT-004): from the glyph's origin (stored 0, 0), 10 units
+    /// apart unless the document set a grid size.
+    public var glyphGrid: GridSpec {
+        GridSpec(size: settings.gridIsSet ? settings.grid.size : GridSettings.glyphDefaultSize, origin: .zero, relative: settings.grid.relative)
     }
 }

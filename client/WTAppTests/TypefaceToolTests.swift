@@ -308,4 +308,35 @@ import WTRender
         #expect(tab.rulerHost.horizontalRuler.frameOfReference.zero == .zero)
         tab.window?.close()
     }
+
+    @Test func theTransformPanelTheGridAndPasteUseFontUnitsOnAGlyph() async throws {
+        let fixture = await TypefaceWindowFixture.typeface()
+        defer { fixture.close() }
+        let handle = try #require(GlyphCanvas.handle(for: fixture.glyph("A"), of: fixture.document))
+        // The Transform panel's centre shows font y.
+        let glyphSelection = ActiveSelection(model: SelectionModel(), document: handle)
+        #expect(TransformPanelBody.shownY(-700, selection: glyphSelection) == 700 && TransformPanelBody.storedY(700, selection: glyphSelection) == -700)
+        let pageSelection = ActiveSelection(model: SelectionModel(), document: fixture.document)
+        #expect(TransformPanelBody.shownY(-700, selection: pageSelection) == -700 && TransformPanelBody.shownY(3, selection: nil) == 3)
+        #expect(TransformPanelBody.storedY(3, selection: nil) == 3)
+        // The grid: 10 units from the glyph's origin; the document's own elsewhere.
+        #expect(GlyphCanvasUnits.grid(of: handle) == GridSpec(size: 10, origin: .zero))
+        #expect(GlyphCanvasUnits.grid(of: fixture.document) == fixture.document.pageList.grid(on: fixture.document.activePage))
+        // Paste into a glyph: text arrives as paths, one unit per point.
+        let source = DocumentHandle.memory(title: "Art")
+        let text = try #require(await source.perform(CreateTextBlock(.point(Point(x: 10, y: -20)), text: "Hi")).value?.createdObjects.first)
+        let box = try #require(await source.addRectangles([Rect(x: 0, y: -100, width: 50, height: 50)]).first?.opID)
+        await source.settle()
+        let payload = ClipboardPayload(copying: [box, text], from: source.state)
+        let pasted = GlyphCanvasUnits.pasted(payload, in: handle)
+        #expect(pasted.nodes.count == 2 && !pasted.nodes.flatMap(\.flattened).contains { $0.props.kind?.isText == true })
+        #expect(GlyphCanvasUnits.pasted(payload, in: fixture.document) == payload, "text stays text outside a glyph")
+        let boxes = ClipboardPayload(copying: [box], from: source.state)
+        #expect(GlyphCanvasUnits.pasted(boxes, in: handle) == boxes)
+        let change = try #require(await handle.perform(Paste(pasted)).value)
+        let roots = change.createdRoots
+        let pastedBox = try #require(roots.first { fixture.document.state.nodeKind($0) == .rect })
+        #expect(Objects.bounds(of: pastedBox, in: fixture.document.state) == Objects.bounds(of: box, in: source.state))
+        #expect(roots.contains { fixture.document.state.nodeKind($0) == .group } && roots.count == 2)
+    }
 }

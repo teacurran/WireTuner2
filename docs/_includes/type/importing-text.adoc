@@ -173,4 +173,31 @@ before it, and keeps its slice).  The export side still writes
 plain runs (`ExportSnapshot.story`, IO-030); pointing it at `TextAttributeMapping.story` makes
 export use the table too.  The import cursor, the Finder drop and paste are client-ui work
 (TYPE-009).
+NOTE: As built by TYPE-009 (`WTModel/TextPaste.swift`, `WTApp/Text/TextPasting.swift`, the Text tool's
+session).  `TextClip` is text as the Text tool pastes it: a WireTuner copy (`TextClip(copying:of:in:)`,
+the selected characters with every winning mark, each newline's paragraph properties and the inline
+graphics they place, on the pasteboard as `com.villagecompute.wiretuner.text` beside plain text), another
+application's RTFD or RTF read by `TextImporter` and mapped through `TextAttributeMapping`, or plain text
+(line ends read as paragraph ends).  `PasteText` is the paste into a block, one change "Paste": the
+selection's characters (and the inline graphics they place) deleted, the characters inserted in 64 KiB
+`TextInsert`s between the characters around the insertion point, rich text's marks one `TextMark` per
+span over a clearing mark of each growing attribute of the character before (so the look is exactly the
+copied one), each pasted break's own paragraph properties, the last pasted paragraph keeping the one it
+joins, inline graphics copied as children of the block; plain text and *Paste and Match Style* take the
+pending format or the growing marks of the character before, and each break copies the paragraph it
+splits.  `PasteTextBlock` is the new block (auto-expanding at a point, the clip written as a copied
+block's text).  menu:Edit[Paste] with an insertion point pastes the richest text on the pasteboard;
+with nothing being edited, rich or plain text is a new block at the centre of the view, selected
+(`EditFeatures.pasteRichest`).  menu:Edit[Paste and Match Style] is a command of its own; text dragged
+onto the canvas (`CanvasTextDrop`) shows a caret following the pointer at the boundary a drop would
+insert at, drops into the block there or as a new block at the drop point, and kbd:[Option] drops
+plain text.  Deviations: *Paste and Match Style* has no key of its own -- kbd:[Cmd+Shift+Option+V] is
+*Paste Behind*'s, and while the Text tool has an insertion point that key pastes and matches style; a
+new block from Paste goes at the view's centre, not at the pointer; a paste into a block creates no text
+styles for the style names rich text carries and leaves an RTFD's pictures out (an import does both); a
+text copy writes plain text and the clip, not RTF, for other applications.  The UI tests are app-hosted
+(`WTAppTests/TextPastingTests`: rich text into an insertion point and as a new block with their marks, a
+WireTuner copy, Match Style, the drag caret and drops); the merge test is
+`WTModelTests/TextPasteTests.pasteIntoAParagraphWhileAnotherReplicaTypesElsewhereInIt`.  The import
+cursor and the Finder drop of text files (TYPE-008's app half) are still not built.
 endif::spec[]

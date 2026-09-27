@@ -10,6 +10,7 @@ import org.jboss.logging.Logger;
 
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
+import com.villagecompute.wiretuner.api.comments.CommentIndex;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.history.ChangeIndex;
 import com.villagecompute.wiretuner.api.history.DocumentStates;
@@ -240,6 +241,7 @@ public class BranchMerge {
         return connection.preparedQuery(INSERT).executeBatch(rows)
                 .chain(() -> ChangeIndex.write(connection, branch.parentId(), head + 1,
                         changes.stream().map(SequencedChange::getChange).toList()))
+                .chain(() -> CommentIndex.mergeRecord(connection, branch.branchId(), branch.parentId(), head + 1))
                 .chain(() -> connection.preparedQuery(HEAD).execute(Tuple.of(branch.parentId(), head + changes.size())))
                 .replaceWithVoid();
     }

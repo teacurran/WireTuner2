@@ -657,6 +657,22 @@ import WTText
         tool.deactivate()
     }
 
+    @Test func theEyedropperOptionsToggleEachGroup() {
+        let suite = TestDefaults()
+        let preferences = PreferenceStore(defaults: suite.defaults)
+        #expect(TextEyedropper.groups([], preferences: nil) == (true, true))
+        #expect(TextEyedropper.groups(.shift, preferences: preferences) == (true, false))
+        #expect(TextEyedropper.groups(.command, preferences: preferences) == (false, true))
+        preferences.set(false, for: TextEyedropper.applyParagraph)
+        #expect(TextEyedropper.groups([], preferences: preferences) == (true, false), "the toggle holds for repeated use")
+        preferences.set(false, for: TextEyedropper.applyCharacter)
+        #expect(TextEyedropper.groups([], preferences: preferences) == (false, false))
+        // The tool's options sheet lists the two toggles.
+        #expect(EyedropperFeatures.optionKeys.map(\.defaultsKey) == [TextEyedropper.applyCharacter.erased.defaultsKey, TextEyedropper.applyParagraph.erased.defaultsKey])
+        let sheet = ToolOptionSheets.controller(title: "Eyedropper", keys: EyedropperFeatures.optionKeys, store: preferences)
+        #expect(sheet.title == "Eyedropper Options")
+    }
+
     // MARK: Spelling suggestions (TYPE-014)
 
     @Test func controlClickOnAnUnderlinedWordOffersGuessesThatCorrectIt() async throws {

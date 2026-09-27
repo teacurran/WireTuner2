@@ -257,6 +257,33 @@ import WTRender
         #expect(bad.error != nil)
     }
 
+    /// Script writes cost the same however many came before: 20,000 sets of three objects' names
+    /// in one transaction (the perf run; correctness runs 4,000) stay within 100 µs a set in a
+    /// release build.  Every set of one register used to scan and copy that register's whole
+    /// write log, so a loop over a few objects grew quadratically (1.3 ms a set at 20,000).
+    @Test func scriptWritesInATransactionCostTheSameEachHoweverManyCameBefore() throws {
+        let target = try Self.target()
+        let (setup, _) = try Self.run("for (let i = 0; i < 3; i++) wt.document.createRectangle({ x: i * 10 });", target: target)
+        #expect(setup.error == nil)
+        let writes = PerfBudget.isMeasuring ? 20_000 : 4_000
+        let clock = ContinuousClock()
+        var result: ScriptRunResult?
+        let elapsed = try clock.measure {
+            (result, _) = try Self.run("""
+            const objects = wt.document.objects;
+            wt.document.transaction("Number them", function () {
+              for (let i = 0; i < \(writes); i++) objects[i % 3].name = "n" + i;
+            });
+            """, target: target, limits: ScriptLimits(wallClock: 600, memory: 1 << 30))
+        }
+        #expect(result?.error == nil, "\(String(describing: result?.error))")
+        let names = target.current.state.liveChildren(LayerOrder(target.current.state).layers[0].id).map { target.current.state.props($0).rect.common.name }
+        #expect(names == (writes - 3..<writes).map { "n\($0)" }.sorted { Int($0.dropFirst())! % 3 < Int($1.dropFirst())! % 3 })
+        let perWrite = elapsed / writes
+        print("Script writes: \(perWrite) a set over \(writes)")
+        PerfBudget.expect(perWrite, within: .microseconds(100), "\(writes) sets")
+    }
+
     @Test func documentErrorsReadOnlyAndUnavailable() throws {
         let target = try Self.target()
         let script = try target.perform(SaveScript(name: "Kept", source: "// s", description: "d"))!.createdNodes[0]

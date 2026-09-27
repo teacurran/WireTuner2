@@ -299,7 +299,7 @@ each object (groups expanded) in one change.  *Deviations*: *Add to Swatches…*
 swatch, then the reference) and two undo steps, because the editors commit a reference rather than
 a register path; the Tools panel wells, the canvas drop targets and the kbd:[Shift] / kbd:[Cmd] /
 kbd:[Option] drop rules are not built here (the Tools panel and canvas belong to other tasks; they
-are in the next note), nor is COLOR-012's Eyedropper.
+are in the next note), nor is COLOR-012's Eyedropper (it came later, `WTApp/Color/Eyedropper/`).
 
 NOTE: As built by COLOR-011's canvas and Tools panel half (`WTApp/Color/CanvasColorDrop.swift`,
 `WTApp/Tools/ToolWellColoring.swift`, `ToolsPanel.swift`).  The canvas accepts the `ColorRef`

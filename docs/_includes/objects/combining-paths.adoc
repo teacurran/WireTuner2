@@ -212,7 +212,7 @@ An empty intersection creates nothing and still consumes the inputs.  Deviation:
 in WTModel's tests (200 two-operand cases of squares and ellipses at overlapping, touching, nested, coincident and missing offsets and
 rotations), because GEO-002's corpus lives in WTGeometry's test target; each case checks node counts, contour counts, attributes and
 areas against `Boolean` directly.  Transparency is OBJ-026's.  The menu:Modify[Combine] items and the Path Operations toolbar are
-WTApp's (not built).
+WTApp's, built by OBJ-025's app half (`WTApp/Objects/CombineAndSimilar.swift`, below).
 
 NOTE: As built by OBJ-025's app half (`WTApp/Objects/CombineAndSimilar.swift`, `CombineCommands`).  menu:Modify[Combine > Union /
 Divide / Intersect / Punch / Crop] and the Path Operations toolbar's buttons perform `CombineCommand` on the selection; *Path

@@ -266,6 +266,132 @@ import WTRender
         f.tool.cancel()
     }
 
+    @Test func wallAndFloorEdgesDragAndTheArrowBadgeShowsOverLiveLines() async throws {
+        let f = await Fixture.make()
+        defer { PerspectiveTool.showsGrid = { _ in false } }
+        PerspectiveTool.showsGrid = { _ in true }
+        // Over a line of the built-in grid the badge shows, though a press says to define one.
+        #expect(f.tool.cursor == .crosshair)
+        f.tool.pointerMoved(TestEvents.point(200, 200))
+        #expect(f.tool.overHandle && f.tool.cursor == PerspectiveTool.badgeCursor)
+        f.tool.pointerMoved(TestEvents.point(200, 200))
+        f.tool.pointerMoved(TestEvents.point(300, 60))
+        #expect(!f.tool.overHandle && f.tool.cursor == .crosshair)
+        f.down(Point(x: 200, y: 200))
+        #expect(f.host.messages.last == PerspectiveTool.defineFirst && f.tool.gesture == nil)
+        let grid = try #require(await f.defineGrid())
+        let drawing = PerspectiveGridDrawing(page: f.document.pageList.pages[0], state: f.state)
+        #expect(drawing.edges.map(\.field) == [.leftWallX, .rightWallX, .floorFrontY])
+        #expect(PerspectiveGridDrawing.distance(Point(x: 5, y: 5), Point(x: 0, y: 0), Point(x: 0, y: 0)) == Point(x: 5, y: 5).distance(to: .zero))
+        // The walls meet at the centre: the left edge is picked first; dragging it moves the wall.
+        f.down(Point(x: 200, y: 200))
+        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .leftWallX))
+        f.drag(Point(x: 180, y: 200))
+        await f.up(Point(x: 180, y: 200))
+        #expect(f.document.undoTitle == "Undo Move wall" && PerspectiveReading.grids(f.state)[0].stored.leftWallX == 180)
+        f.down(Point(x: 200, y: 200))
+        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .rightWallX))
+        await f.up(Point(x: 230, y: 200))
+        #expect(PerspectiveReading.grids(f.state)[0].stored.rightWallX == 230)
+        // The floor's front edge.
+        f.down(Point(x: 100, y: 225))
+        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .floorFrontY))
+        await f.up(Point(x: 100, y: 250))
+        #expect(f.document.undoTitle == "Undo Move floor" && PerspectiveReading.grids(f.state)[0].stored.floorFrontY == 50)
+        let count = f.document.changeCount
+        f.down(Point(x: 100, y: 250))
+        await f.up(Point(x: 100, y: 250))
+        #expect(f.document.changeCount == count, "an unmoved edge writes nothing")
+        // Hidden planes have no edge to drag.
+        _ = await f.document.perform(EditGrid(grid, label: "Edit", fields: [.leftHidden, .rightHidden, .floorHidden]) {
+            $0.leftHidden = true; $0.rightHidden = true; $0.floorHidden = true
+        }).value
+        #expect(PerspectiveGridDrawing(page: f.document.pageList.pages[0], state: f.state).edges.isEmpty)
+        _ = await f.document.perform(EditGrid(grid, label: "Edit", fields: [.vanishingPoints, .leftHidden]) { $0.vanishingPoints = 1; $0.leftHidden = false }).value
+        #expect(PerspectiveGridDrawing(page: f.document.pageList.pages[0], state: f.state).edges.map(\.field) == [.leftWallX], "one point: the wall's edge")
+        f.down(Point(x: 180, y: 200))
+        f.drag(Point(x: 170, y: 200))
+        f.tool.cancel()
+    }
+
+    @Test func anOptionDragMakesACopyOfTheGridThePagesGrid() async throws {
+        let f = await Fixture.make()
+        defer { PerspectiveTool.showsGrid = { _ in false } }
+        PerspectiveTool.showsGrid = { _ in true }
+        let grid = try #require(await f.defineGrid())
+        let page = f.document.pageList.pages[0]
+        f.down(Point(x: 300, y: 150), .option)
+        await f.up(Point(x: 300, y: 130), .option)
+        #expect(f.document.undoTitle == "Undo Define grid")
+        let grids = PerspectiveReading.grids(f.state)
+        #expect(grids.map(\.name) == ["Grid", "Grid 2"])
+        #expect(grids[0].id == grid && grids[0].stored.horizonY == 150, "the original is kept as it was")
+        #expect(grids[1].stored.horizonY == 170 && PerspectiveReading.grid(of: f.document.pageList.pages[0], in: f.state) == grids[1].id)
+        // One undo takes the copy and the page's choice back.
+        _ = await f.document.undo().value
+        await f.document.settle()
+        #expect(PerspectiveReading.grids(f.state).count == 1 && PerspectiveReading.grid(of: page, in: f.state) == grid)
+        // The command on its own: a name edit is refused; no fields only copies.
+        let rename = EditGrid(grid, label: "Rename", fields: [.name]) { $0.name = "x" }
+        #expect(await f.document.perform(ForkGrid(rename, page: page.id)).value == nil)
+        _ = await f.document.perform(ForkGrid(EditGrid(grid, label: "None", fields: []) { _ in }, page: page.id)).value
+        #expect(PerspectiveReading.grids(f.state).count == 2)
+    }
+
+    @Test func cmdOptionDoubleClickEditsAttachedTextAndThePointerTakesObjectsOff() async throws {
+        let f = await Fixture.make()
+        let text = try #require(await f.document.perform(CreateTextBlock(.point(Point(x: 100, y: 100)), text: "Sign")).value?.createdObjects.first)
+        await f.document.settle()
+        _ = await f.document.perform(AttachToPerspectiveGrid([text], plane: .leftWall, at: Point(x: 1, y: 1))).value
+        let wrapper = try #require(PerspectiveReading.wrapper(of: text, in: f.state))
+        let center = try #require(f.center(wrapper))
+        var edited: [OpID] = []
+        let stored = PerspectiveTool.editText
+        defer { PerspectiveTool.editText = stored }
+        PerspectiveTool.editText = { node, _ in edited.append(node) }
+        f.down(center, [.command, .option], clicks: 2)
+        #expect(edited == [text] && f.tool.gesture == nil)
+        f.down(center, [.command], clicks: 2)
+        #expect(edited.count == 1, "Cmd+Option only")
+        f.tool.cancel()
+        f.down(Point(x: 5, y: 290), [.command, .option], clicks: 2)
+        #expect(edited.count == 1, "nothing there")
+        f.tool.cancel()
+        // A rectangle on the grid is not text.
+        let rect = try #require(f.rect)
+        _ = await f.document.perform(AttachToPerspectiveGrid([rect], plane: .rightWall, at: Point(x: 1, y: 1))).value
+        let rectWrapper = try #require(f.wrapper)
+        let context = ToolContext(document: f.document, host: f.host, selection: f.controller)
+        #expect(!f.tool.editAttachedText(at: CanvasEvent(pasteboardPoint: try #require(f.center(rectWrapper)), viewPoint: try #require(f.center(rectWrapper)),
+                                                         modifiers: [.command, .option], clickCount: 2), context: context))
+        // The real route opens nothing without a window.
+        stored(text, context)
+        // Moving attached objects with the Pointer releases them where they were drawn, moved.
+        let release = try #require(await f.document.perform(ReleaseWithPerspective([rectWrapper])).value?.createdRoots.first)
+        await f.document.settle()
+        let before = try #require(Objects.bounds(of: release, in: f.state))
+        _ = await f.document.undo().value
+        await f.document.settle()
+        let move = MoveOffGrid.command([rectWrapper, rectWrapper], by: Vector(dx: 10, dy: 0), in: f.state)
+        #expect(move is MoveOffGrid && MoveOffGrid.command([text], by: .zero, in: EngineState()) is MoveObjects)
+        _ = await f.document.perform(move).value
+        #expect(f.document.undoTitle == "Undo Move" && !f.state.isLive(rectWrapper) && f.state.isLive(wrapper))
+        let layer = try #require(f.state.store.placement(rectWrapper)?.parent)
+        let released = try #require(f.state.liveChildren(layer).first { f.state.nodeKind($0) == .group })
+        let after = try #require(Objects.bounds(of: released, in: f.state))
+        #expect(abs(after.minX - before.minX - 10) < 1 && abs(after.minY - before.minY) < 1)
+        // Attached and flat objects together: the flat ones move as MoveObjects moves them.
+        let flat = try #require(await f.document.addRectangles([Rect(x: 10, y: 10, width: 5, height: 5)]).first?.opID)
+        let flatBefore = try #require(Objects.bounds(of: flat, in: f.state))
+        _ = await f.document.perform(MoveOffGrid([wrapper, flat], by: Vector(dx: 0, dy: 5))).value
+        #expect(!f.state.isLive(wrapper) && Objects.bounds(of: flat, in: f.state)?.minY == flatBefore.minY + 5)
+        // The perspective lines are snap targets while the grid shows.
+        #expect(PerspectiveGridDrawing.snapLines(of: f.document).isEmpty)
+        defer { PerspectiveTool.showsGrid = { _ in false } }
+        PerspectiveTool.showsGrid = { _ in true }
+        #expect(!PerspectiveGridDrawing.snapLines(of: f.document).isEmpty)
+    }
+
     @Test func aDegenerateGridPlacesNothing() async throws {
         let f = await Fixture.make()
         let rect = try #require(f.rect)

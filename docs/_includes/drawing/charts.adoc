@@ -408,8 +408,17 @@ cell's `text`, or a new cell), `InsertChartLines` ("Insert Row", "Insert 3 Colum
 ops), `SetChartFields` ("Transpose", "Switch XY", "Change Chart Type", "Change Chart": one register
 per changed field of the options and axis STRUCTs) and `SetChartOverride` ("Style chart element":
 creates the override, replaces its stack, sets transform, pictograph and repeating).  *Ungroup*
-and the pictograph paste came with DRAW-034.  Not yet built: the full eight-case merge suite
-(duplicate cells, delete-column versus cell edit and ungroup versus cell edit are tested).
+and the pictograph paste came with DRAW-034.  The merge suite is the next note.
+
+NOTE: As built by DRAW-032's merge suite (`WTSync/Tests/ChartMergeTests.swift`).  Each case of "Merge semantics" is a
+reconnect -- this Mac's offline change against the others' -- measured with `Divergence` and uploaded, both sides
+converging: cell edit against cell edit (one value, *same register*), two people creating one cell (both kept, the greater
+id read), a column and a row added at once (the new row reads empty in the new column), typing in a deleted column
+(hidden, the chart listed), transpose against a cell edit (no conflict) and two transposes (*same register*), import
+against an edit (the row deleted with the import, the chart listed; restoring the row and column brings the cell back),
+type and options against data (independent), an override of a deleted series (ignored, kept) and two overrides of one key
+(the greater element id shows, the chart listed), a pictograph set against its removal (dangles, no pictograph), and
+ungroup against an edit (*edit vs delete*; *Restore* brings the chart back with the edit).
 
 NOTE: As built by DRAW-033 (`WTApp/Charts/`).  The Chart tool drags a rectangle (kbd:[Shift] square),
 makes the chart ("Chart") and opens the Chart sheet; a double-click on the tool, menu:Object[Chart >

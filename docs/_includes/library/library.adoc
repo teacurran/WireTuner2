@@ -730,7 +730,7 @@ origin), 72 × 72 pt only when there is none -- the earlier deviation is gone.  
 symbol re-renders it), release vs. artwork edit, replace vs. replace (both sets live), swap vs. swap
 (LWW, loser retained).  Conformance vectors `library/instance-nesting-cycle` and
 `library/instance-ref-non-symbol` pin the merged states; the cut and the "not a symbol" label are
-WTModel tests.  Still not built: a public `resolvedArtwork(of:)` (LIB-025).
+WTModel tests.  A public `resolvedArtwork(of:in:)` came with LIB-025 (`WTModel/SymbolOverrides.swift`).
 
 NOTE: As built by LIB-024.  The schema was already in `symbol.proto`; the generated merge table shows
 `InstanceProps.overrides` SEQUENCE (element `Override`), `Override.text` TEXT and `master_node`,
@@ -835,6 +835,9 @@ instance's placement; ending editing with the override emptied resets it.  Forma
 Text Editor and presence carets inside an instance are LIB-027's (below).  Merge tests (`SymbolTextOverrideSceneTests`): concurrent override typing vs. a master reword (the override
 keeps the words it copied, the other instances take the new ones, both replicas draw the same), concurrent typing into one
 override.  Reference render `symbolTextOverrides` (goldens and Metal parity).
+
+NOTE: LIB-025's app half is built by the note above: editing a text block inside an instance with the Text tool (`OverrideText`)
+is `WTApp/Text/TextEditingSession.swift`'s `.override` target, and instances draw their text overrides.
 
 NOTE: As built by LIB-012 (`WTModel/SymbolCanvas.swift`, `DocumentScene.swift`; `WTApp/Library/Symbols/SymbolEditingWindows.swift`).
 The window is a `DocumentWindowController` over a `DocumentHandle` sharing the document's model with `canvasNode` = the symbol

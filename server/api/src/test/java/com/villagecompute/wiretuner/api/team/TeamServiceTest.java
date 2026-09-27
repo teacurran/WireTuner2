@@ -162,8 +162,8 @@ class TeamServiceTest extends ServiceTestSupport {
         UUID three = team(erin, "editor");
         teamMember(three, carol, "admin");
 
-        ListTeamsResponse all = by(CAROL).listTeams(ListTeamsRequest.newBuilder().setPageSize(50).build());
-        assertThat(all.getTeamsList()).filteredOn(t -> List.of(one.toString(), two.toString(), three.toString())
+        // Other tests leave Carol in many teams, so every page is read.
+        assertThat(allTeams(CAROL)).filteredOn(t -> List.of(one.toString(), two.toString(), three.toString())
                 .contains(t.getId())).extracting(Team::getCallerRole)
                 .containsExactlyInAnyOrder(TeamRole.TEAM_ROLE_MEMBER, TeamRole.TEAM_ROLE_MEMBER, TeamRole.TEAM_ROLE_ADMIN);
 
@@ -174,8 +174,7 @@ class TeamServiceTest extends ServiceTestSupport {
         assertThat(next.getTeams(0).getId()).isNotEqualTo(page.getTeams(0).getId());
 
         // Guests see the teams they are guests of.
-        assertThat(by(DAVE).listTeams(ListTeamsRequest.getDefaultInstance()).getTeamsList()).extracting(Team::getId)
-                .contains(one.toString(), two.toString());
+        assertThat(allTeams(DAVE)).extracting(Team::getId).contains(one.toString(), two.toString());
         assertFails(() -> by(CAROL).listTeams(ListTeamsRequest.newBuilder().setCursor("bad!").build()),
                 Status.Code.INVALID_ARGUMENT, "VALIDATION_FAILED");
         String negative = com.villagecompute.wiretuner.api.grpc.Cursors.encode("-5");
@@ -184,6 +183,18 @@ class TeamServiceTest extends ServiceTestSupport {
         String word = com.villagecompute.wiretuner.api.grpc.Cursors.encode("five");
         assertFails(() -> by(CAROL).listTeams(ListTeamsRequest.newBuilder().setCursor(word).build()),
                 Status.Code.INVALID_ARGUMENT, "VALIDATION_FAILED");
+    }
+
+    /** Every team `user` is on, read a page of 50 at a time until the cursor runs out. */
+    List<Team> allTeams(String user) {
+        List<Team> teams = new java.util.ArrayList<>();
+        String cursor = "";
+        do {
+            ListTeamsResponse page = by(user).listTeams(ListTeamsRequest.newBuilder().setPageSize(50).setCursor(cursor).build());
+            teams.addAll(page.getTeamsList());
+            cursor = page.getNextCursor();
+        } while (!cursor.isEmpty());
+        return teams;
     }
 
     @Test

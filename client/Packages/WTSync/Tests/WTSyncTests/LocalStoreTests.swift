@@ -141,10 +141,10 @@ import WTProto
     @Test func theSnapshotIsRewrittenPeriodically() async throws {
         let store = try await open("doc", options(interval: .milliseconds(20)))
         try await edit(store, renames: 2)
-        for _ in 0..<500 where await store.snapshotsWritten < 2 {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(await store.snapshotsWritten >= 2)
+        // Two rewrites after the edits: one may have been under way while they were written (it
+        // covers only the rows before it began); the second began after them.
+        let written = await store.snapshotsWritten
+        try await eventually("two rewrites after the edits") { await store.snapshotsWritten >= written + 2 }
         #expect(try rows(scratch.url(), "SELECT COUNT(*) FROM snapshot") == 1)
         #expect(try rows(scratch.url(), "SELECT COUNT(*) FROM changes WHERE in_snapshot = 0") == 0)
         try await store.close()
