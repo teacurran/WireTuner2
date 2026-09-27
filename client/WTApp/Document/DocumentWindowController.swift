@@ -60,6 +60,12 @@ struct DocumentEnvironment {
     var pasteImport: PasteImport?
     /// A document's first view opened (the Missing Fonts sheet and the embedded fonts, DOC-024).
     var documentDidOpen: @MainActor (DocumentWindowController) -> Void = { _ in }
+    /// Every window controller made over this environment, at the end of its init (tests close
+    /// the windows a test leaves open).
+    var windowDidLoad: @MainActor (DocumentWindowController) -> Void = { _ in }
+    /// Every window controller made over any environment, after `windowDidLoad` (the test bundle
+    /// logs the windows a test leaves alive, the app's own windows included); nil in the app.
+    static var everyWindowDidLoad: (@MainActor (DocumentWindowController) -> Void)?
     /// The current colours new objects get over the document's defaults (the Tools panel's
     /// wells, OBJ-037); nil follows the defaults.
     var currentColors: @MainActor () -> (fill: DocumentDefaults.ColorChoice?, stroke: DocumentDefaults.ColorChoice?) = { (nil, nil) }
@@ -418,6 +424,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         presenceDidChange()
         statusBar.show(sync: syncStatus.state)
         isLoaded = true
+        environment.windowDidLoad(self)
+        DocumentEnvironment.everyWindowDidLoad?(self)
     }
 
     @available(*, unavailable)
@@ -1061,6 +1069,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         collaboration.review.dismiss()
         collaboration.tearDown()
         handoff.invalidate()
+        // A closed window keeps its view tree, so the canvas never hears viewDidMoveToWindow(nil):
+        // stop its display link here or it stays on the main run loop for good, and drop its tiles
+        // and overlay drawings (tens of megabytes) in case something still holds the window.
+        canvas.discardContents()
         saveState()
         onClose?(self)
     }

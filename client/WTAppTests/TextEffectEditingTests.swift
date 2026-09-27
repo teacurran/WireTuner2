@@ -204,7 +204,7 @@ import WTRender
         let document = controller.documentHandle
         let text = try #require(await document.addText("In a window"))
         controller.selection.model.set(Selection([SelectionID(text)]))
-        let commands = TextFeatures.commands { controller }
+        let commands = TextFeatures.commands { [weak controller] in controller }
         let underline = try #require(commands.first { $0.id == TextFeatures.ID.underline })
         #expect(underline.validation() == .enabled)
         if case .perform(let run) = underline.action { run() }

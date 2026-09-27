@@ -11,7 +11,7 @@ import WTRender
 @Suite(.serialized) @MainActor struct ZoomCommandTests {
     private func window(_ environment: TestEnvironment) -> DocumentWindowController {
         let controller = DocumentWindowController(document: .memory(title: "Zoom"), environment: environment.document)
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         return controller
     }
 
@@ -155,7 +155,7 @@ import WTRender
         let environment = TestEnvironment()
         let controller = DocumentWindowController(document: .memory(title: "Modes"), environment: environment.document)
         defer { controller.close() }
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         let registry = environment.commands
         let ids = StandardCommands.ID.self
         for mode in ViewMode.allCases {
@@ -356,7 +356,7 @@ import WTRender
         let environment = TestEnvironment()
         let controller = DocumentWindowController(document: .memory(title: "Web"), environment: environment.document)
         defer { controller.close() }
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         let id = StandardCommands.ID.previewInBrowser
         #expect(environment.commands.validate(id) == .disabled(BrowserPreview.unavailableReason))
         #expect(environment.commands.command(id)?.defaultKey == KeyEquivalent("return", .command))
@@ -376,7 +376,7 @@ import WTRender
         preview.open = { recorder.opened.append(($0, $1)) }
         let browser = URL(filePath: "/Applications/Safari.app")
         ViewCommands.install(
-            into: environment.commands, target: { controller },
+            into: environment.commands, target: { [weak controller] in controller },
             hooks: ViewCommands.Hooks(browserPreview: preview, previewBrowser: { browser })
         )
         #expect(preview.validation(hasDocument: false) == .disabled(ViewCommands.noDocument))
@@ -399,7 +399,7 @@ import WTRender
         let environment = TestEnvironment()
         let controller = DocumentWindowController(document: .memory(title: "Menu"), environment: environment.document)
         defer { controller.close() }
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         let registry = environment.commands
         #expect(registry.validate(StandardCommands.ID.pageRulers)?.isChecked == true)
         #expect(registry.perform(StandardCommands.ID.pageRulers))

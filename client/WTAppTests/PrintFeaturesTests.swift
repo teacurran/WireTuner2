@@ -22,7 +22,7 @@ struct PrintWorld {
         setup = SetupWindow(tools: [OutputAreaTool.descriptor])
         features = PrintFeatures(defaults: setup.environment.suite.defaults)
         let window = setup.window
-        features.install(commands: setup.environment.commands, tools: setup.environment.tools, panels: setup.environment.panels, selection: selection) { window }
+        features.install(commands: setup.environment.commands, tools: setup.environment.tools, panels: setup.environment.panels, selection: selection) { [weak window] in window }
         for kind in [SnapSettings.Kind.point, .object, .guides] where window.snap[kind] { window.toggleSnap(kind) }
         setup.environment.preferences.set(false, for: PreferenceCatalog.General.smartGuides)
         selection.model = window.selection.model

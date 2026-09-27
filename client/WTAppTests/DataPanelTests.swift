@@ -79,7 +79,7 @@ import WTSync
         Render.view(DataPanelBody(state: state, features: world.features))
         state.window = { nil }
         Render.view(DataPanelBody(state: state, features: world.features))
-        state.window = { world.window }
+        state.window = { [weak window = world.window] in window }
         let ids = await world.fields(["name", "amount"], kinds: [.text, .number])
         _ = await world.placeholderText("Hello ", field: ids[0])
         await world.paste("name\tamount\tzip\nAnn\t5\t111\nBo\t7\t222\n")
@@ -130,13 +130,22 @@ import WTSync
         model.addField()
         world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }
         DataPanelContent.insert(ids[1], model)()
+        world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }
+        // (One sheet at a time: a sheet begun over another waits for it, and keeps the window.)
         model.merge()
         world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }
         // Connect… and Disconnect.
         // (Pasted Table reads the general pasteboard; its own test uses a private one.)
+        // The file kinds open an open panel from a task, a moment later; it is cancelled, not just
+        // ended (its task would wait for an answer for good, holding the window).
         for kind in DataPanelModel.Connect.allCases where kind != .pasted {
             DataPanelContent.connect(kind, model)()
-            world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }
+            _ = await eventually(.seconds(2)) { world.window.window?.attachedSheet != nil }
+            if let panel = world.window.window?.attachedSheet as? NSSavePanel {
+                panel.cancel(nil)
+            } else {
+                world.window.window?.attachedSheet.map { world.window.window?.endSheet($0) }
+            }
         }
         model.refresh()
         model.disconnect()

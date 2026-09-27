@@ -27,6 +27,15 @@ extension ScriptingSurfaces {
         @Test func theExportIntentWritesTheMenuExportsBytes() async throws {
             let world = ExportWorld()
             defer { world.close() }
+            // The shared hosts would keep this test's window and document until another test
+            // replaced them.
+            let hooks = (export: ScriptingHost.shared.export, role: ScriptingHost.shared.role, open: IntentsHost.shared.open, scratch: IntentsHost.shared.scratch)
+            defer {
+                ScriptingHost.shared.export = hooks.export
+                ScriptingHost.shared.role = hooks.role
+                IntentsHost.shared.open = hooks.open
+                IntentsHost.shared.scratch = hooks.scratch
+            }
             world.controller.registry = ExportRegistry.standard
             _ = await world.threePages()
             let handle = world.document

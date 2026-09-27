@@ -456,7 +456,7 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         packages.runSavePanel = { _, _ in saved += 1; return nil }
         packages.runOpenPanel = { _, _ in opened += 1; return [] }
         world.imports.runPanel = { _, _ in [] }
-        let appHooks = ImportCommands.hooks(imports: world.imports, packages: packages) { world.window }
+        let appHooks = ImportCommands.hooks(imports: world.imports, packages: packages) { [weak window = world.window] in window }
         appHooks.importFiles(world.window)
         appHooks.openPackage()
         appHooks.exportPackage(world.window)

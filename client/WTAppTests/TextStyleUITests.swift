@@ -141,7 +141,7 @@ import WTRender
         let window = DocumentWindowController(document: document, environment: environment.document)
         let text = try #require(await document.addText("the iphone"))
         window.selection.model.set(Selection([SelectionID(text)]))
-        let commands = TextStyleFeatures.commands(window: { window })
+        let commands = TextStyleFeatures.commands(window: { [weak window] in window })
         let upper = try #require(commands.first { $0.id == ContextMenuCatalog.ID.convertCase("upper") })
         #expect(upper.validation().isEnabled)
         if case .perform(let run) = upper.action { run() }
@@ -191,7 +191,7 @@ import WTRender
         let text = try #require(await document.addText("Hi"))
         let rect = await document.addRectangles([Rect(x: 0, y: 200, width: 10, height: 10)])[0]
         var alerts: [String] = []
-        let commands = TextStyleFeatures.commands(window: { window }) { title, _ in alerts.append(title) }
+        let commands = TextStyleFeatures.commands(window: { [weak window] in window }) { title, _ in alerts.append(title) }
         let convert = try #require(commands.first { $0.id == ContextMenuCatalog.ID.convertToPaths })
         window.selection.model.set(Selection([rect]))
         #expect(!convert.validation().isEnabled && TextStyleFeatures.convertToPaths(window, alert: { _, _ in }) == nil)

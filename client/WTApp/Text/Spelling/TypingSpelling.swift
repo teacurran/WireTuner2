@@ -9,7 +9,8 @@ import WTRender
 /// when the block changes.
 @MainActor
 final class TypingSpelling {
-    unowned let window: DocumentWindowController
+    /// Weak: the underlines can be asked for after the window closed.
+    weak var window: DocumentWindowController?
     var checker: @MainActor () -> SpellingChecker
     var isOn: @MainActor () -> Bool
     private var cache: (node: OpID, revision: Int, issues: [SpellingIssue])?
@@ -22,7 +23,7 @@ final class TypingSpelling {
 
     /// The issues of the Text tool's block (cached per block and session revision).
     func issues() -> [SpellingIssue] {
-        guard isOn(), let session = window.objectEditing.textSession, let node = session.node, let text = session.text else { return [] }
+        guard isOn(), let session = window?.objectEditing.textSession, let node = session.node, let text = session.text else { return [] }
         if let cache, cache.node == node, cache.revision == session.revision { return cache.issues }
         let issues = checker().issues(in: text)
         cache = (node, session.revision, issues)
@@ -31,7 +32,7 @@ final class TypingSpelling {
 
     /// The underlines, one per line of each issue, view points.
     func underlines(viewport: Viewport) -> [(from: Point, to: Point)] {
-        guard let session = window.objectEditing.textSession, let layout = session.layout else { return [] }
+        guard let session = window?.objectEditing.textSession, let layout = session.layout else { return [] }
         let toView = session.toPasteboard.concatenating(viewport.pasteboardToView)
         return issues().flatMap { issue in
             layout.selection(from: issue.range.lowerBound, to: issue.range.upperBound).map { quad in

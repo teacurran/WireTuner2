@@ -24,7 +24,7 @@ import WTRender
         let origin = world.document.pageList.pages[0].origin
         _ = await world.document.perform(TransformObjects([image, other], matrix: .translation(x: origin.x + 50, y: origin.y + 50), kind: .move)).value
         await world.settle()
-        let command = AccessibilityCheckerFeatures.command { world.window }
+        let command = AccessibilityCheckerFeatures.command { [weak window = world.window] in window }
         #expect(command.validation().isEnabled && !AccessibilityCheckerFeatures.command(window: { nil }).validation().isEnabled)
         if case .perform(let run) = command.action { run() }
         let model = try #require(AccessibilityCheckerFeatures.model(of: world.window))

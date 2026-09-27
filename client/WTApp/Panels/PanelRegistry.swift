@@ -46,6 +46,14 @@ final class PanelRegistry {
         onChange?()
     }
 
+    /// Forgets every descriptor (a test's registry going away: descriptors' factories often capture
+    /// the feature, and so the window, that registered them).
+    func removeAll() {
+        registrationOrder = []
+        byID = [:]
+        onChange = nil
+    }
+
     func descriptor(for id: PanelID) -> PanelDescriptor? { byID[id] }
 
     func contains(_ id: PanelID) -> Bool { byID[id] != nil }

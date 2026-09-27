@@ -100,6 +100,18 @@ final class FakeMentions: MentionedDocumentsClient {
         #expect(library.mentionPolling == nil)
     }
 
+    @Test func mentionPollingEndsWhenTheLibraryIsReleased() async throws {
+        @MainActor final class Ended { var value = false }
+        var library: LibraryModel? = LibraryModel(services: FakeLibraryServer().services(), store: nil, thumbnails: ThumbnailCache(directory: nil))
+        library?.mentionInterval = .milliseconds(10)
+        library?.startMentionPolling()
+        let polling = try #require(library?.mentionPolling)
+        let ended = Ended()
+        Task { await polling.value; ended.value = true }
+        library = nil
+        #expect(await eventually { ended.value }, "a released library's polling loop ends instead of ticking forever")
+    }
+
     @Test func theCommentClientsSpeakTheCommentService() async throws {
         typealias Comments = Wiretuner_Docs_V1_CommentService.Method
         let caller = FakeUnaryCaller([

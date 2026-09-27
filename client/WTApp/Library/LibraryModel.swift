@@ -208,8 +208,10 @@ final class LibraryModel {
         guard mentionPolling == nil else { return }
         let interval = mentionInterval
         mentionPolling = Task { [weak self] in
+            // Ends with the model: a released model's loop must not tick on forever (and the
+            // sleep holds no strong reference to it).
             while !Task.isCancelled {
-                await self?.refreshMentions()
+                guard await self?.refreshMentions() != nil else { return }
                 try? await Task.sleep(for: interval)
             }
         }

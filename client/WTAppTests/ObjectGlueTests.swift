@@ -200,7 +200,7 @@ final class HandleWorld {
     @Test func selectSimilarSelectsLikeObjectsOnThePageAndCountsThem() async throws {
         let world = GlueWorld()
         defer { world.close() }
-        let features = SelectSimilarCommands(window: { world.window })
+        let features = SelectSimilarCommands(window: { [weak window = world.window] in window })
         features.install(commands: world.commands)
         let origin = world.document.activePage.origin
         let filled = await world.document.addRectangles((0..<3).map { Rect(x: origin.x + Double($0) * 50, y: origin.y + 20, width: 20, height: 20) })

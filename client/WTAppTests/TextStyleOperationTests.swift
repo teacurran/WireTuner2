@@ -159,7 +159,7 @@ import WTRender
         _ = await TextStyleOperations.drop(character.id, at: top, on: world.window, wholeBlock: true)?.value
         // The commands.
         let preferences = world.setup.environment.preferences
-        let commands = TextStyleOperations.commands(window: { world.window }, preferences: preferences)
+        let commands = TextStyleOperations.commands(window: { [weak window = world.window] in window }, preferences: preferences)
         #expect(commands.map(\.title) == ["New Paragraph Style", "New Character Style", "Redefine Style…", "Style Behavior…"])
         #expect(commands.allSatisfy { $0.validation().isEnabled } && commands[2].contexts.contains(.style))
         for command in commands {
@@ -168,7 +168,7 @@ import WTRender
             if let sheet = world.window.window?.attachedSheet { world.window.window?.endSheet(sheet) }
         }
         world.window.selection.model.clear()
-        let none = TextStyleOperations.commands(window: { world.window }, preferences: preferences)
+        let none = TextStyleOperations.commands(window: { [weak window = world.window] in window }, preferences: preferences)
         #expect(!none[0].validation().isEnabled)
         #expect(TextStyleOperations.presentBehavior(OpID(counter: 999, replica: 9), on: world.window) == nil)
     }

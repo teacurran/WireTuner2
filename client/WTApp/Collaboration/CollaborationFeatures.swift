@@ -260,8 +260,12 @@ final class CollaborationFeatures {
         let document = window.documentHandle
         let model = RestoreVersionModel(
             documentTitle: document.title, list: { try await listing.versions(of: document.id) },
-            state: { [self] seq in try await versionState(window, seq) },
-            current: { document.state }, perform: { window.objectEditing.perform($0) }
+            // The sheet hangs off the window: its model holds the window weakly.
+            state: { [self, weak window] seq in
+                guard let window else { throw CancellationError() }
+                return try await versionState(window, seq)
+            },
+            current: { document.state }, perform: { [weak window] in window?.objectEditing.perform($0) ?? Task { nil } }
         )
         model.onClose = { [weak self] in self?.dismiss(Self.restoreSheet) }
         model.compare = { [weak self, weak window] compare in

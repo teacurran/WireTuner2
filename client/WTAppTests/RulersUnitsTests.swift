@@ -37,6 +37,10 @@ import WTRender
         #expect(RulerScale.choose(unit: .points, viewPointsPerUnit: 1e-9) { _ in 3 } == nil)
         #expect(RulerScale(step: 1, divisions: 2).ticks(from: 0, to: 10, offset: 0, slope: 0) { _ in "" }.isEmpty)
         #expect(RulerScale(step: 1e-9, divisions: 1).ticks(from: 0, to: 100, offset: 0, slope: 1) { _ in "" }.isEmpty, "too many ticks draws none")
+        // Tick indices past 2^53, where adding 1 to a Double changes nothing: the loop still ends
+        // (it used to append the same tick forever).
+        let far = RulerScale(step: 1, divisions: 10).ticks(from: 0, to: 100, offset: 1e16, slope: 1e-3) { _ in "" }
+        #expect(!far.isEmpty && far.count <= 10_000)
         // Picas subdivide into halves, inches into sixteenths when there is room.
         #expect(RulerScale.choose(unit: .inches, viewPointsPerUnit: 400) { _ in 3 } == RulerScale(step: 0.125, divisions: 8))
         #expect(RulerScale.divisions(for: .picas) == [12, 6, 2])

@@ -264,7 +264,7 @@ enum TabSheets {
     static let tableIdentifier = NSUserInterfaceItemIdentifier("tabs-sheet")
     /// Set by tests: sheets are built but not shown.
     static var showsSheets = true
-    /// The sheet shown last (tests read it).
+    /// The sheet shown last, until it closes (tests read it).
     private(set) static var presented: NSWindow?
 
     /// The targets of a ruler: the Text tool's selection in its block.
@@ -282,8 +282,9 @@ enum TabSheets {
         guard !editing.targets.isEmpty else { return nil }
         let tolerance = 5 / max((TypeWindowParts.parts(of: window)?.rulers.view.model?.scale ?? 1), 0.0001)
         return present(on: window.window, identifier: editIdentifier) { close in
-            EditTabSheet(draft: editing.draft(at: position, tolerance: tolerance), commit: { draft in
-                if let command = editing.commit(draft) { _ = window.objectEditing.perform(command) }
+            // Weak: `presented` keeps the sheet (and so this closure) after it closes.
+            EditTabSheet(draft: editing.draft(at: position, tolerance: tolerance), commit: { [weak window] draft in
+                if let command = editing.commit(draft) { _ = window?.objectEditing.perform(command) }
                 close()
             }, cancel: close)
         }
@@ -314,6 +315,7 @@ enum TabSheets {
         let close: () -> Void = { [weak sheet, weak host] in
             guard let sheet else { return }
             if let host, host.attachedSheet === sheet { host.endSheet(sheet) } else { sheet.orderOut(nil) }
+            if presented === sheet { presented = nil }
         }
         sheet.contentViewController = NSHostingController(rootView: make(close))
         presented = sheet

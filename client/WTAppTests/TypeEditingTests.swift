@@ -129,7 +129,7 @@ struct TypeWorld {
         let features = TextEditorFeatures.shared
         let node = try await world.block("route")
         // menu:Text[Editor…] on the selected block.
-        let commands = features.commands { world.window }
+        let commands = features.commands { [weak window = world.window] in window }
         #expect(commands[0].validation().isEnabled && commands[0].defaultKey == KeyEquivalent("e", [.command, .shift]))
         if case .perform(let run) = commands[0].action { run() }
         try await Task.sleep(for: .milliseconds(50))
@@ -291,19 +291,19 @@ struct TypeWorld {
         let world = TypeWorld()
         defer { world.close() }
         let features = FindTextFeatures()
-        let commands = features.commands { world.window }
+        let commands = features.commands { [weak window = world.window] in window }
         #expect(commands[0].defaultKey == KeyEquivalent("f", .command) && commands[0].validation().isEnabled)
         #expect(!features.commands(window: { nil })[0].validation().isEnabled)
-        let panel = features.show(window: { world.window }, ordersFront: false)
+        let panel = features.show(window: { [weak window = world.window] in window }, ordersFront: false)
         #expect(features.show(window: { world.window }, ordersFront: false) === panel && panel.title == "Find and Replace Text")
         if case .perform(let run) = commands[0].action { run() }
         panel.close()
-        let view = FindTextView(model: features.model) { world.window }
+        let view = FindTextView(model: features.model) { [weak window = world.window] in window }
         PanelRendering.host(view)
         FindTextView.inserting("\n", features.model, replacement: false)()
         #expect(features.model.find.hasSuffix("\n"))
         var ran = false
-        FindTextView.acting({ _, _ in ran = true }, features.model) { world.window }()
+        FindTextView.acting({ _, _ in ran = true }, features.model) { [weak window = world.window] in window }()
         FindTextView.acting({ _, _ in Issue.record("no window") }, features.model) { nil }()
         #expect(ran)
     }
@@ -396,19 +396,19 @@ struct TypeWorld {
         // The window, the commands and the canvas underlines.
         let features = SpellingFeatures(service: service)
         let preferences = world.setup.environment.preferences
-        let commands = features.commands(window: { world.window }, preferences: preferences)
+        let commands = features.commands(window: { [weak window = world.window] in window }, preferences: preferences)
         #expect(commands.map(\.title) == ["Spelling…", "Check Spelling…", "Check Spelling While Typing"])
         #expect(commands[0].validation().isEnabled && commands[2].validation().isChecked)
         if case .perform(let run) = commands[2].action { run() }
         #expect(!preferences[PreferenceCatalog.Spelling.checkWhileTyping])
         if case .perform(let run) = commands[2].action { run() }
         #expect(!features.commands(window: { nil }, preferences: preferences)[0].validation().isEnabled)
-        let panel = features.show(window: { world.window }, ordersFront: false)
+        let panel = features.show(window: { [weak window = world.window] in window }, ordersFront: false)
         #expect(features.show(window: { world.window }, ordersFront: false) === panel)
         if case .perform(let run) = commands[0].action { run() }
         panel.close()
-        PanelRendering.host(SpellingView(model: features.model) { world.window })
-        SpellingView.acting({ _, _ in }, features.model) { world.window }()
+        PanelRendering.host(SpellingView(model: features.model) { [weak window = world.window] in window })
+        SpellingView.acting({ _, _ in }, features.model) { [weak window = world.window] in window }()
         SpellingView.acting({ _, _ in Issue.record("no window") }, features.model) { nil }()
         // Check while typing: the Text tool's block is underlined.
         await world.edit(node, select: 0..<0)

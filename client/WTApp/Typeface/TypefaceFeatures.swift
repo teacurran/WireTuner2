@@ -308,9 +308,9 @@ final class TypefaceFeatures {
         let fromFile = choice.set == .fromFile
         let command = NewTypeface(family: choice.family, style: choice.style, upm: choice.upm, set: choice.set.glyphSet)
         let perform = document.perform(command)
-        return Task { [unowned self] in
+        return Task { [weak self] in
             _ = await perform.value
-            if fromFile, let url = await chooseFontFile(gridWindow(of: document.id)?.window) {
+            if fromFile, let self, let url = await chooseFontFile(gridWindow(of: document.id)?.window) {
                 _ = await FontImportController(document: document).importFile(url, newDocument: true)?.value
             }
             return document
@@ -324,8 +324,8 @@ final class TypefaceFeatures {
     @discardableResult
     func openFontFile() -> Task<[String]?, Never> {
         let front = window()
-        return Task { [unowned self] in
-            guard let url = await chooseFontFile(front?.window) else { return nil }
+        return Task { [weak self] in
+            guard let self, let url = await chooseFontFile(front?.window) else { return nil }
             if FontImportController.isUFO(url) { return await openUFO(url).value }
             let target: DocumentHandle
             let newDocument: Bool
@@ -354,8 +354,8 @@ final class TypefaceFeatures {
     @discardableResult
     func openUFO(_ url: URL) -> Task<[String]?, Never> {
         let front = window()
-        return Task { [unowned self] in
-            guard let created = createDocument(url.deletingPathExtension().lastPathComponent) else { return nil }
+        return Task { [weak self] in
+            guard let self, let created = createDocument(url.deletingPathExtension().lastPathComponent) else { return nil }
             return await importUFO(url, into: created, newDocument: true, alertOn: front?.window)
         }
     }
@@ -366,8 +366,8 @@ final class TypefaceFeatures {
     func importUFOIntoTypeface() -> Task<[String]?, Never> {
         guard let front = window(), DocumentKind(front.documentHandle.state) == .typeface else { return Task { nil } }
         let target = gridDocument(of: front)
-        return Task { [unowned self] in
-            guard let url = await chooseUFO(front.window) else { return nil }
+        return Task { [weak self] in
+            guard let self, let url = await chooseUFO(front.window) else { return nil }
             return await importUFO(url, into: target, newDocument: false, alertOn: front.window)
         }
     }
@@ -448,9 +448,13 @@ final class TypefaceFeatures {
     func generateModel(for controller: DocumentWindowController) -> GenerateFontsModel {
         let document = gridDocument(of: controller)
         let model = GenerateFontsModel(document: document, installer: installer)
-        model.openGlyph = { [unowned self] glyph in openGlyph(glyph, from: controller) }
-        model.didInstall = { [unowned self] urls in installed[document.id, default: []] += urls }
-        model.removeInstalled = { [unowned self] in
+        // Weak: the sheet (and so the model) can outlive the window and the features.
+        model.openGlyph = { [weak self, weak controller] glyph in
+            if let self, let controller { openGlyph(glyph, from: controller) }
+        }
+        model.didInstall = { [weak self] urls in self?.installed[document.id, default: []] += urls }
+        model.removeInstalled = { [weak self] in
+            guard let self else { return }
             installer.remove(installed[document.id] ?? [])
             installed[document.id] = nil
         }
@@ -479,9 +483,10 @@ final class TypefaceFeatures {
     func installForTesting() -> Task<URL?, Never> {
         guard let controller = window() else { return Task { nil } }
         let model = generateModel(for: controller)
-        return Task { [unowned self] in
+        // Weak: the features may go while the install runs (a test's features, the app quitting).
+        return Task { [weak self] in
             let url = await model.installForTesting().value
-            if url == nil { alert("Install for Testing failed", model.message ?? "", controller.window) }
+            if url == nil, let self { alert("Install for Testing failed", model.message ?? "", controller.window) }
             return url
         }
     }
@@ -493,7 +498,7 @@ final class TypefaceFeatures {
         let document = gridDocument(of: controller)
         let metricsWindow = metrics[document.id] ?? MetricsWindowController(document: document)
         metrics[document.id] = metricsWindow
-        metricsWindow.onClose = { [unowned self] in metrics[document.id] = nil }
+        metricsWindow.onClose = { [weak self] in self?.metrics[document.id] = nil }
         metricsWindow.showWindow(nil)
         return metricsWindow
     }
@@ -556,8 +561,8 @@ final class TypefaceFeatures {
     func presentConvertPage() -> NSWindow? {
         guard let controller = window(), controller.documentHandle.canvasNode == nil else { return nil }
         let document = controller.documentHandle
-        let model = ConvertPageModel(document: document, page: document.activePage.id) { [unowned self] command in
-            convertPage(command, in: controller)
+        let model = ConvertPageModel(document: document, page: document.activePage.id) { [weak self, weak controller] command in
+            if let self, let controller { convertPage(command, in: controller) }
         }
         return present("sheet.convertPage", on: controller.window) { close in ConvertPageSheet(model: model, close: close) }
     }
@@ -566,8 +571,9 @@ final class TypefaceFeatures {
     @discardableResult
     func convertPage(_ command: ConvertPageToGlyph, in controller: DocumentWindowController) -> Task<Bool, Never> {
         let task = controller.objectEditing.perform(command)
-        return Task { [unowned self] in
+        return Task { [weak self] in
             _ = await task.value
+            guard let self else { return false }
             return GlyphIndex(controller.documentHandle.state).glyph(named: command.name).flatMap { openGlyph($0.id, from: controller) } != nil
         }
     }
@@ -594,9 +600,11 @@ final class TypefaceFeatures {
 }
 
 extension DocumentWindowController {
-    /// How the typeface sheets perform: the window's object commands.
-    func typefacePerform(_ command: any WTModel.Command) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        objectEditing.perform(command)
+    /// How the typeface sheets and the glyph bar perform: the window's object commands.  Weak: the
+    /// glyph bar lives in the window's title bar, and the method reference it was (`controller.typefacePerform`)
+    /// held the controller from its own window, so every closed glyph tab leaked.
+    var typefacePerform: TypefacePerform {
+        { [weak self] command in self?.objectEditing.perform(command) }
     }
 }
 

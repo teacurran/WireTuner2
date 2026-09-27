@@ -141,7 +141,7 @@ import WTRender
         #expect(features.command().validation() == .disabled(RasterEffectSettingsFeatures.noDocument))
         #expect(features.present(.document) == nil)
         let window = setup.window
-        features.window = { window }
+        features.window = { [weak window] in window }
         #expect(features.command().validation() == .enabled)
         let registry = CommandRegistry()
         registry.replace(features.command())
@@ -227,7 +227,7 @@ import WTRender
         features.presentSheet(floating, nil)
         floating.orderOut(nil)
         let window = setup.window
-        features.window = { window }
+        features.window = { [weak window] in window }
         let presented = try #require(features.present(.document))
         presented.cancel()
     }

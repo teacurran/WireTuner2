@@ -161,13 +161,15 @@ struct CollaborationWorld {
         features.presentSheet = { sheet, _ in sheets.value.append(sheet) }
         features.makeID = { "branch-new" }
         let window = window
-        features.install(commands: environment.commands) { window }
+        features.install(commands: environment.commands) { [weak window] in window }
     }
 
     var ui: WindowCollaborationUI { features.attach(window) }
     var document: DocumentHandle { window.documentHandle }
 
     func close() {
+        // The recorded sheets' models hold the window, and the features hold the sheets.
+        sheets.value = []
         features.detach(window)
         window.close()
     }

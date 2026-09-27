@@ -213,7 +213,7 @@ import WTSync
         for id in [StandardCommands.ID.hideSelection, StandardCommands.ID.showAllObjects] {
             if case .perform(let run)? = environment.commands.command(id)?.action { run() }
         }
-        VisibilityCommands.install(into: environment.commands) { controller }
+        VisibilityCommands.install(into: environment.commands) { [weak controller] in controller }
         #expect(environment.commands.validate(StandardCommands.ID.hideSelection) == .disabled(ViewCommands.nothingSelected))
         #expect(environment.commands.validate(StandardCommands.ID.showAllObjects) == .disabled(VisibilityCommands.nothingHidden))
         controller.selection.model.set(Selection([fixture.a, fixture.member]))

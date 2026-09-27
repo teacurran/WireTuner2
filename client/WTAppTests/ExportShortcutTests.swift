@@ -60,7 +60,7 @@ import WTRender
         #expect(quick.preset.id == "shipped.png-scales")
         // The command, with and without Option.
         quick.optionHeld = { false }
-        let commands = quick.commands { world.window }
+        let commands = quick.commands { [weak window = world.window] in window }
         #expect(commands[0].defaultKey == KeyEquivalent("e", [.command, .option]) && commands[0].validation().title == "Quick Export")
         quick.optionHeld = { true }
         #expect(quick.commands(window: { world.window })[0].validation().title == "Quick Export As…")
@@ -121,7 +121,7 @@ import WTRender
         #expect(store.all.contains { $0.name == "Renamed" } && !closed)
         let world = TypeWorld()
         defer { world.close() }
-        let command = ExportPresetManagerView.command(store: store) { world.window }
+        let command = ExportPresetManagerView.command(store: store) { [weak window = world.window] in window }
         #expect(command.validation().isEnabled && !ExportPresetManagerView.command(store: store, window: { nil }).validation().isEnabled)
         if case .perform(let run) = command.action { run() }
         if let sheet = world.window.window?.attachedSheet { world.window.window?.endSheet(sheet) }

@@ -141,7 +141,7 @@ import WTRender
         let environment = TestEnvironment()
         let controller = window(environment)
         defer { controller.close() }
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         for _ in 0..<3 { #expect(environment.commands.perform(StandardCommands.ID.rotateClockwise)) }
         #expect(controller.viewport.rotationDegrees == -45)
         #expect(controller.statusBar.compass.title == "45°")

@@ -32,7 +32,7 @@ import WTRender
         let world = GlueWorld()
         defer { world.close() }
         let window = world.window
-        let features = NamedViewFeatures(window: { window }, sheets: world.sheets())
+        let features = NamedViewFeatures(window: { [weak window] in window }, sheets: world.sheets())
         let rebuilt = TestBox(0)
         features.onMenuChange = { rebuilt.value += 1 }
         features.install(commands: world.commands)
@@ -100,7 +100,7 @@ import WTRender
         let world = GlueWorld()
         defer { world.close() }
         let window = world.window
-        let features = NamedViewFeatures(window: { window }, sheets: world.sheets())
+        let features = NamedViewFeatures(window: { [weak window] in window }, sheets: world.sheets())
         features.install(commands: world.commands)
         features.attach(window)
         for name in ["A", "B", "C"] { _ = await window.createNamedView(name, from: window.viewport).value }

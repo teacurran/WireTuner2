@@ -146,6 +146,20 @@ public final class TiledCanvasLayer {
         }
     }
 
+    /// The view went away for good (its window closed): every tile layer and cached tile is
+    /// dropped and nothing more is requested until the next `update`, so a closed window that is
+    /// still referenced somewhere holds no tile memory.
+    public func discardTiles() {
+        for request in pending.values { request.task.cancel() }
+        pending.removeAll()
+        for tileLayer in tileLayers.values { tileLayer.removeFromSuperlayer() }
+        tileLayers.removeAll()
+        layout = nil
+        runInvalidation { cache in
+            await cache.removeAll()
+        }
+    }
+
     /// Waits until every invalidation has reached the cache and every requested tile has
     /// been applied (or dropped).
     public func settle() async {

@@ -33,7 +33,7 @@ struct WebWorld {
         features.blobs.directory = { blobs }
         WebSections.blobs.directory = { blobs }
         let window = setup.window
-        features.install(commands: setup.environment.commands, panels: setup.environment.panels, extensions: extensions) { window }
+        features.install(commands: setup.environment.commands, panels: setup.environment.panels, extensions: extensions) { [weak window] in window }
     }
 
     var window: DocumentWindowController { setup.window }
@@ -42,6 +42,9 @@ struct WebWorld {
     var commands: CommandRegistry { setup.environment.commands }
 
     func close() {
+        // The sheets' models hold the window, and the features hold the sheets.
+        for id in Array(features.sheets.keys) { features.dismiss(id) }
+        sheets.value = []
         features.detach(window)
         setup.close()
     }

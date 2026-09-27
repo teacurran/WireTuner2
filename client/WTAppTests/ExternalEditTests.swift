@@ -41,7 +41,7 @@ import WTProto
             image = try #require(await setup.document.perform(place).value?.createdObjects.first)
             await setup.document.settle()
             let window = setup.window, original = original, hash = decoded.pixels.blob.sha256
-            editing.window = { window }
+            editing.window = { [weak window] in window }
             editing.cached = { $0 == hash ? original : nil }
             editing.store = { [unowned self] blob, _ in self.stored.append(blob) }
             editing.open = { [unowned self] file, app in self.opened.append((file, app)) }

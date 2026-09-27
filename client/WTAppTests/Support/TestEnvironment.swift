@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Testing
 import WTGeometry
 import WTModel
 import WTProto
@@ -29,6 +30,62 @@ enum TestWindow {
     }
 }
 
+/// Document windows a test leaves alive.  Windows made over a `TestEnvironment` are reported by
+/// it (`WT-WINDOW-LEAK`, 3 s after the environment went); every other one -- the app's own, made
+/// through `AppDelegate` or a `DocumentController` -- is reported as `WT-WINDOW-LEAK-APP` when its
+/// controller is still alive a minute after it was made (no test holds a window that long on
+/// purpose).
+@MainActor
+enum WindowLeakLog {
+    private struct Entry {
+        weak var controller: DocumentWindowController?
+        let test: String
+        let made: Date
+    }
+
+    private static var entries: [ObjectIdentifier: Entry] = [:]
+    private static var claimed: Set<ObjectIdentifier> = []
+    private static var started = false
+    static let age: TimeInterval = 60
+
+    static func start() {
+        guard !started else { return }
+        started = true
+        DocumentEnvironment.everyWindowDidLoad = { controller in
+            let key = ObjectIdentifier(controller)
+            guard !claimed.contains(key) else {
+                claimed.remove(key)
+                return
+            }
+            let test = Test.current.map { "\($0.name) \($0.sourceLocation.fileName):\($0.sourceLocation.line)" } ?? "?"
+            entries[key] = Entry(controller: controller, test: test, made: Date())
+        }
+        Task { @MainActor in
+            while true {
+                try? await Task.sleep(for: .seconds(10))
+                sweep(now: Date())
+            }
+        }
+    }
+
+    /// A window a `TestEnvironment` reports itself.
+    static func claim(_ controller: DocumentWindowController) {
+        claimed.insert(ObjectIdentifier(controller))
+    }
+
+    private static func sweep(now: Date) {
+        for (key, entry) in entries {
+            guard let controller = entry.controller else {
+                entries[key] = nil
+                continue
+            }
+            guard now.timeIntervalSince(entry.made) > age else { continue }
+            entries[key] = nil
+            print("WT-WINDOW-LEAK-APP window=\(controller.window?.isVisible == true ? "open" : "closed") \(entry.test)")
+        }
+    }
+}
+
 /// A throwaway `UserDefaults` suite, removed by `remove()`.
 @MainActor
 final class TestDefaults {
@@ -37,6 +94,7 @@ final class TestDefaults {
 
     init() {
         defaults = UserDefaults(suiteName: name)!
+        WindowLeakLog.start()
     }
 
     func remove() {
@@ -60,14 +118,76 @@ final class TestEnvironment {
     let windowStates: WindowStateStore
     private(set) var performed: [CommandID] = []
     var shortcuts = ShortcutSet.builtInDefault(commands: [])
+    /// The windows of the document windows made over this environment, closed when it goes if a
+    /// test left them open: an open window outlives its controller (the application holds it) with
+    /// its whole view tree and tile cache, and over a full suite those added up to gigabytes.
+    nonisolated(unsafe) private var openWindows: [ObjectIdentifier: (window: WeakWindow, closing: NSObjectProtocol)] = [:]
+
+    /// Every window made here with the test that made it, to report the ones still alive a moment
+    /// after the environment went (`WT-WINDOW-LEAK <test>` in the log).
+    nonisolated(unsafe) private var madeWindows: [(window: WeakWindow, test: String)] = []
+
+    private struct WeakWindow {
+        weak var window: NSWindow?
+        weak var canvas: CanvasView?
+        weak var controller: DocumentWindowController?
+    }
+
+    private func track(_ controller: DocumentWindowController) {
+        guard let window = controller.window else { return }
+        let key = ObjectIdentifier(window)
+        let closing = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: nil) { [weak self] _ in
+            MainActor.assumeIsolated { self?.forget(key) }
+        }
+        WindowLeakLog.claim(controller)
+        let weak = WeakWindow(window: window, canvas: controller.canvas, controller: controller)
+        openWindows[key] = (weak, closing)
+        let test = Test.current.map { "\($0.name) \($0.sourceLocation.fileName):\($0.sourceLocation.line)" } ?? "?"
+        madeWindows.append((weak, test))
+    }
+
+    private func forget(_ key: ObjectIdentifier) {
+        if let entry = openWindows.removeValue(forKey: key) { NotificationCenter.default.removeObserver(entry.closing) }
+    }
 
     init() {
+        WindowLeakLog.start()
         PlaceholderPanels.register(into: panels)
         layout = PanelLayoutController(registry: panels)
         layout.load()
         tools.registerBuiltIn()
         preferences = PreferenceStore(defaults: suite.defaults)
         windowStates = WindowStateStore(url: TestEnvironment.temporaryDirectory().appending(path: WindowStateStore.fileName))
+    }
+
+    deinit {
+        let entries = Array(openWindows.values)
+        for entry in entries { NotificationCenter.default.removeObserver(entry.closing) }
+        let windows = entries.compactMap(\.window.window)
+        let canvases = entries.compactMap(\.window.canvas)
+        let made = madeWindows
+        let registry = commands
+        let panelRegistry = panels
+        guard Thread.isMainThread else { return }
+        MainActor.assumeIsolated {
+            // The controller may be gone (it is the window's delegate, weakly): drop the canvas's
+            // pixels directly, then close.
+            for canvas in canvases { canvas.discardContents() }
+            for window in windows { window.close() }
+            // The windows made here hold the command and panel registries (their environment's);
+            // what a test registered there often captures a window or a feature attached to one,
+            // which would keep that window alive through the registry.
+            registry.remove(Set(registry.ids))
+            registry.onChange = nil
+            panelRegistry.removeAll()
+            guard !made.isEmpty else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                for entry in made where entry.window.window != nil || entry.window.canvas != nil {
+                    print("WT-WINDOW-LEAK window=\(entry.window.window != nil) canvas=\(entry.window.canvas != nil) controller=\(entry.window.controller != nil) title=\(entry.window.window?.title ?? "") \(entry.test)")
+                }
+            }
+        }
     }
 
     static func temporaryDirectory() -> URL {
@@ -85,6 +205,7 @@ final class TestEnvironment {
             }
         )
         environment.makeTiles = { CanvasView.makeFallbackTiles() }
+        environment.windowDidLoad = { [weak self] controller in self?.track(controller) }
         return environment
     }
 }

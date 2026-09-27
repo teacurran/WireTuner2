@@ -38,6 +38,18 @@ import WTRender
     }
 
     @Test(.enabled(if: CanvasMetalTests.hasMetal, "needs an Apple-family GPU"))
+    func closingTheDocumentWindowStopsTheDisplayLink() {
+        let environment = TestEnvironment()
+        var document = environment.document
+        document.makeTiles = { CanvasView.makeTiles() }
+        let controller = DocumentWindowController(document: .memory(title: "Close"), environment: document)
+        #expect(controller.canvas.backend == .metal)
+        #expect(controller.canvas.tiles.isDisplayLinkRunning)
+        controller.close()
+        #expect(!controller.canvas.tiles.isDisplayLinkRunning, "a closed window's canvas leaves the main run loop")
+    }
+
+    @Test(.enabled(if: CanvasMetalTests.hasMetal, "needs an Apple-family GPU"))
     func panZoomAndRotateFramesFitTheBudget() async throws {
         let document = CanvasPerformanceTests.denseDocument()
         let canvas = CanvasView(document: document, tiles: CanvasView.makeTiles(), frame: NSRect(x: 0, y: 0, width: 1200, height: 800))

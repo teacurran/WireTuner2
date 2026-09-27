@@ -253,7 +253,7 @@ final class AttributeFixture {
         let state = AttributesState()
         var list = fixture.list()
         AttributesListView.adding(list.add(.strokes, above: nil), model: list, state: state)()
-        while fixture.list().rows.count < 3 { await Task.yield() }
+        #expect(await eventually { fixture.list().rows.count >= 3 })
         await document.settle()
         list = fixture.list()
         #expect(AttributesListView.selected(list, state)?.index == 2)

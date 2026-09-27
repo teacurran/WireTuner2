@@ -668,7 +668,7 @@ final class SelectionFlag {
         StandardCommands.register(into: environment.commands)
         let (controller, fixture) = await window(environment)
         defer { controller.close() }
-        ViewCommands.install(into: environment.commands, target: { controller }, newDocument: {})
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, newDocument: {})
         var beeps = 0
         controller.beep = { beeps += 1 }
         controller.fitSelection()

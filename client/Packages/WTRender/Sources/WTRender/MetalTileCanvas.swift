@@ -84,6 +84,8 @@ public final class MetalTileCanvas {
     private(set) var renderer: MetalRenderer?
     private var fallbackRenderer: CoreGraphicsRenderer
     private var atlas: MetalTileAtlas?
+    /// Slices the atlas is made with (again after `discardTiles` let it go).
+    private let atlasCapacity: Int
     /// The latest tiling whose visible tiles were all drawable: drawn under the current tiling
     /// while that one's tiles render, so a frame never shows the bare pasteboard.
     private var completeGeometry: TileGeometry?
@@ -120,6 +122,7 @@ public final class MetalTileCanvas {
         clock: @escaping @MainActor () -> Double = { CACurrentMediaTime() }
     ) {
         self.context = context
+        self.atlasCapacity = atlasCapacity
         self.backingScale = backingScale
         self.pasteboardColor = pasteboardColor
         self.clock = clock
@@ -168,6 +171,10 @@ public final class MetalTileCanvas {
             fallbackCanvas.layer.frame = bounds
             fallbackCanvas.update(displayList: displayList, viewport: viewport, changes: changes, mapper: mapper)
             return
+        }
+        if atlas == nil, let context {
+            // Discarded with its window's tiles: made again on first use.
+            atlas = MetalTileAtlas(device: context.device, capacity: atlasCapacity)
         }
         metalLayer.frame = bounds
         metalLayer.contentsScale = backingScale
@@ -308,6 +315,23 @@ public final class MetalTileCanvas {
             return TileCache.touches(geometry.pasteboardBounds(of: key), rects: rects, scale: geometry.zoomStep.scale)
         }
         setNeedsDisplay()
+    }
+
+    /// The view went away for good (its window closed): the display link stops and every tile
+    /// is dropped, so a closed window that is still referenced somewhere holds no tile memory.
+    /// The next `update` starts over.
+    public func discardTiles() {
+        stopDisplayLink()
+        rasterTask?.cancel()
+        rasterTask = nil
+        generation += 1
+        // The atlas texture is the bulk (a 256 x 256 slice per tile, 96 MB at the default 384):
+        // let it go; `update` makes a new one if the canvas is shown again.
+        if backend == .metal { atlas = nil }
+        completeGeometry = nil
+        rasterGeometry = nil
+        needsDisplay = false
+        fallbackCanvas?.discardTiles()
     }
 
     /// Waits until no tile is rendering (and, on the fallback, until its tiles have landed).

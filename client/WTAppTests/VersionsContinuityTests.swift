@@ -212,7 +212,7 @@ final class FakeSpotlightIndex: SpotlightIndexing, @unchecked Sendable {
         features.local = { _ in (VersionTestStore().storage, { VersionHead(serverSeq: 2) }) }
         features.client = FakeVersionClient(server: server)
         features.accessToken = { "token" }
-        features.install(into: environment.commands) { controller }
+        features.install(into: environment.commands) { [weak controller] in controller }
         #expect(environment.commands.command(VersionFeatures.ID.saveVersion)?.defaultKey == KeyEquivalent("s", .command))
         #expect(environment.commands.command(VersionFeatures.ID.duplicate)?.defaultKey == KeyEquivalent("s", [.command, .shift]))
         #expect(environment.commands.validate(VersionFeatures.ID.saveVersion) == .enabled)

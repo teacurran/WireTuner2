@@ -50,7 +50,7 @@ import WTSync
     @Test func showLinksTintsLinkedObjectsAndTheTooltipNamesTheURL() async throws {
         let world = GlueWorld()
         defer { world.close() }
-        let features = LinkOverlayFeatures(window: { world.window })
+        let features = LinkOverlayFeatures(window: { [weak window = world.window] in window })
         features.install(commands: world.commands)
         let window = world.window
         #expect(world.commands.command(LinkOverlayFeatures.id)?.validation() == .checked(false))
@@ -203,7 +203,7 @@ import WTSync
         model.pasteboard = world.pasteboard
         #expect(model.object == nil && model.copyPNG(scale: 1) == nil && !model.copyCode(.css))
         Render.view(InspectPanelBody(model: model))
-        model.window = { world.window }
+        model.window = { [weak window = world.window] in window }
         #expect(model.object == nil)
         let rects = await world.document.addRectangles([Rect(x: 10, y: 20, width: 100, height: 50), Rect(x: 200, y: 20, width: 30, height: 30)])
         world.select([rects[0].opID])

@@ -27,7 +27,7 @@ struct EditWorld {
         window.objectEditing.pasteboard = SystemObjectPasteboard(pasteboard)
         let sheets = sheets
         features.presentSheet = { sheet, _ in sheets.value.append(sheet) }
-        features.install(commands: setup.environment.commands, inspector: inspector) { window }
+        features.install(commands: setup.environment.commands, inspector: inspector) { [weak window] in window }
         features.attach(window)
         for kind in [SnapSettings.Kind.point, .object, .guides] where window.snap[kind] { window.toggleSnap(kind) }
     }
@@ -40,6 +40,8 @@ struct EditWorld {
     func select(_ ids: [SelectionID]) { window.selection.model.set(Selection(ids)) }
 
     func close() {
+        // The recorded sheets' models hold the window, and the features hold the sheets.
+        sheets.value = []
         pasteboard.releaseGlobally()
         setup.close()
     }

@@ -23,7 +23,7 @@ struct CommentWorld {
         features.role = { _ in role }
         features.pasteboard = NSPasteboard(name: NSPasteboard.Name("CommentWorld-\(UUID().uuidString)"))
         let window = setup.window
-        features.install(commands: setup.environment.commands, panels: setup.environment.panels, tools: setup.environment.tools) { window }
+        features.install(commands: setup.environment.commands, panels: setup.environment.panels, tools: setup.environment.tools) { [weak window] in window }
     }
 
     var window: DocumentWindowController { setup.window }
@@ -81,7 +81,7 @@ struct CommentWorld {
         world.features.window = { nil }
         #expect(registry.command(CommentsFeatures.ID.addComment)?.validation() == .disabled(CommentsFeatures.noDocument))
         #expect(world.features.front == nil)
-        world.features.window = { world.window }
+        world.features.window = { [weak window = world.window] in window }
         #expect(world.features.comments(for: world.document) === world.comments)
         #expect(world.features.comments(for: DocumentHandle.memory(title: "Other")) == nil)
         // Preference changes redraw every window.

@@ -103,7 +103,7 @@ import WTRender
         #expect(LinkBadges.page(at: inside, document: document, viewport: viewport)?.hasPrefix("Go to ") == true)
         #expect(LinkBadges.page(at: center, document: document, viewport: viewport) == nil)
         // Drawn with the Show Links overlay; hovering the badge names the page.
-        let links = LinkOverlayFeatures(window: { world.window })
+        let links = LinkOverlayFeatures(window: { [weak window = world.window] in window })
         links.toggle(world.window)
         links.draw(in: PrintWorld.context(), window: world.window)
         links.hover(inside, window: world.window)

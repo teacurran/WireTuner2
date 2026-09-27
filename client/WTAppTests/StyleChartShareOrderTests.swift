@@ -181,7 +181,7 @@ import WTSync
         let registry = CommandRegistry()
         try registry.register(Command(id: ContextMenuCatalog.ID.superselect, title: "Superselect", action: .responder("superselect:")))
         try registry.register(Command(id: ContextMenuCatalog.ID.ungroup, title: "Ungroup", action: .perform {}))
-        let commands = ChartPictographs.commands(registry) { world.window }
+        let commands = ChartPictographs.commands(registry) { [weak window = world.window] in window }
         #expect(commands.count == 2)
         if case .perform(let run) = commands[1].action { run() }
         #expect(picks.keys == [ChartElementKeyRef(series: key.series)])
@@ -243,7 +243,7 @@ import WTSync
         ChartPictographs.showsSheet = false
         defer { ChartPictographs.showsSheet = true }
         let registry = ExtensionRegistry()
-        let descriptors = ChartPictographs.extensions(existing: registry) { world.window }
+        let descriptors = ChartPictographs.extensions(existing: registry) { [weak window = world.window] in window }
         #expect(descriptors.count == 2 && descriptors.allSatisfy { $0.validate?().isEnabled == true })
         _ = descriptors[0].run?(nil)
         let sheet = try #require(ChartPictographs.presented)
@@ -358,7 +358,7 @@ import WTSync
         share.quickExport.choosePreset = { _ in nil }
         #expect(share.share(world.window) == nil)
         // The command.
-        let command = share.command { world.window }
+        let command = share.command { [weak window = world.window] in window }
         #expect(command.validation().title == "Share As…")
         share.quickExport.optionHeld = { false }
         #expect(share.command(window: { world.window }).validation().title == "Share" && !share.command(window: { nil }).validation().isEnabled)
@@ -433,7 +433,7 @@ import WTSync
         // The paste path: a PNG through the import path, text through the richest paste.
         let imports = ImportController(preferences: world.setup.environment.preferences)
         let edit = EditFeatures(preferences: world.setup.environment.preferences)
-        edit.window = { world.window }
+        edit.window = { [weak window = world.window] in window }
         let image = NSPasteboard.withUniqueName()
         image.clearContents()
         let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 4, pixelsHigh: 4, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -483,7 +483,7 @@ import WTSync
         defer { ReadingOrderFeatures.showsPanel = true }
         let origin = world.document.activePage.origin
         let squares = await world.document.addRectangles((0..<3).map { Rect(x: origin.x + 100 + Double($0) * 60, y: origin.y + 100, width: 40, height: 40) }).map(\.opID)
-        let command = ReadingOrderFeatures.command { world.window }
+        let command = ReadingOrderFeatures.command { [weak window = world.window] in window }
         #expect(command.validation().isEnabled && !ReadingOrderFeatures.command(window: { nil }).validation().isEnabled)
         if case .perform(let run) = command.action { run() }
         let model = try #require(ReadingOrderFeatures.model(of: world.window))

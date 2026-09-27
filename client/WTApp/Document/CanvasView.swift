@@ -263,6 +263,13 @@ final class CanvasView: NSView, CanvasHost {
         furnitureLayer.setNeedsDisplay()
     }
 
+    /// The window closed for good: the tiles and the overlay layers' drawings are dropped, so a
+    /// closed window that something still references holds no pixels.
+    func discardContents() {
+        tiles.discardTiles()
+        for layer in [overlay, presenceLayer, furnitureLayer] as [CALayer] { layer.contents = nil }
+    }
+
     /// The grid, guides or page emphasis changed: only their layer redraws.
     func setNeedsFurnitureDisplay() {
         furnitureLayer.setNeedsDisplay()

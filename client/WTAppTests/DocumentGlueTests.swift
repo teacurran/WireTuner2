@@ -53,7 +53,7 @@ import WTRender
         // The Color Settings sheet's Profiles… opens the sheet once.
         let sheets = SheetPresenter()
         sheets.present = { _ in }
-        let local = DocumentGlueFeatures(preferences: delegate.preferences, sheets: sheets) { window }
+        let local = DocumentGlueFeatures(preferences: delegate.preferences, sheets: sheets) { [weak window] in window }
         let profiles = local.showProfiles(window.documentHandle)
         #expect(local.showProfiles(window.documentHandle) === profiles && sheets.sheets[DocumentGlueFeatures.profilesSheet] != nil)
         profiles.close()
@@ -187,7 +187,7 @@ import WTRender
         #expect(section.name == "Marketing" && section.items.map(\.name).first == "Brand" && model.message == nil)
         let item = section.items[0]
         #expect(model.copy(item) == nil && model.message == TeamLibraryCatalogModel.noDocument, "no window")
-        model.window = { world.window }
+        model.window = { [weak window = world.window] in window }
         #expect(!model.isExpanded(source.documentID).wrappedValue)
         model.isExpanded(source.documentID).wrappedValue = true
         #expect(model.expanded == [source.documentID])

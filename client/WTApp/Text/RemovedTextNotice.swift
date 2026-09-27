@@ -8,7 +8,8 @@ import WTProto
 /// btn:[Restore], which writes `deleted = false` as one undoable change.
 @MainActor
 final class RemovedTextNotice {
-    unowned let window: DocumentWindowController
+    /// Weak: the document (and its observers) can outlive the window.
+    weak var window: DocumentWindowController?
     /// The block the Text tool edits, as last seen.
     private(set) var editing: OpID?
     private var token: DocumentHandle.ObservationToken?
@@ -21,12 +22,13 @@ final class RemovedTextNotice {
     }
 
     func stop() {
-        if let token { window.documentHandle.stopObserving(token) }
+        if let token { window?.documentHandle.stopObserving(token) }
         token = nil
     }
 
     /// Records the block the Text tool is editing (called as the overlay redraws).
     func track() {
+        guard let window else { return }
         if let node = window.objectEditing.textSession?.node, window.objectEditing.textSession?.isLive == true {
             editing = node
         } else if let node = editing, window.documentHandle.state.isLive(node) {
@@ -42,7 +44,7 @@ final class RemovedTextNotice {
     /// notice is posted.
     func documentDidChange(_ change: Wiretuner_Doc_V1_Change?) {
         track()
-        guard let node = editing, let change, change.replica != window.documentHandle.model?.replica,
+        guard let window, let node = editing, let change, change.replica != window.documentHandle.model?.replica,
               window.documentHandle.state.store.kind(node) != 0, !window.documentHandle.state.isLive(node) else { return }
         editing = nil
         let author = window.collaboration.session?.author(of: change.replica)?.name ?? "Someone"

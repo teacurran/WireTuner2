@@ -78,7 +78,7 @@ extension FakeCollaborationServer {
         features.userName = { "Priya" }
         let registry = CommandRegistry()
         let window = setup.window
-        features.install(into: registry) { window }
+        features.install(into: registry) { [weak window] in window }
         #expect(registry.command(DocumentInfoFeatures.id)?.defaultKey == KeyEquivalent("i", [.command, .option]))
         #expect(registry.command(DocumentInfoFeatures.id)?.validation() == .enabled)
         registry.perform(DocumentInfoFeatures.id)
@@ -145,7 +145,7 @@ extension FakeCollaborationServer {
         features.dismiss()
         // The default presentation: a sheet on the window, ended by Done.
         let shown = DocumentInfoFeatures()
-        shown.window = { window }
+        shown.window = { [weak window] in window }
         let onWindow = try #require(shown.present())
         onWindow.onClose()
         shown.presentSheet(TestWindow.make(), nil)
@@ -322,7 +322,7 @@ extension FakeCollaborationServer {
         let setup = SetupWindow(tools: [PointerTool.descriptor])
         defer { setup.close() }
         let window = setup.window
-        GuidesLayer.window = { window }
+        GuidesLayer.window = { [weak window] in window }
         defer { GuidesLayer.window = { nil } }
         let layer = try #require(await setup.document.perform(CreateLayer(name: "Guides")).value?.createdNodes.first)
         var role = Wiretuner_Doc_V1_NodeProps()

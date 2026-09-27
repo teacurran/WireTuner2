@@ -38,7 +38,7 @@ import WTRender
         defer { world.close() }
         let (symbol, instance, masters) = try await Self.symbol(world)
         let windows = SymbolEditingWindows()
-        let command = windows.command { world.window }
+        let command = windows.command { [weak window = world.window] in window }
         #expect(command.validation() == .disabled(SymbolEditingWindows.noSymbol))
         world.select(masters)
         #expect(SymbolEditingWindows.editableSymbol(in: world.window) == nil, "not instances")

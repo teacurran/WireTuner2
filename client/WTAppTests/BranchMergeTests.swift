@@ -116,9 +116,10 @@ final class FakeBranchMerging: BranchMerging, @unchecked Sendable {
         defer { parent.close() }
         let merging = FakeBranchMerging()
         let features = parent.features
-        let command = BranchMergeCommand.command(features: features, merging: { merging }, window: { parent.window })
+        let parentWindow: @MainActor () -> DocumentWindowController? = { [weak window = parent.window] in window }
+        let command = BranchMergeCommand.command(features: features, merging: { merging }, window: parentWindow)
         #expect(command.validation() == .disabled(BranchMergeCommand.notBranch))
-        #expect(await BranchMergeCommand.present(features: features, merging: { merging }, window: { parent.window }).value == nil)
+        #expect(await BranchMergeCommand.present(features: features, merging: { merging }, window: parentWindow).value == nil)
         #expect(BranchMergeCommand.command(features: features, merging: { nil }, window: { nil }).validation() == .disabled(BranchMergeCommand.notBranch))
         // A branch window: the review over main as this Mac holds it.
         let world = CollaborationWorld(document: .memory(id: "branch-doc", title: "Branch"),
@@ -126,18 +127,19 @@ final class FakeBranchMerging: BranchMerging, @unchecked Sendable {
         defer { world.close() }
         await world.ui.branches.load()
         let branchFeatures = world.features
-        let branchCommand = BranchMergeCommand.command(features: branchFeatures, merging: { merging }, window: { world.window })
+        let branchWindow: @MainActor () -> DocumentWindowController? = { [weak window = world.window] in window }
+        let branchCommand = BranchMergeCommand.command(features: branchFeatures, merging: { merging }, window: branchWindow)
         let main = DocumentHandle.memory(title: "Main")
         branchFeatures.state = { id in id == "parent-doc" ? main.state : nil }
         #expect(branchCommand.validation() == .enabled)
-        #expect(BranchMergeCommand.command(features: branchFeatures, merging: { nil }, window: { world.window }).validation() == .disabled(BranchMergeCommand.offline))
-        let model = try #require(await BranchMergeCommand.present(features: branchFeatures, merging: { merging }, window: { world.window }).value)
+        #expect(BranchMergeCommand.command(features: branchFeatures, merging: { nil }, window: branchWindow).validation() == .disabled(BranchMergeCommand.offline))
+        let model = try #require(await BranchMergeCommand.present(features: branchFeatures, merging: { merging }, window: branchWindow).value)
         #expect(model.branchName == "Try colours" && world.sheets.value.count == 1)
         _ = await model.merge()
         model.onClose()
         // Main not here: nothing.
         branchFeatures.state = { _ in nil }
-        #expect(await BranchMergeCommand.present(features: branchFeatures, merging: { merging }, window: { world.window }).value == nil)
+        #expect(await BranchMergeCommand.present(features: branchFeatures, merging: { merging }, window: branchWindow).value == nil)
         let registry = CommandRegistry()
         registry.replace(branchCommand)
         _ = registry.perform(CollaborationFeatures.ID.mergeBranch)

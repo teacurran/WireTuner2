@@ -28,7 +28,7 @@ import WTProto
             scripts = ScriptFeatures(folder: try ScriptEditorTests.folder())
             scripts.data = data.features
             let window = data.window
-            scripts.install(commands: data.setup.environment.commands, watch: false) { window }
+            scripts.install(commands: data.setup.environment.commands, watch: false) { [weak window] in window }
         }
 
         var registry: CommandRegistry { data.setup.environment.commands }

@@ -20,6 +20,8 @@ import WTRender
         var sessions: [(NSView, NSDraggingItem)] = []
         dragOut.startSession = { view, item, _, _ in sessions.append((view, item)) }
         ImageLinkWindowParts.attach(setup.window, dragOut: dragOut)
+        // The canvas holds the drag-out (onLeaveCanvas), which holds the sessions, which hold the canvas.
+        defer { sessions = [] }
         let window = try #require(setup.window.window)
         let outside = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: -50, y: -50), modifierFlags: [], timestamp: 0,
                                          windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!

@@ -73,9 +73,11 @@ struct RulerScale: Equatable {
         let first = (values.min()! / minor).rounded(.down)
         let last = (values.max()! / minor).rounded(.up)
         guard last - first < 10_000 else { return [] }
+        // Counted in integers: past 2^53 `index += 1` on a Double is a no-op, and a `while index
+        // <= last` loop would append the same tick forever.
         var ticks: [Tick] = []
-        var index = first
-        while index <= last {
+        for offsetIndex in 0...Int(last - first) {
+            let index = first + Double(offsetIndex)
             let value = index * minor
             let position = (value - offset) / slope
             let within = Int(index.truncatingRemainder(dividingBy: Double(divisions)) + Double(divisions)) % divisions
@@ -83,7 +85,6 @@ struct RulerScale: Equatable {
             if position >= from - 0.5, position <= to + 0.5 {
                 ticks.append(Tick(position: position, level: level, label: level == 0 ? label(value) : nil))
             }
-            index += 1
         }
         return ticks
     }

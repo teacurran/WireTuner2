@@ -143,7 +143,7 @@ import WTRender
         defer { world.close() }
         let image = try await HandleWorld.place(in: world.document)
         world.window.selection.model.set(Selection([SelectionID(image)]))
-        let commands = CropFeatures.commands { world.window }
+        let commands = CropFeatures.commands { [weak window = world.window] in window }
         let remove = try #require(commands.first { $0.id == CropFeatures.removeCropID })
         #expect(!remove.validation().isEnabled, "nothing cropped")
         _ = await world.document.perform(CropImage([image], crop: Rect(x: 0, y: 0, width: 0.5, height: 1))).value

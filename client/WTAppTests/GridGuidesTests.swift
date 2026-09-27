@@ -260,7 +260,7 @@ struct SetupWindow {
         defer { setup.close() }
         let window = setup.window
         let features = DocumentSetupFeatures(preferences: setup.environment.preferences, device: "mac")
-        features.install(commands: setup.environment.commands, panels: setup.environment.panels, tools: setup.environment.tools) { window }
+        features.install(commands: setup.environment.commands, panels: setup.environment.panels, tools: setup.environment.tools) { [weak window] in window }
         let registry = setup.environment.commands
         let ids = StandardCommands.ID.self
         #expect(registry.validate(ids.showGrid)?.isChecked == false)
@@ -281,9 +281,11 @@ struct SetupWindow {
         window.apply(state)
         #expect(window.showsGrid && !window.showsGuides)
         // The sheets open on the window.
-        for id in [ids.editGrid, ids.editGuides, ids.pageRulerUnits] { #expect(registry.perform(id)) }
-        #expect(window.window?.attachedSheet != nil)
-        if let sheet = window.window?.attachedSheet { window.window?.endSheet(sheet) }
+        for id in [ids.editGrid, ids.editGuides, ids.pageRulerUnits] {
+            #expect(registry.perform(id))
+            #expect(window.window?.attachedSheet != nil)
+            if let sheet = window.window?.attachedSheet { window.window?.endSheet(sheet) }
+        }
         let none = DocumentSetupFeatures(preferences: setup.environment.preferences, device: "mac")
         #expect(none.commands().allSatisfy { $0.validation() == .disabled(DocumentSetupFeatures.noDocument) })
         #expect(none.showLinks() == nil)

@@ -240,7 +240,7 @@ import WTRender
         controller.onViewStateChange = { _ in changes += 1 }
         let registry = CommandRegistry()
         let palette = ToolPaletteModel()
-        ToolPanelCommands.install(into: registry, palette: palette) { controller }
+        ToolPanelCommands.install(into: registry, palette: palette) { [weak controller] in controller }
         for kind in SnapSettings.Kind.allCases {
             let before = controller.snap[kind]
             #expect(registry.validate(ToolPanelCommands.snapCommandID(kind)) == .checked(before))

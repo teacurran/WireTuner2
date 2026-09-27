@@ -27,7 +27,7 @@ import WTRender
     @Test func shapeSelectsEveryCircleOnThePageAndReportsTheCount() async throws {
         let world = GlueWorld()
         defer { world.close() }
-        let features = SelectSimilarCommands(window: { world.window })
+        let features = SelectSimilarCommands(window: { [weak window = world.window] in window })
         features.shiftDown = { false }
         #expect(await features.runShape(in: world.window, adding: false) == nil, "nothing selected")
         let loaded: ShapeClassification = try #require(await ShapeClassifierResource.load())
@@ -60,7 +60,7 @@ import WTRender
         defer { world.close() }
         for loaded in [false, true] {
             let commands = CommandRegistry()
-            let glue = DocumentGlueFeatures(preferences: world.preferences) { world.window }
+            let glue = DocumentGlueFeatures(preferences: world.preferences) { [weak window = world.window] in window }
             let classification = loaded ? await ShapeClassifierResource.load() : nil
             glue.loadShapeClassifier = { classification }
             let changed = TestBox(0)

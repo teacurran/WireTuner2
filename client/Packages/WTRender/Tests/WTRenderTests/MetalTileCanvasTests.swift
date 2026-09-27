@@ -204,6 +204,22 @@ struct MetalTileCanvasTests {
         #expect(!canvas.isDisplayLinkRunning)
     }
 
+    @Test func discardingDropsTheTilesAndStopsTheDisplayLink() async throws {
+        let canvas = makeCanvas()
+        let viewport = Viewport(size: size)
+        canvas.update(displayList: Corpus.solidRect, viewport: viewport)
+        await canvas.settle()
+        canvas.startDisplayLink()
+        #expect(canvas.atlasTileCount > 0 && canvas.isDisplayLinkRunning)
+        canvas.discardTiles()
+        #expect(canvas.atlasTileCount == 0 && !canvas.isDisplayLinkRunning && canvas.rasterGeometry == nil && !canvas.needsDisplay)
+        await canvas.settle()
+        #expect(canvas.atlasTileCount == 0, "nothing is requested again until the next update")
+        canvas.update(displayList: Corpus.solidRect, viewport: viewport)
+        await canvas.settle()
+        #expect(canvas.atlasTileCount > 0)
+    }
+
     @Test func framesWithoutContentDrawThePasteboardOnly() throws {
         let context = try #require(MetalAvailability.context)
         let canvas = makeCanvas()
@@ -245,6 +261,10 @@ struct MetalTileCanvasTests {
         #expect(fallback.backingScale == 1)
         #expect(canvas.atlasTileCount == 0)
         #expect(!canvas.hasTile(fallback.layout!.placements[0].key))
+        canvas.discardTiles()
+        await canvas.settle()
+        #expect(fallback.tileLayerCount == 0)
+        #expect(await fallback.cache.count == 0)
     }
 
     @Test func theSystemDeviceGivesAMetalCanvas() async {

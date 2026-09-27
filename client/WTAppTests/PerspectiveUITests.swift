@@ -457,7 +457,7 @@ import WTRender
     @Test func theViewMenuShowsTheGridAndTakesObjectsOffIt() async throws {
         let world = GlueWorld()
         defer { world.close() }
-        let features = PerspectiveFeatures(window: { world.window }, sheets: world.sheets())
+        let features = PerspectiveFeatures(window: { [weak window = world.window] in window }, sheets: world.sheets())
         features.install(commands: world.commands)
         let ids = StandardCommands.ID.self
         #expect(world.commands.command(ids.perspectiveShow)?.validation() == .checked(false))

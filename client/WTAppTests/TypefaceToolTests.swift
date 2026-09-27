@@ -257,12 +257,12 @@ import WTRender
         #expect(strip.validation().isChecked && !PreviewStripHost.command(window: { fixture.window }).validation().isEnabled)
         if case .perform(let run) = strip.action { run() }
         #expect(host.model.isHidden)
-        if case .perform(let run) = PreviewStripHost.command(window: { fixture.window }).action { run() }
+        if case .perform(let run) = PreviewStripHost.command(window: { [weak window = fixture.window] in window }).action { run() }
         PreviewStripHost.detach(tab)
         #expect(PreviewStripHost.host(of: tab) == nil)
         // The typeface commands.
         var shown = 0
-        let commands = TypefaceTools.commands(features: fixture.features, window: { fixture.window }) { shown += 1 }
+        let commands = TypefaceTools.commands(features: fixture.features, window: { [weak window = fixture.window] in window }) { shown += 1 }
         #expect(commands.map(\.title).prefix(5) == ["Find Problems…", "Kerning Classes…", "Auto Kern…", "Add to Left Class", "Add to Right Class"])
         #expect(commands[0].validation().isEnabled && !commands[3].validation().isEnabled, "no glyph selected")
         fixture.mode.grid?.model.select([fixture.glyph("A"), fixture.glyph("V")])
@@ -285,7 +285,7 @@ import WTRender
         #expect(TypefaceTools.addToClass(.left, glyphs: [], in: fixture.document) == nil)
         let plain = TypefaceTools.commands(features: fixture.features, window: { nil }) {}
         #expect(!plain[0].validation().isEnabled && !plain[3].validation().isEnabled)
-        let panel = TypefaceTools.panel(selection: ActiveSelection(model: SelectionModel(), document: fixture.document), features: fixture.features) { fixture.window }
+        let panel = TypefaceTools.panel(selection: ActiveSelection(model: SelectionModel(), document: fixture.document), features: fixture.features) { [weak window = fixture.window] in window }
         _ = panel.makeView()
         tab.window?.close()
     }

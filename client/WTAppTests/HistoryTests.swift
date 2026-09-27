@@ -56,7 +56,7 @@ final class FakeHistoryClient: HistoryClient, @unchecked Sendable {
 
         init() {
             let window = collaboration.window, client = client
-            model.window = { window }
+            model.window = { [weak window] in window }
             model.client = { client }
             model.features = collaboration.features
             model.outbox = { _ in ["Move 3 objects"] }

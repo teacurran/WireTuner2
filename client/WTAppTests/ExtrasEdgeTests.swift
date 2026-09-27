@@ -248,7 +248,7 @@ import WTRender
         let target = try await world.block("Target text", at: Point(x: 50, y: 200))
         await world.edit(target, select: 0..<3)
         let edit = EditFeatures(preferences: world.setup.environment.preferences)
-        edit.window = { world.window }
+        edit.window = { [weak window = world.window] in window }
         #expect(TextAttributeClipboard.commands(edit: edit) { world.window }[1].validation().isEnabled)
         _ = await TextAttributeClipboard.paste(world.window)?.value
         let text = try #require(world.state.textNode(target))

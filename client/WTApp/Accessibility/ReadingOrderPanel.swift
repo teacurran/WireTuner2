@@ -22,7 +22,9 @@ final class ReadingOrderModel {
         let alt: String
     }
 
-    @ObservationIgnored unowned let window: DocumentWindowController
+    /// Weak: the panel (kept by `ReadingOrderFeatures`) can outlive its window; with the window
+    /// gone the list is empty and the gestures do nothing.
+    @ObservationIgnored private(set) weak var window: DocumentWindowController?
     /// How many objects have been clicked on the canvas since the panel opened.
     private(set) var clicked = 0
     /// Moves with every change, so the list re-reads.
@@ -32,18 +34,21 @@ final class ReadingOrderModel {
         self.window = window
     }
 
-    var document: DocumentHandle { window.documentHandle }
-    var page: Page { document.activePage }
+    var document: DocumentHandle? { window?.documentHandle }
+    var page: Page? { document?.activePage }
+    /// The page's name for the title ("" once the window went).
+    var pageName: String { page?.name ?? "" }
 
     /// The page's objects in reading order.
     var order: [OpID] {
         _ = revision
+        guard let document, let page else { return [] }
         let state = document.state
         return ReadingOrder.order(of: page, in: state, pages: PageList(state))
     }
 
     var rows: [Row] {
-        let state = document.state
+        guard let state = document?.state else { return [] }
         return order.map { node in Row(id: node, name: state.displayName(of: node), alt: state.accessibleDescription(of: node) ?? "") }
     }
 
@@ -51,6 +56,7 @@ final class ReadingOrderModel {
 
     @discardableResult
     func arrange(_ order: [OpID]) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+        guard let window, let page else { return Task { nil } }
         let task = window.objectEditing.perform(ArrangeReadingOrder(page: page.id, order: order))
         return Task { @MainActor in
             let change = await task.value
@@ -87,6 +93,7 @@ final class ReadingOrderModel {
     @discardableResult
     func useStackingOrder() -> Task<Wiretuner_Doc_V1_Change?, Never> {
         clicked = 0
+        guard let window, let page else { return Task { nil } }
         let task = window.objectEditing.perform(ClearReadingOrder(page: page.id))
         return Task { @MainActor in
             let change = await task.value
@@ -97,13 +104,13 @@ final class ReadingOrderModel {
 
     /// The object on the page under `point` (pasteboard): the topmost listed one.
     func object(at point: Point) -> OpID? {
-        let state = document.state
+        guard let state = document?.state else { return nil }
         return order.reversed().first { Objects.bounds(of: $0, in: state)?.contains(point) ?? false }
     }
 
     /// The badges: each listed object's number at its top-left (pasteboard).
     var badges: [(number: Int, at: Point)] {
-        let state = document.state
+        guard let state = document?.state else { return [] }
         return order.enumerated().compactMap { index, node in
             Objects.bounds(of: node, in: state).map { (index + 1, Point(x: $0.minX, y: $0.minY)) }
         }
@@ -124,7 +131,7 @@ struct ReadingOrderView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Reading Order — \(model.page.name)").font(.headline)
+            Text("Reading Order — \(model.pageName)").font(.headline)
             Text("Drag rows, or click objects on the page in the order they should be read. Shift-click moves one to the end.")
                 .font(.caption).foregroundStyle(.secondary)
             List {
@@ -207,6 +214,14 @@ enum ReadingOrderFeatures {
 
     private static var open: [ObjectIdentifier: Entry] = [:]
 
+    /// Panels left by windows that closed without btn:[Done] go.
+    private static func prune() {
+        for (key, entry) in open where entry.window == nil {
+            entry.panel.orderOut(nil)
+            open[key] = nil
+        }
+    }
+
     /// `window`'s open panel's model (an entry left by a window since gone does not count).
     static func model(of window: DocumentWindowController) -> ReadingOrderModel? {
         guard let entry = open[ObjectIdentifier(window)], entry.window === window else { return nil }
@@ -220,6 +235,7 @@ enum ReadingOrderFeatures {
             if showsPanel { open[ObjectIdentifier(window)]?.panel.orderFront(nil) }
             return existing
         }
+        prune()
         let model = ReadingOrderModel(window: window)
         let handles = ReadingOrderHandles()
         handles.model = model

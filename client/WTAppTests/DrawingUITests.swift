@@ -300,7 +300,7 @@ import WTRender
         #expect(choice?.id == "y")
         // The features: the selected chart, the menu items, the sheet, the tool's double-click.
         world.window.selection.model.clear()
-        let commands = ChartFeatures.commands { world.window }
+        let commands = ChartFeatures.commands { [weak window = world.window] in window }
         #expect(commands.map(\.title) == ["Edit Data…", "Chart Type…"] && !commands[0].validation().isEnabled)
         world.window.selection.model.set(Selection([SelectionID(chart)]))
         #expect(ChartFeatures.selectedChart(in: world.window) == chart && commands[1].validation().isEnabled && ChartFeatures.selectedChart(in: nil) == nil)
@@ -309,8 +309,8 @@ import WTRender
             if let sheet = world.window.window?.attachedSheet { world.window.window?.endSheet(sheet) }
         }
         var previous: [ToolID] = []
-        let options = ChartFeatures.toolOptions(window: { world.window }) { previous.append($0.id) }
-        let descriptor = ChartFeatures.descriptor { world.window }
+        let options = ChartFeatures.toolOptions(window: { [weak window = world.window] in window }) { previous.append($0.id) }
+        let descriptor = ChartFeatures.descriptor { [weak window = world.window] in window }
         options(descriptor)
         if let sheet = world.window.window?.attachedSheet { world.window.window?.endSheet(sheet) }
         options(ToolCatalog.all[0])
@@ -318,7 +318,7 @@ import WTRender
         let tool = try #require(descriptor.make() as? ChartTool)
         tool.openSheet(chart)
         if let sheet = world.window.window?.attachedSheet { world.window.window?.endSheet(sheet) }
-        let delivered = DrawingToolDelivery.descriptors(store: world.setup.environment.preferences) { world.window }
+        let delivered = DrawingToolDelivery.descriptors(store: world.setup.environment.preferences) { [weak window = world.window] in window }
         #expect(delivered.map(\.id) == [CalligraphicPen.id, EraserTool.id, ChartTool.id])
         for item in delivered.prefix(2) {
             #expect(item.options?() != nil)

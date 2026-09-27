@@ -60,6 +60,8 @@ struct GlueWorld {
     }
 
     func close() {
+        // The recorded sheets' models hold the window, and the features hold the sheets.
+        presented.value = []
         pasteboard.releaseGlobally()
         setup.close()
     }

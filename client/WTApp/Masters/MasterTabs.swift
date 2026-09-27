@@ -284,7 +284,11 @@ final class MasterNotices {
     static let recent: TimeInterval = PageNotices.recent
     static let updateCopies = "Update the copies"
 
-    unowned let window: DocumentWindowController
+    /// Weak: the notices hang off the window's features, and an observer or a queued change can
+    /// still reach them after the window closed (an unowned reference crashed there).
+    private(set) weak var window: DocumentWindowController?
+    /// The window's document, to stop observing it even when the window went first.
+    private weak var document: DocumentHandle?
     /// When it is now; replaceable in tests.
     var clock: @MainActor () -> Date = { Date() }
     /// This person's recent releases, with when.
@@ -293,13 +297,14 @@ final class MasterNotices {
 
     init(window: DocumentWindowController) {
         self.window = window
+        document = window.documentHandle
         token = window.documentHandle.observe { [weak self] change in
             if let applied = change.change { self?.documentDidChange(applied) }
         }
     }
 
     func stop() {
-        if let token { window.documentHandle.stopObserving(token) }
+        if let token { document?.stopObserving(token) }
         token = nil
     }
 
@@ -317,6 +322,7 @@ final class MasterNotices {
     /// release stale or delete a followed master.  Returns how many notices were posted.
     @discardableResult
     func documentDidChange(_ change: Wiretuner_Doc_V1_Change) -> Int {
+        guard let window else { return 0 }
         let now = clock()
         releases.removeAll { now.timeIntervalSince($0.at) > Self.recent }
         let document = window.documentHandle

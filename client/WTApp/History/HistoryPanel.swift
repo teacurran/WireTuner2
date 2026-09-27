@@ -264,8 +264,11 @@ final class HistoryPanelModel {
         guard isActionable(row), let window = window(), let features else { return nil }
         let info = VersionInfo(id: row.id, name: name(row), serverSeq: row.serverSeq, createdAt: nil)
         let document = window.documentHandle
-        let model = RestoreVersionModel(documentTitle: document.title, list: { [info] }, state: { seq in try await features.versionState(window, seq) },
-                                        current: { document.state }, perform: { window.objectEditing.perform($0) })
+        let model = RestoreVersionModel(documentTitle: document.title, list: { [info] }, state: { [weak window] seq in
+                                            guard let window else { throw CancellationError() }
+                                            return try await features.versionState(window, seq)
+                                        },
+                                        current: { document.state }, perform: { [weak window] in window?.objectEditing.perform($0) ?? Task { nil } })
         model.onClose = { features.dismiss(CollaborationFeatures.restoreSheet) }
         model.compare = { [weak window] compare in
             features.dismiss(CollaborationFeatures.restoreSheet)

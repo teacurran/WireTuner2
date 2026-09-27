@@ -44,7 +44,7 @@ import WTModel
         let exporter = StubExporter()
         let preview = BrowserPreview(exporter: exporter, root: TestEnvironment.temporaryDirectory())
         preview.open = { _, _ in }
-        ViewCommands.install(into: environment.commands, target: { controller }, hooks: ViewCommands.Hooks(browserPreview: preview))
+        ViewCommands.install(into: environment.commands, target: { [weak controller] in controller }, hooks: ViewCommands.Hooks(browserPreview: preview))
         let all = StandardCommands.ID.previewAllInBrowser
         #expect(environment.commands.command(all)?.defaultKey == KeyEquivalent("return", [.command, .shift]))
         #expect(environment.commands.command(all)?.title == "Preview All Pages in Browser")

@@ -154,7 +154,7 @@ struct DataWorld {
         let blobDirectory = blobs
         features.blobs.directory = { blobDirectory }
         let window = setup.window
-        features.install(commands: setup.environment.commands, panels: setup.environment.panels) { window }
+        features.install(commands: setup.environment.commands, panels: setup.environment.panels) { [weak window] in window }
         // No modal alert in a test: the first *Embed Sample* is confirmed.
         features.session(for: window).confirmEmbed = { _, _ in true }
     }

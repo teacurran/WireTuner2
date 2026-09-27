@@ -238,7 +238,7 @@ import WTRender
         #expect(view.end(at: NSPoint(x: 160 * scale, y: 6)) == nil)
         for kind in TextRulerModel.wellKinds + [.unspecified] { #expect(!TextRulerView.stopGlyph(kind, at: .zero).isEmpty) }
         // Hidden by menu:View[Text Rulers]; the command toggles it.
-        let command = TypeWindowParts.textRulersCommand(defaults: world.setup.environment.preferences.defaults) { world.window }
+        let command = TypeWindowParts.textRulersCommand(defaults: world.setup.environment.preferences.defaults) { [weak window = world.window] in window }
         #expect(command.validation().isChecked)
         if case .perform(let run) = command.action { run() }
         #expect(!rulers.isShown)
@@ -366,7 +366,7 @@ import WTRender
         let square = ids[0].opID
         world.window.selection.model.clear()
         #expect(TextWrapFeatures.targets(in: world.window) == .failure(.nothing) && TextWrapFeatures.targets(in: nil) == .failure(.nothing))
-        let commands = TextWrapFeatures.commands { world.window }
+        let commands = TextWrapFeatures.commands { [weak window = world.window] in window }
         #expect(!commands[0].validation().isEnabled && commands[0].title == "Flow Around Selection…")
         world.window.selection.model.set(Selection(ids))
         #expect(commands[0].validation().isEnabled && TextWrapFeatures.targets(in: world.window) == .success([square]))

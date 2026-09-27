@@ -675,7 +675,7 @@ final class ExportWorld {
         }
         #expect(recorder.exported.count == 1 && recorder.again.count == 1)
         let registry = CommandRegistry()
-        ExportCommands.install(into: registry, hooks: ExportCommands.hooks(exports: world.controller) { world.window })
+        ExportCommands.install(into: registry, hooks: ExportCommands.hooks(exports: world.controller) { [weak window = world.window] in window })
         world.saveName = nil
         if case .perform(let run)? = registry.command(ExportCommands.ID.export)?.action { run() }
         #expect(await eventually { world.panels.count == 1 })

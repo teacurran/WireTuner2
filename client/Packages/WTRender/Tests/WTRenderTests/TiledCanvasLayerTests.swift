@@ -42,6 +42,24 @@ import Testing
         #expect(sublayer?.contentsGravity == .resize)
     }
 
+    @Test func discardingDropsEveryTileAndTheNextUpdateStartsOver() async {
+        let canvas = makeCanvas()
+        let viewport = Viewport(size: size)
+        canvas.update(displayList: Corpus.solidRect, viewport: viewport)
+        await canvas.settle()
+        #expect(canvas.tileLayerCount == 6)
+        #expect(await canvas.cache.count == 6)
+        canvas.discardTiles()
+        await canvas.settle()
+        #expect(canvas.tileLayerCount == 0 && canvas.pendingTileCount == 0 && canvas.layout == nil)
+        #expect(canvas.layer.sublayers?.isEmpty ?? true)
+        #expect(await canvas.cache.count == 0, "a closed window's canvas holds no tile memory")
+        canvas.update(displayList: Corpus.solidRect, viewport: viewport)
+        await canvas.settle()
+        #expect(canvas.tileLayerCount == 6)
+        #expect(await canvas.cache.count == 6)
+    }
+
     @Test func panningReusesTilesAndDropsTheOnesThatLeft() async {
         let canvas = makeCanvas()
         let start = Viewport(size: size)

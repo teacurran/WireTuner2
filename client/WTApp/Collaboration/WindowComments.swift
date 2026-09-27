@@ -116,22 +116,24 @@ final class WindowComments {
             self.refresh(force: true)
             self.setNeedsDisplay()
         }
+        // The banner belongs to the window: its handlers hold the window and the banner weakly, or
+        // window -> banner -> handler -> window keeps every closed window alive.
         let banner = window.collaboration.banner
         let previous = banner.onAction
-        banner.onAction = { [weak self] id in
+        banner.onAction = { [weak self, weak window, weak banner] id in
             if let self, let thread = self.notices.removeValue(forKey: id) {
-                banner.actions.removeAll { $0.id == id }
-                window.bannerDidChange()
+                banner?.actions.removeAll { $0.id == id }
+                window?.bannerDidChange()
                 self.show(thread)
             } else {
                 previous(id)
             }
         }
         let dismiss = banner.onDismissAction
-        banner.onDismissAction = { [weak self] id in
+        banner.onDismissAction = { [weak self, weak window, weak banner] id in
             if self?.notices.removeValue(forKey: id) != nil {
-                banner.actions.removeAll { $0.id == id }
-                window.bannerDidChange()
+                banner?.actions.removeAll { $0.id == id }
+                window?.bannerDidChange()
             } else {
                 dismiss(id)
             }

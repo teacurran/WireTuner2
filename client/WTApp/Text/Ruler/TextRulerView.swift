@@ -224,7 +224,8 @@ final class TextRulerView: NSView {
 final class TextRulers {
     static let shownKey = "WTTextRulersShown"
 
-    unowned let window: DocumentWindowController
+    /// Weak: the ruler can outlive a closed window by a queued overlay update.
+    weak var window: DocumentWindowController?
     let view = TextRulerView()
     let defaults: UserDefaults
     /// *Track tab movement with vertical line*.
@@ -239,7 +240,7 @@ final class TextRulers {
         view.perform = { [weak window] command in _ = window?.objectEditing.perform(command) }
         view.onTrack = { [weak self] position in
             self?.tracking = position
-            self?.window.canvas.setNeedsOverlayDisplay()
+            self?.window?.canvas.setNeedsOverlayDisplay()
         }
     }
 
@@ -251,7 +252,7 @@ final class TextRulers {
 
     /// Shows, hides and places the ruler for the Text tool's session.
     func update() {
-        guard isShown, let session = window.objectEditing.textSession, session.node != nil, session.isLive, window.canvas.toolManager?.textInput != nil else {
+        guard isShown, let window, let session = window.objectEditing.textSession, session.node != nil, session.isLive, window.canvas.toolManager?.textInput != nil else {
             view.isHidden = true
             view.model = nil
             return
@@ -264,7 +265,7 @@ final class TextRulers {
 
     /// The tracking line down the block (canvas overlay, view points).
     func drawTracking(in ctx: CGContext, viewport: Viewport) {
-        guard let position = tracking, tracksLine(), let model = view.model, let session = window.objectEditing.textSession else { return }
+        guard let position = tracking, tracksLine(), let model = view.model, let session = window?.objectEditing.textSession else { return }
         let x = position + model.inset.left
         let toView = session.toPasteboard.concatenating(viewport.pasteboardToView)
         let top = toView.apply(Point(x: x, y: 0))

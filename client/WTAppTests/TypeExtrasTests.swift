@@ -169,7 +169,7 @@ import WTText
         let world = TypeWorld()
         defer { world.close() }
         let node = try await Self.fixedBlock(world)
-        let commands = TextBlockFeatures.commands { world.window }
+        let commands = TextBlockFeatures.commands { [weak window = world.window] in window }
         #expect(commands[0].validation().isEnabled)
         #expect(!TextBlockFeatures.commands(window: { nil })[0].validation().isEnabled)
         #expect(TextBlockFeatures.removeTransforms([node], in: world.state) == nil, "nothing to remove")
@@ -186,7 +186,7 @@ import WTText
         // Empty blocks: the extension deletes them all; a linked one stays.
         let empty = try #require(await world.document.addText("", at: Point(x: 300, y: 300)))
         let registry = ExtensionRegistry()
-        let descriptors = TextBlockFeatures.extensions(existing: registry) { world.window }
+        let descriptors = TextBlockFeatures.extensions(existing: registry) { [weak window = world.window] in window }
         #expect(descriptors.count == 1 && descriptors[0].validate?().isEnabled == true)
         #expect(TextBlockFeatures.extensions(existing: registry) { nil }[0].validate?().isEnabled == false)
         #expect(TextBlockFeatures.emptyBlocks(world.document) == [empty])
@@ -212,7 +212,7 @@ import WTText
         let world = TypeWorld()
         defer { world.close() }
         let node = try await world.block("x")
-        let commands = SpecialCharacterFeatures.commands { world.window }
+        let commands = SpecialCharacterFeatures.commands { [weak window = world.window] in window }
         #expect(commands.count == 9 && !commands[0].validation().isEnabled)
         await world.edit(node, select: 1..<1)
         for (command, character) in zip(commands, SpecialCharacter.allCases) {
@@ -497,7 +497,7 @@ import WTText
         #expect(world.document.changeCount == changesBefore + 1 && draft == nil)
         AxisRowView.editing(row, Self.model(world, [node]), draft: draftBinding)(false)
         // Bold through the Text menu moves wght; the view renders.
-        let commands = FontStyleCommands.commands { world.window }
+        let commands = FontStyleCommands.commands { [weak window = world.window] in window }
         #expect(commands.count == 4 && commands[1].validation().isEnabled)
         if case .perform(let run) = commands[1].action { run() }
         await world.settle()
@@ -590,8 +590,8 @@ import WTText
         let target = try await world.block("Target", at: Point(x: 50, y: 200))
         let rect = await world.document.addRectangles([Rect(x: 300, y: 300, width: 20, height: 20)])
         let edit = EditFeatures(preferences: world.setup.environment.preferences)
-        edit.window = { world.window }
-        let commands = TextAttributeClipboard.commands(edit: edit) { world.window }
+        edit.window = { [weak window = world.window] in window }
+        let commands = TextAttributeClipboard.commands(edit: edit) { [weak window = world.window] in window }
         // The Text tool's range is the source.
         await world.edit(source, select: 1..<3)
         #expect(commands[0].validation().isEnabled)

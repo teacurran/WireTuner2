@@ -225,7 +225,7 @@ import WTSync
         scripts.reload()
         scripts.data = world.features
         let window = world.window
-        scripts.install(commands: world.setup.environment.commands, watch: true) { window }
+        scripts.install(commands: world.setup.environment.commands, watch: true) { [weak window] in window }
         let changed = MenuCounter()
         scripts.menuDidChange = { changed.count += 1 }
         try Data("1".utf8).write(to: folder.url.appending(path: "Watched.js"))
@@ -242,14 +242,14 @@ import WTSync
         defer { other.close() }
         scripts.window = { other.window }
         scripts.frontWindowChanged()
-        scripts.window = { window }
+        scripts.window = { [weak window] in window }
         scripts.frontWindowChanged()
         _ = await world.document.perform(SaveScript(name: "Doc", source: "1")).value
         await world.document.settle()
         let command = try #require(world.setup.environment.commands.commands.first { $0.id.rawValue.hasPrefix(ScriptFeatures.ID.documentPrefix) })
         scripts.window = { nil }
         #expect(command.validation() == .disabled(DataFeatures.noDocument))
-        scripts.window = { window }
+        scripts.window = { [weak window] in window }
         // A script sets the selection; an error without a console shows the editor unless turned off.
         let rect = await world.document.addRectangles([Rect(x: 10, y: 10, width: 10, height: 10)])[0]
         let result = await scripts.run("wt.document.selection = wt.document.objects;", name: "Select all")
@@ -278,7 +278,7 @@ import WTSync
         scripts.window = { nil }
         model.choose(.document(OpID(counter: 1, replica: 1)))
         let scriptID = try #require(DocumentScript.list(world.document.state).first?.id)
-        scripts.window = { window }
+        scripts.window = { [weak window] in window }
         model.choose(.document(scriptID))
         scripts.window = { nil }
         #expect(!(await model.save()))

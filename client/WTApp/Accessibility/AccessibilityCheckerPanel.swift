@@ -17,7 +17,9 @@ import WTRender
 @MainActor
 @Observable
 final class AccessibilityCheckerModel {
-    @ObservationIgnored unowned let window: DocumentWindowController
+    /// Weak: the panel (kept by `AccessibilityCheckerFeatures`) can outlive its window; with the
+    /// window gone the report stays as it was and the fixes do nothing.
+    @ObservationIgnored private(set) weak var window: DocumentWindowController?
     private(set) var report = AccessibilityReport()
     /// Alt text being typed per row.
     var drafts: [OpID: String] = [:]
@@ -27,22 +29,23 @@ final class AccessibilityCheckerModel {
         refresh()
     }
 
-    var document: DocumentHandle { window.documentHandle }
+    var document: DocumentHandle? { window?.documentHandle }
 
     /// Runs the check again (after a fix, or when asked).
     func refresh() {
-        let document = document
+        guard let document else { return }
         report = AccessibilityCheck.run(document.state, displayList: document.displayList) { document.textLayout(for: $0) }
     }
 
-    func name(_ node: OpID) -> String { document.state.displayName(of: node) }
+    func name(_ node: OpID) -> String { document?.state.displayName(of: node) ?? "" }
 
     /// A row clicked: its object is the selection.
     func select(_ node: OpID) {
-        window.selection.model.set(Selection([SelectionID(node)]))
+        window?.selection.model.set(Selection([SelectionID(node)]))
     }
 
     private func fix(_ node: OpID, _ fix: DescribeObject.Fix) -> Task<Wiretuner_Doc_V1_Change?, Never> {
+        guard let window else { return Task { nil } }
         let task = window.objectEditing.perform(DescribeObject(node, fix, name: name(node)))
         return Task { @MainActor in
             let change = await task.value
@@ -66,11 +69,11 @@ final class AccessibilityCheckerModel {
 
     /// btn:[Arrange…]: the Reading Order panel for the current page.
     @discardableResult
-    func arrange() -> ReadingOrderModel { ReadingOrderFeatures.show(on: window) }
+    func arrange() -> ReadingOrderModel? { window.map { ReadingOrderFeatures.show(on: $0) } }
 
     /// The badges of every page's reading order: number and the object's top-left (pasteboard).
     var badges: [(number: Int, at: Point)] {
-        let state = document.state
+        guard let state = document?.state else { return [] }
         return report.readingOrder.flatMap { page in
             page.order.enumerated().compactMap { index, node in
                 Objects.bounds(of: node, in: state).map { (index + 1, Point(x: $0.minX, y: $0.minY)) }
@@ -162,9 +165,23 @@ enum AccessibilityCheckerFeatures {
         let model: AccessibilityCheckerModel
     }
 
+    private struct Drawing {
+        weak var window: DocumentWindowController?
+    }
+
     private static var open: [ObjectIdentifier: Entry] = [:]
-    /// The windows whose canvas draws the badges while a panel is open.
-    private static var drawing: Set<ObjectIdentifier> = []
+    /// The windows whose canvas draws the badges while a panel is open (weakly: an identifier a
+    /// freed window left may come back for another window).
+    private static var drawing: [ObjectIdentifier: Drawing] = [:]
+
+    /// Panels left by windows that closed without btn:[Done] go.
+    private static func prune() {
+        for (key, entry) in open where entry.window == nil {
+            entry.panel.orderOut(nil)
+            open[key] = nil
+        }
+        drawing = drawing.filter { $0.value.window != nil }
+    }
 
     static func model(of window: DocumentWindowController) -> AccessibilityCheckerModel? {
         guard let entry = open[ObjectIdentifier(window)], entry.window === window else { return nil }
@@ -178,6 +195,7 @@ enum AccessibilityCheckerFeatures {
             if showsPanel { open[ObjectIdentifier(window)]?.panel.orderFront(nil) }
             return existing
         }
+        prune()
         let model = AccessibilityCheckerModel(window: window)
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 400, height: 480), styleMask: [.titled, .closable, .utilityWindow, .resizable],
                             backing: .buffered, defer: true)
@@ -188,7 +206,8 @@ enum AccessibilityCheckerFeatures {
             if let window { close(window) }
         })
         open[ObjectIdentifier(window)] = Entry(window: window, panel: panel, model: model)
-        if drawing.insert(ObjectIdentifier(window)).inserted {
+        if drawing[ObjectIdentifier(window)]?.window !== window {
+            drawing[ObjectIdentifier(window)] = Drawing(window: window)
             window.canvas.overlayExtras.append { [weak window] ctx, viewport in
                 guard let window, let checker = Self.model(of: window) else { return }
                 for badge in checker.badges { ReadingOrderHandles.drawBadge(badge.number, at: viewport.toView(badge.at), in: ctx) }

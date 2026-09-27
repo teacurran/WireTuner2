@@ -10,15 +10,21 @@ import WTProto
 /// (menu:File[New Typeface…] with no document).
 @MainActor
 enum TypefaceSheets {
+    /// The sheet, for its close button.  Weak over a parent (the parent holds its attached sheet;
+    /// a strong reference here made a cycle through the sheet's own close button, so every sheet
+    /// -- and whatever its model held, the document window included -- stayed after closing);
+    /// strong for a window of its own until it closes.
     private final class Holder {
-        var window: NSWindow?
+        weak var window: NSWindow?
+        var own: NSWindow?
     }
 
     static func present<Content: View>(_ identifier: String, on parent: NSWindow?, @ViewBuilder content: (@escaping @MainActor () -> Void) -> Content) -> NSWindow {
         let holder = Holder()
         let close: @MainActor () -> Void = { [weak parent] in
-            let sheet = holder.window!
+            guard let sheet = holder.window else { return }
             if let parent, parent.attachedSheet === sheet { parent.endSheet(sheet) } else { sheet.close() }
+            holder.own = nil
         }
         let sheet = NSWindow(contentViewController: NSHostingController(rootView: content(close)))
         sheet.identifier = NSUserInterfaceItemIdentifier(identifier)
@@ -27,6 +33,7 @@ enum TypefaceSheets {
         if let parent {
             parent.beginSheet(sheet)
         } else {
+            holder.own = sheet
             sheet.center()
             sheet.makeKeyAndOrderFront(nil)
         }
