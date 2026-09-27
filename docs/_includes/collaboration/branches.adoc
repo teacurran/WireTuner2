@@ -103,8 +103,10 @@ the popup without losing it:
 . Archived branches are listed under *Archived* in the library window and can be reopened
   (read-only) or restored to active.
 
-To delete a branch, use the library window: select the branch and choose menu:File[Move to
-Trash].  A trashed branch is kept for 30 days like any document.  Deleting the parent trashes
+To delete a branch, use the library window: show the parent's branches under its thumbnail,
+Control-click the branch and choose *Move to Trash* (or, in the branch, choose
+menu:File[Branch > Move Branch to Trash]).  Trashed branches are listed under *Trash* in the
+library window, where *Restore* brings one back.  A trashed branch is kept for 30 days like any document.  Deleting the parent trashes
 its branches with it.
 
 == Branch permissions
@@ -463,9 +465,34 @@ open window's state, else its store opened and closed).  In the review sheet, *K
 branch* goes through `DocumentSession.keepChangesOnBranch` whenever the document has a local store:
 `BranchStores.keepChangesOnBranch` writes the branch store, `BranchCreator.ensureOnServer` creates
 it on the server when it can (offline it stays "not yet on the server"), then the review resolves
-with `.discardLocalChanges` and the branch opens; this works offline.  The merge flow is the next note's.  Not built:
-the library window's nesting, Archived and Trash lists, live updates from `BranchEvent`, and creating pending
-branches at launch.
+with `.discardLocalChanges` and the branch opens; this works offline.  The merge flow is the next note's.  The rest is
+the note after it.
+
+NOTE: As built by COLLAB-016's rest (`WTApp/Library/LibraryBranches.swift`, `LibraryBranchViews.swift`,
+`WTApp/Collaboration/BranchSwitcher.swift`; server `BranchGrpcService.listBranches`, `BranchRepository.listInSpace`,
+`LibraryRepository` trash scope).  *Library window.*  `ListBranchesRequest` gains `space_id` (field 5; exactly one of
+`parent_document_id` and `space_id`): every live branch of the space's live documents that the caller can open, through the
+parent's roles, newest first, archived and merged ones with `include_archived`; any member of the space.  `List` with
+`LIST_SCOPE_TRASH` now also returns branches trashed on their own (their parent live, or trashed at another moment) with
+`parent_document_id` set; a branch that went to the trash with its parent comes back with it and is not listed apart.
+`LibraryBranches` reads the space's branches once per refresh (one call, not one per document) and nests each document's
+active branches under its tile ("2 branches", then each branch with who last worked in it and when; branch stores on this Mac
+the server does not hold are nested too, "Not yet on the server"); double-click opens the branch in its own window
+("Catalogue — Autumn palette"), its menu archives or trashes it (`SetBranchState`, `DeleteBranch`, confirmed).  The sidebar
+gains *Archived* (archived and merged branches with their parent: *Open*, *Restore* to active, *Move to Trash*) and *Trash*
+(the space's trashed documents and branches, "Branch of Catalogue · deleted 3 days ago · kept 30 days", *Restore* through
+`DocumentService.Restore`); offline they keep what was listed and say that a connection is needed.  *Live updates.*  Every
+`BranchEvent` on a window's subscription (`WindowCollaboration.branchEventHandlers`) updates that window's popup and menus
+at once (`WindowBranches.apply`: created, renamed, archived, restored, merged, trashed; in the trashed branch's own window
+"“Cover” was moved to the Trash by Priya") and the library's nesting (`CollaborationFeatures.branchEvent` to
+`LibraryBranches.apply`), so a change another client makes shows here as soon as its event arrives.  *Pending branches.*  At
+launch (signed in) `PendingBranches.create` runs `BranchCreator.ensureOnServer` for every branch store not on the server, and a
+branch store's `DocumentSession` does the same before its client starts, so a branch kept offline is created before its first
+push.  Deviations: an archived branch opens like any branch (not read-only; the server does not refuse edits to it); a
+branch is trashed from its row's menu (and from its window's menu:File[Branch > Move Branch to Trash]) rather than through a
+menu:File[Move to Trash] of the library's selection; the library hears `BranchEvent`s only through open windows (it holds no
+subscription of its own) and otherwise at each refresh.  UI tests are app-hosted (`WTAppTests/LibraryBranchesTests.swift`); the
+server's are `BranchLibraryTest`.
 
 NOTE: As built by COLLAB-018, in part (`WTApp/Branches/BranchMerge.swift`).  In a branch window menu:File[Branch > Merge…]
 opens the review: every object that differs between the branch and main as this Mac holds them, *Use branch* (the

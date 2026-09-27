@@ -53,6 +53,8 @@ final class LibraryModel {
     @ObservationIgnored var makeID: @MainActor () -> String = { UUIDv7.make() }
     /// Opens documents in tabs (`DocumentController`).
     @ObservationIgnored var onOpen: @MainActor ([LibraryDocument]) -> Void = { _ in }
+    /// The branches nested under their parents, *Archived* and *Trash* (COLLAB-016); nil leaves them out.
+    @ObservationIgnored var branches: LibraryBranches?
     /// Team settings and joining a team (SEC-003); nil leaves them out.
     @ObservationIgnored var collaboration: CollaborationServices?
     /// `ListMentionedDocuments` (the mention dots); nil shows none.

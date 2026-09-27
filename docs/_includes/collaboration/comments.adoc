@@ -813,7 +813,24 @@ a commenter was refused on a thread from before the fork and on a thread merged 
 out -- `CommentIndex.copyRecord` now copies the threads and comments up to the fork point with the copy, and
 `CommentIndex.mergeRecord` adds the branch's record to the parent's in the replay's transaction (new rows at the replay's first seq,
 `resolved` and `deleted` by op id), without notifying again (`CommentServiceTest.branchCommentsAreAnsweredOnTheBranchAndMergeIntoTheParentsRecord`).
-Not built: the UI scenarios and screenshots, and the digest asserted against the compose stack's mailpit (the server's
-`CommentServiceTest` asserts the mail through Quarkus' mock mailbox); a copy's extra changes (a Fork's unsent comments) are still not
-indexed.
+The rest is the next note.
+
+NOTE: As built by COLLAB-034's rest.  *Digest against Mailpit:* `CommentDigestMailpitTest` (server) runs the digest job with the
+real mailer over SMTP to the `mailpit` service of `docker-compose.yml` and reads the mail back through Mailpit's HTTP API: nothing
+before ten minutes, then one mail to the mentioned person for the document with the expected subject and sender, each thread's
+opening line (not its later lines) and `wiretuner://doc/<document>/thread/<counter>-<replica>` link in the text and the HTML, and
+no second mail on the next run.  It is skipped unless `-Dwt.mailpit.api` is given; `tools/mailpit/digest-check.sh` starts the
+service alone under its own compose project on two free local ports (a running development stack is left alone), runs the test and
+removes the service and its volume.  *UI scenarios:* app-hosted tests rather than XCUITest, which the build machine does not run
+(`WTAppTests/CommentScenarioUITests.swift`): Priya (owner), Tom (editor) and Cy (commenter) each have a window on the same document
+with the comments features installed, act through their `WindowComments` (what the pins, the popover and the panel call), and their
+changes are relayed in a chosen order as the server would sequence them.  Scenarios: concurrent replies; resolve against reopen and
+pin drag against pin drag; an edit against the owner's delete, with the commenter's refusals (resolve, move, edit, delete others'
+comments, delete threads; nothing reaches the outbox); a comment on an object deleted at the same moment, whose pin comes back with
+Undo; offline threads with a mention delivered on sync (the "Cy mentioned you" notice once, never again).  Each asserts one state
+hash on every client, every window's Comments panel rows and the unread counts.  The server's notification rows stay the simulator
+half's assertions and branch comments merged into the parent the simulator's and the server's (the app has no merge relay).  Not
+built: the screenshots for this page -- captured in the test host with `cacheDisplay`, the panel and popover came out without
+their text and the canvas without its artwork or pins, so none is good enough for `docs/images`; they need a real screen session.
+A copy's extra changes (a Fork's unsent comments) are still not indexed.
 endif::spec[]

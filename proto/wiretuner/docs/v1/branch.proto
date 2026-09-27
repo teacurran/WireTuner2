@@ -28,7 +28,7 @@ service BranchService {
   // `initial_changes` (the offline-created case).  Idempotent by `branch_document_id`.  A
   // branch of a branch is FAILED_PRECONDITION.
   rpc CreateBranch(CreateBranchRequest) returns (CreateBranchResponse);
-  // The parent's branches, active first, then by last change.
+  // The parent's branches, or with `space_id` those of every document of a space, newest first.
   rpc ListBranches(ListBranchesRequest) returns (ListBranchesResponse);
   // One branch.
   rpc GetBranch(GetBranchRequest) returns (GetBranchResponse);
@@ -132,12 +132,17 @@ message CreateBranchResponse {
   Branch branch = 1;
 }
 
-// Lists a document's branches.
+// Lists a document's branches, or every branch of a space's documents.
 message ListBranchesRequest {
-  // The parent document.
+  option (buf.validate.message).cel = {
+    id: "list_branches.parent_or_space"
+    message: "exactly one of parent_document_id and space_id is required"
+    expression: "(this.parent_document_id != '') != (this.space_id != '')"
+  };
+  // The parent document; empty when `space_id` is given.
   string parent_document_id = 1 [
-    (buf.validate.field).required = true,
-    (buf.validate.field).string.uuid = true
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
   ];
   // Whether to include archived and merged branches, which are otherwise omitted.
   bool include_archived = 2;
@@ -145,6 +150,13 @@ message ListBranchesRequest {
   string cursor = 3 [(buf.validate.field).string.max_len = 1024];
   // Branches per page; 0 selects the server's default, at most 50.
   uint32 page_size = 4 [(buf.validate.field).uint32.lte = 50];
+  // Instead of a parent: the branches of every live document of this space (the caller's
+  // account id or a team id) that the caller can see, for the library window's nesting and its
+  // Archived list (COLLAB-016).  Any member of the space.  Newest first, like a parent's list.
+  string space_id = 5 [
+    (buf.validate.field).string.uuid = true,
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
+  ];
 }
 
 // One page of branches.

@@ -92,6 +92,30 @@ public class BranchRepository {
                 .map(rows -> rows.stream().map(BranchRepository::toRow).toList());
     }
 
+    /**
+     * The live branches of the live documents of space {@code spaceId} that account {@code accountId}
+     * can open (the library window, COLLAB-016), newest first, archived and merged ones only when
+     * asked, after the cursor as {@link #list}.
+     */
+    public Uni<List<BranchRow>> listInSpace(UUID accountId, UUID spaceId, boolean includeArchived, long afterMicros,
+            UUID afterId, int limit) {
+        return Panache.getSession().chain(session -> session.createNativeQuery("SELECT " + COLUMNS
+                        + " JOIN document p ON p.id = b.parent_document_id"
+                        + " WHERE (p.owner_account_id = ?2 OR p.team_id = ?2) AND p.trashed_at IS NULL AND d.trashed_at IS NULL"
+                        + " AND (?3 OR b.state <> 'archived') AND " + LibraryRepository.PARENT_VISIBLE + """
+                         AND (cast(extract(epoch FROM b.created_at) * 1000000 AS bigint), b.document_id) < (?4, ?5)
+                         ORDER BY b.created_at DESC, b.document_id DESC LIMIT ?6
+                        """, Object[].class)
+                .setParameter(1, accountId)
+                .setParameter(2, spaceId)
+                .setParameter(3, includeArchived)
+                .setParameter(4, afterMicros)
+                .setParameter(5, afterId)
+                .setParameter(6, limit)
+                .getResultList())
+                .map(rows -> rows.stream().map(BranchRepository::toRow).toList());
+    }
+
     public Uni<Integer> rename(UUID branchId, String name) {
         return Panache.getSession().chain(session -> session
                 .createNativeQuery("UPDATE branch SET name = ?2 WHERE document_id = ?1")

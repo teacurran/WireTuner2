@@ -66,15 +66,21 @@ import WTRender
         await world.document.settle()
         let plan = PrintJob.plan(world.document, source: .pages, paper: .letter, selection: nil, blobs: BlobPlacement())
         #expect(plan.count == 200, "50 pages × 4 process plates")
-        let run = PrintRun(plan: plan)
+        // The job is held before its second sheet until the typing is done, so the edits land
+        // mid-job however fast the machine draws (a free-running job could finish first).
+        let held = DispatchSemaphore(value: 0)
+        let run = PrintRun(plan: plan, progress: { progress in
+            if progress.sheet == 1 { held.wait() }
+        })
         let job = Task { try await run.pdfInBackground(title: "Job") }
         var landedDuringJob = 0
         for index in 0..<20 {
             _ = await world.document.addText("Typed during the job \(index)", at: Point(x: world.center.x, y: world.center.y + Double(index) * 14))
             if run.sheetsDrawn < plan.count { landedDuringJob += 1 }
         }
+        held.signal()
         let data = try await job.value
-        #expect(landedDuringJob > 0, "edits landed while the job was drawing")
+        #expect(landedDuringJob == 20, "every edit landed while the job was drawing")
         let pdf = try #require(PDFDocument(data: data))
         #expect(pdf.pageCount == 200 && run.plan == nil)
         #expect(!(pdf.string ?? "").contains("Typed"), "the job is the snapshot from before the typing")

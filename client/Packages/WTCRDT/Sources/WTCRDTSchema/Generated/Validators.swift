@@ -7446,10 +7446,7 @@ public enum WTValidators {
     /// Validates `wiretuner.docs.v1.ListBranchesRequest`; `path` prefixes every violation's field path.
     public static func validate(_ m: Wiretuner_Docs_V1_ListBranchesRequest, path: String = "") -> [ValidationViolation] {
         var out: [ValidationViolation] = []
-        if m.parentDocumentID.isEmpty {
-            out.append(ValidationViolation(fieldPath: "\(path)parent_document_id", ruleID: "required", message: "value is required"))
-        }
-        do {
+        if !(m.parentDocumentID.isEmpty) {
             let v = m.parentDocumentID
             if v.isEmpty {
                 out.append(ValidationViolation(fieldPath: "\(path)parent_document_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
@@ -7467,6 +7464,14 @@ public enum WTValidators {
             let v = m.pageSize
             if !(v <= 50) {
                 out.append(ValidationViolation(fieldPath: "\(path)page_size", ruleID: "uint32.lte", message: "value must be less than or equal to 50"))
+            }
+        }
+        if !(m.spaceID.isEmpty) {
+            let v = m.spaceID
+            if v.isEmpty {
+                out.append(ValidationViolation(fieldPath: "\(path)space_id", ruleID: "string.uuid_empty", message: "value is empty, which is not a valid UUID"))
+            } else if v.wholeMatch(of: Self.pattern0) == nil {
+                out.append(ValidationViolation(fieldPath: "\(path)space_id", ruleID: "string.uuid", message: "value must be a valid UUID"))
             }
         }
         return out

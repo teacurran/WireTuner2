@@ -288,8 +288,12 @@ final class WindowCollaboration {
         return nil
     }
 
+    /// Told every `BranchEvent` on the window's subscription (the branch popup, the library; COLLAB-016).
+    var branchEventHandlers: [@MainActor (Wiretuner_Sync_V1_BranchEvent) -> Void] = []
+
     /// A server-state event on the window's subscription.
     func documentEvent(_ event: Wiretuner_Sync_V1_DocumentEvent) {
+        if case .branch(let branch)? = event.event { for handler in branchEventHandlers { handler(branch) } }
         guard let controller, case .branch(let branch)? = event.event,
               let toast = Self.mergeToast(branch, document: controller.documentHandle.id) else { return }
         controller.statusBar.show(message: toast)

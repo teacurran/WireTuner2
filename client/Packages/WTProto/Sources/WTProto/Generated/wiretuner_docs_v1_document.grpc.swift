@@ -287,7 +287,9 @@ extension Wiretuner_Docs_V1_DocumentService {
         /// >
         /// > One page of documents of one space: a folder's contents (with its subfolders on the first
         /// > page), the trash, templates, or everything shared with the caller across spaces.  Branch
-        /// > documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+        /// > documents are listed only in the trash, and only those trashed on their own (not with their
+        /// > parent), with `parent_document_id` set.  Any member of the space; for SHARED_WITH_ME, the
+        /// > caller.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Docs_V1_ListRequest` message.
@@ -668,7 +670,9 @@ extension Wiretuner_Docs_V1_DocumentService {
         /// >
         /// > One page of documents of one space: a folder's contents (with its subfolders on the first
         /// > page), the trash, templates, or everything shared with the caller across spaces.  Branch
-        /// > documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+        /// > documents are listed only in the trash, and only those trashed on their own (not with their
+        /// > parent), with `parent_document_id` set.  Any member of the space; for SHARED_WITH_ME, the
+        /// > caller.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Docs_V1_ListRequest` message.
@@ -1167,7 +1171,9 @@ extension Wiretuner_Docs_V1_DocumentService.ClientProtocol {
     /// >
     /// > One page of documents of one space: a folder's contents (with its subfolders on the first
     /// > page), the trash, templates, or everything shared with the caller across spaces.  Branch
-    /// > documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+    /// > documents are listed only in the trash, and only those trashed on their own (not with their
+    /// > parent), with `parent_document_id` set.  Any member of the space; for SHARED_WITH_ME, the
+    /// > caller.
     ///
     /// - Parameters:
     ///   - request: A request containing a single `Wiretuner_Docs_V1_ListRequest` message.
@@ -1604,7 +1610,9 @@ extension Wiretuner_Docs_V1_DocumentService.ClientProtocol {
     /// >
     /// > One page of documents of one space: a folder's contents (with its subfolders on the first
     /// > page), the trash, templates, or everything shared with the caller across spaces.  Branch
-    /// > documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+    /// > documents are listed only in the trash, and only those trashed on their own (not with their
+    /// > parent), with `parent_document_id` set.  Any member of the space; for SHARED_WITH_ME, the
+    /// > caller.
     ///
     /// - Parameters:
     ///   - message: request message to send.

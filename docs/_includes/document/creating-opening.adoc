@@ -212,7 +212,8 @@ missing from the cache is fetched with `Get`.  menu:File[New] and btn:[New] crea
 library at once (UUIDv7, *Waiting to upload* until `Create` succeeds; `ALREADY_EXISTS` counts as
 uploaded), but the untitled document opened at launch has no library record until DOC-019.  The
 template gallery offers only the built-in template until DOC-019.  Documents move between
-folders by dragging onto a folder tile; there is no Trash view yet (`LIST_SCOPE_TRASH`).
+folders by dragging onto a folder tile; there is no Trash view yet (`LIST_SCOPE_TRASH`).  (COLLAB-016 added the sidebar's
+*Trash* and *Archived*, `LibraryBranches`; branches.adoc.)
 
 NOTE: As built by DOC-019, model half (`WTModel/DocumentCreation.swift`).  `DocumentCreation.newDocument(from:replica:now:)` makes a
 new document's core holding one change, `CreateDocument`: "Created" for the built-in template (one Letter page centred on the

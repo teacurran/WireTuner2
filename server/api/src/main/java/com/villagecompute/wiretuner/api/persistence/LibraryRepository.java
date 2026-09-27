@@ -89,6 +89,17 @@ public class LibraryRepository {
 
     static final String NOT_BRANCH = "NOT EXISTS (SELECT 1 FROM branch br WHERE br.document_id = d.id)";
 
+    /** {@link #VISIBLE} of the document aliased {@code p} instead of {@code d}. */
+    static final String PARENT_VISIBLE = VISIBLE.replaceAll("\\bd\\.", "p.");
+
+    /**
+     * A branch trashed on its own -- its parent live, or trashed at another moment -- whose parent
+     * account {@code ?1} can open: the trash lists it (COLLAB-016; a branch has no members of its own).
+     */
+    static final String BRANCH_TRASHED_ALONE = """
+            EXISTS (SELECT 1 FROM branch br JOIN document p ON p.id = br.parent_document_id
+                    WHERE br.document_id = d.id AND p.trashed_at IS DISTINCT FROM d.trashed_at AND\s""" + PARENT_VISIBLE + ")";
+
     /** An existing document. No visibility filter: callers check the role first, which also proves it exists. */
     public Uni<DocumentRow> row(UUID documentId) {
         return Panache.getSession().chain(session -> session
@@ -102,12 +113,15 @@ public class LibraryRepository {
     public Uni<List<DocumentRow>> page(PageQuery query) {
         List<Object> params = new ArrayList<>();
         params.add(query.accountId());
-        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS).append(" FROM document d WHERE ")
-                .append(NOT_BRANCH).append(" AND ");
+        StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS).append(" FROM document d WHERE ");
+        if (query.scope() != Scope.TRASH) {
+            sql.append(NOT_BRANCH).append(" AND ");
+        }
         sql.append(switch (query.scope()) {
             case SHARED_WITH_ME -> "d.trashed_at IS NULL AND d.owner_account_id IS DISTINCT FROM ?1 AND NOT "
                     + TEAM_ACCESS + " AND " + NAMED_ACCESS;
-            case TRASH -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NOT NULL AND " + VISIBLE;
+            case TRASH -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NOT NULL AND ((" + NOT_BRANCH
+                    + " AND " + VISIBLE + ") OR " + BRANCH_TRASHED_ALONE + ")";
             case TEMPLATES -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NULL AND d.is_template AND "
                     + VISIBLE;
             case FOLDER -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NULL AND "

@@ -33,7 +33,9 @@ service DocumentService {
   rpc Create(CreateRequest) returns (CreateResponse);
   // One page of documents of one space: a folder's contents (with its subfolders on the first
   // page), the trash, templates, or everything shared with the caller across spaces.  Branch
-  // documents are never listed.  Any member of the space; for SHARED_WITH_ME, the caller.
+  // documents are listed only in the trash, and only those trashed on their own (not with their
+  // parent), with `parent_document_id` set.  Any member of the space; for SHARED_WITH_ME, the
+  // caller.
   rpc List(ListRequest) returns (ListResponse);
   // One document the caller has any role on, trashed or not.  Also how a deep link resolves
   // (inspect.adoc).
@@ -138,8 +140,8 @@ message Document {
   bool is_template = 16;
   // True for a team library (LibraryService.SetLibrary).
   bool is_library = 17;
-  // Set when this document is a branch: the parent document's id (BranchService).  Branches
-  // are never returned by List.
+  // Set when this document is a branch: the parent document's id (BranchService).  List
+  // returns branches only in the trash (LIST_SCOPE_TRASH).
   string parent_document_id = 18 [
     (buf.validate.field).string.uuid = true,
     (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE
@@ -210,7 +212,8 @@ enum ListScope {
   // The live documents of one folder of the space (`folder_id`; empty = root), templates and
   // libraries included, plus the folder's subfolders on the first page.
   LIST_SCOPE_FOLDER = 1;
-  // The space's trashed documents, whatever folder they were in.
+  // The space's trashed documents, whatever folder they were in, and the branches trashed on
+  // their own while their parent is live.
   LIST_SCOPE_TRASH = 2;
   // The space's templates, whatever folder they are in.
   LIST_SCOPE_TEMPLATES = 3;

@@ -99,7 +99,8 @@ public nonisolated enum Wiretuner_Docs_V1_ListScope: SwiftProtobuf.Enum, Swift.C
   /// libraries included, plus the folder's subfolders on the first page.
   case folder // = 1
 
-  /// The space's trashed documents, whatever folder they were in.
+  /// The space's trashed documents, whatever folder they were in, and the branches trashed on
+  /// their own while their parent is live.
   case trash // = 2
 
   /// The space's templates, whatever folder they are in.
@@ -360,8 +361,8 @@ public nonisolated struct Wiretuner_Docs_V1_Document: @unchecked Sendable {
     set {_uniqueStorage()._isLibrary = newValue}
   }
 
-  /// Set when this document is a branch: the parent document's id (BranchService).  Branches
-  /// are never returned by List.
+  /// Set when this document is a branch: the parent document's id (BranchService).  List
+  /// returns branches only in the trash (LIST_SCOPE_TRASH).
   public var parentDocumentID: String {
     get {_storage._parentDocumentID}
     set {_uniqueStorage()._parentDocumentID = newValue}

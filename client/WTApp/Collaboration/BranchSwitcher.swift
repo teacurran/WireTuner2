@@ -3,6 +3,7 @@ import Observation
 import SwiftUI
 import WTCRDT
 import WTModel
+import WTProto
 import WTSync
 
 /// A window's branches (COLLAB-016; branches.adoc): whether the document is the parent (*main*)
@@ -66,6 +67,42 @@ final class WindowBranches {
         branches = all.filter { $0.state == .active }
         archived = all.filter { $0.state != .active }
         return branches
+    }
+
+    /// A `BranchEvent` on this window's subscription (COLLAB-016's live updates): another client
+    /// created, renamed, archived, restored, trashed or merged one of the parent's branches, and the
+    /// popup and the menus follow at once, without listing again.
+    func apply(_ event: Wiretuner_Sync_V1_BranchEvent) {
+        guard event.parentDocumentID == parentID || event.branchDocumentID == document.id else { return }
+        let id = event.branchDocumentID
+        let known = (branches + archived).first { $0.id == id } ?? current.flatMap { $0.id == id ? $0 : nil }
+        var info = known ?? BranchInfo(id: id, parentID: event.parentDocumentID, name: event.name)
+        if !event.name.isEmpty { info.name = event.name }
+        info.onServer = true
+        if !event.actor.displayName.isEmpty { info.lastAuthor = event.actor.displayName }
+        branches.removeAll { $0.id == id }
+        archived.removeAll { $0.id == id }
+        switch event.kind {
+        case .created, .restored:
+            info.state = .active
+            branches.append(info)
+        case .renamed:
+            if info.state == .active { branches.append(info) } else { archived.append(info) }
+        case .archived:
+            info.state = .archived
+            archived.append(info)
+        case .merged:
+            info.state = .merged
+            archived.append(info)
+        case .trashed:
+            if id == document.id { message = "“\(info.name)” was moved to the Trash by \(event.actor.displayName.isEmpty ? "someone" : event.actor.displayName)" }
+        default:
+            // A kind this client does not know: the branch stays where it was.
+            if known != nil, info.state == .active { branches.append(info) } else if known != nil { archived.append(info) }
+        }
+        branches.sort { ($0.name, $0.id) < ($1.name, $1.id) }
+        archived.sort { ($0.name, $0.id) < ($1.name, $1.id) }
+        if current?.id == id, event.kind != .trashed { current = info }
     }
 
     /// The popup's rows: *main*, then each active branch.

@@ -172,6 +172,10 @@ final class DocumentSession {
             for await state in states { self?.status.update(state) }
         })
         documentToken = document.observe { [weak self] change in self?.documentDidChange(change) }
+        // A branch store made on this Mac is created on the server before its client pushes (COLLAB-016).
+        if let copies = connection.copies, let tokens = connection.tokens, let store = document.model?.backend as? LocalStore {
+            _ = try? await BranchCreator(transport: copies, tokens: tokens).ensureOnServer(store)
+        }
         await client.start()
     }
 

@@ -202,13 +202,13 @@ public nonisolated struct Wiretuner_Docs_V1_CreateBranchResponse: Sendable {
   fileprivate var _branch: Wiretuner_Docs_V1_Branch? = nil
 }
 
-/// Lists a document's branches.
+/// Lists a document's branches, or every branch of a space's documents.
 public nonisolated struct Wiretuner_Docs_V1_ListBranchesRequest: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
   // methods supported on all messages.
 
-  /// The parent document.
+  /// The parent document; empty when `space_id` is given.
   public var parentDocumentID: String = String()
 
   /// Whether to include archived and merged branches, which are otherwise omitted.
@@ -219,6 +219,11 @@ public nonisolated struct Wiretuner_Docs_V1_ListBranchesRequest: Sendable {
 
   /// Branches per page; 0 selects the server's default, at most 50.
   public var pageSize: UInt32 = 0
+
+  /// Instead of a parent: the branches of every live document of this space (the caller's
+  /// account id or a team id) that the caller can see, for the library window's nesting and its
+  /// Archived list (COLLAB-016).  Any member of the space.  Newest first, like a parent's list.
+  public var spaceID: String = String()
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -643,7 +648,7 @@ nonisolated extension Wiretuner_Docs_V1_CreateBranchResponse: SwiftProtobuf.Mess
 
 nonisolated extension Wiretuner_Docs_V1_ListBranchesRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ListBranchesRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}parent_document_id\0\u{3}include_archived\0\u{1}cursor\0\u{3}page_size\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}parent_document_id\0\u{3}include_archived\0\u{1}cursor\0\u{3}page_size\0\u{3}space_id\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -655,6 +660,7 @@ nonisolated extension Wiretuner_Docs_V1_ListBranchesRequest: SwiftProtobuf.Messa
       case 2: try { try decoder.decodeSingularBoolField(value: &self.includeArchived) }()
       case 3: try { try decoder.decodeSingularStringField(value: &self.cursor) }()
       case 4: try { try decoder.decodeSingularUInt32Field(value: &self.pageSize) }()
+      case 5: try { try decoder.decodeSingularStringField(value: &self.spaceID) }()
       default: break
       }
     }
@@ -673,6 +679,9 @@ nonisolated extension Wiretuner_Docs_V1_ListBranchesRequest: SwiftProtobuf.Messa
     if self.pageSize != 0 {
       try visitor.visitSingularUInt32Field(value: self.pageSize, fieldNumber: 4)
     }
+    if !self.spaceID.isEmpty {
+      try visitor.visitSingularStringField(value: self.spaceID, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -681,6 +690,7 @@ nonisolated extension Wiretuner_Docs_V1_ListBranchesRequest: SwiftProtobuf.Messa
     if lhs.includeArchived != rhs.includeArchived {return false}
     if lhs.cursor != rhs.cursor {return false}
     if lhs.pageSize != rhs.pageSize {return false}
+    if lhs.spaceID != rhs.spaceID {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

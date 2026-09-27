@@ -353,6 +353,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installTextStyles()
         installComments()
         installCollaborationUI()
+        installLibraryBranches()
         installWeb()
         installImages()
         installPrinting()

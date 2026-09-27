@@ -31,6 +31,10 @@ final class WindowCollaborationUI {
         popup.layoutAttribute = .leading
         window.window?.addTitlebarAccessoryViewController(popup)
         self.popup = popup
+        window.collaboration.branchEventHandlers.append { [weak self, weak features] event in
+            self?.branches.apply(event)
+            features?.branchEvent(event)
+        }
         Task { await branches.load() }
         attachAccess(features: features)
         statusToken = window.syncStatus.observe { [weak self, weak features] in
@@ -89,6 +93,8 @@ final class CollaborationFeatures {
     var branchClient: @MainActor () -> (any BranchClient)? = { nil }
     /// `VersionService.ListVersions`, nil offline or signed out.
     var versionListing: @MainActor () -> (any VersionListing)? = { nil }
+    /// Every `BranchEvent` a window hears, for the library window's nesting (COLLAB-016).
+    var branchEvent: @MainActor (Wiretuner_Sync_V1_BranchEvent) -> Void = { _ in }
     /// Where branch stores live.
     var storeRoot: @MainActor () throws -> URL = { try BranchStores.defaultRoot() }
     /// Opens a document window (a branch, the parent, a copy).

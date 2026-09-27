@@ -61,8 +61,12 @@ import WTProto
         try folder.installTypings()
         var changes = 0
         let watcher = try #require(FolderWatcher(url: folder.url, latency: 0.05) { changes += 1 })
-        try Data("1".utf8).write(to: folder.url.appending(path: "New.js"))
-        for _ in 0..<100 where changes == 0 { try await Task.sleep(for: .milliseconds(20)) }
+        // FSEvents can drop a change that races the stream's start and delivers late on a busy
+        // machine, so a new file is written every half second until one is reported (10 s at most).
+        for attempt in 0..<20 where changes == 0 {
+            try Data("\(attempt)".utf8).write(to: folder.url.appending(path: "New\(attempt).js"))
+            for _ in 0..<25 where changes == 0 { try await Task.sleep(for: .milliseconds(20)) }
+        }
         #expect(changes > 0)
         watcher.stop()
         watcher.stop()

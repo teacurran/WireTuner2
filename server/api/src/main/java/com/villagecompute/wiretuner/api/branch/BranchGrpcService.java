@@ -9,6 +9,7 @@ import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
 import com.villagecompute.wiretuner.api.docs.DocumentCopies;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
+import com.villagecompute.wiretuner.api.docs.Spaces;
 import com.villagecompute.wiretuner.api.grpc.Cursors;
 import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.api.persistence.BranchRepository;
@@ -85,6 +86,9 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
     @Inject
     DocumentEvents events;
 
+    @Inject
+    Spaces spaces;
+
     @Override
     public Uni<CreateBranchResponse> createBranch(CreateBranchRequest request) {
         UUID parentId = UUID.fromString(request.getParentDocumentId());
@@ -118,7 +122,6 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
 
     @Override
     public Uni<ListBranchesResponse> listBranches(ListBranchesRequest request) {
-        UUID parentId = UUID.fromString(request.getParentDocumentId());
         int pageSize = Cursors.pageSize(request.getPageSize(), DEFAULT_PAGE_SIZE);
         long afterMicros = Long.MAX_VALUE;
         UUID afterId = new UUID(-1, -1);
@@ -129,6 +132,14 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
         }
         long micros = afterMicros;
         UUID after = afterId;
+        if (!request.getSpaceId().isEmpty()) {
+            UUID spaceId = UUID.fromString(request.getSpaceId());
+            return tx(() -> guard.authenticated().flatMap(principal -> spaces.member(principal, spaceId)
+                    .chain(() -> branches.listInSpace(principal.accountId(), spaceId, request.getIncludeArchived(), micros,
+                            after, pageSize + 1))))
+                    .map(rows -> page(rows, pageSize));
+        }
+        UUID parentId = UUID.fromString(request.getParentDocumentId());
         return tx(() -> guard.require(parentId, Role.VIEWER)
                 .chain(() -> branches.list(parentId, request.getIncludeArchived(), micros, after, pageSize + 1)))
                 .map(rows -> page(rows, pageSize));

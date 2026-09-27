@@ -37,7 +37,10 @@ final class LibraryWindowController: NSWindowController, NSWindowDelegate {
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         let model = model
-        return Task { await model.refresh() }
+        return Task {
+            await model.refresh()
+            await model.branches?.load()
+        }
     }
 }
 

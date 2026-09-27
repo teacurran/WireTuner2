@@ -184,7 +184,7 @@ extension Wiretuner_Docs_V1_BranchService {
         ///
         /// > Source IDL Documentation:
         /// >
-        /// > The parent's branches, active first, then by last change.
+        /// > The parent's branches, or with `space_id` those of every document of a space, newest first.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Docs_V1_ListBranchesRequest` message.
@@ -389,7 +389,7 @@ extension Wiretuner_Docs_V1_BranchService {
         ///
         /// > Source IDL Documentation:
         /// >
-        /// > The parent's branches, active first, then by last change.
+        /// > The parent's branches, or with `space_id` those of every document of a space, newest first.
         ///
         /// - Parameters:
         ///   - request: A request containing a single `Wiretuner_Docs_V1_ListBranchesRequest` message.
@@ -636,7 +636,7 @@ extension Wiretuner_Docs_V1_BranchService.ClientProtocol {
     ///
     /// > Source IDL Documentation:
     /// >
-    /// > The parent's branches, active first, then by last change.
+    /// > The parent's branches, or with `space_id` those of every document of a space, newest first.
     ///
     /// - Parameters:
     ///   - request: A request containing a single `Wiretuner_Docs_V1_ListBranchesRequest` message.
@@ -856,7 +856,7 @@ extension Wiretuner_Docs_V1_BranchService.ClientProtocol {
     ///
     /// > Source IDL Documentation:
     /// >
-    /// > The parent's branches, active first, then by last change.
+    /// > The parent's branches, or with `space_id` those of every document of a space, newest first.
     ///
     /// - Parameters:
     ///   - message: request message to send.

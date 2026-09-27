@@ -44,20 +44,24 @@ struct LibraryView: View {
                         .accessibilityIdentifier("library.storage")
                 }
                 Divider()
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], alignment: .leading, spacing: 16) {
-                        ForEach(model.searchResults == nil ? model.folders : []) { folder in
-                            LibraryFolderTile(model: model, folder: folder)
+                if let branches = model.branches, branches.shelf != nil {
+                    LibraryShelfList(branches: branches)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], alignment: .leading, spacing: 16) {
+                            ForEach(model.searchResults == nil ? model.folders : []) { folder in
+                                LibraryFolderTile(model: model, folder: folder)
+                            }
+                            ForEach(model.rows) { row in
+                                LibraryDocumentTile(model: model, row: row, renaming: $renaming)
+                            }
                         }
-                        ForEach(model.rows) { row in
-                            LibraryDocumentTile(model: model, row: row, renaming: $renaming)
+                        .padding(12)
+                        if model.nextCursor != nil, model.searchResults == nil {
+                            Button("Load More") { Task { await model.loadMore() } }
+                                .padding(.bottom, 12)
+                                .accessibilityIdentifier("library.loadMore")
                         }
-                    }
-                    .padding(12)
-                    if model.nextCursor != nil, model.searchResults == nil {
-                        Button("Load More") { Task { await model.loadMore() } }
-                            .padding(.bottom, 12)
-                            .accessibilityIdentifier("library.loadMore")
                     }
                 }
             }
@@ -89,11 +93,15 @@ struct LibrarySidebar: View {
                 row("Recents", symbol: "clock", section: .recents, identifier: "library.sidebar.recents")
                 row("Shared with Me", symbol: "person.2", section: .sharedWithMe, identifier: "library.sidebar.shared")
                 row("Templates", symbol: "doc.on.doc", section: .templates, identifier: "library.sidebar.templates")
+                if let branches = model.branches {
+                    shelf(branches, "Archived", symbol: "archivebox", shelf: .archived, identifier: "library.sidebar.archived")
+                    shelf(branches, "Trash", symbol: "trash", shelf: .trash, identifier: "library.sidebar.trash")
+                }
             }
             Section("Spaces") {
                 ForEach(model.spaces) { space in
                     let selected = model.currentSpaceID == space.id && model.section == .folder(nil)
-                    Button { Task { await model.switchSpace(to: space.id) } } label: {
+                    Button { Task { await model.branches?.show(nil); await model.switchSpace(to: space.id); await model.branches?.load() } } label: {
                         Label(space.name, systemImage: space.kind == .personal ? "person.crop.circle" : "person.3")
                             .fontWeight(selected ? .semibold : .regular)
                     }
@@ -110,9 +118,18 @@ struct LibrarySidebar: View {
         .listStyle(.sidebar)
     }
 
+    /// *Archived* or *Trash* (COLLAB-016).
+    private func shelf(_ branches: LibraryBranches, _ title: String, symbol: String, shelf: LibraryBranches.Shelf, identifier: String) -> some View {
+        Button { Task { await branches.show(shelf) } } label: {
+            Label(title, systemImage: symbol).fontWeight(branches.shelf == shelf ? .semibold : .regular)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+    }
+
     private func row(_ title: String, symbol: String, section: LibraryModel.Section, identifier: String) -> some View {
-        Button { Task { await model.show(section) } } label: {
-            Label(title, systemImage: symbol).fontWeight(model.section == section ? .semibold : .regular)
+        Button { Task { await model.branches?.show(nil); await model.show(section) } } label: {
+            Label(title, systemImage: symbol).fontWeight(model.section == section && model.branches?.shelf == nil ? .semibold : .regular)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -160,6 +177,7 @@ struct LibraryToolbar: View {
 
     /// "Personal › Clients › Acme", "Recents", "Shared with Me", or "Search results".
     var title: String {
+        if let shelf = model.branches?.shelf { return "\(model.currentSpace.name) › \(shelf == .archived ? "Archived" : "Trash")" }
         if model.searchResults != nil { return "Search results" }
         switch model.section {
         case .recents: return "Recents"
@@ -234,6 +252,9 @@ struct LibraryDocumentTile: View {
                         .accessibilityLabel(badge.help)
                         .accessibilityIdentifier("library.document.\(document.id).sync")
                 }
+            }
+            if let branches = model.branches {
+                LibraryNestedBranches(branches: branches, parent: document)
             }
             if let snippet = row.snippet {
                 Text(snippet.attributed).font(.caption).lineLimit(2)
