@@ -706,6 +706,24 @@ and takes the look and behaviour of a current Mac app:
 
 == Open questions
 
+Revised after use (2026-09-27): the first glass tab strip did not read as tabs, nor show which tab
+is open or focused, and a toolbar docked among panels laid out as a vertical strip.  So:
+
+* *Content extends beneath the dock.*  The canvas runs the full window width; the dock floats
+  over its right side as a translucent glass sidebar, and the artwork shows through it.  Fit,
+  zoom-to-fit and centring use the unobscured area (the canvas's safe area), so nothing is placed
+  under the dock by default.  Panel cards are frosted glass with vibrant text -- a heavier frost
+  for control-dense content -- rather than opaque cards; floating groups get the same.  A *Panel
+  transparency* preference and the system's Reduce Transparency make them solid.
+* *Tabs are our own control* (the system segmented look was not clear enough): the selected tab
+  is a tinted surface joined to the content below it like a folder tab, with an accent bar, bold
+  label and full-contrast icon; unselected tabs are secondary labels with a hover highlight; the
+  keyboard-focused tab shows a focus ring.  Crowded strips drop unselected labels to icons, then
+  overflow into a menu.  A group with one panel shows no tab strip; it drags by its title.
+* *A toolbar docked in a panel flows horizontally* and wraps into rows; wide controls (the font
+  family) take a full row.  The font family control is a picker whose list is sized to the
+  longest name (not the button), shows each family in its own face, and filters as you type.
+
 [[Q-001]]
 === Q-001 Comments
 The `commenter` role is reserved but comments are not in v1.  A multiplayer design tool without
