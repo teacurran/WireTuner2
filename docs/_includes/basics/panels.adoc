@@ -5,13 +5,17 @@ This page explains the framework: opening, closing, grouping, docking, collapsin
 Options menu every panel has.  What each panel *contains* is documented on that panel's own
 page; the table at the end links them.
 
-Panel groups have the look of a current Mac app: the dock is a sidebar on the window's glass
-layer, a group's tabs are a glass tab strip, floating groups are glass panels, and what a panel
-shows sits on the standard window material.
+Panel groups have the look of a current Mac app: the dock is a translucent glass sidebar that
+floats over the document, which runs beneath it to the window's edge, so your artwork shows
+through the panels.  Each group is a frosted card; the card is frosted more heavily where a panel
+is dense with controls, so its text stays readable over any artwork.  Floating groups are glass
+panels of the same kind.  If you prefer opaque panels, set *Panel transparency* to Solid (see
+<<Panel appearance>>); turning on Reduce Transparency in System Settings does the same.
 
-// TODO screenshot: the default panel layout on first launch, in the macOS 26 look: the dock
-// as a glass sidebar, the Properties group expanded with its Object and Document tabs in a
-// glass tab strip, the Assets group collapsed to its title bar, and a divider between groups.
+// TODO screenshot: the default panel layout on first launch, in the macOS 26 look: the
+// artwork running under the translucent dock, the Properties group expanded with its Object
+// tab selected -- a folder tab joined to the card with an accent bar -- the Assets group
+// collapsed to its title bar, the single-panel Layers group without tabs, and a divider.
 
 == The default layout
 
@@ -50,11 +54,15 @@ To open the Find & Replace Graphics or Select panel::
 Find & Replace Graphics is also menu:Edit[Find and Replace > Graphics…]; both are in the Window menu.
 
 To activate a panel in a group::
-Click its tab.  The front tab is marked by the glass selection under it.  Tabs show an icon, a
-name, or both, depending on the *Label panel tabs with* preference
-(xref:preferences.adoc[Preferences]).  With keyboard navigation on, press kbd:[Tab] to reach a
-tab strip, then the arrow keys to move between tabs; kbd:[Home] and kbd:[End] go to the first
-and last tab.
+Click its tab.  The front tab is joined to the card below it like a folder tab, with a colored
+bar along its top and its name in bold; the other tabs are dimmer and light up under the pointer.
+Tabs show an icon, a name, or both, depending on the *Label panel tabs with* preference
+(xref:preferences.adoc[Preferences]).  When a group is too narrow for every tab, the tabs you are
+not using show only their icons; if even that does not fit, the tabs that do not fit move into
+the menu at the end of the strip -- choose one there to bring it to the front.  A group with a
+single panel has no tabs.  With keyboard navigation on, press kbd:[Tab] to reach a tab strip --
+the focused tab shows a focus ring -- then the arrow keys to move between tabs; kbd:[Home] and
+kbd:[End] go to the first and last tab.
 
 To expand or collapse a group::
 Click the group's title, or the disclosure triangle beside it.  A collapsed group keeps its
@@ -71,8 +79,10 @@ Choose menu:View[Panels].  The Tools panel and toolbars are separate: menu:Windo
 menu:View[Toolbars] (xref:toolbars.adoc[Toolbars]).
 
 To show or hide the whole dock::
-Click the thin handle between the canvas and the docked panels, or drag it to resize the dock.
-Hiding the dock gives the canvas the full window; the panels come back with one click.
+Click the thin handle at the dock's inner edge, or drag it to resize the dock.  The document
+runs beneath the dock, but Fit to Page, Fit Selection, the rulers and the scroll bars use only the
+part the dock leaves uncovered, so nothing you fit or center lands under it.  Hiding the dock
+gives that part the full window; the panels come back with one click.
 
 To cycle through floating groups::
 Press kbd:[Cmd+`] (the standard macOS window cycle) while a floating group is in front.
@@ -81,17 +91,18 @@ kbd:[Control+Tab] cycles document tabs instead (xref:workspace.adoc[The workspac
 == Docking and floating
 
 Every group has a *gripper* -- the three lines at the left of its title bar.  Dragging the
-gripper moves the group between the dock and the pasteboard; dragging the title bar itself
-moves a floating group without docking it.  While you drag, a picture of the group's title bar
-and tabs follows the pointer.
+gripper moves the group between the dock and the pasteboard.  Dragging the title bar of a docked
+group does the same (a group with a single panel, which has no tab, is dragged by its title);
+dragging the title bar of a floating group moves it without docking it.  While you drag, a
+picture of the group's title bar and tabs follows the pointer.
 
 To dock a group::
 Drag it by its gripper into the dock at the right or left edge of the window, over the groups
 already there.  A blue insertion line shows where it will land between them.  Release to dock.
 
 To dock a group onto another group::
-Drag it by its gripper onto the other group's title bar or tab strip.  The strip highlights and
-the dragged panels join that group as tabs.
+Drag it by its gripper onto the other group's title bar or tab strip.  The strip (or, for a
+group without tabs, the title bar) highlights and the dragged panels join that group as tabs.
 
 To float a group::
 Drag it by its gripper out of the dock onto the pasteboard, or choose *Float Group* from its
@@ -167,11 +178,14 @@ See xref:customizing.adoc[Customizing your environment].
 
 == Panel appearance
 
-Two preferences in the *Panels* category control how panels look
+Three preferences in the *Panels* category control how panels look
 (xref:preferences.adoc[Preferences]):
 
 * *Label panel tabs with*: Text only, Icon only, or Text and icon.
 * *Show tooltips*: whether pausing over a tool or button shows its name and shortcut.
+* *Panel transparency*: Translucent (the document shows through the dock and floating groups)
+  or Solid.  With Reduce Transparency on in System Settings > Accessibility > Display, panels
+  are solid whatever this says.
 
 == The panels
 
@@ -355,6 +369,51 @@ window keeps its own dock views, so the glass sidebar is an inset `NSGlassEffect
 not over it); a group's tab strip stays when it holds one panel (so its tab can be dragged onto another
 strip); hovering a drag over a tab does not spring-load it (the strip highlights instead); the top and
 bottom strips keep a row of groups without dividers or the insertion line.
+
+NOTE: As built for D-077 revised after use (gl2).  *Content under the dock*: the canvas fills the
+window below the top strip (`RulerHostView` spans the content view; `DocumentWindowController.buildContent`
+lays the side docks, their handles, the bottom strip and the status bar over it, in that order).
+After every layout `DocumentContentView` reports and `updateCanvasInsets` turns what those views cover
+into the ruler host's `obscured` edges; the host puts the rulers, the zero-point corner and the scroll
+bars inside the rest and gives the canvas its covered edges as `CanvasView.safeInsets` (`CanvasInsets`:
+dock plus handle plus ruler or scroll bar on each side, status bar and bottom strip below).
+`CanvasNavigation` fits, zooms (about the safe centre) and centres in the safe area, and
+`CanvasScrollerModel` clamps the safe area -- not the view -- to the pasteboard, so the pasteboard's edge
+can be scrolled out from under the dock, and sizes the scroll bars to it.  Auto-scroll starts at the
+safe area's edges (`CanvasAutoscroll.delta(viewPoint:in:)`), the canvas's cursor rect and tracking area
+are the safe area (a pointer over the dock is not over the canvas), the HUD centres in it, and Paste,
+Handoff and the rulers (`RulerStripView.canvasOrigin`) count from it.  The tiles under the dock are drawn
+as any others.  A side dock's view is clear around its glass, and the dock handle is clear with a frosted
+grabber.  *Translucency* (`PanelGlass.swift`): on the dock's glass (and a floating group's) lies the
+chrome's frost, a `PanelFrostView` washing the window background colour over it (66% light, 80% dark);
+each group's card is a `PanelCardView` adding the heavier card frost (62% light, 60% dark, so about 87%
+and 92% in all) under the selected tab and the body -- every body is treated as control-dense.  Text
+stays in the label colours; unselected tabs use `PanelTabButton.unselectedColor` (black at 72% opacity, or
+white at 80% in the dark appearance).  `PanelLegibilityTests` renders a group over white, black and busy stripes in both appearances and
+requires 4.5:1 for the title, both tab labels and a body label (measured: 10:1 or more for labels in
+the light appearance, 6.4:1 or more in the dark one over white; the dimmer unselected tab labels 5.3:1
+and 5:1 at worst); the glass does not render in a bitmap, so the frost alone is measured.  *Panel transparency* (`panels.transparency`, Translucent or Solid)
+and `NSWorkspace.accessibilityDisplayShouldReduceTransparency` give `PanelAppearance.isTranslucent`; solid,
+the frosts are opaque (the card a shade lighter than the chrome).  Docks and floating groups redraw on
+the preference and on `accessibilityDisplayOptionsDidChangeNotification` (`AccessibilityDisplayObserver`).
+*Tabs* (`PanelTabStrip.swift`): our own control replaces the glass track and pill.  Tabs take their own
+widths from the leading edge (padding, a 14 pt icon, the name measured in bold); `TabStripLayout`
+drops unselected labels to icons when they do not fit (a tab without an icon keeps its label), then
+shows the selected tab and what else fits with a chevron button whose menu lists the rest.  The
+selected tab's surface is the card's: `PanelCardView.shape()` rises into the selected tab's rectangle
+with rounded top corners and concave fillets where it meets the body, and follows the selection
+(`onSelectionFrameChange`).  `PanelTabButton` draws itself: a 3 pt accent bar along the selected tab's top,
+a bold label and a label-coloured icon; unselected, the dimmer colour and a highlight under the pointer;
+with the keyboard focus (in the key window) a 2 pt ring in the focus colour inside the tab.  VoiceOver
+semantics, the arrow keys, drags, the drop caret and the *Label panel tabs with* preference are as before.
+The `.section` variant (24 pt) is Transform's inner strip: its tabs share the strip's width and the
+selected one draws its own pill with the accent bar under it.  *One panel, no strip*: a group with a single
+panel hides its strip; its card starts under the title bar, a drop over its title tints the title bar, and
+dragging a docked group's title bar drags the group as the gripper does (a floating group's title bar still
+moves its window).  This replaces the earlier deviation that kept a strip for one panel.  Deviations: the
+dock is our own glass view over the canvas, not an `NSSplitViewController` inspector with a background
+extension effect (the window keeps its own dock layout and the real artwork shows through, not a mirrored
+extension); the tab surface does not animate between tabs (it moves with the selection at once).
 
 NOTE: As built by the control reachability audit (rch).  The *Select* panel is the Find & Replace
 panel's body on a state of its own opened on its *Select* tab (`ReachabilityFeatures.selectPanel`);

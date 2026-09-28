@@ -355,6 +355,8 @@ struct PageListView: View {
             .onMove(perform: Self.mover(model))
         }
         .frame(minHeight: 160)
+        // The group's frosted card shows through (D-077, revised).
+        .scrollContentBackground(.hidden)
         .accessibilityIdentifier("document.pageList")
     }
 

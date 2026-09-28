@@ -138,7 +138,7 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
     /// What a drag shows: the whole tab, or a group's title bar and tab strip.
     static func dragRect(of view: NSView) -> NSRect {
         guard let group = view as? PanelGroupView else { return view.bounds }
-        let header = PanelGroupView.chromeHeight(collapsed: group.isCollapsed) - (group.isCollapsed ? 0 : PanelGroupView.margin)
+        let header = PanelGroupView.chromeHeight(collapsed: group.isCollapsed, tabs: group.showsTabs) - (group.isCollapsed ? 0 : PanelGroupView.margin)
         let height = min(view.bounds.height, header)
         return NSRect(x: 0, y: group.isFlipped ? 0 : view.bounds.height - height, width: view.bounds.width, height: height)
     }
@@ -298,9 +298,10 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
 }
 
 
-/// Renders one edge of a `PanelLayout` into a dock.  A side dock (left, right) is a sidebar on
-/// the window's glass layer (D-077) holding a `DockColumnView`: the groups share its height
-/// through draggable dividers.  A strip (top, bottom) is a row of groups.  Group views are kept
+/// Renders one edge of a `PanelLayout` into a dock.  A side dock (left, right) is a translucent
+/// glass sidebar floating over the canvas, which runs beneath it (D-077, revised): inset from the
+/// window's edges, the chrome's frost on the glass, holding a `DockColumnView` whose groups share
+/// its height through draggable dividers.  The dock's own view is clear around the glass.  A strip (top, bottom) is a row of groups.  Group views are kept
 /// while their panels stay the same -- choosing a tab, collapsing or resizing updates them in
 /// place, so the selection slides, the column animates and the keyboard focus stays -- and
 /// panel bodies are created once and reused, so a re-render never closes a panel.
@@ -323,11 +324,15 @@ final class PanelDockController: NSViewController {
     let column: DockColumnView
     /// The side dock's glass (nil for a strip).
     private(set) var glass: NSView?
+    /// The chrome's frost on the side dock's glass (nil for a strip).
+    private(set) var frost: PanelFrostView?
     private(set) var groupViews: [PanelGroupView] = []
     private var bodies: [PanelID: NSView] = [:]
     /// Width for a side dock, height for a strip.
     private(set) var sizeConstraint: NSLayoutConstraint?
     private var observation: PanelLayoutController.ObservationToken?
+    /// Reduce Transparency switched: the dock redraws solid or translucent.
+    private var displayObserver: AccessibilityDisplayObserver?
 
     init(panels: PanelRegistry, layout: PanelLayoutController, edge: DockEdge = .right, interaction: PanelInteraction? = nil) {
         self.panels = panels
@@ -351,7 +356,9 @@ final class PanelDockController: NSViewController {
         dock.controller = self
         dock.translatesAutoresizingMaskIntoConstraints = false
         dock.wantsLayer = true
-        dock.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        // A strip is opaque (it sits between the toolbar and the canvas); a side dock is clear
+        // around its glass, so the canvas shows beside it.
+        dock.layer?.backgroundColor = edge.isVertical ? nil : NSColor.windowBackgroundColor.cgColor
         dock.setAccessibilityElement(true)
         dock.setAccessibilityRole(.group)
         dock.setAccessibilityIdentifier(edge == .right ? Self.accessibilityIdentifier : "\(Self.accessibilityIdentifier).\(edge.rawValue)")
@@ -370,8 +377,16 @@ final class PanelDockController: NSViewController {
             ])
             column.preferredHeight = { [weak self] group in self?.preferredHeight(for: group) ?? PanelLayout.defaultGroupHeight }
             column.onResize = { [weak self] heights in self?.resize(heights) }
-            PanelGlass.setContent(column, of: surface)
+            let wash = PanelFrostView(level: .chrome, translucent: interaction.appearance().isTranslucent, cornerRadius: Self.cornerRadius)
+            let holder = NSView()
+            for part in [wash, column] as [NSView] {
+                part.frame = holder.bounds
+                part.autoresizingMask = [.width, .height]
+                holder.addSubview(part)
+            }
+            PanelGlass.setContent(holder, of: surface)
             glass = surface
+            frost = wash
         } else {
             stack.orientation = .horizontal
             stack.alignment = .top
@@ -394,6 +409,7 @@ final class PanelDockController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         observation = layoutController.observe { [weak self] layout in self?.render(layout) }
+        displayObserver = AccessibilityDisplayObserver { [weak self] in self?.appearanceDidChange() }
         render(layoutController.layout)
     }
 
@@ -405,6 +421,7 @@ final class PanelDockController: NSViewController {
     /// Brings the dock up to date with `layout`.
     func render(_ layout: PanelLayout) {
         let groups = layout.docks[edge] ?? []
+        frost?.isTranslucent = interaction.appearance().isTranslucent
         if edge.isVertical {
             renderColumn(groups)
         } else {
@@ -447,7 +464,7 @@ final class PanelDockController: NSViewController {
 
     /// A strip is as tall as its tallest group.
     static func stripHeight(for groups: [PanelGroup]) -> Double {
-        groups.map { Double(PanelGroupView.height(forContent: CGFloat($0.height ?? PanelLayout.defaultGroupHeight), collapsed: $0.collapsed)) }.max() ?? 0
+        groups.map { Double(PanelGroupView.height(forContent: CGFloat($0.height ?? PanelLayout.defaultGroupHeight), collapsed: $0.collapsed, tabs: PanelGroupView.showsTabs($0))) }.max() ?? 0
     }
 
     /// The height a docked group asks for: its stored height, else its default group's
@@ -581,8 +598,7 @@ final class DockHandleView: NSView {
         self.layoutController = layout
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        // Clear: the canvas runs beneath it (D-077, revised); only the grabber draws.
         setAccessibilityElement(true)
         setAccessibilityRole(.splitter)
         setAccessibilityIdentifier("dock-handle.\(edge.rawValue)")
@@ -596,8 +612,12 @@ final class DockHandleView: NSView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
+        // A frosted pill under the grabber keeps it visible over any artwork.
+        let pill = NSRect(x: (bounds.width - 5) / 2, y: (bounds.height - 36) / 2, width: 5, height: 36)
+        PanelFrost.chrome.color(translucent: true).setFill()
+        NSBezierPath(roundedRect: pill, xRadius: 2.5, yRadius: 2.5).fill()
         let grabber = NSRect(x: (bounds.width - 3) / 2, y: (bounds.height - 32) / 2, width: 3, height: 32)
-        NSColor.tertiaryLabelColor.setFill()
+        NSColor.secondaryLabelColor.setFill()
         NSBezierPath(roundedRect: grabber, xRadius: 1.5, yRadius: 1.5).fill()
     }
 

@@ -1,6 +1,7 @@
 import AppKit
 
-/// The two *Panels* preferences every group applies live (panels.adoc, "Panel appearance").
+/// The *Panels* preferences every group applies live (panels.adoc, "Panel appearance"): how tabs
+/// are labelled, tooltips, and whether panels are translucent (D-077, revised).
 struct PanelAppearance: Equatable, Sendable {
     enum LabelStyle: String, Sendable {
         case text
@@ -10,25 +11,38 @@ struct PanelAppearance: Equatable, Sendable {
 
     var labelStyle: LabelStyle
     var showsTooltips: Bool
+    /// Frosted glass over the canvas (*Panel transparency* Translucent, and the system's Reduce
+    /// Transparency off); false draws every panel surface opaque.
+    var isTranslucent: Bool
 
     static let standard = PanelAppearance(labelStyle: .textAndIcon, showsTooltips: true)
+
+    /// The system's Reduce Transparency (replaceable in tests).
+    @MainActor static var reducesTransparency: @MainActor () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
 
     @MainActor
     init(preferences: PreferenceStore) {
         self.init(
             labelStyle: LabelStyle(rawValue: preferences[PreferenceCatalog.Panels.labelStyle]) ?? .textAndIcon,
-            showsTooltips: preferences[PreferenceCatalog.Panels.showTooltips]
+            showsTooltips: preferences[PreferenceCatalog.Panels.showTooltips],
+            isTranslucent: Self.translucent(preference: preferences[PreferenceCatalog.Panels.transparency], reduceTransparency: Self.reducesTransparency())
         )
     }
 
-    init(labelStyle: LabelStyle, showsTooltips: Bool) {
+    init(labelStyle: LabelStyle, showsTooltips: Bool, isTranslucent: Bool = true) {
         self.labelStyle = labelStyle
         self.showsTooltips = showsTooltips
+        self.isTranslucent = isTranslucent
+    }
+
+    /// Panels are translucent when the preference says so and Reduce Transparency is off.
+    static func translucent(preference: String, reduceTransparency: Bool) -> Bool {
+        preference != "solid" && !reduceTransparency
     }
 
     /// Whether a change to preference `id` changes the appearance.
     static func isAppearancePreference(_ id: String) -> Bool {
-        id == PreferenceCatalog.Panels.labelStyle.id || id == PreferenceCatalog.Panels.showTooltips.id
+        id == PreferenceCatalog.Panels.labelStyle.id || id == PreferenceCatalog.Panels.showTooltips.id || id == PreferenceCatalog.Panels.transparency.id
     }
 
     /// The tab's title and image under this style.

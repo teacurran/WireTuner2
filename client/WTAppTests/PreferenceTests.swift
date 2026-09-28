@@ -49,7 +49,7 @@ enum PreferencesPage {
             "Default color space for new colors", "Auto-rename colors", "Swatches apply color to", "Color management",
             "Color manage spot colors", "Monitor, composite and separations profiles",
         ]),
-        (.panels, ["Label panel tabs with", "Show tooltips", "Clicking a layer name moves selected objects"]),
+        (.panels, ["Label panel tabs with", "Show tooltips", "Panel transparency", "Clicking a layer name moves selected objects"]),
         (.redraw, ["Preview drag", "Display text effects", "Greek type below", "Image display", "Raster effect preview"]),
         (.sounds, ["Snap to point sound", "Snap to object sound", "Snap to grid sound", "Snap to guide sound"]),
         (.sync, [
@@ -82,7 +82,7 @@ enum PreferencesPage {
 @Suite @MainActor struct PreferenceCatalogTests {
     @Test func catalogCoversEveryRowOfThePage() {
         let pageRows = PreferencesPage.rows.flatMap(\.1)
-        #expect(pageRows.count == 129, "the page's tables have 129 rows")
+        #expect(pageRows.count == 130, "the page's tables have 130 rows")
         // Hidden keys (the synced recents, DOC-020) are not rows of the window.
         let shown = PreferenceCatalog.all.filter { $0.control != .hidden }
         let mapped = Set(shown.map(\.pageRow))
@@ -94,8 +94,8 @@ enum PreferencesPage {
             let keys = PreferenceCatalog.keys(in: category).filter { $0.control != .hidden }
             #expect(Array(NSOrderedSet(array: keys.map(\.pageRow))) as? [String] == rows, "\(category) rows in page order")
         }
-        // 129 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
-        #expect(shown.count == 134 && PreferenceCatalog.all.count == 135)
+        // 130 rows; four rows hold several values, adding 1 + 1 + 1 + 2 keys.
+        #expect(shown.count == 135 && PreferenceCatalog.all.count == 136)
         for (row, ids) in PreferencesPage.compoundRows {
             #expect(PreferenceCatalog.all.filter { $0.pageRow == row }.map(\.id) == ids)
         }

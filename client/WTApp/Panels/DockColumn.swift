@@ -119,7 +119,7 @@ final class DockColumnView: NSView {
     /// Each group's frame and each divider's, for a column `height` points tall.
     func frames(forHeight height: CGFloat, width: CGFloat) -> (groups: [CGRect], dividers: [CGRect], content: [Double]) {
         let groups = groupViews.map(\.group)
-        let fixed = groups.reduce(0.0) { $0 + Double(PanelGroupView.chromeHeight(collapsed: $1.collapsed)) }
+        let fixed = groups.reduce(0.0) { $0 + Double(PanelGroupView.chromeHeight(of: $1)) }
             + Double(Self.dividerThickness) * Double(max(0, groups.count - 1))
         let expanded = groups.indices.filter { !groups[$0].collapsed }
         let shares = DockSizing.share(Double(height) - fixed, preferred: expanded.map { preferredHeight(groups[$0]) })
@@ -129,7 +129,7 @@ final class DockColumnView: NSView {
         var groupFrames: [CGRect] = []
         var dividerFrames: [CGRect] = []
         for (index, group) in groups.enumerated() {
-            let h = PanelGroupView.height(forContent: CGFloat(content[index]), collapsed: group.collapsed)
+            let h = PanelGroupView.height(forContent: CGFloat(content[index]), collapsed: group.collapsed, tabs: PanelGroupView.showsTabs(group))
             groupFrames.append(CGRect(x: 0, y: y, width: width, height: h))
             y += h
             if index < groups.count - 1 {

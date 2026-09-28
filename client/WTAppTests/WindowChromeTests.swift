@@ -74,7 +74,7 @@ import WTRender
         #expect(bar.pageField.numberOfItems == 2 && bar.pageField.itemObjectValue(at: 1) as? String == "Page 2")
         #expect(document.pages[1].minX == document.pages[0].maxX + AddPages.gap, "to the right of the rightmost page, one inch apart")
         let viewport = controller.viewport
-        #expect(viewport.toView(document.pages[1].center).isApproximatelyEqual(to: viewport.viewCenter, tolerance: 1e-6))
+        #expect(viewport.toView(document.pages[1].center).isApproximatelyEqual(to: controller.canvas.navigation.safeCenter(viewport), tolerance: 1e-6))
 
         bar.previousPageClicked(nil)
         #expect(document.currentPageIndex == 0)

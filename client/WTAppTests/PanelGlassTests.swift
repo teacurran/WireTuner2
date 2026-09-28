@@ -5,7 +5,7 @@ import WTGeometry
 import WTModel
 @testable import WireTuner
 
-/// D-077: the Liquid Glass tab strip, docked groups sharing the dock's height, bodies that
+/// D-077: our tab strip (revised after use), docked groups sharing the dock's height, bodies that
 /// scroll instead of overlapping, and drags between strips.
 @Suite @MainActor struct PanelTabStripTests {
     private func strip(selected: PanelID? = "b") -> PanelTabStrip {
@@ -31,21 +31,21 @@ import WTModel
         #expect(buttons.map { $0.isAccessibilitySelected() } == [false, true, false])
         #expect(buttons[1].accessibilityLabel() == "Beta" && buttons[1].toolTip == "Beta" && buttons[1].imagePosition == .imageOnly)
         #expect(buttons[0].accessibilityRoleDescription() == "tab")
-        #expect(!buttons[0].isBordered, "no filled button: the glass selection marks the front tab")
-        #expect(buttons[1].contentTintColor == .labelColor && buttons[0].contentTintColor == .secondaryLabelColor)
+        #expect(!buttons[0].isBordered, "no system bezel: the tab draws itself")
+        #expect(buttons[1].contentTintColor == .labelColor && buttons[0].contentTintColor == PanelTabButton.unselectedColor)
         #expect(strip.intrinsicContentSize.height == PanelTabStrip.height)
     }
 
-    @Test func tabsShareTheWidthAndTheSelectionSitsUnderTheFrontTab() {
+    @Test func tabsTakeTheirOwnWidthsFromTheLeadingEdge() {
         let strip = strip()
         let frames = strip.buttons.map(\.frame)
-        #expect(frames.allSatisfy { abs($0.width - (242 - 2 * PanelTabStrip.inset) / 3) < 0.001 })
-        #expect(frames[0].minX == PanelTabStrip.inset && abs(frames[2].maxX - (242 - PanelTabStrip.inset)) < 0.001)
-        #expect(strip.thumb.frame == frames[1])
+        #expect(frames[0].minX == 0 && frames[1].minX == frames[0].maxX + TabStripLayout.spacing)
+        #expect(frames[1].width == PanelTabButton.iconSize + 2 * PanelTabButton.padding, "an icon-only tab")
+        #expect(frames[2].maxX < 242, "folder tabs do not stretch across the strip")
+        #expect(strip.selectedTabFrame == frames[1])
         #expect(strip.selectedIndex == 1 && strip.selectedID == "b")
-        #expect(strip.tabFrames(in: 100).count == 3)
-        #expect(PanelTabStrip(items: [], selected: nil).tabFrames(in: 100).isEmpty)
-        #expect(strip.tabIndex(atX: 0) == 0 && strip.tabIndex(atX: 100) == 1 && strip.tabIndex(atX: 240) == 3)
+        #expect(PanelTabStrip(items: [], selected: nil).selectedTabFrame == nil)
+        #expect(strip.tabIndex(atX: 0) == 0 && strip.tabIndex(atX: frames[1].midX + 1) == 2 && strip.tabIndex(atX: 240) == 3)
     }
 
     @Test func clicksAndArrowKeysSelectTabs() {
@@ -91,7 +91,7 @@ import WTModel
         strip.setItems([.init(id: "a", title: "Alpha")], selected: "c")
         #expect(strip.buttons.count == 1 && strip.buttons[0] !== buttons[0] && strip.selectedID == "a")
         strip.setItems([], selected: nil)
-        #expect(strip.buttons.isEmpty && strip.selectedID == nil && strip.thumb.isHidden)
+        #expect(strip.buttons.isEmpty && strip.selectedID == nil && strip.selectedTabFrame == nil)
         strip.moveSelection(toEnd: true)
     }
 
@@ -253,7 +253,7 @@ private final class DockFixture {
         let scroll = layers.bodyScroll
         #expect(layers.contentView.frame.height >= 900)
         #expect(scroll.contentView.bounds.height < layers.contentView.frame.height)
-        #expect(scroll.hasVerticalScroller && layers.bodyCard.layer?.masksToBounds == true)
+        #expect(scroll.hasVerticalScroller && layers.bodyScroll.layer?.masksToBounds == true)
         let help = fixture.group("help")
         #expect(fixture.dock.view.convert(layers.bounds, from: layers).minY >= fixture.dock.view.convert(help.bounds, from: help).maxY)
         // A short body fills its group.
@@ -347,15 +347,16 @@ private final class DockFixture {
         assets.onDragTab?(assets.tabButtons[1], event)
         #expect(sessions == [.panel("styles")])
 
-        // Over the Layers title bar: the strip highlights, the caret shows where it lands.
+        // Over the Layers title bar: Layers has no strip (one panel), so its title highlights.
         let layers = fixture.group("layers")
         let drag = DraggingInfoStub(pasteboardName: "tab", panel: "styles", location: fixture.headerPoint("layers"))
         defer { drag.release() }
         #expect(layers.draggingEntered(drag) == .move)
-        #expect(layers.tabStrip.isDropTarget && layers.tabStrip.insertionIndex != nil)
+        #expect(layers.isDropTarget && !layers.showsTabs && layers.tabStrip.insertionIndex == nil)
+        #expect(layers.titleBar.layer?.backgroundColor != nil)
         #expect(fixture.dock.column.insertionIndex == nil)
         layers.draggingExited(drag)
-        #expect(!layers.tabStrip.isDropTarget)
+        #expect(!layers.isDropTarget && layers.titleBar.layer?.backgroundColor == nil)
         #expect(layers.performDragOperation(drag))
         interaction.dragEnded(at: .zero, operation: .move)
         #expect(fixture.layout.layout.group("layers")?.panels.contains("styles") == true)

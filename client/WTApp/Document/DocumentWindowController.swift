@@ -350,7 +350,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
                 return await write(self, url)
             }
         }
-        objectEditing.visibleCenter = { [weak canvas] in canvas.map { $0.viewport.toPasteboard($0.viewport.viewCenter) } }
+        objectEditing.visibleCenter = { [weak canvas] in canvas?.visibleCenter }
         canvas.presence = presence
         canvas.showsRemoteSelections = { preferences[PreferenceCatalog.Sync.showSelections] }
         canvas.presenceDrawer = { [weak self] ctx in self?.collaboration.drawPresence(in: ctx) }
@@ -433,13 +433,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         fatalError("DocumentWindowController is built in code")
     }
 
-    /// The top strip across the window; the left dock and its handle, the canvas column
-    /// (rulers and canvas, the bottom strip, the status bar), the right handle and dock.
+    /// The top strip across the window, then the canvas area under everything else (D-077: the
+    /// canvas runs the full width, under the side docks, their handles, the bottom strip and the
+    /// status bar, which are laid over it).  The canvas's safe area is what they leave
+    /// uncovered: `DocumentContentView` measures it after every layout (`updateCanvasInsets`).
     private func buildContent(in window: NSWindow) {
-        let content = NSView()
+        let content = DocumentContentView()
+        content.onLayout = { [weak self] in self?.updateCanvasInsets() }
         rulerHost.translatesAutoresizingMaskIntoConstraints = false
         let right = dock.view, left = leftDock.view, top = topDock.view, bottom = bottomDock.view
-        for view in [top, left, leftHandle, rulerHost, bottom, statusBar, rightHandle, right] { content.addSubview(view) }
+        // Back to front: the canvas area first, the docks and their handles over it.
+        for view in [rulerHost, bottom, statusBar, top, left, leftHandle, right, rightHandle] { content.addSubview(view) }
         NSLayoutConstraint.activate([
             top.topAnchor.constraint(equalTo: content.topAnchor),
             top.leadingAnchor.constraint(equalTo: content.leadingAnchor),
@@ -452,10 +456,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             leftHandle.leadingAnchor.constraint(equalTo: left.trailingAnchor),
             leftHandle.widthAnchor.constraint(equalToConstant: DockHandleView.thickness),
             rulerHost.topAnchor.constraint(equalTo: top.bottomAnchor),
-            rulerHost.leadingAnchor.constraint(equalTo: leftHandle.trailingAnchor),
-            rulerHost.trailingAnchor.constraint(equalTo: rightHandle.leadingAnchor),
-            rulerHost.bottomAnchor.constraint(equalTo: bottom.topAnchor),
-            rulerHost.widthAnchor.constraint(greaterThanOrEqualToConstant: 200),
+            rulerHost.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            rulerHost.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            rulerHost.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            // The safe area keeps a usable width between the docks.
+            rightHandle.leadingAnchor.constraint(greaterThanOrEqualTo: leftHandle.trailingAnchor, constant: 200),
             bottom.leadingAnchor.constraint(equalTo: leftHandle.trailingAnchor),
             bottom.trailingAnchor.constraint(equalTo: rightHandle.leadingAnchor),
             bottom.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
@@ -475,11 +480,24 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         content.addSubview(banner)
         NSLayoutConstraint.activate([
             banner.topAnchor.constraint(equalTo: rulerHost.topAnchor),
-            banner.leadingAnchor.constraint(equalTo: rulerHost.leadingAnchor),
-            banner.trailingAnchor.constraint(equalTo: rulerHost.trailingAnchor),
+            banner.leadingAnchor.constraint(equalTo: leftHandle.trailingAnchor),
+            banner.trailingAnchor.constraint(equalTo: rightHandle.leadingAnchor),
         ])
         window.contentView = content
         content.layoutSubtreeIfNeeded()
+    }
+
+    /// The parts of the canvas area the window lays over it -- the left dock and its handle, the
+    /// right handle and dock, the bottom strip and status bar -- become the ruler host's
+    /// `obscured` edges, and so the canvas's covered edges.  A hidden dock leaves only its handle.
+    func updateCanvasInsets() {
+        let host = rulerHost.frame
+        guard host.width > 0, host.height > 0 else { return }
+        let left = max(0, leftHandle.frame.maxX - host.minX)
+        let right = max(0, host.maxX - rightHandle.frame.minX)
+        // The content view is not flipped: the bottom strip sits on the status bar.
+        let bottom = max(0, max(bottomDock.view.isHidden ? 0 : bottomDock.view.frame.maxY, statusBar.frame.maxY) - host.minY)
+        rulerHost.obscured = NSEdgeInsets(top: 0, left: left, bottom: bottom, right: right)
     }
 
     /// Where *Float Group* puts a group: near the top right of the window (`frame`).
@@ -1087,7 +1105,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// Where this window is, for the activity's user info.
     var handoffPlace: HandoffActivity.Place {
         HandoffActivity.Place(documentID: documentHandle.id, pageIndex: documentHandle.currentPageIndex, zoom: viewport.zoom,
-                              center: viewport.toPasteboard(viewport.viewCenter))
+                              center: canvas.visibleCenter)
     }
 
     override func updateUserActivityState(_ userActivity: NSUserActivity) {
@@ -1109,5 +1127,17 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     func windowDidMove(_ notification: Notification) {
         saveState()
+    }
+}
+
+/// The document window's content view: after every layout it reports, so the window can measure
+/// what its docks and status bar cover of the canvas (D-077).
+@MainActor
+final class DocumentContentView: NSView {
+    var onLayout: (@MainActor () -> Void)?
+
+    override func layout() {
+        super.layout()
+        onLayout?()
     }
 }

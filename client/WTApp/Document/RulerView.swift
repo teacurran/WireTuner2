@@ -153,6 +153,11 @@ final class RulerStripView: NSView {
     var viewport: Viewport? {
         didSet { if viewport != oldValue { needsDisplay = true } }
     }
+    /// The canvas view position (points along the ruler) at the ruler's start: the canvas runs
+    /// under the dock and the ruler corner (D-077), so the ruler begins part-way along it.
+    var canvasOrigin: Double = 0 {
+        didSet { if canvasOrigin != oldValue { needsDisplay = true } }
+    }
     /// The document's units and the zero point (pasteboard) the ruler counts from.
     var frameOfReference: (units: Units, zero: Point) = (Units(), .zero) {
         didSet { needsDisplay = true }
@@ -196,12 +201,15 @@ final class RulerStripView: NSView {
     var ticks: [RulerScale.Tick] {
         guard let mapping, let scale = scale(for: mapping) else { return [] }
         let length = Double(orientation == .horizontal ? bounds.width : bounds.height)
-        return scale.ticks(from: 0, to: length, offset: mapping.offset, slope: mapping.slope, label: label)
+        let origin = canvasOrigin
+        return scale.ticks(from: origin, to: origin + length, offset: mapping.offset, slope: mapping.slope, label: label).map {
+            RulerScale.Tick(position: $0.position - origin, level: $0.level, label: $0.label)
+        }
     }
 
     func scale(for mapping: RulerMapping) -> RulerScale? {
         let length = Double(orientation == .horizontal ? bounds.width : bounds.height)
-        let extremes = [mapping.value(at: 0), mapping.value(at: length)]
+        let extremes = [mapping.value(at: canvasOrigin), mapping.value(at: canvasOrigin + length)]
         return RulerScale.choose(unit: mapping.unit, viewPointsPerUnit: 1 / abs(mapping.slope)) { step in
             extremes.map { self.label(($0 / step).rounded() * step).count }.max() ?? 1
         }
@@ -236,7 +244,7 @@ final class RulerStripView: NSView {
     func trackedPositions(viewport: Viewport) -> [Double] {
         var points = pointer.map { [$0] } ?? []
         if let bounds = trackedBounds { points += [Point(x: bounds.minX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.maxY)] }
-        return points.map { orientation == .horizontal ? viewport.toView($0).x : viewport.toView($0).y }
+        return points.map { (orientation == .horizontal ? viewport.toView($0).x : viewport.toView($0).y) - canvasOrigin }
     }
 
     private func line(at position: Double, length: Double, in ctx: CGContext) {

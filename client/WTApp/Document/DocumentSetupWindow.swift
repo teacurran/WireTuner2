@@ -217,9 +217,9 @@ extension DocumentWindowController {
         }
     }
 
-    /// Makes the page covering most of the view active.
+    /// Makes the page covering most of the view (the part the dock leaves visible) active.
     func settleViewPage() {
-        guard let page = Self.page(coveringMostOf: viewport.visiblePasteboardBounds, in: documentHandle.pageList) else { return }
+        guard let page = Self.page(coveringMostOf: canvas.visiblePasteboardBounds, in: documentHandle.pageList) else { return }
         documentHandle.selectPage(id: page.id)
     }
 

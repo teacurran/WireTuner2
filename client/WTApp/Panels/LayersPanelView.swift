@@ -67,6 +67,8 @@ struct LayersList: View {
                 .onMove(perform: Self.move(model))
             }
             .listStyle(.plain)
+            // The group's frosted card shows through (D-077, revised).
+            .scrollContentBackground(.hidden)
             .accessibilityIdentifier("layers.list")
         }
         .sheet(isPresented: Binding(get: { !model.state.pendingRemoval.isEmpty }, set: { if !$0 { model.cancelRemoval() } })) {

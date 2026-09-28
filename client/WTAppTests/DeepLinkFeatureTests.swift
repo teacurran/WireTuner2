@@ -107,8 +107,8 @@ import WTRender
         let window = try #require(world.documents.views(of: "doc-b").first)
         #expect(window.documentHandle.title == "Poster")
         #expect(window.selection.selection.ids.map(\.opID) == [node])
-        // Scrolled to the object.
-        let center = window.viewport.toPasteboard(window.viewport.viewCenter)
+        // Scrolled to the object (centred in the part the dock leaves visible).
+        let center = window.canvas.visibleCenter
         #expect(abs(center.x - 5015) < 1 && abs(center.y - 5015) < 1)
         // Open already: it comes forward and lands again.
         window.selection.model.set(Selection())

@@ -61,18 +61,22 @@ import WTRender
         let thickness = RulerHostView.rulerThickness
         #expect(host.horizontalRuler.frame.height == thickness)
         #expect(host.verticalRuler.frame.width == thickness)
-        #expect(host.horizontalRuler.frame.width == controller.canvas.frame.width)
-        #expect(host.verticalRuler.frame.height == controller.canvas.frame.height)
-        #expect(controller.canvas.frame.minX == thickness && controller.canvas.frame.minY == thickness)
-        #expect(host.verticalScroller.frame.minX == controller.canvas.frame.maxX)
-        #expect(host.horizontalScroller.frame.minY == controller.canvas.frame.maxY)
+        // The canvas fills the host (D-077: it runs under the dock); the rulers and scroll bars
+        // frame its safe area.
+        let safe = RulerHostView.canvasFrame(in: host.bounds.size, rulersVisible: true, obscured: host.obscured)
+        #expect(controller.canvas.frame == host.bounds)
+        #expect(host.horizontalRuler.frame.width == safe.width && host.horizontalRuler.frame.minX == safe.minX)
+        #expect(host.verticalRuler.frame.height == safe.height && host.verticalRuler.frame.maxX == safe.minX)
+        #expect(safe.minY == thickness && host.obscured.right > 0)
+        #expect(host.verticalScroller.frame.minX == safe.maxX)
+        #expect(host.horizontalScroller.frame.minY == safe.maxY)
         #expect(controller.statusBar.frame.height == StatusBarView.height)
         #expect(host.horizontalRuler.accessibilityIdentifier() == "ruler.horizontal")
         #expect(host.verticalRuler.accessibilityRole() == .ruler)
         // No saved state: fitted to the page.
         let page = Pasteboard.letterPage
         let viewport = controller.viewport
-        #expect(viewport.toView(page.center).isApproximatelyEqual(to: viewport.viewCenter, tolerance: 1e-6))
+        #expect(viewport.toView(page.center).isApproximatelyEqual(to: controller.canvas.navigation.safeCenter(viewport), tolerance: 1e-6))
         #expect(controller.statusBar.magnification.stringValue == MagnificationFormat.string(for: viewport.zoom))
         #expect(controller.statusBar.viewMode.titleOfSelectedItem == "Preview")
         #expect(controller.toolManager.activeToolID == .pointer)
@@ -85,6 +89,7 @@ import WTRender
         controller.rulerHost.rulersVisible = false
         controller.rulerHost.layoutSubtreeIfNeeded()
         #expect(controller.canvas.frame.minX == 0)
+        #expect(controller.canvas.safeInsets.top == 0, "no ruler above the safe area")
         #expect(controller.rulerHost.horizontalRuler.isHidden)
         #expect(RulerHostView.canvasFrame(in: CGSize(width: 10, height: 10), rulersVisible: true).width == 0)
     }
@@ -95,10 +100,11 @@ import WTRender
         defer { controller.close() }
         controller.zoom(toPercent: 100)
         #expect(controller.viewport.zoom == 1)
-        let centre = controller.viewport.toPasteboard(controller.viewport.viewCenter)
+        // Zooming keeps the centre of what the dock leaves visible (D-077).
+        let centre = controller.canvas.visibleCenter
         controller.zoomIn()
         #expect(controller.viewport.zoom == 2)
-        #expect(controller.viewport.toPasteboard(controller.viewport.viewCenter).isApproximatelyEqual(to: centre, tolerance: 1e-6))
+        #expect(controller.canvas.visibleCenter.isApproximatelyEqual(to: centre, tolerance: 1e-6))
         controller.zoomOut()
         controller.zoomOut()
         #expect(controller.viewport.zoom == 0.5)

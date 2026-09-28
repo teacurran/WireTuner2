@@ -192,7 +192,7 @@ struct TransformPanelBody: View {
                 label: "Transform", options: TransformPanelModel.Tab.allCases.map { ($0, $0.id, $0.title) }, selection: $state.model.tab,
                 identifier: "transform.tab"
             )
-            .frame(height: PanelTabStrip.height)
+            .frame(height: PanelTabStrip.sectionHeight)
             Form {
                 switch state.model.tab {
                 case .move:

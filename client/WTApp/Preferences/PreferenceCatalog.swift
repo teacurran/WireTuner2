@@ -210,9 +210,10 @@ enum PreferenceCatalog {
         static let c = PreferenceCategory.panels
         static let labelStyle = PreferenceKey<String>("panels.label_style", "Label panel tabs with", category: c, default: "text_and_icon", control: choices([("text", "Text only"), ("icon", "Icon only"), ("text_and_icon", "Text and icon")]), help: "panels")
         static let showTooltips = PreferenceKey<Bool>("panels.show_tooltips", "Show tooltips", category: c, default: true, control: .toggle, help: "toolbars")
+        static let transparency = PreferenceKey<String>("panels.transparency", "Panel transparency", category: c, default: "translucent", control: choices([("translucent", "Translucent"), ("solid", "Solid")]), help: "panels")
         static let layerClickMoves = PreferenceKey<Bool>("panels.layer_click_moves", "Clicking a layer name moves selected objects", category: c, default: true, control: .toggle, help: "layers")
 
-        static let all: [AnyPreferenceKey] = [labelStyle.erased, showTooltips.erased, layerClickMoves.erased]
+        static let all: [AnyPreferenceKey] = [labelStyle.erased, showTooltips.erased, transparency.erased, layerClickMoves.erased]
     }
 
     enum Redraw {

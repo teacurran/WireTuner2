@@ -197,6 +197,7 @@ document should look the same for everyone.
 
 |Label panel tabs with |Text and icon |Text only, Icon only, or both. xref:panels.adoc[Using panels]
 |Show tooltips |On |Pausing over a tool or button shows its name and shortcut. xref:toolbars.adoc[Toolbars]
+|Panel transparency |Translucent |Translucent lets the document show through the dock and floating panels; Solid makes them opaque.  Reduce Transparency in System Settings makes them solid either way. xref:panels.adoc[Using panels]
 |Clicking a layer name moves selected objects |On |Clicking a layer in the Layers panel moves the selection to it; off only makes it current. xref:layers.adoc[Layers]
 |===
 

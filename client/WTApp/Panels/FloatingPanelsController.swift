@@ -15,12 +15,15 @@ final class FloatingPanelsController {
     private(set) var windows: [PanelGroup.ID: FloatingPanelWindow] = [:]
     private var bodies: [PanelID: NSView] = [:]
     private var observation: PanelLayoutController.ObservationToken?
+    /// Reduce Transparency switched: floating groups redraw solid or translucent.
+    private var displayObserver: AccessibilityDisplayObserver?
 
     init(panels: PanelRegistry, layout: PanelLayoutController, interaction: PanelInteraction? = nil) {
         self.panels = panels
         self.layoutController = layout
         self.interaction = interaction ?? PanelInteraction(panels: panels, layout: layout)
         observation = layout.observe { [weak self] layout in self?.render(layout) }
+        displayObserver = AccessibilityDisplayObserver { [weak self] in self?.appearanceDidChange() }
     }
 
     /// Re-renders with the current appearance.
@@ -64,7 +67,8 @@ final class FloatingPanelsController {
     }
 }
 
-/// One floating group's window: a utility panel on the system glass (D-077) -- the window
+/// One floating group's window: a utility panel on the system glass with the chrome's frost
+/// (D-077, revised; solid under *Panel transparency* Solid or Reduce Transparency) -- the window
 /// itself is clear and the group view draws the glass -- without the standard title bar
 /// buttons (the group's title bar has its own close button and moves the window).  Moving or
 /// resizing it writes the frame into the layout.

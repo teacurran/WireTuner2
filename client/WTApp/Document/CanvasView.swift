@@ -424,7 +424,9 @@ final class CanvasView: NSView, CanvasHost {
         hud.string = message
         hud.contentsScale = window?.backingScaleFactor ?? 2
         let width = min(max(CGFloat(message.count) * 7.5 + 24, 120), max(bounds.width - 20, 120))
-        hud.frame = CGRect(x: (bounds.width - width) / 2, y: 24, width: width, height: 26)
+        // Centred in the safe area, above the scroll bar (AppKit coordinates: y up).
+        let safe = appKitSafeRect
+        hud.frame = CGRect(x: safe.midX - width / 2, y: safe.minY + 24, width: width, height: 26)
         hud.isHidden = false
         hudHide?.cancel()
         hudHide = Task { [weak self] in
@@ -455,7 +457,49 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func resetCursorRects() {
-        addCursorRect(bounds, cursor: toolManager?.cursor ?? .arrow)
+        // Only the safe area: the dock, rulers and scroll bars over the canvas keep their cursors.
+        addCursorRect(appKitSafeRect, cursor: toolManager?.cursor ?? .arrow)
+    }
+
+    // MARK: Safe area (D-077)
+
+    /// The canvas's covered edges (the docks, rulers and scroll bars laid over it), view points.
+    /// Fits, centring, the scroll bars, auto-scroll, the cursor and pointer tracking use what is
+    /// left; the tiles are drawn under the covered parts too.
+    var safeInsets: CanvasInsets {
+        get { navigation.insets }
+        set {
+            guard newValue != navigation.insets else { return }
+            navigation.insets = newValue
+            let clamped = navigation.clamped(viewport)
+            if clamped != viewport {
+                viewport = clamped
+                render()
+            }
+            onViewportChange?(viewport)
+            window?.invalidateCursorRects(for: self)
+            updateTrackingAreas()
+        }
+    }
+
+    /// The unobscured part of the canvas, view points (y down).
+    var safeRect: Rect { navigation.safeRect(viewport) }
+
+    /// The unobscured part of the canvas in this view's AppKit coordinates (y up).
+    var appKitSafeRect: CGRect {
+        let safe = navigation.insets.safeRect(in: Size(bounds.size))
+        return CGRect(x: safe.minX, y: Double(bounds.height) - safe.maxY, width: safe.width, height: safe.height).intersection(bounds)
+    }
+
+    /// The pasteboard point at the centre of the safe area (where Paste and Import land).
+    var visibleCenter: Point { viewport.toPasteboard(navigation.safeCenter(viewport)) }
+
+    /// The pasteboard rectangle the safe area shows (its bounding box when the canvas is rotated).
+    var visiblePasteboardBounds: Rect {
+        let safe = safeRect
+        let corners = [Point(x: safe.minX, y: safe.minY), Point(x: safe.maxX, y: safe.minY), Point(x: safe.minX, y: safe.maxY), Point(x: safe.maxX, y: safe.maxY)]
+            .map(viewport.toPasteboard)
+        return Rect(minX: corners.map(\.x).min()!, minY: corners.map(\.y).min()!, maxX: corners.map(\.x).max()!, maxY: corners.map(\.y).max()!)
     }
 
     // MARK: Events
@@ -512,10 +556,16 @@ final class CanvasView: NSView, CanvasHost {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         for area in trackingAreas where area.owner === self { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self))
+        // The safe area only: a pointer over the dock or the rulers is not over the canvas.
+        addTrackingArea(NSTrackingArea(rect: appKitSafeRect, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow], owner: self))
     }
 
     override func mouseMoved(with event: NSEvent) {
+        guard appKitSafeRect.contains(convert(event.locationInWindow, from: nil)) else {
+            // Tracking areas hear the mouse through the views laid over the canvas.
+            onPointer?(nil)
+            return
+        }
         let translated = canvasEvent(event)
         toolManager?.pointerMoved(translated)
         onPointer?(translated.pasteboardPoint)
@@ -737,7 +787,7 @@ final class CanvasView: NSView, CanvasHost {
     var autoscrolls: @MainActor () -> Bool = { true }
 
     private func updateAutoscroll(_ event: CanvasEvent) {
-        guard autoscrolls(), CanvasAutoscroll.delta(viewPoint: event.viewPoint, size: viewport.size) != nil else {
+        guard autoscrolls(), CanvasAutoscroll.delta(viewPoint: event.viewPoint, in: safeRect) != nil else {
             stopAutoscroll()
             return
         }
@@ -753,7 +803,7 @@ final class CanvasView: NSView, CanvasHost {
     /// One auto-scroll step; returns whether the pointer is still at the edge.
     @discardableResult
     func autoscrollStep() -> Bool {
-        guard let event = autoscrollEvent, let delta = CanvasAutoscroll.delta(viewPoint: event.viewPoint, size: viewport.size) else {
+        guard let event = autoscrollEvent, let delta = CanvasAutoscroll.delta(viewPoint: event.viewPoint, in: safeRect) else {
             return false
         }
         setViewport(navigation.scroll(viewport, by: delta))
@@ -783,8 +833,14 @@ enum CanvasAutoscroll {
 
     /// The scroll for a pointer at `viewPoint` in a view of `size`; nil well inside it.
     static func delta(viewPoint: Point, size: Size) -> Vector? {
-        let dx = axis(viewPoint.x, length: size.width)
-        let dy = axis(viewPoint.y, length: size.height)
+        delta(viewPoint: viewPoint, in: Rect(x: 0, y: 0, width: size.width, height: size.height))
+    }
+
+    /// The scroll for a pointer at `viewPoint` near the edges of `area` (the canvas's safe area,
+    /// view points: a drag reaching the dock scrolls as a drag reaching the window's edge does).
+    static func delta(viewPoint: Point, in area: Rect) -> Vector? {
+        let dx = axis(viewPoint.x - area.minX, length: area.width)
+        let dy = axis(viewPoint.y - area.minY, length: area.height)
         return dx == 0 && dy == 0 ? nil : Vector(dx: dx, dy: dy)
     }
 

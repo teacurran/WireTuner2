@@ -1,28 +1,40 @@
 import AppKit
 
-/// One group (panels.adoc, "Docking and floating"; D-077): the title bar -- a close button when
-/// floating, the gripper, the disclosure triangle, the title (or the rename field), the Options
-/// button -- then the Liquid Glass tab strip, then the front panel's body on a standard material.
-/// The body scrolls when it is taller than the group, and the group clips it, so it never draws
-/// over its neighbour.  A collapsed group is its title bar only.  Floating, the whole group sits
-/// on the system glass.  Reports gestures through closures and never touches the layout itself.
+/// One group (panels.adoc, "Docking and floating"; D-077, revised after use): the title bar -- a
+/// close button when floating, the gripper, the disclosure triangle, the title (or the rename
+/// field), the Options button -- then, when the group has more than one panel, our tab strip,
+/// whose selected tab is joined to the card below it like a folder tab; then the front panel's
+/// body on the card's heavier frost.  A group with one panel shows no strip (it drags by its
+/// title).  The body scrolls when it is taller than the group, and the group clips it, so it
+/// never draws over its neighbour.  A collapsed group is its title bar only.  Floating, the whole
+/// group sits on the system glass with the chrome's frost.  Reports gestures through closures and
+/// never touches the layout itself.
 @MainActor
 final class PanelGroupView: NSView, NSTextFieldDelegate {
     static let titleHeight: CGFloat = 28
-    static let tabRowHeight: CGFloat = PanelTabStrip.height + 6
-    /// Around the tab strip and the body card.
+    /// The tab row: the strip, whose selected tab runs straight into the card.
+    static let tabRowHeight: CGFloat = PanelTabStrip.height
+    /// Around the card.
     static let margin: CGFloat = 6
-    static let bodyCornerRadius: CGFloat = 8
+    static let bodyCornerRadius: CGFloat = PanelCardView.cornerRadius
 
-    /// The group's height without its body: the title bar, and when expanded the tab row and
-    /// the margin under the body.
-    static func chromeHeight(collapsed: Bool) -> CGFloat {
-        collapsed ? titleHeight : titleHeight + tabRowHeight + margin
+    /// Whether `group` shows a tab strip: only with more than one panel.
+    static func showsTabs(_ group: PanelGroup) -> Bool { group.panels.count > 1 }
+
+    /// The group's height without its body: the title bar, and when expanded the tab row (with
+    /// tabs) and the margin under the card.
+    static func chromeHeight(collapsed: Bool, tabs: Bool = true) -> CGFloat {
+        collapsed ? titleHeight : titleHeight + (tabs ? tabRowHeight : 0) + margin
     }
 
     /// The group's height with a body `content` points tall.
-    static func height(forContent content: CGFloat, collapsed: Bool) -> CGFloat {
-        collapsed ? titleHeight : chromeHeight(collapsed: false) + max(0, content)
+    static func height(forContent content: CGFloat, collapsed: Bool, tabs: Bool = true) -> CGFloat {
+        collapsed ? titleHeight : chromeHeight(collapsed: false, tabs: tabs) + max(0, content)
+    }
+
+    /// `group`'s chrome height.
+    static func chromeHeight(of group: PanelGroup) -> CGFloat {
+        chromeHeight(collapsed: group.collapsed, tabs: showsTabs(group))
     }
 
     private(set) var group: PanelGroup
@@ -36,14 +48,18 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     private(set) var closeButton: NSButton?
     private(set) var gripper: GripperView
     private(set) var tabStrip: PanelTabStrip
-    /// The standard material under the body, and the scroll view the body is in.
-    private(set) var bodyCard: NSVisualEffectView
+    /// The card under the selected tab and the body, and the scroll view the body is in.
+    private(set) var bodyCard: PanelCardView
     private(set) var bodyScroll: NSScrollView
     /// The scroll view's document: holds the front panel's body.
     private(set) var contentView = PanelBodyView()
     private(set) var titleBar: PanelTitleBar
     /// The glass under a floating group.
     private(set) var background: NSView?
+    /// The chrome's frost on a floating group's glass.
+    private(set) var frost: PanelFrostView?
+    /// A panel or group dragged over this group's title (a group without a strip shows it there).
+    private(set) var isDropTarget = false
     /// The dock this group is docked in; drags over its body go to the dock (to dock between
     /// groups) rather than joining the group.
     weak var dock: PanelDockController?
@@ -86,7 +102,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
             return PanelTabStrip.Item(id: panel, title: label.title, image: label.image, toolTip: appearance.showsTooltips ? title(panel) : nil, accessibilityLabel: title(panel))
         }
         tabStrip = PanelTabStrip(items: items, selected: group.effectiveActivePanel, accessibilityLabel: group.displayName(titles: title))
-        bodyCard = PanelGlass.contentMaterial(cornerRadius: Self.bodyCornerRadius)
+        bodyCard = PanelCardView(translucent: appearance.isTranslucent)
         bodyScroll = NSScrollView()
         super.init(frame: NSRect(x: 0, y: 0, width: 260, height: 320))
 
@@ -101,6 +117,9 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
             glass.setAccessibilityElement(false)
             addSubview(glass)
             background = glass
+            let wash = PanelFrostView(level: .chrome, translucent: appearance.isTranslucent, cornerRadius: FloatingPanelWindow.cornerRadius)
+            addSubview(wash)
+            frost = wash
         }
 
         disclosure.target = self
@@ -131,6 +150,9 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         titleBar.spacing = 4
         titleBar.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 6)
         titleBar.onClick = { [weak self] in self?.onToggleCollapse?() }
+        // Docked, dragging the title drags the group (as the gripper does): a group without a
+        // tab strip is dragged by its title.
+        titleBar.onDrag = { [weak self] event in self?.onDragGroup?(event) }
         // A narrow (or hidden, zero-width) dock clips the title bar rather than breaking it.
         titleBar.setClippingResistancePriority(.defaultLow, for: .horizontal)
         addSubview(titleBar)
@@ -139,7 +161,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         tabStrip.onDragTab = { [weak self] button, event in self?.onDragTab?(button, event) }
         tabStrip.contextMenu = { [weak self] id in self?.tabMenu?(id) }
         tabStrip.setAccessibilityIdentifier("panel-group.\(group.id).tabs")
-        addSubview(tabStrip)
+        tabStrip.onSelectionFrameChange = { [weak self] _ in self?.updateCardShape() }
 
         bodyScroll.drawsBackground = false
         bodyScroll.borderType = .noBorder
@@ -160,10 +182,13 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
             contentView.heightAnchor.constraint(greaterThanOrEqualTo: clip.heightAnchor),
             fill,
         ])
-        bodyScroll.frame = bodyCard.bounds
-        bodyScroll.autoresizingMask = [.width, .height]
+        bodyScroll.wantsLayer = true
+        bodyScroll.layer?.cornerRadius = Self.bodyCornerRadius
+        bodyScroll.layer?.masksToBounds = true
         bodyCard.addSubview(bodyScroll)
         addSubview(bodyCard)
+        // Over the card, so the selected tab's label sits on the card's folder tab.
+        addSubview(tabStrip)
         show(group.effectiveActivePanel, body: body)
         applyCollapsed(group.collapsed)
         layoutParts()
@@ -193,6 +218,8 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
 
     var tabButtons: [PanelTabButton] { tabStrip.buttons }
     var isCollapsed: Bool { bodyCard.isHidden }
+    /// Whether the strip shows (expanded, with more than one panel).
+    var showsTabs: Bool { !tabStrip.isHidden }
 
     // MARK: Updating in place
 
@@ -241,7 +268,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     private func applyCollapsed(_ collapsed: Bool) {
         disclosure.state = collapsed ? .off : .on
         disclosure.setAccessibilityLabel(collapsed ? "Expand" : "Collapse")
-        tabStrip.isHidden = collapsed
+        tabStrip.isHidden = collapsed || !Self.showsTabs(group)
         bodyCard.isHidden = collapsed
         needsLayout = true
     }
@@ -255,12 +282,31 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
 
     private func layoutParts() {
         background?.frame = bounds
+        frost?.frame = bounds
         let width = bounds.width
+        let inner = max(0, width - 2 * Self.margin)
         titleBar.frame = NSRect(x: 0, y: 0, width: width, height: Self.titleHeight)
-        tabStrip.frame = NSRect(x: Self.margin, y: Self.titleHeight + 1, width: max(0, width - 2 * Self.margin), height: PanelTabStrip.height)
-        let top = Self.titleHeight + Self.tabRowHeight
-        bodyCard.frame = NSRect(x: Self.margin, y: top, width: max(0, width - 2 * Self.margin), height: max(0, bounds.height - top - Self.margin))
+        let tabs = Self.showsTabs(group)
+        tabStrip.frame = NSRect(x: Self.margin, y: Self.titleHeight, width: inner, height: PanelTabStrip.height)
+        bodyCard.frame = NSRect(x: Self.margin, y: Self.titleHeight, width: inner, height: max(0, bounds.height - Self.titleHeight - Self.margin))
+        bodyCard.bodyTop = tabs ? Self.tabRowHeight : 0
+        bodyScroll.frame = bodyCard.bodyRect
+        updateCardShape()
     }
+
+    /// The card's folder tab follows the strip's selected tab.
+    private func updateCardShape() {
+        guard Self.showsTabs(group), let tab = tabStrip.selectedTabFrame else {
+            bodyCard.tabRect = nil
+            return
+        }
+        bodyCard.tabRect = bodyCard.convert(tab, from: tabStrip)
+    }
+
+    // MARK: Transparency
+
+    /// Solid or translucent (the *Panel transparency* preference, Reduce Transparency).
+    var isTranslucent: Bool { bodyCard.isTranslucent }
 
     @objc func selectTab(_ sender: PanelTabButton) {
         onSelectTab?(sender.panelID)
@@ -336,7 +382,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     /// or one outside a dock, else on the title bar and tab strip.  Over a docked group's body
     /// the drop goes to the dock, to dock between groups.
     func joins(at point: CGPoint) -> Bool {
-        dock == nil || isFloating || point.y < Self.titleHeight + (isCollapsed ? 0 : Self.tabRowHeight)
+        dock == nil || isFloating || point.y < Self.titleHeight + (showsTabs ? Self.tabRowHeight : 0)
     }
 
     private func dockPoint(_ sender: NSDraggingInfo) -> CGPoint? {
@@ -352,8 +398,8 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         guard PanelDragPayload.read(from: sender.draggingPasteboard) != nil else { return [] }
         let point = convert(sender.draggingLocation, from: nil)
         if joins(at: point) {
-            tabStrip.isDropTarget = true
-            tabStrip.insertionIndex = tabIndex(at: point)
+            setDropTarget(true)
+            tabStrip.insertionIndex = showsTabs ? tabIndex(at: point) : nil
             dock?.showInsertion(atDockPoint: nil)
         } else {
             clearDropHighlight()
@@ -372,8 +418,17 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     }
 
     func clearDropHighlight() {
-        tabStrip.isDropTarget = false
+        setDropTarget(false)
         tabStrip.insertionIndex = nil
+    }
+
+    /// The strip takes the accent tint; a group without a strip tints its title bar instead.
+    private func setDropTarget(_ on: Bool) {
+        isDropTarget = on
+        tabStrip.isDropTarget = on
+        titleBar.wantsLayer = true
+        titleBar.layer?.cornerRadius = 7
+        titleBar.layer?.backgroundColor = on && !showsTabs ? NSColor.controlAccentColor.withAlphaComponent(0.22).cgColor : nil
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
@@ -402,6 +457,8 @@ final class PanelTitleBar: NSStackView {
     /// A drag shorter than this (points) is a click.
     static let clickSlop: CGFloat = 3
     var onClick: (() -> Void)?
+    /// A drag of a docked group's title (it drags the group, as the gripper does).
+    var onDrag: ((NSEvent) -> Void)?
 
     override var isFlipped: Bool { true }
 
@@ -424,7 +481,11 @@ final class PanelTitleBar: NSStackView {
                 return
             }
             if hypot(next.locationInWindow.x - start.x, next.locationInWindow.y - start.y) >= Self.clickSlop {
-                if window is FloatingPanelWindow { window.performDrag(with: event) }
+                if window is FloatingPanelWindow {
+                    window.performDrag(with: event)
+                } else {
+                    onDrag?(event)
+                }
                 return
             }
         }

@@ -26,9 +26,10 @@ import WTRender
         let changes = controller.documentHandle.changeCount
         func reset() { controller.zoom(toPercent: start * 100) }
         reset()
-        let centre = controller.viewport.toPasteboard(controller.viewport.viewCenter)
+        // The centre of the part the dock leaves visible (D-077).
+        let centre = controller.canvas.visibleCenter
         func expectCentred(_ label: String) {
-            #expect(controller.viewport.toView(centre).isApproximatelyEqual(to: controller.viewport.viewCenter, tolerance: 1e-6), "\(label) keeps the window centre")
+            #expect(controller.viewport.toView(centre).isApproximatelyEqual(to: controller.canvas.navigation.safeCenter(controller.viewport), tolerance: 1e-6), "\(label) keeps the window centre")
         }
         #expect(registry.perform(ids.zoomIn))
         #expect(controller.viewport.zoom == ZoomLadder.zoomIn(from: start))
@@ -45,7 +46,7 @@ import WTRender
         }
         #expect(registry.perform(ids.fitPage))
         let page = controller.documentHandle.currentPage!
-        #expect(controller.viewport.toView(page.center).isApproximatelyEqual(to: controller.viewport.viewCenter, tolerance: 1e-6))
+        #expect(controller.viewport.toView(page.center).isApproximatelyEqual(to: controller.canvas.navigation.safeCenter(controller.viewport), tolerance: 1e-6))
         #expect(registry.perform(ids.fitAll))
         #expect(controller.documentHandle.changeCount == changes, "no change reaches the outbox")
     }
@@ -307,7 +308,7 @@ import WTRender
         let unrestored = DocumentWindowController(document: fresh, environment: environment.document)
         defer { unrestored.close() }
         #expect(unrestored.documentHandle.currentPageIndex == 0)
-        #expect(unrestored.viewport.toView(fresh.pages[0].center).isApproximatelyEqual(to: unrestored.viewport.viewCenter, tolerance: 1e-6))
+        #expect(unrestored.viewport.toView(fresh.pages[0].center).isApproximatelyEqual(to: unrestored.canvas.navigation.safeCenter(unrestored.viewport), tolerance: 1e-6))
     }
 
     @Test func theNearestPageIsChosenByDistance() {
