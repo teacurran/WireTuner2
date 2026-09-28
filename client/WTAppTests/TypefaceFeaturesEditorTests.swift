@@ -150,6 +150,9 @@ import WTProto
             fixture.close()
         }
         let registry = fixture.environment.commands
+        // No editor in front: stubbed, since the default reads the key window, and whether the
+        // editor this test just opened became key depends on the tests before it.
+        fixture.features.frontEditor = { nil }
         #expect(registry.command(TypefaceFeatures.ID.insertClassFromSuffix)?.validation().reason == TypefaceFeatures.noFeaturesEditor)
         fixture.features.frontEditor = { editor }
         #expect(registry.command(TypefaceFeatures.ID.insertClassFromSuffix)?.validation().isEnabled == true)
