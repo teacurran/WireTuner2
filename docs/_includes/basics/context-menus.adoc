@@ -236,9 +236,10 @@ Library panel; *Trace…* chooses the Trace tool; *Edit With* is *Edit in Extern
 image editor, as the Object panel's btn:[Edit With…]); *Duplicate Page* (`DuplicatePage` of the active
 page), *Remove Page* (the Page tool's removal, confirming when objects go) and *Go to Page* (focuses the
 status bar's page field); *Rename Document…* (a sheet renaming the library entry) and *Show in Library*;
-*Go to <name>'s Page* (the collaborator's page from presence).  Still placeholders, on the audit's
-allow-list (`ControlReachabilityTests.notBuilt`): *Remove Overlap*, *Release Contents*, *Convert to
-Editable* and *Hide <name>'s Cursor*.
+*Go to <name>'s Page* (the collaborator's page from presence).  The four the audit left as placeholders
+are built: *Remove Overlap* (DRAW-060, editing-paths.adoc), *Release Contents* (OBJ-060,
+clipping-paths.adoc), *Convert to Editable* (IMG-060, import-formats.adoc) and *Hide <name>'s Cursor*
+(COLLAB-060, presence.adoc); `ControlReachabilityTests.notBuilt` is empty.
 
 === Build tasks
 

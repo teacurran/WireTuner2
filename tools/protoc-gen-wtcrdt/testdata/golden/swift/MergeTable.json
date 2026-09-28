@@ -4147,6 +4147,39 @@
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "open",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -14003,5 +14036,5 @@
       "kind_field": 1
     }
   },
-  "version": "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8"
+  "version": "e8bbeb277e1ae951fe2098b310df85b8619e6d67a1b039d9eb91b94673ea918f"
 }

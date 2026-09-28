@@ -235,3 +235,76 @@ import WTRender
         #expect(a.label == "Draw spiral")
     }
 }
+
+/// DRAW-061: ellipse arcs -- start and end angles, open or closed.
+@Suite struct EllipseArcTests {
+    static func ellipse(on a: inout Replica, width: Double = 80, height: Double = 40) throws -> OpID {
+        try LayerFixture.object(CreateShape(.ellipse, size: Size(width: width, height: height)), on: &a)
+    }
+
+    @Test func readTimeRules() {
+        #expect(EllipseArc(start: 370, end: -90) == EllipseArc(start: 10, end: 270))
+        #expect(EllipseArc(start: .nan, end: .infinity).isWhole)
+        #expect(EllipseArc(start: 360, end: 0).isWhole && EllipseArc().sweep == 360)
+        #expect(EllipseArc(start: 300, end: 30).sweep == 90 && EllipseArc(start: 0, end: 90).sweep == 90)
+        #expect(EllipseArc.normalized(-360) == 0 && EllipseArc.normalized(-0.0000000001) == 0)
+    }
+
+    @Test func theWholeEllipseKeepsItsFourCurvePoints() {
+        var props = Wiretuner_Doc_V1_EllipseProps()
+        props.size.width = 80
+        props.size.height = 40
+        props.open = true
+        #expect(ShapeGeometry.path(props) == ShapeGeometry.ellipsePath(size: Size(width: 80, height: 40)))
+    }
+
+    @Test func aQuarterArcOpenAndClosed() {
+        let size = Size(width: 80, height: 40)
+        let open = ShapeGeometry.arcPath(size: size, arc: EllipseArc(start: 0, end: 90, open: true)).contours[0]
+        #expect(!open.closed && open.points.count == 2)
+        #expect(open.points[0].anchor.distance(to: Point(x: 80, y: 20)) < 1e-9)
+        #expect(open.points[1].anchor.distance(to: Point(x: 40, y: 0)) < 1e-9, "counterclockwise on screen: 90° is the top")
+        // The quarter circle's handle length (kappa) scaled by each radius.
+        #expect(abs(open.points[0].outHandle.dy + 20 * ShapeGeometry.kappa) < 1e-6 && abs(open.points[1].inHandle.dx - 40 * ShapeGeometry.kappa) < 1e-6)
+        let wedge = ShapeGeometry.arcPath(size: size, arc: EllipseArc(start: 0, end: 90)).contours[0]
+        #expect(wedge.closed && wedge.points.count == 3 && wedge.points[2].anchor == Point(x: 40, y: 20))
+        // 270° runs in three pieces; the middle points are smooth.
+        let long = ShapeGeometry.arcPath(size: size, arc: EllipseArc(start: 45, end: 315, open: true)).contours[0]
+        #expect(long.points.count == 4 && long.points[1].kind == .curve && long.points[0].kind == .corner)
+        #expect(long.points[3].anchor.distance(to: Point(x: 40 + 40 * cos(-.pi / 4), y: 20 - 20 * sin(-.pi / 4))) < 1e-9)
+        #expect(ShapeGeometry.arcPath(size: Size(width: 0, height: 5), arc: EllipseArc(start: 0, end: 90)).contours.isEmpty)
+    }
+
+    @Test func theArcFieldsWriteOneRegisterEach() throws {
+        var a = Replica(0xA)
+        let node = try Self.ellipse(on: &a)
+        let change = try #require(try a.perform(SetEllipseArc([node], start: 390, end: 180.123)))
+        #expect(change.label == "Change arc" && change.ops.count == 1 && change.ops[0].set.paths.count == 2)
+        let props = a.state.props(node).ellipse
+        #expect(props.startAngle == 30 && props.endAngle == 180.12 && !props.open)
+        try a.perform(SetEllipseArc([node], open: true))
+        #expect(a.state.props(node).ellipse.open && a.state.props(node).ellipse.startAngle == 30)
+        #expect(!ClipGroups.canClip(node, in: a.state), "an open arc has no inside")
+        try a.perform(SetEllipseArc([node], open: false))
+        #expect(ClipGroups.canClip(node, in: a.state))
+        // Its derived path is the wedge, for every consumer.
+        #expect(Objects.localPath(node, in: a.state)?.contours[0].points.count == 4)
+        #expect(throws: PathEditError.self) { try a.perform(SetEllipseArc([node], start: .nan)) }
+        let rect = try LayerFixture.object(LayerFixture.rect(on: nil, x: 5), on: &a)
+        #expect(try a.perform(SetEllipseArc([rect], start: 10)) == nil)
+        #expect(try a.perform(SetEllipseArc([node])) == nil)
+        #expect(SetEllipseArc([node, rect]).label == "Change arc of 2 objects")
+    }
+
+    @Test func concurrentArcEditsKeepEachRegister() throws {
+        var pair = Pair()
+        let node = try Self.ellipse(on: &pair.a)
+        pair.sync()
+        try pair.a.perform(SetEllipseArc([node], start: 30, end: 120))
+        try pair.b.perform(SetEllipseArc([node], start: 45, open: true))
+        pair.sync()
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        let props = pair.a.state.props(node).ellipse
+        #expect(props.startAngle == 45 && props.endAngle == 120 && props.open)
+    }
+}

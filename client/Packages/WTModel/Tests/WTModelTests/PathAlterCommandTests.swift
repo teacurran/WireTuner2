@@ -114,6 +114,56 @@ import WTProto
         #expect(try a.perform(CorrectDirection([flat])) == nil)
     }
 
+    /// The filled area of `node` (shoelace over a sampled outline, holes subtracted by direction).
+    static func area(_ node: OpID, in a: Replica) -> Double {
+        a.path(node).contours.reduce(0) { $0 + PathAlterKernels.signedArea(PathAlterKernels.polygon($1)) / 2 }
+    }
+
+    @Test func removeOverlapRedrawsTwoCrossingSquaresAsOneOutline() throws {
+        var a = Replica(0xA)
+        let first = PathFixture.points([(0, 0), (60, 0), (60, 60), (0, 60)])
+        let second = PathFixture.points([(30, 30), (90, 30), (90, 90), (30, 90)])
+        let node = try LayerFixture.object(CreatePath(contours: [NewContour(closed: true, points: first), NewContour(closed: true, points: second)]), on: &a)
+        let before = a.path(node).contours.map(\.id)
+        #expect(RemoveOverlap.paths([node], in: a.state) == [node])
+        let change = try #require(try a.perform(RemoveOverlap([node])))
+        #expect(change.label == "Remove Overlap")
+        let after = a.path(node).contours
+        #expect(after.count == 1 && Set(after.map(\.id)).isDisjoint(with: before))
+        #expect(after[0].points.count == 8)
+        // 60 × 60 twice less the 30 × 30 they share.
+        #expect(abs(abs(Self.area(node, in: a)) - 6_300) < 1)
+        // Nothing overlaps any more: nothing to write.
+        #expect(try a.perform(RemoveOverlap([node])) == nil)
+    }
+
+    @Test func removeOverlapSplitsAFigureEightAndKeepsHoles() throws {
+        var a = Replica(0xA)
+        let bowtie = try LayerFixture.object(PathFixture.closed([(0, 0), (100, 100), (100, 0), (0, 100)]), on: &a)
+        try a.perform(RemoveOverlap([bowtie]))
+        #expect(a.path(bowtie).contours.count == 2)
+        // A donut drawn with opposite directions is already clean; one drawn the same way round
+        // under non-zero fills its hole, so the hole goes.
+        let outer = PathFixture.points([(200, 0), (300, 0), (300, 100), (200, 100)])
+        let inner = PathFixture.points([(230, 70), (270, 70), (270, 30), (230, 30)])
+        let donut = try LayerFixture.object(CreatePath(contours: [NewContour(closed: true, points: outer), NewContour(closed: true, points: inner)]), on: &a)
+        #expect(try a.perform(RemoveOverlap([donut])) == nil)
+        let same = PathFixture.points([(230, 30), (270, 30), (270, 70), (230, 70)])
+        let filled = try LayerFixture.object(CreatePath(contours: [NewContour(closed: true, points: outer), NewContour(closed: true, points: same)]), on: &a)
+        try a.perform(RemoveOverlap([filled]))
+        #expect(a.path(filled).contours.count == 1)
+    }
+
+    @Test func removeOverlapSkipsOpenPathsAndOtherKinds() throws {
+        var a = Replica(0xA)
+        let open = try LayerFixture.object(PathFixture.open([(0, 0), (50, 50), (50, 0), (0, 50)]), on: &a)
+        let rect = try LayerFixture.object(LayerFixture.rect(on: nil, x: 5), on: &a)
+        let clean = try LayerFixture.object(PathFixture.closed([(0, 0), (10, 0), (10, 10)]), on: &a)
+        #expect(RemoveOverlap.paths([open, rect], in: a.state).isEmpty)
+        #expect(try a.perform(RemoveOverlap([open, rect, clean])) == nil)
+        #expect(RemoveOverlap.normalized(VectorPath(Wiretuner_Doc_V1_PathProps()), evenOdd: false) == nil)
+    }
+
     @Test func addPointsKeepsTheGeometryExactly() throws {
         var a = Replica(0xA)
         let curve = [VectorPoint(anchor: .zero, outHandle: Vector(dx: 5, dy: 9)), VectorPoint(anchor: Point(x: 40, y: 3), inHandle: Vector(dx: -7, dy: 11)),
@@ -211,6 +261,20 @@ import WTProto
         #expect(merged.points.count < 50)
         let element = try #require(pair.a.state.store.element(node, PathFields.point(contour.id, moved)))
         #expect(element.isDeleted)
+    }
+
+    @Test func removeOverlapVersusAConcurrentPointMoveDeletesTheMovedPoint() throws {
+        var pair = Pair()
+        let node = try LayerFixture.object(PathFixture.closed([(0, 0), (100, 100), (100, 0), (0, 100)]), on: &pair.a)
+        pair.sync()
+        let contour = pair.a.path(node).contours[0]
+        let moved = contour.points[1].id
+        try pair.a.perform(RemoveOverlap([node]))
+        try pair.b.perform(MovePoints(node: node, contour: contour.id, point: moved, to: Point(x: 120, y: 120)))
+        pair.sync()
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        #expect(pair.a.path(node).contours.count == 2)
+        #expect(!pair.a.path(node).contours.contains { $0.points.contains { $0.id == moved } }, "edit vs delete")
     }
 
     @Test func addPointsVersusAConcurrentPointDragKeepsBoth() throws {

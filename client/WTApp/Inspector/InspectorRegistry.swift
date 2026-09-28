@@ -84,7 +84,7 @@ final class InspectorRegistry {
             ?? AnyView(Text("\(context.item.summary) has no editor.").font(.caption).foregroundStyle(.secondary))
     }
 
-    /// The sections and row editors WireTuner ships: point, path, rectangle, polygon, connector,
+    /// The sections and row editors WireTuner ships: point, path, rectangle, ellipse, polygon, connector,
     /// text, blend and extrusion sections, the common attributes, and the stroke, fill and effect
     /// row editors.
     static let standard: InspectorRegistry = {
@@ -97,6 +97,9 @@ final class InspectorRegistry {
         })
         registry.register(InspectorSection(id: "rectangle", order: 30, kinds: [.rect]) { model in
             model.rectangle.map { AnyView(RectangleSectionView(section: $0, model: model)) }
+        })
+        registry.register(InspectorSection(id: "ellipse", order: 35, kinds: [.ellipse]) { model in
+            model.ellipse.map { AnyView(EllipseSectionView(section: $0, model: model)) }
         })
         registry.register(InspectorSection(id: "polygon", order: 40, kinds: [.polygon]) { model in
             model.polygon.map { AnyView(PolygonSectionView(section: $0, model: model)) }

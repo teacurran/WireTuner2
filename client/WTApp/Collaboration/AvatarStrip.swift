@@ -15,6 +15,8 @@ final class AvatarStripModel {
     /// At most this many avatars; the rest go into the "+N" button.
     static let maximumShown = 6
     static let offlineStatus = "Offline — working alone until you reconnect"
+    /// The hover card's note on a collaborator whose cursor this window hides.
+    static let cursorHidden = "Cursor hidden"
 
     var participants: [RemoteParticipant] = []
     var isOffline = false
@@ -23,6 +25,9 @@ final class AvatarStripModel {
     /// The person being followed, if any.
     var followingID: String?
     var isSpotlighting = false
+    /// The collaborators whose cursor this window hides (COLLAB-060): their avatar is marked and
+    /// its card says so.
+    var hiddenCursors: Set<String> = []
     /// The hover cards' activity text (derived from the document: object and page names).
     @ObservationIgnored var activity: @MainActor (RemoteParticipant) -> String = { AvatarStripModel.activity($0) }
     @ObservationIgnored var onFollow: @MainActor (String) -> Void = { _ in }
@@ -134,6 +139,11 @@ struct AvatarView: View {
                 .background(Circle().fill(SwiftUI.Color(red: color.red, green: color.green, blue: color.blue)))
                 .overlay(Circle().stroke(SwiftUI.Color(red: color.red, green: color.green, blue: color.blue), lineWidth: model.followingID == participant.id ? 3 : 1).padding(-2))
                 .opacity(participant.isIdle || participant.isFrozen ? 0.4 : 1)
+                .overlay(alignment: .bottomTrailing) {
+                    if model.hiddenCursors.contains(participant.id) {
+                        Image(systemName: "cursorarrow.slash").font(.system(size: 7, weight: .bold)).offset(x: 3, y: 3)
+                    }
+                }
         }
         .buttonStyle(.plain)
         .help(AvatarStripView.card(participant, model))
@@ -148,7 +158,8 @@ struct AvatarStripView: View {
 
     /// The hover card: name, role, activity.
     static func card(_ participant: RemoteParticipant, _ model: AvatarStripModel) -> String {
-        [participant.name, participant.role, model.activity(participant)].filter { !$0.isEmpty }.joined(separator: " · ")
+        [participant.name, participant.role, model.activity(participant), model.hiddenCursors.contains(participant.id) ? AvatarStripModel.cursorHidden : ""]
+            .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     static func follow(_ model: AvatarStripModel, _ id: String) -> () -> Void {

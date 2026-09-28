@@ -171,6 +171,45 @@ public struct PlaceImportedScene: Command {
     }
 }
 
+/// menu:Object[Convert to Editable] (IMG-060, import-formats.adoc "Converting a placed EPS"): a
+/// placed EPS replaced by the objects `scene` holds (`EPSImporter.editable`'s conversion of its
+/// PDF-compatible stream).  The scene's bounds are fitted into the placed file's natural rect,
+/// then the placed node's own transform applies, so the artwork lands where the preview was; one
+/// group named after the file, at the placed node's slot, then the placed node is deleted.  Blobs
+/// of images inside must be stored before it runs.  One change "Convert to Editable"; refused
+/// (nothing written) for anything but a live, unlocked placed file or an empty scene.
+public struct ConvertPlacedFile: Command {
+    public var node: OpID
+    public var scene: ImportedScene
+    public var label: String { "Convert to Editable" }
+
+    public init(_ node: OpID, scene: ImportedScene) {
+        self.node = node
+        self.scene = scene
+    }
+
+    /// Whether `node` is a placed file Convert to Editable can replace.
+    public static func accepts(_ node: OpID, in state: EngineState) -> Bool {
+        state.nodeKind(node) == .placedFile && !Objects.editable([node], in: state).isEmpty
+    }
+
+    /// The placed file's natural rect (its `bounds`, 1 × 1 inch when it has no area).
+    public static func natural(_ node: OpID, in state: EngineState) -> Rect {
+        let bounds = state.props(node).placedFile.content.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return Rect(x: 0, y: 0, width: 72, height: 72) }
+        return Rect(x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height)
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        guard Self.accepts(node, in: state), !scene.nodes.isEmpty, let parent = Objects.parent(of: node, in: state) else { return }
+        let fit = ImportPlacement.fit(Self.natural(node, in: state), fillWidth: false).transform(for: scene.bounds)
+        var writer = ImportWriter(state: state, link: nil, poster: nil)
+        let key = try Arranging.keys(next: node, above: true, count: 1, in: state)[0]
+        try writer.create(scene.subtree, parent: parent, position: key, placement: fit.concatenating(Objects.transform(of: node, in: state)), builder: &builder)
+        builder.append(Ops.setDeleted(node))
+    }
+}
+
 /// Writes imported nodes (the mapping table of import-formats.adoc).
 struct ImportWriter {
     let state: EngineState

@@ -9,8 +9,9 @@ import WTProto
 /// app half) and path-effects.adoc ("Fractalize"; FX-031's): menu:Modify[Alter Path > Simplify…]
 /// and the Extension Operations toolbar's *Simplify…* -- a sheet whose *Amount* previews on the
 /// canvas with btn:[Apply] and is written by btn:[OK] -- menu:Modify[Alter Path > Correct
-/// Direction] and its toolbar entry, and *Fractalize* on WTModel's command.  Each writes one change
-/// over the selected paths.
+/// Direction] and its toolbar entry, *Remove Overlap* (DRAW-060) in the Alter Path menu, the path
+/// context menu and the Extension Operations toolbar, and *Fractalize* on WTModel's command.  Each
+/// writes one change over the selected paths.
 @MainActor
 final class PathAlterFeatures {
     typealias Target = ObjectMenuCommands.Target
@@ -28,6 +29,8 @@ final class PathAlterFeatures {
     let sheets: SheetPresenter
     /// The Simplify sheet's model while it is open.
     private(set) var simplify: SimplifyModel?
+    /// The Trap sheet's model while it is open (PRINT-060, `TrapFeatures.swift`).
+    var trap: TrapModel?
 
     init(target: @escaping Target, store: PreferenceStore, sheets: SheetPresenter = SheetPresenter()) {
         self.target = target
@@ -42,6 +45,23 @@ final class PathAlterFeatures {
 
     static func pathSelected(_ target: @escaping Target) -> @MainActor @Sendable () -> CommandValidation {
         BlendMenu.validation(target) { paths($0).isEmpty ? DistortFeatures.noPath : nil }
+    }
+
+    static let noClosedPath = "Select a closed path"
+
+    /// The selected closed paths Remove Overlap rewrites (DRAW-060).
+    static func closedPaths(_ editing: ObjectEditing) -> [OpID] {
+        RemoveOverlap.paths(paths(editing), in: editing.document.state)
+    }
+
+    static func closedPathSelected(_ target: @escaping Target) -> @MainActor @Sendable () -> CommandValidation {
+        BlendMenu.validation(target) { closedPaths($0).isEmpty ? noClosedPath : nil }
+    }
+
+    /// Remove Overlap over the selected closed paths (one change; nothing when none overlaps).
+    static func removeOverlap(_ editing: ObjectEditing) {
+        let nodes = closedPaths(editing)
+        if !nodes.isEmpty { editing.perform(RemoveOverlap(nodes)) }
     }
 
     // MARK: Simplify
@@ -77,6 +97,9 @@ final class PathAlterFeatures {
             Command(id: ContextMenuCatalog.ID.simplify, title: "Simplify", menu: MenuPath(modify, "Alter Path", section: 3),
                     keywords: ["simplify", "points", "smooth"], validation: valid,
                     action: .perform { [weak self] in if let editing = target() { self?.showSimplify(editing) } }),
+            Command(id: ContextMenuCatalog.ID.removeOverlap, title: "Remove Overlap", menu: MenuPath(modify, "Alter Path", section: 3),
+                    contexts: [.path], keywords: ["overlap", "union", "self-intersection", "cleanup"], validation: Self.closedPathSelected(target),
+                    action: .perform { if let editing = target() { Self.removeOverlap(editing) } }),
             Command(id: ID.correctDirection, title: "Correct Direction", menu: MenuPath(modify, "Alter Path", section: 3), keywords: ["direction", "holes", "winding"],
                     validation: valid,
                     action: .perform {
@@ -105,6 +128,15 @@ final class PathAlterFeatures {
             }
             result.append(simplify)
         }
+        if var removeOverlap = existing.descriptor(for: "removeOverlap") {
+            removeOverlap.validate = Self.closedPathSelected(target)
+            removeOverlap.run = { _ in
+                if let editing = target() { Self.removeOverlap(editing) }
+                return nil
+            }
+            result.append(removeOverlap)
+        }
+        if let trap = trapDescriptor(existing: existing) { result.append(trap) }
         let operations: [(String, @MainActor ([OpID]) -> any WTModel.Command)] = [
             ("correctDirection", { CorrectDirection($0) }),
             ("fractalize", { Fractalize($0) }),

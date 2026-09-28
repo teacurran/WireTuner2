@@ -163,7 +163,7 @@ import WTRender
         defer { world.close() }
         let (_, commands) = Self.features(world)
         let ids = ContextMenuCatalog.ID.self
-        for id in [ids.enterGroup, ids.reverseDirection, ids.editContents, ids.reroute, ids.detachEnds] {
+        for id in [ids.enterGroup, ids.reverseDirection, ids.editContents, ids.releaseContents, ids.reroute, ids.detachEnds] {
             #expect(commands[id]?.validation().isEnabled == false, "\(id) with nothing selected")
         }
         // Enter Group subselects the members.
@@ -193,6 +193,16 @@ import WTRender
         #expect(commands[ids.editContents]?.validation() == .enabled)
         Self.run(commands[ids.editContents])
         #expect(!world.window.selection.selection.ids.isEmpty && !world.window.selection.selection.ids.contains(SelectionID(clipGroup)))
+        // Release Contents (OBJ-060): the contents back on the page, the group gone.
+        world.select([clipGroup])
+        let released = ClipGroups.contents(of: clipGroup, in: world.state)
+        #expect(commands[ids.releaseContents]?.validation() == .enabled)
+        Self.run(commands[ids.releaseContents])
+        await world.document.settle()
+        #expect(world.document.undoTitle == "Undo Release Contents")
+        #expect(!world.state.isLive(clipGroup) && !released.isEmpty && released.allSatisfy { world.state.isLive($0) })
+        world.select([square.opID])
+        #expect(commands[ids.releaseContents]?.validation() == .disabled(ReachabilityFeatures.noClipGroup))
     }
 
     @Test func rerouteAndDetachEndsWriteOneChangeEach() async throws {

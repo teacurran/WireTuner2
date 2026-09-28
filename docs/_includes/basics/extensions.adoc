@@ -134,10 +134,10 @@ business.
 
 NOTE: As built by the control reachability audit (rch; `WTApp/Menus/ReachabilityFeatures.swift`).
 *Reverse Direction* runs menu:Modify[Alter Path > Reverse Direction] (paths and connectors, one change)
-and *File Info…* runs menu:File[Document Info…].  *Remove Overlap* and *Trap…* are still stubs
-("… is coming soon"): no model command removes a path's self-overlap in place (proposed DRAW-060), and no
-page specifies trapping (proposed PRINT-060).  `ControlReachabilityTests` fails when any other
-extension, menu item or toolbar item is a stub or placeholder.
+and *File Info…* runs menu:File[Document Info…].  *Remove Overlap* came with DRAW-060
+(editing-paths.adoc) and *Trap…* with PRINT-060 (printing.adoc, "Trapping" and "Trap"), so no extension is
+a stub any more; `ControlReachabilityTests` fails when any extension, menu item or toolbar item is a stub
+or placeholder (its allow-list is empty).
 
 === Build tasks
 

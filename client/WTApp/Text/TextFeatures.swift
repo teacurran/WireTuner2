@@ -1,10 +1,12 @@
 import AppKit
 import SwiftUI
 import WTModel
+import WTProto
 
 /// The Text menu's effect items (text-effects.adoc, "Text effects"; TYPE-037): menu:Text[Effect]
 /// with *None* and the six effects, and menu:Text[Type Style > Underline] and *Strikethrough*, the
-/// shortcuts for those two effects with their defaults.  An effect's item applies it with its
+/// shortcuts for those two effects with their defaults, then *Superscript* and *Subscript*, the
+/// size and baseline shift presets (TYPE-060).  An effect's item applies it with its
 /// defaults, or -- when the selected text already has that effect -- opens its option sheet.
 @MainActor
 enum TextFeatures {
@@ -14,6 +16,7 @@ enum TextFeatures {
         static func effect(_ kind: TextEffectKind) -> CommandID { CommandID("text.effect.\(kind.rawValue)") }
         static let underline: CommandID = "text.typeStyle.underline"
         static let strikethrough: CommandID = "text.typeStyle.strikethrough"
+        static func script(_ script: TextScript) -> CommandID { CommandID("text.typeStyle.\(script.rawValue)") }
     }
 
     static let noText = "Select text"
@@ -59,6 +62,23 @@ enum TextFeatures {
         }
     }
 
+    /// menu:Text[Type Style > Superscript] / *Subscript* (TYPE-060): with the Text tool, the
+    /// selection (or the pending format at an insertion point); otherwise every selected text
+    /// block whole.  One change.
+    @discardableResult
+    static func apply(_ script: TextScript, on window: DocumentWindowController) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        let editing = window.objectEditing
+        if let session = editing.textSession {
+            return session.script(script)
+        }
+        let state = window.documentHandle.state
+        let commands: [any WTModel.Command] = editing.selectedNodes.compactMap { node in
+            state.textNode(node).flatMap { script.command(node, range: 0..<$0.length, in: state) }
+        }
+        guard !commands.isEmpty else { return nil }
+        return editing.perform(commands.count == 1 ? commands[0] : CommandBatch(script.title, commands))
+    }
+
     static func commands(window: @escaping Window) -> [Command] {
         let text = ContextMenuCatalog.Menu.text
         let validation: @MainActor @Sendable () -> CommandValidation = {
@@ -80,6 +100,11 @@ enum TextFeatures {
                                 validation: validation, action: item(.underline, applyDefaults: true)))
         commands.append(Command(id: ID.strikethrough, title: "Strikethrough", menu: MenuPath(text, typeStyleMenu, section: 1),
                                 keywords: ["text effect", "strike"], validation: validation, action: item(.strikethrough, applyDefaults: true)))
+        for script in TextScript.allCases {
+            commands.append(Command(id: ID.script(script), title: script.title, menu: MenuPath(text, typeStyleMenu, section: 1),
+                                    keywords: ["baseline shift", "footnote", script.rawValue], validation: validation,
+                                    action: .perform { if let front = window() { apply(script, on: front) } }))
+        }
         return commands
     }
 

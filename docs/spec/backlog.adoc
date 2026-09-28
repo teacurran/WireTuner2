@@ -734,6 +734,87 @@ Size:: M
 Delivers:: XCUITest helpers for tools (drag with modifiers), panels, menus; screenshot capture into `docs/images`; accessibility identifiers convention; a sandbox audit helper asserting a process opened no sockets during a test (used by the on-device ML and scripting tasks).
 Done when:: A sample tool test runs on the CI macOS runner.
 
+=== Reachability follow-ups
+
+The control reachability audit (rch) left seven controls unbuilt, on `ControlReachabilityTests`'
+allow-list; these tasks build them.  Each is a feature task whose spec lives on the page it names, listed
+here because the audit found them rather than a feature page's task list.
+
+[[DRAW-060]]
+==== DRAW-060 Remove Overlap
+[horizontal]
+Track:: client-model
+Depends on:: GEO-002, DRAW-030
+Size:: S
+Delivers:: `RemoveOverlap` in WTModel (each selected closed path's contours normalized by `Boolean.normalize` under its fill rule, rewritten as all-new contours through `RewritePath`, one change "Remove Overlap"), menu:Modify[Alter Path > Remove Overlap], the path context menu item and the Extension Operations entry; xref:editing-paths.adoc[Editing paths], "Removing overlap".
+Done when::
+* Two crossing squares in one path become one 8-point outline of the right area; a figure eight becomes two contours; a path that does not overlap itself writes nothing.
+* Merge test: Remove Overlap vs. a concurrent point move ends as *edit vs delete*.
+* The two ids leave the reachability allow-list.
+
+[[OBJ-060]]
+==== OBJ-060 Release Contents
+[horizontal]
+Track:: client-model
+Depends on:: OBJ-027
+Size:: S
+Delivers:: `ReleaseContents` (the clip path to the group's slot, the contents above it with the group transform baked in, the group deleted, one change) and menu:Modify[Clipping > Release Contents] with the clip group context menu item; xref:clipping-paths.adoc[Clipping paths].
+Done when::
+* Every released object keeps its pasteboard transform; the stacking order is clip path then contents; undo restores the group.
+* Merge test: Release vs. a concurrent content move converges.
+
+[[IMG-060]]
+==== IMG-060 Convert a placed EPS to editable objects
+[horizontal]
+Track:: import-export
+Depends on:: IMG-009, IMG-011
+Size:: M
+Delivers:: `EPSImporter.editable` (the PDF-compatible stream through the PDF importer, else the legacy Illustrator reader, else refused with a reason), `ConvertPlacedFile` (the scene fitted to the placed file's natural rect under its transform, the placed node deleted, one change) and menu:Object[Convert to Editable] with the imported graphic context menu item, reading the file from the blob cache; xref:import-formats.adoc[Import formats], "Converting a placed EPS".
+Done when::
+* A placed Illustrator EPS with a PDF stream becomes a group at the preview's place and size; plain PostScript and a file not in the cache stay placed with an alert.
+
+[[COLLAB-060]]
+==== COLLAB-060 Hide a collaborator's cursor
+[horizontal]
+Track:: client-ui
+Depends on:: COLLAB-007
+Size:: S
+Delivers:: *Hide <name>'s Cursor* / *Show <name>'s Cursor* in menu:View[Collaborators] and the collaborator context menu, a per-window hidden set the presence overlay and the avatar strip read; xref:presence.adoc[Presence], "Display options".
+Done when::
+* The hidden collaborator's cursor is not drawn in that window while the others' are; the avatar is marked; the item toggles back.
+
+[[TYPE-060]]
+==== TYPE-060 Superscript and Subscript
+[horizontal]
+Track:: client-ui
+Depends on:: TYPE-017, TYPE-038
+Size:: S
+Delivers:: `TextScript` / `ApplyTextScript` (per run: size × 0.58, baseline shift + 0.33 or − 0.14 of the size, the RTF import proportions, one change) and menu:Text[Type Style > Superscript] and *Subscript* for a Text tool selection, the pending format at an insertion point, or whole selected blocks; xref:type-specifications.adoc#superscript[Superscript and subscript].
+Done when::
+* Runs of different sizes keep their own proportions; an existing baseline shift is added to; undo is one step.
+
+[[DRAW-061]]
+==== DRAW-061 Ellipse arcs
+[horizontal]
+Track:: client-model
+Depends on:: DRAW-006, DRAW-009
+Size:: M
+Delivers:: `EllipseProps.start_angle`, `end_angle`, `open` (registers), the derived arc path in `ShapeGeometry` (the four-point ellipse unchanged when the angles are equal), `SetEllipseArc`, the Object panel's ellipse row (*Start angle*, *End angle*, *Closed*), a conformance vector; xref:rectangles-ellipses-lines.adoc#arcs[Arcs].
+Done when::
+* Existing ellipses read exactly as before; a quarter arc has the kappa handles; a closed arc is a wedge through the centre; an open arc cannot clip.
+* The proto gate, both conformance engines and the server build pass; concurrent edits of different arc fields all apply.
+
+[[PRINT-060]]
+==== PRINT-060 Trap
+[horizontal]
+Track:: import-export
+Depends on:: GEO-002, GEO-003, OBJ-026
+Size:: M
+Delivers:: The spec (printing.adoc, "Trapping" and "Trap": FreeHand's Trap Xtra -- trap width, maximum value or tint reduction, reverse traps), `TrapCommand` (the front edge's strip of the trap width clipped to the back object, the lighter colour or its tint, overprinting, one change) and *Trap…* with its sheet on the Extension Operations toolbar and menu:Extensions[Create].
+Done when::
+* Two overlapping grey squares get a strip of the expected area in the lighter grey at 50%, set to overprint; Reverse takes the darker; Maximum value takes each ink's larger amount.
+* Objects that do not meet, or a selection that is not two filled closed paths, write nothing.
+
 == Waves
 
 Agents work in waves; a wave's tasks depend only on earlier waves.
@@ -762,6 +843,9 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 
 |6
 |`IMG`, `WEB`, `IO`, `CMS`, `PRINT`, `FONT`, `DATA`, polish
+
+|7
+|The reachability follow-ups: DRAW-060, DRAW-061, OBJ-060, IMG-060, COLLAB-060, TYPE-060, PRINT-060
 |===
 
 Feature epics list their own tasks on their pages; the xref:index.adoc[table of contents] is

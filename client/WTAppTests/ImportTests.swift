@@ -463,3 +463,75 @@ final class FileDragging: NSObject, @preconcurrency NSDraggingInfo {
         #expect(await eventually { saved == 1 && opened == 1 })
     }
 }
+
+/// menu:Object[Convert to Editable] (IMG-060): a placed EPS carrying a PDF-compatible stream
+/// becomes editable objects; plain PostScript, or a file this Mac does not have, stays placed.
+@Suite(.serialized) @MainActor struct ConvertToEditableTests {
+    /// An Illustrator-style EPS of `width` × `height` points; with `pdf`, its PDF-compatible stream
+    /// (a blue rectangle on the left half).
+    static func eps(width: Double = 100, height: Double = 50, pdf: Bool) -> Data {
+        let creator = pdf ? "Adobe Illustrator(R) 24.0" : "A PostScript program"
+        var data = Data("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 \(Int(width)) \(Int(height))\n%%Creator: \(creator)\n%%EndComments\n".utf8)
+        guard pdf else { return data + Data("0 0 moveto 10 10 lineto stroke\nshowpage\n%%EOF\n".utf8) }
+        data += Data("%AI9_PrivateDataBegin\n".utf8)
+        let stream = NSMutableData()
+        var box = CGRect(x: 0, y: 0, width: width, height: height)
+        let context = CGContext(consumer: CGDataConsumer(data: stream)!, mediaBox: &box, nil)!
+        context.beginPDFPage(nil)
+        context.setFillColor(CGColor(srgbRed: 0, green: 0, blue: 1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width / 2, height: height))
+        context.endPDFPage()
+        context.closePDF()
+        data += stream as Data
+        return data + Data("\n%%EOF\n".utf8)
+    }
+
+    @Test func aPlacedEPSBecomesEditableWhereItWas() async throws {
+        let world = ImportWorld()
+        defer { world.close() }
+        let registry = CommandRegistry()
+        ConvertToEditableCommand.install(into: registry, imports: world.imports) { [weak window = world.window] in window }
+        let id = ContextMenuCatalog.ID.convertToEditable
+        #expect(registry.validate(id)?.reason == ConvertToEditableCommand.noPlacedFile)
+        let url = world.files.write("logo.eps", Self.eps(pdf: true))
+        let outcome = await world.imports.place([url], on: world.window, at: Point(x: 200, y: 100))
+        let placed = try #require(outcome.placed.first)
+        #expect(world.state.nodeKind(placed) == .placedFile)
+        let before = try #require(Objects.bounds(of: placed, in: world.state))
+        world.window.selection.model.set(Selection([SelectionID(placed)]))
+        #expect(registry.validate(id)?.isEnabled == true)
+        let converted = await world.imports.convertToEditable(in: world.window)
+        #expect(converted.failures.isEmpty && converted.placed.count == 1)
+        let group = try #require(converted.placed.first)
+        #expect(!world.state.isLive(placed) && world.state.nodeKind(group) == .group)
+        #expect(world.document.undoTitle == "Undo Convert to Editable")
+        #expect(world.window.selection.selection.ids == [SelectionID(group)])
+        let after = try #require(Objects.bounds(of: group, in: world.state))
+        // The blue half of the page, where the preview showed it.
+        #expect(abs(after.minX - before.minX) < 0.5 && abs(after.minY - before.minY) < 0.5 && abs(after.width - before.width / 2) < 0.5)
+        #expect(registry.validate(id)?.reason == ConvertToEditableCommand.noPlacedFile)
+        // The menu item runs it too (nothing selected now: nothing happens).
+        #expect(!registry.perform(id))
+    }
+
+    @Test func plainPostScriptAndMissingFilesStayPlaced() async throws {
+        let world = ImportWorld()
+        defer { world.close() }
+        let plain = world.files.write("plain.eps", Self.eps(pdf: false))
+        let placed = try #require(await world.imports.place([plain], on: world.window, at: Point(x: 0, y: 0)).placed.first)
+        world.window.selection.model.set(Selection([SelectionID(placed)]))
+        let registry = CommandRegistry()
+        ConvertToEditableCommand.install(into: registry, imports: world.imports) { [weak window = world.window] in window }
+        #expect(registry.perform(ContextMenuCatalog.ID.convertToEditable))
+        #expect(await eventually { !world.alerts.isEmpty })
+        #expect(world.state.isLive(placed) && world.alerts.last?.1.contains(EPSImporter.notEditable) == true)
+        // A file whose bytes are not in this Mac's cache.
+        try? FileManager.default.removeItem(at: world.files.blobs)
+        let outcome = await world.imports.convertToEditable(in: world.window)
+        #expect(outcome.failures == ["“plain.eps”: \(ImportController.notCached)"] && world.state.isLive(placed))
+        #expect(world.alerts.last?.0 == "A placed file could not be converted.")
+        // No window: disabled.
+        let none = ConvertToEditableCommand.command(imports: world.imports) { nil }
+        #expect(none.validation().reason == ImportCommands.noDocument)
+    }
+}

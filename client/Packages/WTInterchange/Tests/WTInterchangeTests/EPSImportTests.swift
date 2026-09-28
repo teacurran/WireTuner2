@@ -254,6 +254,36 @@ enum EPSFixtures {
         #expect(try EPSFile(broken, name: "b.eps").preview()?.source == .epsi)
     }
 
+    // MARK: Convert to Editable (IMG-060)
+
+    @Test func aPlacedEPSWithAPDFStreamConvertsToEditableObjects() throws {
+        var data = EPSFixtures.text(header: ["%%BoundingBox: 0 0 100 50", "%%Creator: Adobe Illustrator(R) 24.0"], body: "%AI9_PrivateDataBegin")
+        data += EPSFixtures.pdf(width: 100, height: 50) + Data("\n%%EOF\n".utf8)
+        #expect(try EPSFile(data, name: "a.eps").embeddedPDF?.starts(with: Data("%PDF-".utf8)) == true)
+        let scene = try EPSImporter.editable(data, name: "a.eps")
+        #expect(scene.kind == .vector && scene.layers.isEmpty)
+        #expect(scene.bounds == Rect(x: 0, y: 0, width: 100, height: 50))
+        guard case .path(let path)? = scene.nodes.first else {
+            Issue.record("the blue half arrives as a path")
+            return
+        }
+        #expect(path.fill != .none)
+    }
+
+    @Test func plainPostScriptIsNotEditable() throws {
+        let plain = EPSFixtures.text(header: ["%%BoundingBox: 0 0 10 10"])
+        #expect(try EPSFile(plain, name: "p.eps").embeddedPDF == nil)
+        #expect(throws: ImportError.unreadable(name: "p.eps", reason: EPSImporter.notEditable)) {
+            try EPSImporter.editable(plain, name: "p.eps")
+        }
+        // A PostScript Illustrator file the legacy reader reads converts; one it cannot is refused.
+        let readable = Data("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n%%Creator: Adobe Illustrator(R) 8.0\n%%EndComments\n%%BeginSetup\n%%EndSetup\n0 0 m\n50 0 l\n50 50 l\nf\n%%EOF\n".utf8)
+        #expect(try EPSImporter.editable(readable, name: "r.eps").kind == .vector)
+        let unreadable = Data("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n%%Creator: Adobe Illustrator(R) 8.0\n%%EndComments\n/x { } def x 12 dup exch\n%%EOF\n".utf8)
+        #expect(throws: ImportError.self) { try EPSImporter.editable(unreadable, name: "u.eps") }
+    }
+
+    // MARK: Illustrator EPS
     // MARK: Illustrator EPS
 
     @Test func illustratorEPSIsConvertedWhenTheReaderCan() throws {

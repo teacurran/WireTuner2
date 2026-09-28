@@ -111,6 +111,9 @@ final class WindowCollaboration {
     let bannerHost: NSHostingView<CollaborationBannerView>
     /// Objects selected since the last document change: a remote deletion of one is announced.
     private(set) var recentSelection: Set<SelectionID> = []
+    /// The collaborators whose cursor this window does not draw (*Hide <name>'s Cursor*,
+    /// COLLAB-060): this window only, never stored, never sent.
+    private(set) var hiddenCursors: Set<String> = []
     private var presenceToken: UUID?
     private var statusToken: UUID?
     private var sessionToken: UUID?
@@ -213,9 +216,22 @@ final class WindowCollaboration {
     func drawPresence(in ctx: CGContext) {
         guard let controller else { return }
         let overlay = PresenceOverlay(document: controller.documentHandle, viewport: controller.canvas.viewport)
-        overlay.draw(in: ctx, participants: participantsHere, options: PresenceDisplayOptions(preferences: controller.environment.preferences),
+        overlay.draw(in: ctx, participants: participantsHere,
+                     options: PresenceDisplayOptions(preferences: controller.environment.preferences, hiddenCursors: hiddenCursors),
                      clock: cursorClock, flashes: flashes.active(), progress: { [flashes] in flashes.progress($0) },
                      following: follow.followingColor)
+    }
+
+    // MARK: Hidden cursors
+
+    /// Whether this window hides `id`'s cursor.
+    func isCursorHidden(_ id: String) -> Bool { hiddenCursors.contains(id) }
+
+    /// Hides `id`'s cursor in this window, or shows it again.
+    func toggleCursorHidden(_ id: String) {
+        if hiddenCursors.remove(id) == nil { hiddenCursors.insert(id) }
+        avatars.hiddenCursors = hiddenCursors
+        controller?.canvas.setNeedsPresenceDisplay()
     }
 
     // MARK: Follow and Spotlight

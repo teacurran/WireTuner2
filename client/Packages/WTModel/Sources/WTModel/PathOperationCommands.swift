@@ -202,6 +202,105 @@ public struct TransparencyCommand: Command {
     }
 }
 
+// MARK: - Trap (PRINT-060)
+
+/// menu:Extensions[Create > Trap…] (PRINT-060, printing.adoc "Trapping" and "Trap"): a strip of
+/// `width` points centred on the front input's edge, clipped to the back input, filled with the
+/// lighter of the two fill colours (the darker with `reverse`) -- at `tint`% (tint reduction) or
+/// as each process ink's larger amount (maximum value) -- and set to overprint, created just above
+/// the front input.  The inputs are the Transparency command's (exactly two filled closed paths)
+/// and are always kept.  One change "Trap"; no change when the strip is empty.
+public struct TrapCommand: Command {
+    /// How the trap is coloured.
+    public enum Method: Hashable, Sendable {
+        /// Each process ink the larger of the two colours' amounts.
+        case maximum
+        /// The trap colour at this percentage (0 ... 100) of its strength.
+        case tintReduction(Double)
+    }
+
+    public var nodes: [OpID]
+    public var width: Double
+    public var method: Method
+    public var reverse: Bool
+
+    /// The sheet's width range in points.
+    public static let widths: ClosedRange<Double> = 0.1...10
+    public static let defaultWidth = 0.5
+    public static let defaultTint = 50.0
+
+    public init(_ nodes: [OpID], width: Double = TrapCommand.defaultWidth, method: Method = .tintReduction(TrapCommand.defaultTint), reverse: Bool = false) {
+        self.nodes = nodes
+        self.width = width
+        self.method = method
+        self.reverse = reverse
+    }
+
+    public var label: String { "Trap" }
+
+    /// The two inputs, back then front; empty when the operation is disabled.
+    public static func inputs(_ nodes: [OpID], in state: EngineState) -> [OpID] {
+        TransparencyCommand.inputs(nodes, in: state)
+    }
+
+    public static func canPerform(_ nodes: [OpID], in state: EngineState) -> Bool {
+        !inputs(nodes, in: state).isEmpty
+    }
+
+    /// The trap's region in pasteboard space: the front input's edge stroked `width` wide,
+    /// intersected with the back input.
+    public static func region(_ nodes: [OpID], width: Double, in state: EngineState) -> FilledPath {
+        let inputs = inputs(nodes, in: state)
+        guard inputs.count == 2, width.isFinite, width > 0 else { return .empty }
+        let front = CombineCommand.region(inputs[1], in: state)
+        let strip = Offset.strokeOutline(front, style: StrokeStyle(width: min(max(width, widths.lowerBound), widths.upperBound)))
+        return Boolean.intersection([strip, CombineCommand.region(inputs[0], in: state)])
+    }
+
+    /// CIE L* of `color` (0 ... 100).
+    static func lightness(_ color: Color) -> Double {
+        color.converted(to: .lab).components.x
+    }
+
+    /// The trap colour for back colour `back` and front colour `front`.
+    public static func color(back: Color, front: Color, method: Method, reverse: Bool) -> Color {
+        switch method {
+        case .maximum:
+            let a = back.converted(to: .cmyk), b = front.converted(to: .cmyk)
+            return Color(space: .cmyk, components: SIMD4(max(a.components.x, b.components.x), max(a.components.y, b.components.y),
+                                                         max(a.components.z, b.components.z), max(a.components.w, b.components.w)))
+        case .tintReduction(let percent):
+            let frontLighter = lightness(front) > lightness(back)
+            let chosen = frontLighter != reverse ? front : back
+            return tinted(chosen, percent: percent)
+        }
+    }
+
+    /// `color` at `percent` of its strength: moved toward paper white in its own space.
+    static func tinted(_ color: Color, percent: Double) -> Color {
+        let amount = min(max(percent.isFinite ? percent : 100, 0), 100) / 100
+        let white = Color.white.converted(to: color.space)
+        var result = Color(space: color.space, components: white.components + (color.components - white.components) * amount, alpha: color.alpha)
+        result.spot = color.spot
+        return result
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        let inputs = Self.inputs(nodes, in: state)
+        let region = Self.region(nodes, width: width, in: state)
+        guard inputs.count == 2, !region.isEmpty, let parent = Objects.parent(of: inputs[1], in: state) else { return }
+        let resolver = ColorResolver(state)
+        guard let back = TransparencyCommand.color(of: inputs[0], in: state, resolver: resolver),
+              let front = TransparencyCommand.color(of: inputs[1], in: state, resolver: resolver) else { return }
+        var fill = Wiretuner_Doc_V1_Fill()
+        fill.settings.kind = .basic
+        fill.settings.basic.color = ColorResolver.inline(Self.color(back: back, front: front, method: method, reverse: reverse))
+        fill.settings.basic.overprint = true
+        let key = try Arranging.keys(next: inputs[1], above: true, count: 1, in: state)[0]
+        try PathOperationInputs.create(region, stack: [.fill(fill)], parent: parent, position: key, state: state, builder: &builder)
+    }
+}
+
 // MARK: - Expand Stroke (OBJ-029)
 
 /// menu:Modify[Alter Path > Expand Stroke] (expand-stroke.adoc): each input's contours stroked with

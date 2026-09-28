@@ -616,6 +616,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)
         }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
+        ConvertToEditableCommand.install(into: commands, imports: imports) { documents.activeWindowController }
         imports.openLibraryFile = { StyleTransferModel.opens($0) || SymbolTransferFeatures.opens($0) }
         installExports()
     }

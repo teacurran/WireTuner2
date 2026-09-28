@@ -93,7 +93,7 @@ public enum WTMergeTable {
     }
 
     /// SHA-256 (hex) of the canonical JSON table without its `version` key.
-    public static let version = "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8"
+    public static let version = "e8bbeb277e1ae951fe2098b310df85b8619e6d67a1b039d9eb91b94673ea918f"
 
     /// The rows of every message, by fully qualified proto name.
     public static let messages: [String: MessagePolicy] = [
@@ -4471,6 +4471,39 @@ public enum WTMergeTable {
           "repeated": false,
           "type": "message",
           "type_name": "wiretuner.doc.v1.AppearanceProps"
+        },
+        "4": {
+          "element_message": null,
+          "local_only": false,
+          "name": "start_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "5": {
+          "element_message": null,
+          "local_only": false,
+          "name": "end_angle",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "double",
+          "type_name": null
+        },
+        "6": {
+          "element_message": null,
+          "local_only": false,
+          "name": "open",
+          "on_dangling": "UNSET",
+          "oneof": null,
+          "policy": "ATOMIC",
+          "repeated": false,
+          "type": "bool",
+          "type_name": null
         }
       }
     },
@@ -14327,7 +14360,7 @@ public enum WTMergeTable {
       "kind_field": 1
     }
   },
-  "version": "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8"
+  "version": "e8bbeb277e1ae951fe2098b310df85b8619e6d67a1b039d9eb91b94673ea918f"
 }
 """#
 
@@ -16480,6 +16513,21 @@ public enum WTMergeTable {
             3: FieldPolicy(
                 fieldNumber: 3, name: "appearance", policy: .structure, onDangling: .unset,
                 localOnly: false, type: "message", repeated: false, typeName: "wiretuner.doc.v1.AppearanceProps",
+                elementMessage: nil, oneof: nil
+            ),
+            4: FieldPolicy(
+                fieldNumber: 4, name: "start_angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            5: FieldPolicy(
+                fieldNumber: 5, name: "end_angle", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "double", repeated: false, typeName: nil,
+                elementMessage: nil, oneof: nil
+            ),
+            6: FieldPolicy(
+                fieldNumber: 6, name: "open", policy: .atomic, onDangling: .unset,
+                localOnly: false, type: "bool", repeated: false, typeName: nil,
                 elementMessage: nil, oneof: nil
             ),
         ]

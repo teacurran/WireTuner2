@@ -5,6 +5,7 @@ import WTCRDT
 import WTGeometry
 import WTModel
 import WTProto
+import WTText
 import WTRender
 @testable import WireTuner
 
@@ -188,7 +189,8 @@ import WTRender
         #expect(TextFeatures.choose(.shadow, model: Self.model(document, [text]), applyDefaults: true) == .applied, "Type Style applies the defaults")
         #expect(TextFeatures.choose(TextEffectKind.none, model: Self.model(document, [text])) == .applied)
         let commands = TextFeatures.commands(window: { nil })
-        #expect(commands.count == 9 && commands.map(\.id).contains(TextFeatures.ID.underline))
+        #expect(commands.count == 11 && commands.map(\.id).contains(TextFeatures.ID.underline))
+        #expect(commands.map(\.id).contains(TextFeatures.ID.script(.superscript)) && commands.map(\.id).contains(TextFeatures.ID.script(.`subscript`)))
         #expect(commands.allSatisfy { $0.validation() == .disabled(TextFeatures.noText) })
         let registry = CommandRegistry()
         TextFeatures.install(into: registry) { nil }
@@ -222,6 +224,43 @@ import WTRender
         TextFeatures.finish(on: controller) { closed = true }(TextEffectSheetModel(kind: .zoom, current: nil))
         await document.settle()
         #expect(closed && TextEffectEditingTests.model(document, [text]).textEffect?.kind == .zoom)
+    }
+
+    @Test func superscriptAndSubscriptScaleAndShiftTheSelection() async throws {
+        let world = TypeWorld()
+        defer { world.close() }
+        let node = try await world.block("x2 H2O")
+        let commands = TextFeatures.commands { [weak window = world.window] in window }
+        let superscript = try #require(commands.first { $0.id == TextFeatures.ID.script(.superscript) })
+        let subscripted = try #require(commands.first { $0.id == TextFeatures.ID.script(.`subscript`) })
+        #expect(superscript.title == "Superscript" && superscript.validation() == .enabled)
+        func attributes(at offset: Int) -> TextAttributes {
+            let run = world.state.textNode(node)!.runs.first { $0.range.contains(offset) }!
+            return TextLayoutReading.attributes(run.values)
+        }
+        let size = attributes(at: 1).size
+        // With the Text tool: the selected range, one change.
+        await world.edit(node, select: 1..<2)
+        _ = await TextFeatures.apply(.superscript, on: world.window)?.value
+        await world.settle()
+        #expect(world.document.undoTitle == "Undo Superscript")
+        #expect(abs(attributes(at: 1).size - size * 0.58) < 0.01 && abs(attributes(at: 1).baselineShift - size * 0.33) < 0.01)
+        #expect(attributes(at: 0).baselineShift == 0)
+        // At an insertion point it joins the pending format.
+        world.session?.select(anchor: 6, focus: 6)
+        await world.settle()
+        _ = TextFeatures.apply(.`subscript`, on: world.window)
+        await world.settle()
+        #expect(world.session?.pendingFormat.contains { $0.baselineShift < 0 } == true)
+        // A selected block, whole, from the menu item.
+        world.window.objectEditing.textSession = nil
+        world.window.selection.model.set(Selection([SelectionID(node)]))
+        if case .perform(let run) = subscripted.action { run() }
+        await world.settle()
+        #expect(world.document.undoTitle == "Undo Subscript" && attributes(at: 4).baselineShift < 0)
+        // Nothing selected: nothing written.
+        world.window.selection.model.set(Selection([]))
+        #expect(TextFeatures.apply(.superscript, on: world.window) == nil)
     }
 
     @Test func twoReplicasEditingShadowOffsetsEndWithOneWholeShadow() async throws {

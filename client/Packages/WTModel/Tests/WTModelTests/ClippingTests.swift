@@ -95,6 +95,48 @@ import WTRender
         #expect(try a.perform(CutContents(path)) == nil)
     }
 
+    @Test func releaseContentsPutsTheContentsBackAboveThePlainPath() throws {
+        var a = Replica(0xA)
+        let (path, contents, layer) = try Self.fixture(on: &a)
+        let below = try LayerFixture.object(LayerFixture.rect(on: nil, x: 200), on: &a)
+        try a.perform(Arrange([below], .sendToBack))
+        let group = try a.perform(PasteContents(try Self.cut(contents, on: &a), into: path))!.createdObjects[0]
+        try a.perform(TransformObjects([group], matrix: .rotation(radians: 0.4), about: Point(x: 3, y: 3), kind: .rotate))
+        let pasted = ClipGroups.contents(of: group, in: a.state)
+        let seen = ([path] + pasted).map { Objects.pasteboardTransform(of: $0, in: a.state) }
+        #expect(ReleaseContents.canPerform([path], in: a.state) && ReleaseContents.groups([group, path], in: a.state) == [group])
+        #expect(ReleaseContents.released(group, in: a.state) == [path] + pasted)
+        let change = try #require(try a.perform(ReleaseContents([group, path])))
+        #expect(change.label == "Release Contents")
+        #expect(!a.state.isLive(group))
+        #expect(a.state.liveChildren(layer) == [below, path] + pasted)
+        for (node, transform) in zip([path] + pasted, seen) {
+            #expect(nearly(Objects.pasteboardTransform(of: node, in: a.state), transform))
+        }
+        // Nothing left to release; a plain object is not a clip group.
+        #expect(!ReleaseContents.canPerform([path, below], in: a.state))
+        #expect(try a.perform(ReleaseContents([path, below])) == nil)
+        a.undo()
+        #expect(a.state.isLive(group) && Objects.parent(of: path, in: a.state) == group)
+    }
+
+    @Test func releaseContentsWithoutAClipPathReleasesEveryChild() throws {
+        var a = Replica(0xA)
+        let (path, contents, layer) = try Self.fixture(on: &a)
+        let group = try a.perform(PasteContents(try Self.cut(contents, on: &a), into: path))!.createdObjects[0]
+        let pasted = ClipGroups.contents(of: group, in: a.state)
+        try a.perform(DeleteObjectsForClipTest([path]))
+        #expect(ReleaseContents.released(group, in: a.state) == pasted)
+        try a.perform(ReleaseContents([group]))
+        #expect(a.state.liveChildren(layer) == pasted)
+        // A locked clip group is left alone.
+        let (other, more, _) = try Self.fixture(on: &a)
+        let locked = try a.perform(PasteContents(try Self.cut(more, on: &a), into: other))!.createdObjects[0]
+        try a.perform(SetLocked([locked], locked: true))
+        #expect(!ReleaseContents.canPerform([locked], in: a.state))
+        #expect(try a.perform(ReleaseContents([locked])) == nil)
+    }
+
     @Test func aDeletedClipPathUnclipsUntilAnotherIsChosen() throws {
         var a = Replica(0xA)
         let (path, contents, _) = try Self.fixture(on: &a)
@@ -211,6 +253,20 @@ struct DeleteObjectsForClipTest: Command {
         #expect(pair.a.state.stateHash == pair.b.state.stateHash)
         #expect(!pair.a.state.isLive(content))
         #expect(pair.a.state.register(content, CommonFields.transform(.rect))?.op.replica == 0xB)
+    }
+
+    @Test func releaseContentsVersusARemoteContentMoveConverges() throws {
+        var pair = Pair()
+        let (path, contents, layer) = try ClippingTests.fixture(on: &pair.a)
+        let group = try pair.a.perform(PasteContents(try ClippingTests.cut(contents, on: &pair.a), into: path))!.createdObjects[0]
+        pair.sync()
+        let content = ClipGroups.contents(of: group, in: pair.b.state)[0]
+        try pair.b.perform(MoveObjects([content], by: Vector(dx: 3, dy: 0)))
+        try pair.a.perform(ReleaseContents([group]))
+        pair.sync()
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        // The content is on the layer either way; its transform is one register (last writer wins).
+        #expect(Objects.parent(of: content, in: pair.a.state) == layer && !pair.a.state.isLive(group))
     }
 
     @Test func aRemotelyDeletedClipPathReadsUnclipped() throws {

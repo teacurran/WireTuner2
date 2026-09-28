@@ -548,6 +548,31 @@ func bitmap(width: Int = 400, height: Int = 300) -> CGContext {
         #expect(plain.collaboration.follow.followingID == "t")
         #expect(registry.validate(ids.stopFollowing)?.isEnabled == true)
         #expect(registry.perform(ids.stopFollowing))
+
+        // Hide <name>'s Cursor (COLLAB-060): this window stops drawing that cursor, the avatar says
+        // so, and the item becomes Show <name>'s Cursor.
+        #expect(registry.validate(ids.hideCursor)?.title == "Hide Tom's Cursor")
+        #expect(registry.perform(ids.hideCursor))
+        #expect(plain.collaboration.isCursorHidden("t") && !plain.collaboration.isCursorHidden("p"))
+        #expect(plain.collaboration.avatars.hiddenCursors == ["t"])
+        #expect(AvatarStripView.card(presence.participants[1], plain.collaboration.avatars).hasSuffix(AvatarStripModel.cursorHidden))
+        #expect(registry.validate(ids.hideCursor)?.title == "Show Tom's Cursor")
+        let hidden = PresenceOverlay(document: other.document, viewport: SelectionFixture.viewport)
+        var pointing = presence.participants
+        pointing[0].cursor = Point(x: 5, y: 5)
+        pointing[1].cursor = Point(x: 9, y: 9)
+        let marks = hidden.cursors(pointing, options: PresenceDisplayOptions(hiddenCursors: plain.collaboration.hiddenCursors), clock: CursorLabelClock())
+        #expect(marks.map(\.participantID) == ["p"])
+        plain.collaboration.drawPresence(in: bitmap())
+        Render.view(AvatarView(participant: presence.participants[1], model: plain.collaboration.avatars), size: CGSize(width: 30, height: 30))
+        #expect(registry.perform(ids.hideCursor))
+        #expect(!plain.collaboration.isCursorHidden("t") && registry.validate(ids.hideCursor)?.title == "Hide Tom's Cursor")
+        target.value = nil
+        #expect(registry.validate(ids.hideCursor)?.reason == CollaborationCommands.noDocument)
+        #expect(!registry.perform(ids.hideCursor))
+        target.value = plain
+        presence.participants = []
+        #expect(registry.validate(ids.hideCursor)?.reason == CollaborationCommands.nobodyElse)
         withExtendedLifetime((environment, plainEnvironment)) {}
     }
 

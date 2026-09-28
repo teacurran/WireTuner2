@@ -141,7 +141,14 @@ are unaffected.
 editing this object" line in the Object panel remains.
 |===
 
-All three affect only what *you* see; they never affect what others see of you, and there is
+To hide one person's cursor without hiding everyone's, Control-click their cursor or selection
+outline and choose *Hide <name>'s Cursor*, or choose it from menu:View[Collaborators] (it names
+the first collaborator present when no cursor was clicked).  Their avatar shows a crossed-out
+pointer and its card reads _Cursor hidden_.  Choose *Show <name>'s Cursor* to bring it back.  This
+applies to that document window only and lasts until you close it; their selection, caret and
+avatar stay.
+
+All of these affect only what *you* see; they never affect what others see of you, and there is
 no way to be invisible to collaborators -- everyone in a document can see everyone else.
 
 == Presence and the network
@@ -398,6 +405,17 @@ Object panel field focus does not publish it yet.
   `selection` from `PresenceModel`; nothing is sent for it.
 * Idle: two minutes without key or mouse input sets `IDLE`; any input clears it.
 * No undo involvement: nothing here writes to the document.
+
+NOTE: As built by COLLAB-060 (xref:backlog.adoc#COLLAB-060[backlog]; `WTApp/Collaboration`).
+*Hide <name>'s Cursor* (`presence.hideCursor`, menu:View[Collaborators] and the collaborator
+context menu) replaces the context menu catalog's placeholder: it toggles the target's id in
+`WindowCollaboration.hiddenCursors` (the collaborator under the context menu, else the first one
+present, as *Follow*), which `PresenceDisplayOptions.hiddenCursors` carries into
+`PresenceOverlay.cursors` so that cursor and its label are not drawn; the item then reads *Show
+<name>'s Cursor*.  `AvatarStripModel.hiddenCursors` marks the avatar (a `cursorarrow.slash` badge)
+and adds "Cursor hidden" to its card.  The set is per window, never stored or sent, and is not
+cleared when the collaborator leaves (they come back hidden while the window is open).  Tests:
+`CollaborationTests.collaborationCommandsFollowSpotlightAndToggle`.
 
 === Build tasks
 

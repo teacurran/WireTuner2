@@ -63,8 +63,12 @@ To take the contents out:
   and the path becomes an ordinary path again.  Paste them to put them back on the canvas
   unclipped.
 
-To release everything at once without the clipboard, subselect all contents, cut them, and
-paste in front of the path.
+To release everything at once without the clipboard:
+
+. Select the clipping path.
+. Choose menu:Modify[Clipping > Release Contents], or Control-click it and choose *Release
+  Contents*.  The path becomes an ordinary path again and the contents sit just above it, where
+  they appeared, unclipped.  One undo step.
 
 == Transforming a clipping path
 
@@ -149,8 +153,8 @@ Read-time normalizations:
   group: contents render unclipped, and the group's bounds are the contents' bounds.
 * A clip group with no live children besides the clip path renders as a plain path (P's own
   stroke and fill); it is still a clip group until Cut Contents or an ungroup-like release
-  (menu:Modify[Ungroup] on a clip group releases it: moves P and contents to the parent,
-  bakes transforms, deletes G).
+  (menu:Modify[Ungroup] or menu:Modify[Clipping > Release Contents] on a clip group releases it:
+  moves P and contents to the parent, bakes transforms, deletes G).
 
 === Offline behavior
 
@@ -208,6 +212,20 @@ Pointer and Subselect tools draws the contents handle at `ContentsHandle.positio
 previews the contents' outlines moving and writes `MoveContents` on release (one change, "Move contents"); a double-click on it
 subselects the contents.  Deviation: the handle shows whenever one clip group is selected as a whole, not only while the Object
 panel's *Contents* row is selected (the panel keeps no row selection).
+
+NOTE: As built by OBJ-060 (xref:backlog.adoc#OBJ-060[backlog]; `WTModel/Clipping.swift`,
+`WTApp/Menus/ReachabilityFeatures.swift`).  `ReleaseContents(nodes)` ("Release Contents") takes each
+selected clip group, or the group of a selected clip path, once: `MoveNode(P, parent = G.parent,
+position = G's slot)` then each content in stacking order above it, every one with
+`SetFields(transform = child.transform × G.transform)`, then `SetDeleted(G)`; with no usable clip path
+every live child is released the same way.  Locked groups are skipped; nothing to release writes
+nothing.  It is the clip-group half of `Ungroup` with a fixed order (clip path lowest), so its merge
+story is Ungroup's: a concurrent edit of a content's transform is the same register (last writer
+wins), a concurrent Paste Contents lands in the deleted group (*edit vs delete* with *Restore*).
+menu:Modify[Clipping > Release Contents] and the clip group context menu's item replace the
+catalog's placeholder, enabled when the selection holds a clip group.  Tests:
+`ClippingTests.releaseContents…`, `ClippingMergeTests.releaseContentsVersusARemoteContentMoveConverges`,
+`ReachabilityFeaturesTests`.
 
 === Build tasks
 

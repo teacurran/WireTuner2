@@ -13,7 +13,7 @@ command, dragging from the Finder, pasting -- are on xref:importing.adoc[Importi
 |Adobe Illustrator |`.ai` |Paths, text, images |Version 9 and later (PDF-based) fully; earlier versions through the PostScript reader.
 |SVG |`.svg`, `.svgz` |Paths, text, images |Options: text handling.
 |AutoCAD DXF |`.dxf` |Paths, text |Options: invisible attributes, white strokes and fills.
-|Encapsulated PostScript |`.eps` |Placed file with preview |Not editable; the PostScript is kept and written into EPS exports.
+|Encapsulated PostScript |`.eps` |Placed file with preview |The PostScript is kept and written into EPS exports; one carrying a PDF-compatible stream can be converted to editable objects.
 |SVG animation |`.svg`, `.svgz` with animation |Placed animation |See xref:svg-animation.adoc[SVG animations and browser preview].
 |TIFF |`.tif`, `.tiff` |Image |Alpha, 16-bit, CMYK and LAB supported.
 |JPEG |`.jpg`, `.jpeg` |Image |RGB, CMYK and grayscale, 8-bit.
@@ -143,7 +143,24 @@ box of its bounding-box size with the file's name.
 
 You can move, scale, rotate and skew a placed EPS, and crop it with Paste Inside
 (xref:clipping-paths.adoc[Clipping paths]).  You cannot edit its contents or apply fills,
-strokes or effects to it.
+strokes or effects to it while it is placed.
+
+[[converting-eps]]
+=== Converting a placed EPS
+
+Most EPS files saved by a recent Illustrator carry a PDF-compatible copy of the artwork.  Such a
+file can be turned into ordinary objects:
+
+. Select the placed EPS.
+. Choose menu:Object[Convert to Editable], or Control-click it and choose *Convert to
+  Editable*.
+
+The artwork arrives as a group named after the file, at the size and position the preview had,
+converted as a PDF page would be (paths, text as editable text, images and clipping groups, as
+under *PDF* above).  The placed file is replaced, so EPS exports no longer pass its PostScript through.
+One undo step.  An EPS that carries only PostScript cannot be converted -- {product} does not
+interpret PostScript -- and stays placed; an alert says so.  In a shared document the file must
+have downloaded to your Mac first.
 
 Desktop Color Separations (DCS 1.0 and 2.0) files are placed as EPS files using their composite
 preview.  {product} does not separate through DCS plates; to print separations, work from the
@@ -416,6 +433,25 @@ selected, a fallback layer becomes current and is named in the status bar with t
 notes, and refused files are named in one alert.  The merge test is
 `concurrentImportsOntoOneLayerConverge` (two replicas importing onto one layer converge with
 both groups in the same order).
+
+NOTE: As built by IMG-060 (xref:backlog.adoc#IMG-060[backlog]; `WTInterchange/Import/EPS/EPSImporter.swift`,
+`WTModel/ImportMapping.swift`, `WTApp/Import/ConvertToEditable.swift`).  `EPSImporter.editable(data, name:,
+context:)` converts a placed EPS's file: its PDF-compatible stream (`EPSFile.embeddedPDF`, `%PDF-` to the last
+`%%EOF`) through `PDFImporter` -- page 1, editable text, no notes or links, no page clip -- else a PostScript
+Illustrator file `AILegacyReader` reads (normally already converted at import); anything else throws
+`ImportError.unreadable` with `EPSImporter.notEditable`.  `ConvertPlacedFile(node, scene:)` ("Convert to
+Editable") fits the scene's bounds into the placed file's natural rect (`content.bounds`, one inch square
+when it has no area), composes the placed node's transform, writes the scene's group through the import
+mapping above at the placed node's slot and deletes the placed node -- creates and a delete, so the merge
+story is an import's plus *edit vs delete* for a concurrent edit of the placed node (its `content` or
+transform), no proto change.  In `WTApp`, menu:Object[Convert to Editable] (`object.convertToEditable`, also
+the imported graphic context menu) replaces the placeholder, enabled with a placed file selected; each file's
+bytes come from the blob cache (`BlobPlacement.cached`; a file not downloaded yet is refused with a reason),
+the conversion runs detached, the images inside are stored and queued before the change, the groups are
+selected, the converter's notes go to the status bar and refusals into one alert.  Deviation: the page clip is
+not kept (the preview was clipped to the crop box; artwork beyond it now shows).  Tests:
+`EPSImportTests.aPlacedEPSWithAPDFStreamConvertsToEditableObjects`, `plainPostScriptIsNotEditable`,
+`ImportMappingTests.convertToEditable…`, `ConvertToEditableTests`.
 
 NOTE: As built by IMG-011's `WTInterchange` half (`WTInterchange/Import/EPS/`).  `EPSImporter`
 is in `ImportRegistry.standard`; a file is recognised by `%!PS-Adobe` or the DOS binary header

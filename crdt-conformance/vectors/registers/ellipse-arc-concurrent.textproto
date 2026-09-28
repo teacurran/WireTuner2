@@ -1,0 +1,56 @@
+# crdt-conformance/vectors/registers/ellipse-arc-concurrent.textproto (DRAW-061; schema: crdt-conformance/schema/vector.proto)
+name: "registers/ellipse-arc-concurrent"
+description: "An ellipse's start angle, end angle and open flag are separate ATOMIC registers: replica 1 types an arc from 30 to 120 degrees (start_angle and end_angle in one SetFields) while replica 2 turns the arc open and types a start of 45.  start_angle is last-writer-wins -- replica 2's greater OpId -- with replica 1's value retained (the create wrote neither angle, their zero values being unset); end_angle keeps replica 1's write and open replica 2's: both engines converge on an open arc from 45 to 120."
+setup {
+    change {
+      replica: 7 seq: 1 start_counter: 1 label: "Ellipse"
+      ops { create { parent { counter: 4 } position: "\x80" props { layer { common { name: "Layer 1" } } } } }
+      ops { create { parent { counter: 1 replica: 7 } position: "\x80" props { ellipse { size { width: 80 height: 40 } } } } }
+    }
+}
+replica {
+    id: 1
+    change {
+      replica: 1 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change arc"
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 22 } segments { field: 4 } }
+        paths { segments { field: 22 } segments { field: 5 } }
+        values { ellipse { start_angle: 30 end_angle: 120 } } } }
+    }
+}
+replica {
+    id: 2
+    change {
+      replica: 2 seq: 1 start_counter: 3 base_server_seq: 1 label: "Change arc"
+      ops { set { node { counter: 2 replica: 7 }
+        paths { segments { field: 22 } segments { field: 4 } }
+        paths { segments { field: 22 } segments { field: 6 } }
+        values { ellipse { start_angle: 45 open: true } } } }
+    }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "39d0fd7ca1de32b788bed93c1ec969f6623170dc7b8cef3688bec72122b5fbe8"
+  snapshot_hash: "b5afb1188ff1ea53f589ff764165cce664b017dc03cf125a29879620ba9f5f44"
+  node {
+    id { counter: 2 replica: 7 }
+    node_hash: "f7b14999dd735370c105ac048e23699a9dcf981c25ccf05a49bf68bcb1c8bbd2"
+    register {
+      path { segments { field: 22 } segments { field: 4 } }
+      value { ellipse { start_angle: 45 } }
+      op { counter: 3 replica: 2 }
+      losing { counter: 3 replica: 1 }
+    }
+    register {
+      path { segments { field: 22 } segments { field: 5 } }
+      value { ellipse { end_angle: 120 } }
+      op { counter: 3 replica: 1 }
+    }
+    register {
+      path { segments { field: 22 } segments { field: 6 } }
+      value { ellipse { open: true } }
+      op { counter: 3 replica: 2 }
+    }
+  }
+}

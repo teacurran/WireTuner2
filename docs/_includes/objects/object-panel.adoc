@@ -291,10 +291,10 @@ of each kind this page lists and checks that it shows a section of its own and t
 renders with height at the dock's width, and that the docked Object panel keeps its editor floor at
 the default window size.  The symbol instance section (`InstanceSectionView`, a new `instance` section
 before the overrides) shows the symbol's name and btn:[Release Instance] (`ReleaseInstances`, one
-change).  Text blocks gained the *Leading* row (type-tools.adoc's rch note).  *Not built*: the ellipse
-row (start and end angles, open or closed) -- the ellipse node has no arc parameters (proposed
-DRAW-061); an ellipse shows the common attributes only.  A chart has no row here by design (its sheet
-and its picked elements, charts.adoc).
+change).  Text blocks gained the *Leading* row (type-tools.adoc's rch note).  The ellipse row (*Start
+angle*, *End angle*, *Closed*) came with DRAW-061 (`WTApp/Inspector/EllipseSection.swift`,
+rectangles-ellipses-lines.adoc's note).  A chart has no row here by design (its sheet and its picked
+elements, charts.adoc).
 
 NOTE: As built by OBJ-001 to OBJ-004.  *Measure* (`WTModel/Measure.swift`): `%` applies to the number it
 follows (`50% + 1`), arithmetic runs in the document unit (a suffixed number is converted first), the

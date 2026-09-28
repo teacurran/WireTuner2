@@ -200,6 +200,18 @@ Raises (positive) or lowers (negative) selected characters from the baseline, in
 the *Baseline shift* field or kbd:[Control+Option+↑] / kbd:[Control+Option+↓].  A raised
 baseline plus a smaller size is how you make a superscript "™" or a footnote mark.
 
+[[superscript]]
+=== Superscript and subscript
+
+To make selected characters superscript or subscript, choose menu:Text[Type Style >
+Superscript] or menu:Text[Type Style > Subscript].  Each sets the size to 58% of the characters'
+size and raises them by a third of it (superscript) or lowers them by 14% of it (subscript),
+added to any baseline shift they already have -- the same proportions {product} uses for
+superscripts and subscripts in imported RTF text.  The result is an ordinary size and baseline
+shift: adjust either afterward in the Object panel.  With the Text tool it applies to the
+selected characters (at an insertion point, to what you type next); with a text block selected,
+to all of its text.  One undo step.
+
 == Horizontal scale
 
 In the Spacing section, *Horizontal scale* stretches or compresses the glyph shapes, in
@@ -492,6 +504,21 @@ guide above describes them as built.  *Deviations* from this page's design: the 
 menu:Text[Style], not *Font Style*; there is no hover preview (*Display font preview* is not wired);
 type-to-filter is in the toolbar's family box and the *Other…* sheet rather than the Object panel's
 Font pop-up; a synthesized face shows no warning icon (TYPE-020).
+
+NOTE: As built by TYPE-060 (xref:backlog.adoc#TYPE-060[backlog]; `WTModel/TextScript.swift`,
+`WTApp/Text/TextFeatures.swift`, `TextEditingSession.script`).  `TextScript` is the preset:
+`values(size:shift:)` gives a `size` mark of size × `TextAttributeMapping.scriptScale` (0.58, rounded to
+hundredths and kept to 0.1--10,000 pt) and a `baseline_shift` mark of the shift plus size ×
+`superscriptRise` (0.33) or minus size × `subscriptDrop` (0.14), the constants RTF import uses (the rch
+inventory proposed −20% for subscript; the importer's 14% was kept so the two agree).  `ApplyTextScript`
+("Superscript" / "Subscript") writes those two marks per run of the range, each run by its own size, one
+change.  menu:Text[Type Style > Superscript] and *Subscript* (`text.typeStyle.superscript` /
+`.subscript`, enabled whenever text is selected, as Underline): with the Text tool the selection (inside a
+symbol instance on its text override, LIB-027), or at an insertion point the preset of the character
+before it joins the pending format; otherwise every selected text block whole, one change.  They are not
+toggles -- applying again shrinks and shifts again, as the Baseline shift field would.  No proto change:
+marks are the existing registers.  Tests: `TextScriptTests`,
+`TextEffectEditingTests.superscriptAndSubscriptScaleAndShiftTheSelection`.
 
 === Build tasks
 

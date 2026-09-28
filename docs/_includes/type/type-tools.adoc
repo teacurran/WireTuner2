@@ -113,8 +113,10 @@ The toolbar can be extended with any text command through xref:customizing.adoc[
 |Plain, Bold, Italic, Bold Italic and the family's other faces.
 
 |menu:Text[Type Style]
-|Underline and Strikethrough, each a preset text effect.  Small caps are in menu:Text[Convert
-Case]; raise or lower characters with the *Baseline shift* field.
+|Underline and Strikethrough, each a preset text effect, and Superscript and Subscript, each a
+preset size and baseline shift (xref:type-specifications.adoc#superscript[Superscript and
+subscript]).  Small caps are in menu:Text[Convert Case]; raise or lower characters by any amount
+with the *Baseline shift* field.
 
 |menu:Text[Align]
 |Left, Center (kbd:[Cmd+Shift+C]), Right, Justified.  The item that matches the text is checked.
@@ -312,8 +314,8 @@ Fixed 1.2 × the size or 120%.  *Deviations*: only Center has its documented sho
 (kbd:[Cmd+Shift+C]); kbd:[Cmd+Shift+L] is Unlock, kbd:[Cmd+Shift+R] Export and kbd:[Cmd+Shift+J]
 Split in the default set, so Left, Right and Justified have none.  The Text toolbar's *Leading* is a
 button that opens the *Other…* sheet (`text.leading`) rather than an inline mode pop-up and field.
-menu:Text[Type Style] has Underline and Strikethrough only: *Superscript* and *Subscript* (a size and
-baseline shift preset) are not built -- proposed TYPE-060 -- and *Small Caps* is in Convert Case.
+menu:Text[Type Style] has Underline and Strikethrough, then *Superscript* and *Subscript* (TYPE-060,
+type-specifications.adoc's note); *Small Caps* is in Convert Case.
 
 === Build tasks
 

@@ -884,7 +884,33 @@ final class TextEditingSession {
         return result
     }
 
-    /// Aligns the paragraphs the selection touches (a new block: its first paragraph).
+    /// menu:Text[Type Style > Superscript] / *Subscript* (TYPE-060): each run of the selection
+    /// scaled and shifted by its own size, one change; inside an instance on its text override;
+    /// at an insertion point the preset of the character before it joins the pending format.
+    @discardableResult
+    func script(_ script: TextScript) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        var result: Task<Wiretuner_Doc_V1_Change?, Never>?
+        enqueue { session in
+            let range = session.selectedRange
+            guard let text = session.text, !range.isEmpty else {
+                for value in script.values(for: session.formatRuns.last ?? []) {
+                    session.pendingFormat.removeAll { Self.sameAttribute($0, value) }
+                    session.pendingFormat.append(value)
+                }
+                session.changed()
+                return
+            }
+            if let override = session.override {
+                let edits = script.marks(range, in: text).map { OverrideTextEdit.mark($0.range, $0.value) }
+                result = session.performOverride(OverrideText(override.instance, master: override.master, edits: edits, label: script.title))
+            } else if let node = session.node {
+                result = session.perform(ApplyTextScript(node: node, range: range, script: script))
+            }
+        }
+        return result
+    }
+
+    /// Aligns the paragraphs the selection touches (a new block: its first paragraph).    /// Aligns the paragraphs the selection touches (a new block: its first paragraph).
     @discardableResult
     func align(_ alignment: Wiretuner_Doc_V1_Alignment) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
         setParagraph(.with { $0.alignment = alignment }, fields: [[1]], label: "Alignment")

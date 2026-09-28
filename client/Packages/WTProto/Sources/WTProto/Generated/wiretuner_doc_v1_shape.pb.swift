@@ -113,7 +113,10 @@ public nonisolated struct Wiretuner_Doc_V1_CornerRadii: Sendable {
   public init() {}
 }
 
-/// NodeProps.kind case `ellipse`: a live ellipse inscribed in its local frame.
+/// NodeProps.kind case `ellipse`: a live ellipse inscribed in its local frame, or an arc of it
+/// (DRAW-061).  The angles are degrees counterclockwise on screen from the frame's 3 o'clock
+/// direction; equal angles (0 and 0 by default) are the whole ellipse.  Each field is its own
+/// register (rectangles-ellipses-lines.adoc, "Merge semantics").
 public nonisolated struct Wiretuner_Doc_V1_EllipseProps: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
   // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -148,6 +151,16 @@ public nonisolated struct Wiretuner_Doc_V1_EllipseProps: Sendable {
   public var hasAppearance: Bool {self._appearance != nil}
   /// Clears the value of `appearance`. Subsequent reads from it will return its default value.
   public mutating func clearAppearance() {self._appearance = nil}
+
+  /// Where the arc starts, degrees; read modulo 360 (a non-finite value reads as 0).
+  public var startAngle: Double = 0
+
+  /// Where the arc ends, going counterclockwise from `start_angle`, degrees; read modulo 360.
+  public var endAngle: Double = 0
+
+  /// An open arc (the curve only) rather than a closed one (a wedge through the centre).  Ignored
+  /// for the whole ellipse.
+  public var `open`: Bool = false
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
@@ -327,7 +340,7 @@ nonisolated extension Wiretuner_Doc_V1_CornerRadii: SwiftProtobuf.Message, Swift
 
 nonisolated extension Wiretuner_Doc_V1_EllipseProps: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".EllipseProps"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}size\0\u{1}appearance\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}common\0\u{1}size\0\u{1}appearance\0\u{3}start_angle\0\u{3}end_angle\0\u{1}open\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -338,6 +351,9 @@ nonisolated extension Wiretuner_Doc_V1_EllipseProps: SwiftProtobuf.Message, Swif
       case 1: try { try decoder.decodeSingularMessageField(value: &self._common) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._size) }()
       case 3: try { try decoder.decodeSingularMessageField(value: &self._appearance) }()
+      case 4: try { try decoder.decodeSingularDoubleField(value: &self.startAngle) }()
+      case 5: try { try decoder.decodeSingularDoubleField(value: &self.endAngle) }()
+      case 6: try { try decoder.decodeSingularBoolField(value: &self.`open`) }()
       default: break
       }
     }
@@ -357,6 +373,15 @@ nonisolated extension Wiretuner_Doc_V1_EllipseProps: SwiftProtobuf.Message, Swif
     try { if let v = self._appearance {
       try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
     } }()
+    if self.startAngle.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.startAngle, fieldNumber: 4)
+    }
+    if self.endAngle.bitPattern != 0 {
+      try visitor.visitSingularDoubleField(value: self.endAngle, fieldNumber: 5)
+    }
+    if self.`open` != false {
+      try visitor.visitSingularBoolField(value: self.`open`, fieldNumber: 6)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -364,6 +389,9 @@ nonisolated extension Wiretuner_Doc_V1_EllipseProps: SwiftProtobuf.Message, Swif
     if lhs._common != rhs._common {return false}
     if lhs._size != rhs._size {return false}
     if lhs._appearance != rhs._appearance {return false}
+    if lhs.startAngle != rhs.startAngle {return false}
+    if lhs.endAngle != rhs.endAngle {return false}
+    if lhs.`open` != rhs.`open` {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

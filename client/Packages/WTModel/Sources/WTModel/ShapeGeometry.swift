@@ -108,9 +108,39 @@ public enum ShapeGeometry {
         return rectPath(size: size, radii: CornerRadii(rect.corners, size: size))
     }
 
-    /// The derived path of an ellipse.
+    /// The derived path of an ellipse, or of its arc (DRAW-061).
     public static func path(_ ellipse: Wiretuner_Doc_V1_EllipseProps) -> VectorPath {
-        ellipsePath(size: size(ellipse.size))
+        let arc = EllipseArc(ellipse)
+        return arc.isWhole ? ellipsePath(size: size(ellipse.size)) : arcPath(size: size(ellipse.size), arc: arc)
+    }
+
+    /// An arc of the ellipse inscribed in `size` (rectangles-ellipses-lines.adoc, "Arcs"): from
+    /// `arc.start` counterclockwise on screen to `arc.end`, as cubic pieces of at most 90° (handle
+    /// length 4/3·tan(θ/4) of the radius), then -- closed -- the centre, so the contour is a wedge.
+    /// Empty for a zero or negative dimension.
+    public static func arcPath(size: Size, arc: EllipseArc) -> VectorPath {
+        guard size.width > 0, size.height > 0, size.width.isFinite, size.height.isFinite else { return VectorPath(contours: []) }
+        let rx = size.width / 2, ry = size.height / 2
+        let sweep = arc.sweep * .pi / 180
+        let start = arc.start * .pi / 180
+        let pieces = max(1, Int((sweep / (.pi / 2)).rounded(.up)))
+        let step = sweep / Double(pieces)
+        let k = 4.0 / 3.0 * tan(step / 4)
+        // Counterclockwise on screen with y down: (cos a, -sin a); its tangent (-sin a, -cos a).
+        func point(_ a: Double) -> Point { Point(x: rx + rx * cos(a), y: ry - ry * sin(a)) }
+        func tangent(_ a: Double) -> Vector { Vector(dx: -rx * sin(a) * k, dy: -ry * cos(a) * k) }
+        var points: [VectorPoint] = []
+        for index in 0...pieces {
+            let a = start + step * Double(index)
+            let inHandle = index == 0 ? Vector(dx: 0, dy: 0) : -tangent(a)
+            let outHandle = index == pieces ? Vector(dx: 0, dy: 0) : tangent(a)
+            let smooth = index > 0 && index < pieces
+            points.append(VectorPoint(anchor: point(a), inHandle: inHandle, outHandle: outHandle, kind: smooth ? .curve : .corner))
+        }
+        if !arc.open {
+            points.append(VectorPoint(anchor: Point(x: rx, y: ry)))
+        }
+        return VectorPath(contours: [VectorContour(closed: !arc.open, points: numbered(points))])
     }
 
     /// The derived path of a polygon or star.
@@ -135,6 +165,49 @@ public enum ShapeGeometry {
         }
         return VectorPath(contours: [VectorContour(closed: true, points: numbered(points))])
     }
+}
+
+/// An ellipse's arc after the read-time rules (DRAW-061, rectangles-ellipses-lines.adoc "Arcs"):
+/// angles in degrees modulo 360 (a non-finite value reads as 0), counterclockwise on screen from 3
+/// o'clock; equal angles are the whole ellipse, where `open` does nothing.
+public struct EllipseArc: Hashable, Sendable {
+    public var start: Double
+    public var end: Double
+    public var open: Bool
+
+    public init(start: Double = 0, end: Double = 0, open: Bool = false) {
+        self.start = Self.normalized(start)
+        self.end = Self.normalized(end)
+        self.open = open
+    }
+
+    public init(_ props: Wiretuner_Doc_V1_EllipseProps) {
+        self.init(start: props.startAngle, end: props.endAngle, open: props.open)
+    }
+
+    /// `degrees` in 0 ..< 360; a non-finite value reads as 0.
+    public static func normalized(_ degrees: Double) -> Double {
+        guard degrees.isFinite else { return 0 }
+        let value = degrees.truncatingRemainder(dividingBy: 360)
+        let positive = value < 0 ? value + 360 : value
+        return abs(positive - 360) < 1e-9 ? 0 : positive
+    }
+
+    /// Whether this is the whole ellipse (no arc).
+    public var isWhole: Bool { abs(start - end) < 1e-9 }
+
+    /// How far the arc runs from `start`, degrees (360 for the whole ellipse).
+    public var sweep: Double {
+        isWhole ? 360 : (end > start ? end - start : end + 360 - start)
+    }
+}
+
+/// Register paths of `EllipseProps` (DRAW-061).
+public enum EllipseFields {
+    public static let kind = NodeKind.ellipse.rawValue
+    public static let startAngle = RegisterPath([kind, 4])
+    public static let endAngle = RegisterPath([kind, 5])
+    public static let open = RegisterPath([kind, 6])
 }
 
 /// A polygon's fields after the read-time rules (polygons-stars.adoc, "Read-time

@@ -227,6 +227,69 @@ public struct CorrectDirection: Command {
     }
 }
 
+/// menu:Modify[Alter Path > Remove Overlap] and menu:Extensions[Cleanup > Remove Overlap] (DRAW-060,
+/// editing-paths.adoc "Removing overlap"): each selected closed path's filled region redrawn with
+/// non-crossing contours (WTGeometry's `Boolean.normalize` under the path's own fill rule, in its
+/// own space, so the transform stays).  Every old contour is deleted and the result appended as
+/// all-new contours through `RewritePath` -- a concurrent point edit is *edit vs delete*, as for
+/// Simplify.  Paths with an open renderable contour are skipped, and so is a path the rewrite
+/// would not change (no contour crosses another or itself).  One change "Remove Overlap".
+public struct RemoveOverlap: Command {
+    public var nodes: [OpID]
+
+    public init(_ nodes: [OpID]) {
+        self.nodes = nodes
+    }
+
+    public var label: String { "Remove Overlap" }
+
+    /// The selected paths Remove Overlap can rewrite: editable paths whose renderable contours are
+    /// all closed.
+    public static func paths(_ nodes: [OpID], in state: EngineState) -> [OpID] {
+        Objects.editable(nodes, in: state).filter { node in
+            guard state.nodeKind(node) == .path, let path = try? PathEditing.path(node, in: state).1 else { return false }
+            let renderable = path.contours.filter(\.isRenderable)
+            return !renderable.isEmpty && renderable.allSatisfy(\.closed)
+        }
+    }
+
+    /// The path's region without overlap, as contours in drawing order; nil when the rewrite would
+    /// change nothing -- no contour crosses or touches itself or another, and normalizing keeps
+    /// the contour count (nested contours the fill rule already reads as holes) -- or leaves
+    /// nothing.
+    public static func normalized(_ path: VectorPath, evenOdd: Bool) -> [[VectorPoint]]? {
+        let contours = path.contours.filter(\.isRenderable).map { Contour(segments: PathAlterKernels.cubics($0), closed: true) }
+        let result = Boolean.normalize(FilledPath(contours: contours, fillRule: evenOdd ? .evenOdd : .nonZero)).contours.filter { !$0.isEmpty }
+        guard !result.isEmpty, result.count != contours.count || crosses(contours) else { return nil }
+        let points = result.map { PathAlterKernels.points($0.segments, closed: true) }.filter { $0.count >= 2 }
+        return points.isEmpty ? nil : points
+    }
+
+    /// Whether any contour crosses or touches itself, or meets another.
+    static func crosses(_ contours: [Contour]) -> Bool {
+        if contours.contains(where: { !$0.isSimple() }) { return true }
+        for i in contours.indices {
+            for j in contours.indices where j > i && contours[i].bounds.intersects(contours[j].bounds) {
+                for a in contours[i].segments {
+                    for b in contours[j].segments where a.controlBounds.intersects(b.controlBounds) && !a.intersections(with: b).isEmpty {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        for node in Self.paths(nodes, in: state) {
+            let (props, path) = try PathEditing.path(node, in: state)
+            guard let contours = Self.normalized(path, evenOdd: props.evenOdd) else { continue }
+            try RewritePath(node: node, removed: path.contours.map(\.id), added: contours.map { NewContour(closed: true, points: $0) }, label: label)
+                .execute(&builder, state: state)
+        }
+    }
+}
+
 /// menu:Extensions[Distort > Fractalize] (path-effects.adoc, "Fractalize"): every segment of each
 /// selected path replaced by a four-segment spike (`PathAlterKernels.fractalized`).  The path's
 /// existing points stay (their handles are shortened to the kept thirds), so a concurrent drag of

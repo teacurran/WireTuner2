@@ -48,6 +48,28 @@ public struct EPSImporter: Importer {
         return scene.kind == .vector ? scene : nil
     }
 
+    /// Why a placed EPS cannot become editable objects (menu:Object[Convert to Editable]).
+    public static let notEditable = "it carries only PostScript, which WireTuner does not interpret, so it stays a placed file."
+
+
+    /// A placed EPS file's artwork as editable objects (IMG-060, import-formats.adoc "Converting a
+    /// placed EPS"): the PDF-compatible stream a recent Illustrator embeds, converted by the PDF
+    /// importer (its first page, editable text, no notes or links, no page clip), else a
+    /// PostScript Illustrator file the legacy reader can read.  Anything else -- plain PostScript
+    /// -- is refused with `ImportError.unreadable` and `notEditable` as the reason.
+    public static func editable(_ data: Data, name: String, context: ImportContext = ImportContext()) throws -> ImportedScene {
+        let file = try EPSFile(data, name: name)
+        if let pdf = file.embeddedPDF, let provider = CGDataProvider(data: pdf as CFData), let document = CGPDFDocument(provider), document.numberOfPages > 0 {
+            let options = PDFImportOptions(pages: ImportPageRange(parsing: "1")!, text: .editable, importNotes: false, importLinks: false, keepPageClip: false)
+            return try PDFImporter().convert(document, name: name, options: options, context: context)
+        }
+        if file.creator?.contains("Adobe Illustrator") == true {
+            let scene = AILegacyReader(data: file.postscript, name: name, text: .editable).read()
+            if scene.kind == .vector { return scene }
+        }
+        throw ImportError.unreadable(name: name, reason: notEditable)
+    }
+
     /// `data` placed as an EPS: the file blob, its bounding box and preview, and notes on what
     /// the placement cannot show.
     static func place(_ data: Data, file: EPSFile, name: String, notes: [String] = []) -> ImportedScene {

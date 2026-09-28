@@ -11,17 +11,21 @@ struct PresenceDisplayOptions: Equatable, Sendable {
     var showCursors = true
     var showNames = true
     var showSelections = true
+    /// The collaborators whose cursor this window hides (*Hide <name>'s Cursor*, COLLAB-060).
+    var hiddenCursors: Set<String> = []
 
-    @MainActor init(preferences: PreferenceStore) {
+    @MainActor init(preferences: PreferenceStore, hiddenCursors: Set<String> = []) {
         showCursors = preferences[PreferenceCatalog.Sync.showCursors]
         showNames = preferences[PreferenceCatalog.Sync.showCursorNames]
         showSelections = preferences[PreferenceCatalog.Sync.showSelections]
+        self.hiddenCursors = hiddenCursors
     }
 
-    init(showCursors: Bool = true, showNames: Bool = true, showSelections: Bool = true) {
+    init(showCursors: Bool = true, showNames: Bool = true, showSelections: Bool = true, hiddenCursors: Set<String> = []) {
         self.showCursors = showCursors
         self.showNames = showNames
         self.showSelections = showSelections
+        self.hiddenCursors = hiddenCursors
     }
 }
 
@@ -86,12 +90,13 @@ struct PresenceOverlay {
         let faded: Bool
     }
 
-    /// The cursors to draw.
+    /// The cursors to draw: none with *Show collaborators' cursors* off, and none of the
+    /// collaborators this window hides.
     func cursors(_ participants: [RemoteParticipant], options: PresenceDisplayOptions, clock: CursorLabelClock) -> [CursorMark] {
         guard options.showCursors else { return [] }
         let toView = viewport.pasteboardToView
         return participants.compactMap { participant in
-            guard let cursor = participant.cursor else { return nil }
+            guard let cursor = participant.cursor, !options.hiddenCursors.contains(participant.id) else { return nil }
             var label: String?
             if options.showNames, clock.showsLabel(participant.id) {
                 let badge = participant.editing.isEmpty || participant.tool.isEmpty ? "" : " · \(ToolID(participant.tool).displayTitle)"

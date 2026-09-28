@@ -2,12 +2,13 @@ import Foundation
 
 /// The collaboration menu items (presence.adoc, "Display options", "Following someone";
 /// reconcile.adoc, "The review sheet"): menu:File[Review Merge…], and menu:View[Collaborators]
-/// with *Follow <name>*, *Stop Following*, *Spotlight Me* and the three display switches, which
+/// with *Follow <name>*, *Hide <name>'s Cursor* (COLLAB-060), *Stop Following*, *Spotlight Me* and the three display switches, which
 /// are the same switches as the Preferences rows.
 enum CollaborationCommands {
     enum ID {
         static let reviewMerge: CommandID = "file.reviewMerge"
         static let follow = ContextMenuCatalog.ID.follow
+        static let hideCursor = ContextMenuCatalog.ID.hideCursor
         static let stopFollowing: CommandID = "view.collaborators.stopFollowing"
         static let spotlight: CommandID = "view.collaborators.spotlight"
         static let showCursors: CommandID = "view.collaborators.showCursors"
@@ -54,6 +55,18 @@ enum CollaborationCommands {
                 }
             ),
             Command(
+                id: ID.hideCursor, title: "Hide <name>'s Cursor", menu: menu(0), contexts: [.presence], keywords: ["cursor", "hide", "presence"],
+                validation: {
+                    guard let window = window() else { return .disabled(noDocument) }
+                    guard let target = followTarget(window) else { return .disabled(nobodyElse) }
+                    return CommandValidation(title: hideCursorTitle(target.name, hidden: window.collaboration.isCursorHidden(target.id)))
+                },
+                action: .perform {
+                    guard let window = window(), let target = followTarget(window) else { return }
+                    window.collaboration.toggleCursorHidden(target.id)
+                }
+            ),
+            Command(
                 id: ID.stopFollowing, title: "Stop Following", menu: menu(0),
                 validation: { window()?.collaboration.follow.isFollowing == true ? .enabled : .disabled(notFollowing) },
                 action: .perform { window()?.collaboration.stopFollowing() }
@@ -74,6 +87,11 @@ enum CollaborationCommands {
         }
     }
 
+    /// *Hide <name>'s Cursor*, or *Show <name>'s Cursor* once it is hidden (COLLAB-060).
+    static func hideCursorTitle(_ name: String, hidden: Bool) -> String {
+        hidden ? "Show \(name)'s Cursor" : "Hide \(name)'s Cursor"
+    }
+
     /// Whom *Follow* follows: the collaborator whose presence marker the context menu was opened
     /// on, else the first one present.
     @MainActor
@@ -83,8 +101,8 @@ enum CollaborationCommands {
         return participants.first
     }
 
-    /// Registers the commands; *Follow <name>* replaces the context menu catalog's placeholder in
-    /// place.
+    /// Registers the commands; *Follow <name>* and *Hide <name>'s Cursor* replace the context menu
+    /// catalog's placeholders in place.
     @MainActor
     static func install(into registry: CommandRegistry, window: @escaping @MainActor @Sendable () -> DocumentWindowController?, preferences: PreferenceStore) {
         for command in commands(window: window, preferences: preferences) { registry.replace(command) }

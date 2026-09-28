@@ -249,10 +249,18 @@ public struct EPSFile: Sendable {
 
     /// The first page of a PDF embedded in the PostScript, at 144 ppi (at most
     /// `maximumPreviewSide` pixels a side), transparent where nothing is drawn.
-    func pdfPreview() -> CGImage? {
+    /// The PDF embedded in the PostScript (Illustrator's PDF-compatible stream), from `%PDF-` to
+    /// the last `%%EOF`; nil when the file carries none.
+    public var embeddedPDF: Data? {
         guard let start = postscript.range(of: Data("%PDF-".utf8)),
-              let end = postscript.range(of: Data("%%EOF".utf8), options: .backwards, in: start.upperBound..<postscript.endIndex),
-              let provider = CGDataProvider(data: postscript.subdata(in: start.lowerBound..<end.upperBound) as CFData),
+              let end = postscript.range(of: Data("%%EOF".utf8), options: .backwards, in: start.upperBound..<postscript.endIndex) else {
+            return nil
+        }
+        return postscript.subdata(in: start.lowerBound..<end.upperBound)
+    }
+
+    func pdfPreview() -> CGImage? {
+        guard let pdf = embeddedPDF, let provider = CGDataProvider(data: pdf as CFData),
               let document = CGPDFDocument(provider), let page = document.page(at: 1) else {
             return nil
         }

@@ -117,6 +117,50 @@ public struct SetPolygonFields: Command {
     }
 }
 
+/// The Object panel's ellipse row (DRAW-061, rectangles-ellipses-lines.adoc "Arcs"): writes the
+/// start angle, end angle and open flag -- each its own register, only those given -- on every
+/// selected editable ellipse.  Angles are stored modulo 360 and rounded to hundredths of a degree;
+/// a non-finite angle is refused.  One change "Change arc" / "Change arc of N objects".
+public struct SetEllipseArc: Command {
+    public var nodes: [OpID]
+    public var start: Double?
+    public var end: Double?
+    public var open: Bool?
+    public var label: String
+
+    public init(_ nodes: [OpID], start: Double? = nil, end: Double? = nil, open: Bool? = nil, label: String? = nil) {
+        self.nodes = nodes
+        self.start = start
+        self.end = end
+        self.open = open
+        self.label = label ?? (nodes.count > 1 ? "Change arc of \(nodes.count) objects" : "Change arc")
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        for value in [start, end].compactMap({ $0 }) where !value.isFinite {
+            throw PathEditError.invalidValue("arc")
+        }
+        var props = Wiretuner_Doc_V1_NodeProps()
+        var paths: [RegisterPath] = []
+        if let start {
+            props.ellipse.startAngle = (EllipseArc.normalized(start) * 100).rounded() / 100
+            paths.append(EllipseFields.startAngle)
+        }
+        if let end {
+            props.ellipse.endAngle = (EllipseArc.normalized(end) * 100).rounded() / 100
+            paths.append(EllipseFields.endAngle)
+        }
+        if let open {
+            props.ellipse.open = open
+            paths.append(EllipseFields.open)
+        }
+        guard !paths.isEmpty else { return }
+        for node in Objects.editable(nodes, in: state) where state.nodeKind(node) == .ellipse {
+            builder.append(Ops.set(node, paths, values: props))
+        }
+    }
+}
+
 /// A rectangle corner.
 public enum Corner: Sendable, Hashable, CaseIterable {
     case topLeft, topRight, bottomRight, bottomLeft

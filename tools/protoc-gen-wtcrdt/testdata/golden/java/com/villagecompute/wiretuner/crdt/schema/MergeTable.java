@@ -44,7 +44,7 @@ public final class MergeTable {
   public record VariantPolicy(int kindField, List<Integer> caseFields) {}
 
   /** SHA-256 (hex) of the canonical JSON table without its version key. */
-  public static final String VERSION = "3be55cffc6cdae8ffd50f1308089c463a49a2f52f85dbc9e038f7362d57fb3a8";
+  public static final String VERSION = "e8bbeb277e1ae951fe2098b310df85b8619e6d67a1b039d9eb91b94673ea918f";
 
   /** The name of the JSON resource beside this class. */
   public static final String RESOURCE = "merge-table.json";
@@ -1088,7 +1088,10 @@ public final class MergeTable {
         Map.ofEntries(
             Map.entry(1, new FieldPolicy(1, "common", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.CommonProps", null, null)),
             Map.entry(2, new FieldPolicy(2, "size", Policy.ATOMIC, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.Size", null, null)),
-            Map.entry(3, new FieldPolicy(3, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null))
+            Map.entry(3, new FieldPolicy(3, "appearance", Policy.STRUCT, RefFallback.UNSET, false, "message", false, "wiretuner.doc.v1.AppearanceProps", null, null)),
+            Map.entry(4, new FieldPolicy(4, "start_angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(5, new FieldPolicy(5, "end_angle", Policy.ATOMIC, RefFallback.UNSET, false, "double", false, null, null, null)),
+            Map.entry(6, new FieldPolicy(6, "open", Policy.ATOMIC, RefFallback.UNSET, false, "bool", false, null, null, null))
         ));
   }
 

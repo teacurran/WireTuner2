@@ -47,7 +47,10 @@ message CornerRadii {
   double bottom_left = 5 [(buf.validate.field).double.gte = 0];
 }
 
-// NodeProps.kind case `ellipse`: a live ellipse inscribed in its local frame.
+// NodeProps.kind case `ellipse`: a live ellipse inscribed in its local frame, or an arc of it
+// (DRAW-061).  The angles are degrees counterclockwise on screen from the frame's 3 o'clock
+// direction; equal angles (0 and 0 by default) are the whole ellipse.  Each field is its own
+// register (rectangles-ellipses-lines.adoc, "Merge semantics").
 message EllipseProps {
   // Name, transform and the other shared registers.
   CommonProps common = 1;
@@ -55,6 +58,13 @@ message EllipseProps {
   Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   // Strokes, fills and effects.
   AppearanceProps appearance = 3;
+  // Where the arc starts, degrees; read modulo 360 (a non-finite value reads as 0).
+  double start_angle = 4;
+  // Where the arc ends, going counterclockwise from `start_angle`, degrees; read modulo 360.
+  double end_angle = 5;
+  // An open arc (the curve only) rather than a closed one (a wedge through the centre).  Ignored
+  // for the whole ellipse.
+  bool open = 6;
 }
 
 // NodeProps.kind case `polygon`: a live regular polygon or star.  Local space: center at the

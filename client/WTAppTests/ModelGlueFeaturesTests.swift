@@ -28,11 +28,13 @@ import WTSync
         let glue = delegate.modelGlue
         #expect(glue.envelopes != nil && glue.perspective != nil && glue.links != nil && glue.pathAlter != nil)
         for id in [EnvelopeFeatures.ID.create, ContextMenuCatalog.ID.attachToPath, StandardCommands.ID.perspectiveShow, LinkOverlayFeatures.id,
-                   PathAlterFeatures.ID.correctDirection, ContextMenuCatalog.ID.simplify] {
+                   PathAlterFeatures.ID.correctDirection, ContextMenuCatalog.ID.simplify, ContextMenuCatalog.ID.removeOverlap] {
             #expect(delegate.commands.command(id)?.validation().reason != WireTuner.Command.placeholderReason, "\(id)")
         }
         #expect(delegate.toolbars.extensions.descriptor(for: "fractalize")?.isStub == false)
         #expect(delegate.toolbars.extensions.descriptor(for: "correctDirection")?.isStub == false)
+        #expect(delegate.toolbars.extensions.descriptor(for: "removeOverlap")?.isStub == false)
+        #expect(delegate.toolbars.extensions.descriptor(for: "trap")?.isStub == false)
         #expect(delegate.panels.descriptor(for: InspectPanel.id)?.title == "Inspect")
         #expect(glue.inspect.window() === window && glue.inspect.blob(Data()) == nil)
         #expect(glue.links?.index(window).carriers.isEmpty == true)
@@ -167,6 +169,85 @@ import WTSync
         #expect(!extensions.validation(ofExtension: "correctDirection").isEnabled)
     }
 
+    @Test func removeOverlapRunsFromTheMenuAndTheToolbar() async throws {
+        let world = GlueWorld()
+        defer { world.close() }
+        let features = PathAlterFeatures(target: world.target, store: world.preferences, sheets: world.sheets())
+        let extensions = ExtensionRegistry()
+        features.install(commands: world.commands, extensions: extensions)
+        let id = ContextMenuCatalog.ID.removeOverlap
+        #expect(world.commands.command(id)?.validation().reason == PathAlterFeatures.noClosedPath)
+        #expect(extensions.descriptor(for: "removeOverlap")?.isStub == false)
+        // A bow tie: one self-crossing closed contour becomes two.
+        let bowtie = try #require(await world.document.addPath([Point(x: 0, y: 0), Point(x: 90, y: 90), Point(x: 90, y: 0), Point(x: 0, y: 90)], closed: true))
+        let line = try #require(await world.document.addPath([Point(x: 0, y: 200), Point(x: 90, y: 290), Point(x: 90, y: 200)]))
+        world.select([line.opID])
+        #expect(!extensions.validation(ofExtension: "removeOverlap").isEnabled, "an open path")
+        world.select([bowtie.opID])
+        #expect(world.commands.command(id)?.validation() == .enabled)
+        #expect(world.commands.perform(id))
+        await world.document.settle()
+        #expect(world.document.undoTitle == "Undo Remove Overlap" && world.document.path(bowtie)?.contours.count == 2)
+        _ = await world.document.undo().value
+        #expect(world.document.path(bowtie)?.contours.count == 1)
+        #expect(extensions.perform("removeOverlap"))
+        await world.document.settle()
+        #expect(world.document.path(bowtie)?.contours.count == 2)
+    }
+
+    @Test func trapOpensItsSheetWritesOnOKAndRepeats() async throws {
+        let world = GlueWorld()
+        defer { world.close() }
+        let features = PathAlterFeatures(target: world.target, store: world.preferences, sheets: world.sheets())
+        let extensions = ExtensionRegistry()
+        features.install(commands: world.commands, extensions: extensions)
+        #expect(extensions.descriptor(for: "trap")?.isStub == false)
+        #expect(extensions.validation(ofExtension: "trap").reason == PathAlterFeatures.noTrapPair)
+        func filled(_ level: Double, x: Double) async throws -> OpID {
+            var appearance = Wiretuner_Doc_V1_AppearanceProps()
+            appearance.fills = [Appearances.basicFill(red: level, green: level, blue: level)]
+            return try #require(await world.document.perform(CreateShape(.rectangle(CornerRadii()), size: Size(width: 20, height: 20),
+                                                                         transform: .translation(x: x, y: 0), appearance: appearance)).value?.createdObjects.first)
+        }
+        let back = try await filled(0.2, x: 0)
+        let front = try await filled(0.8, x: 10)
+        world.select([back, front])
+        #expect(extensions.validation(ofExtension: "trap").isEnabled)
+        // Without settings the sheet opens.
+        #expect(extensions.descriptor(for: "trap")?.run?(nil) == nil)
+        let model = try #require(features.trap)
+        #expect(world.presented.value.last?.identifier?.rawValue == PathAlterFeatures.trapSheet)
+        #expect(model.width == TrapCommand.defaultWidth && model.tint == TrapCommand.defaultTint && !model.maximum && !model.reverse)
+        Render.view(TrapSheet(model: model))
+        TrapSheet.number({ model.width }, { model.width = $0 }, range: TrapCommand.widths).wrappedValue = "40"
+        #expect(model.width == TrapCommand.widths.upperBound)
+        TrapSheet.number({ model.width }, { model.width = $0 }, range: TrapCommand.widths).wrappedValue = "x"
+        model.width = 1
+        TrapSheet.method(model).wrappedValue = 0
+        #expect(model.maximum && TrapSheet.method(model).wrappedValue == 0)
+        TrapSheet.method(model).wrappedValue = 1
+        model.reverse = true
+        _ = await model.confirm().value
+        #expect(world.document.undoTitle == "Undo Trap" && features.trap == nil)
+        #expect(world.preferences[PathAlterFeatures.trapWidth] == 1 && world.preferences[PathAlterFeatures.trapReverse])
+        // Repeat passes the settings back; Cancel writes nothing.
+        let parameters = PathAlterFeatures.parameters(TrapModel(document: world.document, nodes: [back, front], width: 0.5, maximum: true, tint: 50,
+                                                                reverse: false) { _ in })
+        #expect(extensions.descriptor(for: "trap")?.run?(parameters) == parameters)
+        await world.document.settle()
+        #expect(PathAlterFeatures.trapCommand([back], ["width": "x"]) == nil)
+        let again = try #require(features.showTrap(world.editing))
+        TrapSheet.cancelling(again)()
+        #expect(features.trap == nil)
+        let third = try #require(features.showTrap(world.editing))
+        TrapSheet.confirming(third)()
+        await world.document.settle()
+        world.select([back])
+        #expect(features.showTrap(world.editing) == nil)
+    }
+
+    // MARK: Expand and Snapshot
+    // MARK: Expand and Snapshot
     // MARK: Expand and Snapshot
 
     @Test func theCombineFormsExpandAndTheLensSnapshot() async throws {

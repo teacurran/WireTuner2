@@ -19,34 +19,11 @@ import WTRender
     /// Menu, context-menu and toolbar commands that are not built, each with the page that
     /// specifies it and the task that would build it (rch-inventory.md, "Not built").  An entry that
     /// stops being a placeholder fails `theAllowListHasNoStaleEntries`: take it off.
-    static let notBuilt: [CommandID: String] = [
-        // Remove Overlap needs a model command that rewrites a path's contour set to its normalized
-        // union (WTGeometry `Boolean.normalize`); none exists.  context-menus.adoc, extensions.adoc
-        // "Cleanup"; proposed DRAW-060.
-        "modify.alterPath.removeOverlap": "context-menus.adoc; DRAW-060 (proposed)",
-        // Release Contents: no model command puts a clip group's contents back on the page without
-        // the clipboard (Cut Contents goes through it).  context-menus.adoc, clipping-paths.adoc;
-        // proposed OBJ-060.
-        "modify.clip.releaseContents": "clipping-paths.adoc; OBJ-060 (proposed)",
-        // Convert to Editable: placed EPS/PDF previews have no converter to editable objects.
-        // context-menus.adoc, import-formats.adoc; proposed IMG-060.
-        "object.convertToEditable": "import-formats.adoc; IMG-060 (proposed)",
-        // Hide <name>'s Cursor: the presence overlay has no per-collaborator filter.
-        // context-menus.adoc "Collaborator menu", presence.adoc; proposed COLLAB-060.
-        "presence.hideCursor": "presence.adoc; COLLAB-060 (proposed)",
-        // The extensions whose operation has no model: Remove Overlap (as above), Trap (no spec page
-        // describes trapping; extensions.adoc points at printing.adoc).
-        "extension.removeOverlap": "extensions.adoc; DRAW-060 (proposed)",
-        "extension.trap": "extensions.adoc, printing.adoc; PRINT-060 (proposed)",
-    ]
+    static let notBuilt: [CommandID: String] = [:]
 
     /// Object kinds the Object panel has no section of their own for, although object-panel.adoc's
     /// "Properties by kind" lists one.
     static let kindsWithoutOwnSection: [String: String] = [
-        // Ellipse: start and end angles and open or closed need an arc model (ShapeGeometry has no
-        // arc parameters on the ellipse node).  object-panel.adoc, rectangles-ellipses-lines.adoc;
-        // proposed DRAW-061.
-        "ellipse": "rectangles-ellipses-lines.adoc; DRAW-061 (proposed)",
         // Chart: object-panel.adoc lists no chart row by design; a chart is edited in its Chart
         // sheet (menu:Object[Chart > Edit Data…]), and the chart element section shows when an
         // element is picked with the Subselect tool (charts.adoc).

@@ -500,7 +500,7 @@ NOTE: As built by FX-030 (`WTApp/Effects/Distort/DistortFeatures.swift`; `Extens
 xref:toolbars.adoc[Toolbars] (menu:Window[Toolbars > Extension Operations]); its buttons and the
 menu:Extensions[Create] and menu:Extensions[Distort] submenus come from `ExtensionCatalog` and validate
 against the selection.  *Add Points* (WTModel's `AddPoints`) and *Fractalize* (a `RewritePath` per
-selected path) run on the selected paths; *Emboss* and *Trap* stay stubs (FX-034, PRINT).  The
+selected path) run on the selected paths; *Emboss* was FX-034's and *Trap* is PRINT-060's (printing.adoc, "Trap").  The
 Distort submenu's *Roughen…*, *Fisheye Lens…*, *Bend…*, *Smudge…* and *3D Rotation…* choose that tool in
 the front window and open its options sheet.  kbd:[Cmd]-click on an operation's toolbar button runs it
 with the settings its sheet captured last (its defaults the first time) without the sheet -- the

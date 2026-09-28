@@ -192,6 +192,48 @@ Overprint is an attribute of a fill or stroke, set in the Object panel
 (xref:fill-attributes.adoc[Fill attributes], xref:stroke-attributes.adoc[Stroke attributes]);
 separations honor it, and composite output shows it when overprint preview is on.
 
+[[trapping]]
+== Trapping
+
+On a press the plates never line up perfectly, so where two colors meet a thin white gap can
+open along the edge.  A *trap* hides it: a narrow strip along the edge, in the lighter of the two
+colors, set to overprint, so the lighter ink runs slightly under the darker one.  The lighter
+color always moves toward the darker one because the darker edge defines the shape the eye
+sees.  When the lighter color is the object in front, the trap spreads it outward (a *spread*);
+when the lighter color is behind, the trap pushes it in under the front object (a *choke*).
+
+To trap two overlapping filled objects:
+
+. Select the two objects.
+. Choose menu:Extensions[Create > Trap…], or click *Trap* on the Extension Operations toolbar.
+. Set the options and click btn:[OK].
+
+[cols="1,3"]
+|===
+|Option |Effect
+
+|*Trap width*
+|The width of the strip, in points, centered on the front object's edge (so it reaches half the
+width into each color).  Ask your print service; 0.25 to 0.5 point is usual for offset
+printing.  Default 0.5 point.
+
+|*Use maximum value* / *Use tint reduction*
+|How the trap is colored.  *Maximum value* takes, for each process ink, the larger of the two
+colors' amounts, so the strip holds both inks.  *Tint reduction* uses the lighter color at the
+percentage given (default 50%), which keeps the trap from showing as a dark line.
+
+|*Reverse traps*
+|Uses the darker color instead of the lighter one, for the rare case where the darker object
+should spread.
+|===
+
+The trap is a new path just above the front object, filled and set to overprint, with no
+stroke; the two objects are unchanged.  It is an ordinary object: move it, recolor it or delete
+it like any other, and it does not follow if you later move either object.  Nothing happens when
+the objects do not overlap or touch, or when either has no fill.  Traps are for separations
+printed on a press; they make no difference on a desktop printer, and your print service may
+prefer to trap in its own RIP.
+
 == Printer's marks, bleed and labels
 
 The *Marks and bleed* group adds what a print shop uses to trim and register the sheet.  All of
@@ -562,6 +604,48 @@ overlays while the accessory's pane is on screen (the panel is open; the job spo
 one revision bumped on every commit and document change rather than every setting; and the dialog's page range selects
 sheets (the panel paginates by sheet), so the session passes no `pageRange` to the plan -- with neither tiling nor
 separations a sheet is a page.
+
+[[trap-spec]]
+=== Trap
+
+A spec addition (PRINT-060): no page described FreeHand's Trap Xtra, which extensions.adoc's *Create*
+category and the Extension Operations toolbar name.  It is an object operation, not a print setting: it writes
+ordinary nodes and nothing in the print pipeline changes.
+
+Inputs:: Exactly two unlocked closed paths, rectangles, ellipses or polygons, each with a visible fill (the
+same rule as menu:Modify[Combine > Transparency]); back `B`, front `F` in stacking order.
+Geometry:: In pasteboard space, `F`'s region outlined by a stroke of *Trap width* (butt caps, miter joins,
+limit 4) centered on its edge (GEO-003's `strokeOutline`), intersected with `B`'s region (GEO-002).  An
+empty result writes nothing.
+Color:: Each input's color is its topmost visible fill's (`PathOperationPaint.averageColor`).  The lighter
+of the two is the one with the greater CIE L* (ties: `B`'s); *Reverse traps* takes the other.  *Use
+tint reduction* `p`%: that color moved toward paper white by `100 − p`% in its own space (a CMYK color's
+inks scaled by `p`%).  *Use maximum value*: both colors in CMYK, each ink the larger of the two.
+Result:: A new path just above `F` under `F`'s parent (identity transform, contours in the parent's space),
+with one Basic fill of that inline color, `overprint` on, and no stroke.  One change "Trap".  Settings:
+*Trap width* 0.1--10 pt (default 0.5), method, tint 0--100% (default 50) and *Reverse traps* are
+remembered on this Mac as tool preferences; they are not document data.
+Merge semantics:: Creates only, like Transparency: a concurrent edit of either input is untouched; a
+concurrent delete of an input leaves the trap in place.  No proto change.
+Not covered (FreeHand did none of these either): automatic trapping of a whole page, traps between more
+than two objects in one step, traps against gradients as gradients (a gradient fill traps with its average
+color), and in-RIP trapping settings.
+
+NOTE: As built by PRINT-060 (xref:backlog.adoc#PRINT-060[backlog]; `WTModel/PathOperationCommands.swift`,
+`WTApp/Effects/TrapFeatures.swift`).  `TrapCommand(nodes, width:, method:, reverse:)` as specified above:
+`TransparencyCommand.inputs` for the pair, `Offset.strokeOutline` of the front region (width clamped to
+0.1--10 pt) intersected with the back region, the lighter colour by CIE L* (`converted(to: .lab)`), tint
+reduction as a linear move toward white in the colour's own space (a spot ink kept on the colour), maximum
+value through `converted(to: .cmyk)` per ink, the result's Basic fill inline with `overprint` on.  *Trap…* on
+the Extension Operations toolbar and menu:Extensions[Create] replace the stub (PathAlterFeatures installs
+the descriptor): enabled with a trap pair ("Select two overlapping filled closed paths" otherwise), it opens
+the Trap sheet (`TrapSheet`: width field, the two methods as radio buttons, the tint field dimmed under
+*Maximum value*, *Reverse traps*); btn:[OK] performs the command and stores `tools.trap.width`, `.maximum`,
+`.tint` and `.reverse` (local preferences); Repeat and kbd:[Cmd]-click pass those four back as the
+operation's parameters.  Deviation: the geometry is a straight strip on the front edge for both spread and
+choke -- only the colour differs -- as FreeHand's Xtra did; a pair that merely touches produces the strip
+half inside the back object.  Tests: `TrapCommandTests` (WTModel),
+`ModelGlueFeaturesTests.trapOpensItsSheetWritesOnOKAndRepeats`.
 
 === Build tasks
 

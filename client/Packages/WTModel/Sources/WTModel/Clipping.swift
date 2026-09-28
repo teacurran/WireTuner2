@@ -9,13 +9,17 @@ public enum ClipGroups {
     public static let clipPathField = RegisterPath([NodeKind.group.rawValue, 4])
 
     /// Whether `node` can be a clipping path: a live path whose contours are all closed (a
-    /// composite path joined before), or a rectangle, ellipse or polygon.  Open paths, text and
-    /// bitmaps cannot.
+    /// composite path joined before), or a rectangle, ellipse (not an open arc) or polygon.  Open
+    /// paths, text and bitmaps cannot.
     public static func canClip(_ node: OpID, in state: EngineState) -> Bool {
         guard state.isLive(node) else { return false }
         switch state.nodeKind(node) {
-        case .rect?, .ellipse?, .polygon?:
+        case .rect?, .polygon?:
             return true
+        case .ellipse?:
+            // An open arc has no inside (DRAW-061).
+            let arc = EllipseArc(state.props(node).ellipse)
+            return arc.isWhole || !arc.open
         case .path?:
             let contours = VectorPath(state.props(node).path, node: node, state: state).contours.filter(\.isRenderable)
             return !contours.isEmpty && contours.allSatisfy(\.closed)
@@ -147,6 +151,54 @@ public struct CutContents: Command {
         builder.append(Ops.setDeleted(group))
         for content in ClipGroups.contents(of: group, in: state) {
             builder.append(Ops.setDeleted(content))
+        }
+    }
+}
+
+/// menu:Modify[Clipping > Release Contents] (OBJ-060, clipping-paths.adoc "To take the contents
+/// out"): puts a clip group's contents back on the page without the clipboard.  The clip path
+/// moves to the group's slot in its parent as a plain path and the contents follow above it in
+/// their stacking order, each with the group's transform baked into its own (`child × G`); the
+/// group is deleted.  With no usable clip path every live child is released the same way.  One
+/// change "Release Contents" over every selected clip group (or clip path); anything else is
+/// skipped, and locked groups are left alone.
+public struct ReleaseContents: Command {
+    public var nodes: [OpID]
+    public var label: String { "Release Contents" }
+
+    public init(_ nodes: [OpID]) {
+        self.nodes = nodes
+    }
+
+    /// The clip groups `nodes` release: each clip group, or the group of a clip path, once.
+    public static func groups(_ nodes: [OpID], in state: EngineState) -> [OpID] {
+        var seen = Set<OpID>()
+        return nodes.compactMap { ClipGroups.target($0, in: state) }.filter { seen.insert($0).inserted }
+    }
+
+    /// Whether Release Contents has anything to do for `nodes`.
+    public static func canPerform(_ nodes: [OpID], in state: EngineState) -> Bool {
+        !Objects.editable(groups(nodes, in: state), in: state).isEmpty
+    }
+
+    /// The nodes the release puts on the page, bottom first (the clip path, then the contents).
+    public static func released(_ group: OpID, in state: EngineState) -> [OpID] {
+        let clip = ClipGroups.clipPath(of: group, in: state)
+        return (clip.map { [$0] } ?? []) + state.liveChildren(group).filter { $0 != clip && state.nodeKind($0) != .layer }
+    }
+
+    public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        for group in Objects.editable(Self.groups(nodes, in: state), in: state) {
+            guard let parent = Objects.parent(of: group, in: state) else { continue }
+            let members = Self.released(group, in: state)
+            let groupTransform = Objects.transform(of: group, in: state)
+            let keys = try Arranging.keys(next: group, above: true, count: max(members.count, 1), in: state)
+            for (member, key) in zip(members, keys) {
+                guard let kind = state.nodeKind(member) else { continue }
+                builder.append(Objects.setTransform(member, kind: kind, Objects.transform(of: member, in: state).concatenating(groupTransform)))
+                builder.append(Ops.move(member, parent: parent, position: key))
+            }
+            builder.append(Ops.setDeleted(group))
         }
     }
 }

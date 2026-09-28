@@ -89,10 +89,24 @@ measured from the page's zero point.
 |Radius (rectangles)
 |One field with *Uniform* on, four (top-left, top-right, bottom-right, bottom-left) with it
 off.
+
+|Start angle, End angle, Closed (ellipses)
+|An arc of the ellipse; see <<arcs,Arcs>>.
 |===
 
 Type a value and press kbd:[Return] to apply it.  This is also how to draw to exact
 dimensions: drag a rough shape, then type its size.
+
+[[arcs]]
+== Arcs
+
+An ellipse can show just an arc of itself.  In the Object panel, *Start angle* and *End angle*
+are in degrees, counterclockwise from the ellipse's 3 o'clock position (90 is the top), and the
+arc runs counterclockwise from the start to the end.  With *Closed* on (the default) the arc is
+closed through the centre, a wedge like a pie slice; off, only the curve is drawn, and it cannot
+be filled or used as a clipping path.  When the two angles are equal the whole ellipse is drawn.
+The ellipse stays a live shape: resize it and the arc follows.  To draw an arc as a free path
+instead, use the Arc tool (xref:spirals-arcs.adoc[Spirals and arcs]).
 
 == Converting a shape to a path
 
@@ -143,11 +157,14 @@ message CornerRadii {
   double bottom_left = 5  [(buf.validate.field).double.gte = 0];
 }
 
-// A live ellipse inscribed in its local frame.
+// A live ellipse inscribed in its local frame, or an arc of it (DRAW-061).
 message EllipseProps {
   CommonProps common = 1;
   Size size = 2 [(wt.crdt.field).merge = MERGE_ATOMIC];
   AppearanceProps appearance = 3;
+  double start_angle = 4;                     // degrees, counterclockwise on screen from 3 o'clock
+  double end_angle = 5;                       // equal to start_angle: the whole ellipse
+  bool open = 6;                              // the curve only; closed is a wedge through the centre
 }
 
 // Size (width, height; ATOMIC where used) is in common.proto.
@@ -164,6 +181,10 @@ attribute stack.  Position and rotation: `common.transform` (ATOMIC, owned by
 xref:moving.adoc[Moving] and xref:transforming.adoc[Transforming]).
 
 Resize vs. resize:: LWW on `size`; the other size is retained for the review sheet.
+
+Arc edits:: `start_angle`, `end_angle` and `open` are three registers: concurrent edits of
+different ones all apply, the same one is LWW (vector
+`crdt-conformance/vectors/registers/ellipse-arc-concurrent.textproto`).
 
 Resize vs. round corners:: Independent registers; both survive.  If the resulting radii exceed
 half the shorter side, the read clamps them (below); nothing is rewritten.
@@ -187,6 +208,8 @@ alongside the path.
 
 Read-time normalizations::
 * Each radius is clamped to half of `min(width, height)`.
+* Ellipse angles read modulo 360, a non-finite angle as 0; equal angles read as the whole
+  ellipse, where `open` does nothing.
 * `uniform = true`: all corners read as `top_left`.
 * A live Corners effect present: all radii read as 0 and the effect applies (above).
 * A `size` with a zero or negative dimension renders nothing and is selectable only from the
@@ -244,6 +267,21 @@ corners, `SetCornerRadius`) and menu:Modify[Ungroup] converting a rectangle or e
 (`Ungroup`: a `path` node with the same outline, attributes and transform above it, the shape deleted;
 undo restores the shape) are delivered.  The Rectangle Tool sheet and the Subselect radius handles are
 not.
+
+NOTE: As built by DRAW-061 (xref:backlog.adoc#DRAW-061[backlog]; `proto/wiretuner/doc/v1/shape.proto`,
+`WTModel/ShapeGeometry.swift`, `ShapeCommands.swift`, `WTApp/Inspector/EllipseSection.swift`).  `EllipseProps`
+gained `start_angle = 4`, `end_angle = 5` and `open = 6`, plain scalars and so one register each
+(additive; `buf breaking` passes; merge table and golden regenerated).  `EllipseArc` is the read:
+angles modulo 360 in 0..<360, non-finite as 0, `isWhole` when equal.  `ShapeGeometry.path(ellipse)` keeps
+the four-point `ellipsePath` for the whole ellipse -- existing documents read exactly as before -- and
+otherwise `arcPath`: cubic pieces of at most 90° (handle 4/3·tan(θ/4) of each radius) from the start
+counterclockwise on screen to the end, corner points at the ends and smooth ones between, then for a
+closed arc the centre as a corner point closing the contour.  Every consumer (render, hit test, export,
+Ungroup to path) reads that path.  `SetEllipseArc(nodes, start:, end:, open:)` ("Change arc") writes only
+the fields given, angles normalized and rounded to hundredths.  `ClipGroups.canClip` refuses an open
+arc.  The Object panel's ellipse section (order 35, after the rectangle's) has *Start angle*, *End angle*
+and *Closed*.  The Ellipse tool still draws the whole ellipse; angles are set afterwards.  Tests:
+`EllipseArcTests` (WTModel), `EllipseSectionTests` (WTApp), the conformance vector above (both engines).
 
 === Build tasks
 

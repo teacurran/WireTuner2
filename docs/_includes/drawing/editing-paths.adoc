@@ -206,6 +206,21 @@ document, menu:Edit[Find and Replace > Graphics] can select paths with more than
 number of points (xref:find-replace.adoc[Find and replace]).  Flatness, in the Object panel,
 is the other lever for slow printing (xref:vector-basics.adoc[Vector basics]).
 
+== Removing overlap
+
+A path that crosses itself -- a figure eight, a looping brush stroke, two overlapping shapes
+joined into one composite -- fills its overlaps by its fill rule, and its outline runs through
+the middle of the shape.  To redraw it as the outline of what it fills:
+
+* Select one or more closed paths and choose menu:Modify[Alter Path > Remove Overlap], or
+  Control-click and choose *Remove Overlap*, or run it from menu:Extensions[Cleanup] or the
+  Extension Operations toolbar.
+
+Crossings become corner points, a figure eight becomes two lobes, a composite's overlapping
+contours merge, and holes the fill rule leaves open stay holes.  The path keeps its attributes,
+transform and place in the stacking order; its points are all new.  Open paths, and paths that
+do not overlap themselves, are left alone.  One undo step, "Remove Overlap".
+
 == Reversing direction
 
 To reverse the direction of a selected path:
@@ -230,7 +245,7 @@ on the same path:
 * A Knife cut or Split while someone else edits points: the piece that keeps the original
   path's identity keeps their edits; edits to points that moved into a new piece are listed for
   review after they reconnect.
-* Freeform pushes, Eraser strokes and Simplify rewrite stretches of a path wholesale, so a
+* Freeform pushes, Eraser strokes, Simplify and Remove Overlap rewrite stretches of a path wholesale, so a
   collaborator's edit to a point inside that stretch will be listed for review rather than
   merged.
 * Reversing direction never conflicts with anyone's point edits.
@@ -407,6 +422,23 @@ result on the canvas through the document's preview (nothing written), btn:[OK] 
 "Simplify") and btn:[Cancel] dropping the preview; Repeat and kbd:[Cmd]-click on the toolbar button run it with the amount
 passed back.  menu:Modify[Alter Path > Correct Direction] and its toolbar entry perform `CorrectDirection`.  Tests:
 `ModelGlueFeaturesTests`.
+
+NOTE: As built by DRAW-060 (xref:backlog.adoc#DRAW-060[backlog]; `WTModel/PathAlterCommands.swift`,
+`WTApp/Effects/PathAlterFeatures.swift`).  `RemoveOverlap(nodes)` ("Remove Overlap") takes the editable
+paths whose renderable contours are all closed and, for each, runs WTGeometry's `Boolean.normalize` (GEO-002)
+on its contours under its own fill rule in its own space, so the transform is untouched.  The path is left
+alone when nothing would change: no contour crosses or touches itself (`Contour.isSimple`) or meets another
+(segment intersections) and normalizing keeps the contour count; otherwise every old contour is deleted and
+the result appended as all-new contours through `RewritePath` (removed + added), so, as for Simplify, a
+concurrent point edit is *edit vs delete* and the review lists the path once.  No new op or register: the
+rewrite is `ElementDelete` and contour inserts, whose merge rules are the path's (no proto change, no new
+vector).  menu:Modify[Alter Path > Remove Overlap] (`modify.alterPath.removeOverlap`, also in the path
+context menu) and the Extension Operations toolbar's *Remove Overlap* (`extension.removeOverlap`,
+menu:Extensions[Cleanup]) replace their placeholders, enabled with a closed path selected ("Select a closed
+path").  The Variable Stroke and Calligraphic pens' *Auto remove overlap* keep their own single-contour
+cleanup (freeform.adoc).  Tests: `PathAlterCommandTests.removeOverlap…`,
+`PathAlterMergeTests.removeOverlapVersusAConcurrentPointMoveDeletesTheMovedPoint`,
+`ModelGlueFeaturesTests.removeOverlapRunsFromTheMenuAndTheToolbar`.
 
 NOTE: As built by DRAW-029 (`WTApp/Tools/EraserTool.swift`).  The Eraser records each sample's width
 (pen pressure through the curve, else the bracket keys' width, which a pen in contact overrides); the

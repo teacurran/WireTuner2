@@ -78,6 +78,13 @@ final class ReachabilityFeatures {
         return commands.count == 1 ? commands[0] : CommandBatch("Reverse Direction", commands)
     }
 
+    /// menu:Modify[Clipping > Release Contents] (OBJ-060): every selected clip group's contents back
+    /// on the page above its clip path, one change "Release Contents".
+    static func releaseCommand(_ window: DocumentWindowController) -> (any WTModel.Command)? {
+        let nodes = window.objectEditing.selectedNodes
+        return ReleaseContents.canPerform(nodes, in: window.documentHandle.state) ? ReleaseContents(nodes) : nil
+    }
+
     /// menu:Modify[Connector > Detach Ends]: both ends of each selected connector freed where they
     /// are now, one change "Detach Ends".
     static func detachCommand(_ window: DocumentWindowController) -> (any WTModel.Command)? {
@@ -157,6 +164,13 @@ final class ReachabilityFeatures {
                         front.selection.model.set(Selection([SelectionID(group)]))
                         front.selection.subselectAll()
                     }),
+            Command(id: ids.releaseContents, title: "Release Contents", menu: MenuPath(modify, "Clipping", section: 4), contexts: [.clip],
+                    keywords: ["clip", "contents", "release", "unclip"],
+                    validation: {
+                        guard let front = window() else { return .disabled(Self.noDocument) }
+                        return Self.releaseCommand(front) == nil ? .disabled(Self.noClipGroup) : .enabled
+                    },
+                    action: run(Self.releaseCommand)),
             Command(id: ids.reroute, title: "Reroute", menu: MenuPath(modify, "Connector", section: 4), contexts: [.connector], keywords: ["connector", "route"],
                     validation: {
                         guard let front = window() else { return .disabled(Self.noDocument) }

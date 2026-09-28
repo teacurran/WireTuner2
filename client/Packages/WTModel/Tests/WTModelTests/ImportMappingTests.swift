@@ -315,6 +315,47 @@ enum ImportFixture {
         #expect(a.state.props(children[4]).path.contours[0].points.map(\.kind) == [.corner, .curve, .corner])
     }
 
+    @Test func convertToEditableReplacesThePlacedFileWhereItWas() throws {
+        var a = Replica(0xA)
+        let layer = try LayerFixture.layers(["Art"], on: &a)[0]
+        let eps = try Self.placed(a.perform(PlaceImportedScene(ImportFixture.placed(.eps, blob: ImportFixture.eps, name: "logo.eps"),
+                                                               placement: .at(Point(x: 100, y: 100)), layer: layer)), a)
+        try a.perform(TransformObjects([eps], matrix: .scale(2), about: Point(x: 100, y: 100), kind: .scale))
+        let seen = try #require(Objects.bounds(of: eps, in: a.state))
+        #expect(ConvertPlacedFile.accepts(eps, in: a.state) && ConvertPlacedFile.natural(eps, in: a.state) == Rect(x: 10, y: 20, width: 200, height: 100))
+        // The editable artwork: one square filling the scene's bounds, as the PDF page would be.
+        var square = ImportFixture.square(0)
+        square.fillRule = .nonZero
+        var builder = ImportPathBuilder()
+        builder.rect(Rect(x: 0, y: 0, width: 50, height: 25))
+        square.contours = builder.build()
+        let scene = ImportedScene(kind: .vector, name: "logo.eps", bounds: Rect(x: 0, y: 0, width: 50, height: 25), nodes: [.path(square)])
+        let change = try #require(try a.perform(ConvertPlacedFile(eps, scene: scene)))
+        #expect(change.label == "Convert to Editable")
+        #expect(!a.state.isLive(eps))
+        let group = try #require(a.state.liveChildren(layer).first)
+        #expect(a.state.liveChildren(layer).count == 1 && a.state.props(group).group.common.name == "logo.eps")
+        let bounds = try #require(Objects.bounds(of: group, in: a.state))
+        #expect(abs(bounds.minX - seen.minX) < 0.01 && abs(bounds.width - seen.width) < 0.01 && abs(bounds.height - seen.height) < 0.01)
+        // Nothing left to convert; an empty scene or another kind writes nothing.
+        #expect(try a.perform(ConvertPlacedFile(eps, scene: scene)) == nil)
+        let other = try Self.placed(a.perform(PlaceImportedScene(ImportFixture.placed(.eps, blob: ImportFixture.eps, name: "b.eps"), placement: .at(Point(x: 0, y: 0)))), a)
+        #expect(try a.perform(ConvertPlacedFile(other, scene: ImportedScene(kind: .vector, name: "b.eps", bounds: .null, nodes: []))) == nil)
+        #expect(!ConvertPlacedFile.accepts(group, in: a.state))
+        a.undo()
+        a.undo()
+        #expect(a.state.isLive(eps) && !a.state.isLive(group), "the conversion undoes as one step")
+    }
+
+    @Test func aPlacedFileWithoutAreaConvertsIntoAnInch() throws {
+        var a = Replica(0xA)
+        var flat = ImportedPlacedFile(kind: .eps, blob: ImportFixture.eps, bounds: Rect(x: 0, y: 0, width: 0, height: 0))
+        flat.name = "flat.eps"
+        let eps = try Self.placed(a.perform(PlaceImportedScene(ImportedScene(kind: .placed, name: "flat.eps", bounds: .zero, nodes: [.placed(flat)]),
+                                                               placement: .at(Point(x: 0, y: 0)))), a)
+        #expect(ConvertPlacedFile.natural(eps, in: a.state) == Rect(x: 0, y: 0, width: 72, height: 72))
+    }
+
     @Test func concurrentImportsOntoOneLayerConverge() throws {
         var pair = Pair()
         let layer = try LayerFixture.layers(["Shared"], on: &pair.a)[0]

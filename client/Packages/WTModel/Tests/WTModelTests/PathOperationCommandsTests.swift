@@ -287,3 +287,61 @@ import WTRender
         #expect(Objects.transform(of: square, in: pair.a.state) == .translation(x: 5, y: 5))
     }
 }
+
+/// PRINT-060: Trap.
+@Suite struct TrapCommandTests {
+    typealias Fixture = CombineCommandTests
+
+    @Test func aSpreadOfTheLighterFrontColourAlongTheEdgeInsideTheBack() throws {
+        var a = Replica(0xA)
+        let back = try Fixture.square(&a, x: 0, level: 0.2)
+        let front = try Fixture.square(&a, x: 10, level: 0.8)
+        #expect(TrapCommand.canPerform([front, back], in: a.state))
+        let change = try #require(try a.perform(TrapCommand([front, back], width: 1)))
+        #expect(change.label == "Trap")
+        let trap = try #require(change.createdObjects.first)
+        // [9.5, 20] × [0, 20] less [10.5, 20] × [0.5, 19.5].
+        #expect(abs(abs(Fixture.area(trap, in: a.state)) - 29.5) < 0.01)
+        let fill = try #require(a.state.props(trap).path.appearance.fills.first?.settings.basic)
+        #expect(fill.overprint && abs(fill.color.inline.rgb.r - 0.9) < 1e-9, "the lighter grey at 50%")
+        #expect(a.state.props(trap).path.appearance.strokes.isEmpty)
+        let layer = try #require(Objects.parent(of: trap, in: a.state))
+        #expect(a.state.liveChildren(layer).suffix(2) == [front, trap] && a.state.isLive(back))
+    }
+
+    @Test func reverseTakesTheDarkerAndMaximumMixesTheInks() throws {
+        let light = Color(white: 0.8), dark = Color(white: 0.2)
+        #expect(abs(TrapCommand.color(back: dark, front: light, method: .tintReduction(50), reverse: true).red - 0.6) < 1e-9)
+        #expect(abs(TrapCommand.color(back: light, front: dark, method: .tintReduction(100), reverse: false).red - 0.8) < 1e-9, "a choke")
+        let cyan = Color(cyan: 1, magenta: 0, yellow: 0, black: 0), magenta = Color(cyan: 0, magenta: 0.6, yellow: 0, black: 0.1)
+        let both = TrapCommand.color(back: cyan, front: magenta, method: .maximum, reverse: false)
+        #expect(both.space == .cmyk && both.components == SIMD4(1, 0.6, 0, 0.1))
+        // Tint reduction keeps a CMYK colour in CMYK, its inks scaled.
+        let half = TrapCommand.color(back: cyan, front: magenta, method: .tintReduction(50), reverse: false)
+        #expect(half.space == .cmyk)
+        #expect(abs(TrapCommand.tinted(dark, percent: .nan).red - 0.2) < 1e-9 && abs(TrapCommand.tinted(dark, percent: 0).red - 1) < 1e-9)
+    }
+
+    @Test func nothingWhenTheyDoNotMeetOrTheSelectionIsWrong() throws {
+        var a = Replica(0xA)
+        let back = try Fixture.square(&a, x: 0)
+        let far = try Fixture.square(&a, x: 200)
+        let third = try Fixture.square(&a, x: 5)
+        #expect(try a.perform(TrapCommand([back, far])) == nil)
+        #expect(!TrapCommand.canPerform([back, far, third], in: a.state) && !TrapCommand.canPerform([back], in: a.state))
+        #expect(TrapCommand.region([back, third], width: .nan, in: a.state).isEmpty)
+        #expect(TrapCommand([back]).width == TrapCommand.defaultWidth)
+    }
+
+    @Test func aConcurrentDeleteOfAnInputLeavesTheTrap() throws {
+        var pair = Pair()
+        let back = try Fixture.square(&pair.a, x: 0, level: 0.2)
+        let front = try Fixture.square(&pair.a, x: 10, level: 0.8)
+        pair.sync()
+        let trap = try #require(try pair.a.perform(TrapCommand([back, front]))?.createdObjects.first)
+        try pair.b.perform(CutObjects([front]))
+        pair.sync()
+        #expect(pair.a.state.stateHash == pair.b.state.stateHash)
+        #expect(pair.a.state.isLive(trap) && !pair.a.state.isLive(front))
+    }
+}
