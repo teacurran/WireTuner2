@@ -155,6 +155,11 @@ import WTProto
     /// closed.  XCTest dispatches those events outside any autorelease pool the run pops, so what
     /// they autoreleased (the events, holding their window) stayed until the run ended and every
     /// such window leaked with its views; `Support/EventPools.c` gives each event a pool.
+    ///
+    /// That leak is for good, so the test waits up to 15 s: in one full run (after 1,800 tests, on
+    /// a loaded machine) the window was still alive after 5 s -- something held it for a while and
+    /// no rerun reproduced it (neither NSApp's current event nor the run loop's pools, both checked).
+    /// A failure says what still refers to the window.
     @Test func aWindowThatHadEventsIsReleasedAfterClosing() async {
         weak var released: NSWindow?
         do {
@@ -165,7 +170,13 @@ import WTProto
             try? await Task.sleep(for: .milliseconds(400))
             window.close()
         }
-        #expect(await eventually { released == nil }, "the closed window outlives the events it got")
+        let gone = await eventually(.seconds(15)) { released == nil }
+        let holders = released.map { window in
+            ["NSApp's current event: \(NSApp.currentEvent?.window === window)", "in NSApp.windows: \(NSApp.windows.contains { $0 === window })",
+             "key: \(NSApp.keyWindow === window)", "main: \(NSApp.mainWindow === window)", "visible: \(window.isVisible)",
+             "parent: \(window.parent != nil)", "active app: \(NSApp.isActive)"].joined(separator: ", ")
+        } ?? ""
+        #expect(gone, "the closed window outlives the events it got (\(holders))")
     }
 
     /// With `WT_LEAK_LINGER=<seconds>` (`TEST_RUNNER_WT_LEAK_LINGER`), keeps the test host alive that

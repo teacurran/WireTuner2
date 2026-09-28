@@ -13,11 +13,13 @@ import WTRender
 /// pop-ups, the attribution flash on the rows a collaborator's change altered, and inspecting a
 /// collaborator's selection (the command, the name tag, following and stopping).
 @Suite(.serialized) @MainActor struct InspectPanelLiveTests {
-    /// A panel over `world`'s window with the glue installed on its registries.
+    /// A panel over `world`'s window with the glue installed on its registries.  The glue reaches
+    /// the window weakly, as the app's does (the active window): attached, the window's callbacks
+    /// hold the Inspect model, and a strong window here closed the loop and leaked every window.
     func panel(_ world: GlueWorld, attach: Bool = true) -> (ModelGlueFeatures, InspectPanelModel) {
         let glue = ModelGlueFeatures(preferences: world.preferences)
         let window = world.window
-        glue.install(commands: world.commands, panels: world.setup.environment.panels, extensions: ExtensionRegistry()) { window }
+        glue.install(commands: world.commands, panels: world.setup.environment.panels, extensions: ExtensionRegistry()) { [weak window] in window }
         if attach { glue.attach(window) }
         glue.inspect.pasteboard = world.pasteboard
         return (glue, glue.inspect)

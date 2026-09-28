@@ -134,8 +134,12 @@ struct ReadingOrderView: View {
             Text("Reading Order — \(model.pageName)").font(.headline)
             Text("Drag rows, or click objects on the page in the order they should be read. Shift-click moves one to the end.")
                 .font(.caption).foregroundStyle(.secondary)
+            // Rows are identified by position, not by object: a reorder then updates the rows in
+            // place (each row's number changes anyway) instead of moving them, and a run of
+            // reorders moved rows while the table re-measured them -- AppKit's "reentrant
+            // operation in its NSTableView delegate", to become an assert (ListRowGrowth).
             List {
-                ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
+                ForEach(Array(model.rows.enumerated()), id: \.offset) { index, row in
                     HStack {
                         Text("\(index + 1)").monospacedDigit().foregroundStyle(.secondary).frame(width: 24, alignment: .trailing)
                         VStack(alignment: .leading) {

@@ -99,20 +99,24 @@ struct KeyboardShortcutsView: View {
             TextField("Search commands", text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("shortcuts.search")
-            List(selection: model.selection) {
-                ForEach(model.categories) { category in
-                    Section(isExpanded: model.expansion(for: category.id)) {
-                        ForEach(category.rows) { row in
-                            HStack {
-                                Text(row.title)
-                                Spacer()
-                                Text(row.shortcut).foregroundStyle(.secondary)
+            // Every command: filled over two updates (ListRowGrowth).
+            let categories = model.categories
+            GrowingRows(count: categories.reduce(0) { $0 + $1.rows.count }) { limit in
+                List(selection: model.selection) {
+                    ForEach(ListRowGrowth.prefix(categories, limit: limit, rows: \.rows) { .init(id: $0.id, rows: $1) }) { category in
+                        Section(isExpanded: model.expansion(for: category.id)) {
+                            ForEach(category.rows) { row in
+                                HStack {
+                                    Text(row.title)
+                                    Spacer()
+                                    Text(row.shortcut).foregroundStyle(.secondary)
+                                }
+                                .tag(row.id)
+                                .accessibilityIdentifier("shortcuts.command.\(row.id.rawValue)")
                             }
-                            .tag(row.id)
-                            .accessibilityIdentifier("shortcuts.command.\(row.id.rawValue)")
+                        } header: {
+                            Text(category.id)
                         }
-                    } header: {
-                        Text(category.id)
                     }
                 }
             }

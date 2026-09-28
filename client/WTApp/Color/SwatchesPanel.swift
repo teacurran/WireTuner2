@@ -451,9 +451,17 @@ struct SwatchesPanelBody: View {
         }
     }
 
+    /// A document's swatches can run to hundreds: the list fills over two updates (ListRowGrowth).
     private var list: some View {
+        let rows = model.rows
+        return GrowingRows(count: rows.count) { limit in
+            rowList(limit < rows.count ? Array(rows.prefix(limit)) : rows)
+        }
+    }
+
+    private func rowList(_ rows: [SwatchesPanelModel.Row]) -> some View {
         List {
-            ForEach(model.rows) { row in
+            ForEach(rows) { row in
                 switch row {
                 case .header(let name, let collapsed):
                     Button(action: Self.toggling(name, model)) {

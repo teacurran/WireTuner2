@@ -69,11 +69,15 @@ struct CustomizeToolbarsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Drag a command onto a toolbar.  Drag a button off a toolbar to remove it.").font(.callout).foregroundStyle(.secondary)
             TextField("Search", text: $model.query).textFieldStyle(.roundedBorder).accessibilityIdentifier("toolbars.customize.search")
-            List(selection: $model.selection) {
-                ForEach(model.groups) { group in
-                    Section(group.title) {
-                        ForEach(group.commands, id: \.self) { command in
-                            row(command).tag(command)
+            // Every command: filled over two updates (ListRowGrowth).
+            let groups = model.groups
+            GrowingRows(count: groups.reduce(0) { $0 + $1.commands.count }) { limit in
+                List(selection: $model.selection) {
+                    ForEach(ListRowGrowth.prefix(groups, limit: limit, rows: \.commands) { .init(title: $0.title, commands: $1) }) { group in
+                        Section(group.title) {
+                            ForEach(group.commands, id: \.self) { command in
+                                row(command).tag(command)
+                            }
                         }
                     }
                 }

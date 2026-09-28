@@ -436,6 +436,22 @@ windows that tests show and close in quick succession left some of them parked t
 across the suite they took all 64 workers, after which no global queue ran at all and
 `SocketMonitorTests` failed intermittently.  UI tests and real launches keep the animations.
 
+*Table reentrancy.*  On macOS 26 AppKit logs "Application performed a reentrant operation in its
+NSTableView delegate" (and says it will become an assert) when a SwiftUI `List`'s table re-enters
+its own row-height cache during an update: when it goes from no rows to more than about 200 in
+one update, and after a run of row moves (rows identified by object, reordered several times) even
+in a short list.  No app model changes in those callbacks; the warning's call stack is AppKit and
+SwiftUI only.  So a long list fills over two updates -- its first 100 rows, then the rest
+(`GrowingRows`, `client/WTApp/Lists/ListRowGrowth.swift`: the Keyboard Shortcuts and Customize
+Toolbars command lists, the Swatches panel) -- and Reading Order identifies its rows by position.
+The test host catches the warning with an os_log hook (`WTAppTests/Support/TableReentrancy.c`),
+counts it and prints `WT-TABLE-REENTRANCY` with the call stack and a
+`WT-TABLE-REENTRANCY-TABLE` line naming the table (its rows, window, `NSHostingView<Root>` and
+delegate); `TableReentrancyTests` fails on any warning while it shows those windows, searches them
+to nothing and back and reorders Reading Order, and checks that the hook still sees AppKit's
+warning (one deliberate occurrence per full-suite log, announced by
+`WT-TABLE-REENTRANCY-EXPECTED`).
+
 [[launch-smoke]]
 *Launch smoke test.*  Unit tests are hosted in the app, whose `main()` skips the delegate for
 them, so they cannot see a launch that runs with no delegate or no window; UI tests could, but
