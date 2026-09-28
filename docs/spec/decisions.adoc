@@ -704,8 +704,6 @@ and takes the look and behaviour of a current Mac app:
 * Dragging a tab out of a strip makes a floating group; dropping a tab or a group on another
   strip joins it; tabs reorder by dragging.  Every arrangement is part of the saved layout.
 
-== Open questions
-
 Revised after use (2026-09-27): the first glass tab strip did not read as tabs, nor show which tab
 is open or focused, and a toolbar docked among panels laid out as a vertical strip.  So:
 
@@ -723,6 +721,36 @@ is open or focused, and a toolbar docked among panels laid out as a vertical str
 * *A toolbar docked in a panel flows horizontally* and wraps into rows; wide controls (the font
   family) take a full row.  The font family control is a picker whose list is sized to the
   longest name (not the button), shows each family in its own face, and filters as you type.
+
+Revised again after use (2026-09-27, later): the right-hand panels looked floating although docked,
+the Tools panel did not look like the other panels, and a group dragged out of the dock left
+the others behind.  So panels become *magnetic*:
+
+* *Every group snaps.*  A group or a set of groups moves as a unit called a *cluster*.  Dragged by
+  its title bar or gripper, a cluster clicks to the window's left or right edge, to another
+  cluster's side (it becomes a new column beside it), or above or below one of its columns (its
+  groups join that column), when the edge comes within 10 points; over a docked column it drops
+  between groups, as the dock did.  The window's top and bottom stay the toolbar strips.  While
+  it is in range the cluster jumps into line, an accent line (or, at a window edge, the area it
+  will take) previews the join, and a haptic tick marks it; releasing settles it there.
+* *Dragging moves the whole cluster; Option-drag pulls one group out.*  Option is FreeHand's and
+  Photoshop's modifier for "just this one"; no panel drag used it (tabs drag with no modifier,
+  their context menu is Control-click).  *Float Group* in the Options menu does the same from the
+  keyboard.  Tabs keep their behaviour: dragging one out makes its own group, dropping it on a
+  strip joins that group.
+* *Docked reads as docked.*  A cluster at a window edge is flush with it -- no gap, square corners
+  on that side, rounded corners on the canvas side, a hairline and a soft shadow over the canvas
+  -- and runs the height of the content area; it moves and resizes with the window, and the
+  canvas's safe area leaves it out.  A floating cluster has rounded corners all round and a drop
+  shadow, and the safe area ignores it.  Both keep the translucent glass.
+* *The Tools panel is a panel like the others*: the same glass, title bar, card and snapping,
+  docked left by default; a narrow group keeps its title readable by hiding the gripper and the
+  disclosure triangle (the title still drags and collapses).
+* The saved layout holds clusters (docked at an edge, or floating with a frame), their columns
+  and widths, and the groups in each column; an older layout's docked groups become the cluster
+  at that edge and each floating group its own cluster.
+
+== Open questions
 
 [[Q-001]]
 === Q-001 Comments

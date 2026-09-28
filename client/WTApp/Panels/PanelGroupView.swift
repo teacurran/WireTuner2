@@ -6,9 +6,11 @@ import AppKit
 /// whose selected tab is joined to the card below it like a folder tab; then the front panel's
 /// body on the card's heavier frost.  A group with one panel shows no strip (it drags by its
 /// title).  The body scrolls when it is taller than the group, and the group clips it, so it
-/// never draws over its neighbour.  A collapsed group is its title bar only.  Floating, the whole
-/// group sits on the system glass with the chrome's frost.  Reports gestures through closures and
-/// never touches the layout itself.
+/// never draws over its neighbour.  A collapsed group is its title bar only.  The group sits on
+/// its cluster's glass (`PanelClusterView`), docked or floating (D-077, magnetic panels); dragging
+/// its title bar or gripper moves the cluster, Option-dragging moves the group alone.  A narrow
+/// group (the Tools panel) hides the gripper and the disclosure triangle so its title stays
+/// readable.  Reports gestures through closures and never touches the layout itself.
 @MainActor
 final class PanelGroupView: NSView, NSTextFieldDelegate {
     static let titleHeight: CGFloat = 28
@@ -17,6 +19,8 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     /// Around the card.
     static let margin: CGFloat = 6
     static let bodyCornerRadius: CGFloat = PanelCardView.cornerRadius
+    /// Narrower than this, the title bar drops the gripper and the disclosure triangle.
+    static let compactWidth: CGFloat = 140
 
     /// Whether `group` shows a tab strip: only with more than one panel.
     static func showsTabs(_ group: PanelGroup) -> Bool { group.panels.count > 1 }
@@ -54,10 +58,6 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     /// The scroll view's document: holds the front panel's body.
     private(set) var contentView = PanelBodyView()
     private(set) var titleBar: PanelTitleBar
-    /// The glass under a floating group.
-    private(set) var background: NSView?
-    /// The chrome's frost on a floating group's glass.
-    private(set) var frost: PanelFrostView?
     /// A panel or group dragged over this group's title (a group without a strip shows it there).
     private(set) var isDropTarget = false
     /// The dock this group is docked in; drags over its body go to the dock (to dock between
@@ -112,15 +112,6 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         setAccessibilityLabel(titleLabel.stringValue)
         setAccessibilityIdentifier("panel-group.\(group.id)")
         registerForDraggedTypes([PanelDragPayload.panelType, PanelDragPayload.groupType])
-        if isFloating {
-            let glass = PanelGlass.surface(cornerRadius: FloatingPanelWindow.cornerRadius)
-            glass.setAccessibilityElement(false)
-            addSubview(glass)
-            background = glass
-            let wash = PanelFrostView(level: .chrome, translucent: appearance.isTranslucent, cornerRadius: FloatingPanelWindow.cornerRadius)
-            addSubview(wash)
-            frost = wash
-        }
 
         disclosure.target = self
         disclosure.action = #selector(toggleCollapse(_:))
@@ -131,7 +122,7 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         optionsButton.toolTip = appearance.showsTooltips ? "Options" : nil
         gripper.onDrag = { [weak self] event in self?.onDragGroup?(event) }
         gripper.setAccessibilityIdentifier("panel-group.\(group.id).gripper")
-        gripper.toolTip = appearance.showsTooltips ? "Drag to dock, float or join another group" : nil
+        gripper.toolTip = appearance.showsTooltips ? Self.dragToolTip : nil
 
         var titleViews: [NSView] = []
         if isFloating {
@@ -150,9 +141,9 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         titleBar.spacing = 4
         titleBar.edgeInsets = NSEdgeInsets(top: 2, left: 8, bottom: 2, right: 6)
         titleBar.onClick = { [weak self] in self?.onToggleCollapse?() }
-        // Docked, dragging the title drags the group (as the gripper does): a group without a
-        // tab strip is dragged by its title.
+        // Dragging the title moves the cluster, as the gripper does (Option: the group alone).
         titleBar.onDrag = { [weak self] event in self?.onDragGroup?(event) }
+        titleBar.toolTip = appearance.showsTooltips ? Self.dragToolTip : nil
         // A narrow (or hidden, zero-width) dock clips the title bar rather than breaking it.
         titleBar.setClippingResistancePriority(.defaultLow, for: .horizontal)
         addSubview(titleBar)
@@ -214,9 +205,21 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
         return button
     }
 
+    /// What the gripper and the title bar say under the pointer.
+    static let dragToolTip = "Drag to move these panels; Option-drag to move just this group"
+
     override var isFlipped: Bool { true }
 
     var tabButtons: [PanelTabButton] { tabStrip.buttons }
+
+    /// The title bar and, when it shows, the tab strip (this view's coordinates): where a lone
+    /// group dragged over it joins its tabs.
+    var headerRect: NSRect {
+        NSRect(x: 0, y: 0, width: bounds.width, height: Self.titleHeight + (showsTabs ? Self.tabRowHeight : 0))
+    }
+
+    /// Whether the title bar is in its narrow form (no gripper, no disclosure triangle).
+    var isCompact: Bool { bounds.width < Self.compactWidth }
     var isCollapsed: Bool { bodyCard.isHidden }
     /// Whether the strip shows (expanded, with more than one panel).
     var showsTabs: Bool { !tabStrip.isHidden }
@@ -281,9 +284,10 @@ final class PanelGroupView: NSView, NSTextFieldDelegate {
     }
 
     private func layoutParts() {
-        background?.frame = bounds
-        frost?.frame = bounds
         let width = bounds.width
+        let compact = isCompact
+        if gripper.isHidden != compact { gripper.isHidden = compact }
+        if disclosure.isHidden != compact { disclosure.isHidden = compact }
         let inner = max(0, width - 2 * Self.margin)
         titleBar.frame = NSRect(x: 0, y: 0, width: width, height: Self.titleHeight)
         let tabs = Self.showsTabs(group)
@@ -451,13 +455,13 @@ final class PanelBodyView: NSView {
 }
 
 /// A group's title bar.  A click on the title (or the empty bar) expands or collapses the group;
-/// dragging it moves a floating group's window.  The buttons and the gripper keep their clicks.
+/// dragging it moves the group's cluster (`onDrag`).  The buttons and the gripper keep their clicks.
 @MainActor
 final class PanelTitleBar: NSStackView {
     /// A drag shorter than this (points) is a click.
     static let clickSlop: CGFloat = 3
     var onClick: (() -> Void)?
-    /// A drag of a docked group's title (it drags the group, as the gripper does).
+    /// A drag of the title (it moves the cluster, as the gripper does).
     var onDrag: ((NSEvent) -> Void)?
 
     override var isFlipped: Bool { true }
@@ -481,19 +485,15 @@ final class PanelTitleBar: NSStackView {
                 return
             }
             if hypot(next.locationInWindow.x - start.x, next.locationInWindow.y - start.y) >= Self.clickSlop {
-                if window is FloatingPanelWindow {
-                    window.performDrag(with: event)
-                } else {
-                    onDrag?(event)
-                }
+                onDrag?(event)
                 return
             }
         }
     }
 }
 
-/// The textured area at the left of a group's title bar: dragging it moves the group between
-/// the dock and the pasteboard.
+/// The textured area at the left of a group's title bar: dragging it moves the group's cluster
+/// (Option: the group alone), which clicks to window edges and other clusters.
 @MainActor
 final class GripperView: NSImageView {
     var onDrag: ((NSEvent) -> Void)?

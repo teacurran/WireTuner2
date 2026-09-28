@@ -149,12 +149,24 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         var menus: [String] = []
         dock.interaction.startDragSession = { _, _, _, source in sessions.append((source as? PanelInteraction)?.currentDrag) }
         dock.interaction.presentMenu = { menu, _ in menus.append(menu.title) }
+        // A group's drag moves its cluster (D-077, magnetic panels) through the cluster drag hook.
+        var clusterDrags: [PanelGroup.ID] = []
+        dock.interaction.runClusterDrag = { drag in
+            clusterDrags.append(drag.groupID)
+            drag.cancel()
+        }
         let group = dock.groupViews[0]
         let event = NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
         group.onDragTab?(group.tabButtons[0], event)
+        let before = layout.layout
         group.onDragGroup?(event)
+        #expect(clusterDrags == ["properties"] && layout.layout == before)
+        // Without a mouse button down, the real loop cancels at once instead of waiting.
+        dock.interaction.runClusterDrag = { PanelClusterDrag.track($0, buttonIsDown: { false }) }
+        group.onDragGroup?(event)
+        #expect(dock.interaction.clusterDrag?.wasCancelled == true && layout.layout == before)
         dock.beginDrag(of: "layers", from: group, event: event)
-        #expect(sessions == [.panel("object"), .group("properties"), .panel("layers")])
+        #expect(sessions == [.panel("object"), .panel("layers")])
         group.showOptions(group.optionsButton)
         #expect(menus == ["Object"])
         group.closeGroup(nil)

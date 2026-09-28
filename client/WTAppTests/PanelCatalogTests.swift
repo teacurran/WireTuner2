@@ -391,7 +391,7 @@ private func catalogRegistry(tools: Bool = true) -> PanelRegistry {
         let window = floating.windows["layers"]
         #expect(window?.parent === parent)
         #expect(window?.frame.origin == NSPoint(x: 100, y: 100))
-        #expect((window?.contentView as? PanelGroupView)?.isFloating == true)
+        #expect(window?.groupViews.first?.isFloating == true && window?.clusterView?.attachment == .floating)
         window?.setFrameOrigin(NSPoint(x: 150, y: 120))
         window?.frameDidChange()
         #expect(layout.layout.floating.first?.frame.x == 150)

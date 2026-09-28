@@ -195,16 +195,14 @@ import Testing
     }
 
     @Test func floatingGroupsWearTheSameFrost() throws {
-        let group = PanelGroup(id: "f", name: "Float", panels: ["a", "b"])
-        let translucent = PanelGroupView(group: group, title: { $0.rawValue }, body: { _ in NSView() }, isFloating: true)
+        let translucent = PanelClusterView(attachment: .floating, translucent: true)
         translucent.frame = NSRect(x: 0, y: 0, width: 260, height: 300)
         translucent.layoutSubtreeIfNeeded()
-        let frost = try #require(translucent.frost)
+        let frost = translucent.chrome.frost
         #expect(frost.isTranslucent && frost.level == .chrome && frost.frame == translucent.bounds)
         #expect(frost.hitTest(NSPoint(x: 5, y: 5)) == nil)
-        let solid = PanelGroupView(group: group, title: { $0.rawValue }, body: { _ in NSView() },
-                                   appearance: PanelAppearance(labelStyle: .text, showsTooltips: false, isTranslucent: false), isFloating: true)
-        #expect(solid.frost?.isTranslucent == false && !solid.isTranslucent)
+        let solid = PanelClusterView(attachment: .floating, translucent: false)
+        #expect(solid.chrome.frost.isTranslucent == false && !solid.isTranslucent)
         #expect(PanelFrost.card.opacity(dark: true) > 0 && PanelFrost.chrome.opacity(dark: false) < 1)
     }
 }

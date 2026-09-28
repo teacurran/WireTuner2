@@ -5,17 +5,21 @@ This page explains the framework: opening, closing, grouping, docking, collapsin
 Options menu every panel has.  What each panel *contains* is documented on that panel's own
 page; the table at the end links them.
 
-Panel groups have the look of a current Mac app: the dock is a translucent glass sidebar that
-floats over the document, which runs beneath it to the window's edge, so your artwork shows
-through the panels.  Each group is a frosted card; the card is frosted more heavily where a panel
-is dense with controls, so its text stays readable over any artwork.  Floating groups are glass
-panels of the same kind.  If you prefer opaque panels, set *Panel transparency* to Solid (see
-<<Panel appearance>>); turning on Reduce Transparency in System Settings does the same.
+Panel groups have the look of a current Mac app: they are translucent glass over the document,
+which runs beneath them to the window's edge, so your artwork shows through the panels.  Each
+group is a frosted card; the card is frosted more heavily where a panel is dense with controls, so
+its text stays readable over any artwork.  Groups are *magnetic*: they click to the window's edges
+and to each other, and groups that have clicked together move as one.  Groups docked at an edge
+sit flush against it; floating groups are rounded glass panels of the same kind.  The Tools panel
+is a panel group like the others.  If you prefer opaque panels, set *Panel transparency* to Solid
+(see <<Panel appearance>>); turning on Reduce Transparency in System Settings does the same.
 
 // TODO screenshot: the default panel layout on first launch, in the macOS 26 look: the
-// artwork running under the translucent dock, the Properties group expanded with its Object
-// tab selected -- a folder tab joined to the card with an accent bar -- the Assets group
-// collapsed to its title bar, the single-panel Layers group without tabs, and a divider.
+// artwork running under the translucent groups docked flush at the right edge (square corners
+// at the window edge, rounded on the canvas side), the Tools panel docked at the left edge in
+// the same glass, the Properties group expanded with its Object tab selected -- a folder tab
+// joined to the card with an accent bar -- the Assets group collapsed to its title bar, the
+// single-panel Layers group without tabs, and a divider.
 
 == The default layout
 
@@ -81,8 +85,9 @@ menu:View[Toolbars] (xref:toolbars.adoc[Toolbars]).
 To show or hide the whole dock::
 Click the thin handle at the dock's inner edge, or drag it to resize the dock.  The document
 runs beneath the dock, but Fit to Page, Fit Selection, the rulers and the scroll bars use only the
-part the dock leaves uncovered, so nothing you fit or center lands under it.  Hiding the dock
-gives that part the full window; the panels come back with one click.
+part the dock leaves uncovered, so nothing you fit or center lands under it.  Floating groups do
+not count: they float over the document.  Hiding the dock gives that part the full window; the
+panels come back with one click.
 
 To cycle through floating groups::
 Press kbd:[Cmd+`] (the standard macOS window cycle) while a floating group is in front.
@@ -90,32 +95,55 @@ kbd:[Control+Tab] cycles document tabs instead (xref:workspace.adoc[The workspac
 
 == Docking and floating
 
-Every group has a *gripper* -- the three lines at the left of its title bar.  Dragging the
-gripper moves the group between the dock and the pasteboard.  Dragging the title bar of a docked
-group does the same (a group with a single panel, which has no tab, is dragged by its title);
-dragging the title bar of a floating group moves it without docking it.  While you drag, a
-picture of the group's title bar and tabs follows the pointer.
+Panel groups are magnetic.  Groups that have clicked together form a *cluster* and move as one;
+a single group on its own is a cluster too.  Every group has a *gripper* -- the three lines at the
+left of its title bar -- and you can drag a cluster by any of its groups' grippers or title bars.
+While you drag, the cluster moves with the pointer; when one of its edges comes within about 10
+points of something it can click to, it jumps into line, a colored line (or, at a window edge, the
+area it will take) shows where it will join, and on a trackpad you feel a click.  Release to
+settle it there.  Release anywhere else and it floats where you left it.
 
-To dock a group::
-Drag it by its gripper into the dock at the right or left edge of the window, over the groups
-already there.  A blue insertion line shows where it will land between them.  Release to dock.
+To dock panels at the window's edge::
+Drag a cluster until its side reaches the left or right edge of the document window, and
+release.  Docked panels sit flush against the edge -- square corners on that side, rounded ones
+toward the document, with a thin line and a soft shadow between them and your artwork -- and
+run the height of the window.  They move and resize with the window, and Fit to Page, the rulers
+and the scroll bars leave room for them.  Only one cluster docks at each edge; drag another up to
+its inner side to put it beside the docked one.
+
+To click panels together::
+Drag a cluster beside another -- floating or docked -- so their sides touch: it becomes a new
+column of that cluster.  Drag it above or below a floating cluster's column so their edges touch:
+its groups join that column.  Drag it over a docked column and a blue insertion line shows where
+its groups will land between the groups already there.  Groups in a column share its height;
+drag the divider between two of them to change how, or the divider between two columns to change
+their widths.
+
+To move panels that have clicked together::
+Drag any of their title bars or grippers: the whole cluster moves.  Dragging a docked cluster away
+from its edge floats all of it.
+
+To pull one group out of a cluster::
+Hold kbd:[Option] as you start to drag its title bar or gripper: only that group moves, and the
+rest stay where they are.  You can also choose *Float Group* from its Options menu.
 
 To dock a group onto another group::
-Drag it by its gripper onto the other group's title bar or tab strip.  The strip (or, for a
-group without tabs, the title bar) highlights and the dragged panels join that group as tabs.
+Drag a single group by its gripper onto another group's title bar or tab strip.  The strip (or,
+for a group without tabs, the title bar) highlights and the dragged panels join that group as tabs.
 
 To float a group::
-Drag it by its gripper out of the dock onto the pasteboard, or choose *Float Group* from its
-Options menu.  Floating groups stay above the document window and can be moved to a second
-display.
+Drag it away from everything, or choose *Float Group* from its Options menu.  Floating clusters
+stay above the document window, keep rounded corners and a shadow, and can be moved to a second
+display.  Press kbd:[Esc] while dragging to put everything back where it was.
 
-To resize a floating group::
-Drag any edge.  Docked groups share the dock's width; drag the dock's edge to change it, and
-drag the divider between two docked groups to change how the height is shared.  When a panel's
-contents are taller than its group, the panel scrolls; it never covers the group below.
+To resize a floating cluster::
+Drag any edge of it.  A docked cluster runs the height of the window; drag the handle at its
+inner edge to change the width of its column beside the document.  When a panel's contents are
+taller than its group, the panel scrolls; it never covers the group below.
 
-CAUTION: If you mean to move a floating group, drag the title bar, not the gripper -- dragging
-the gripper near the dock will dock it.
+The Tools panel docks at the left edge by default and works like any other group: drag its title
+to float it, or click other groups beside or below it.  In a narrow column its title bar shows
+just its name and the Options button; click the name to collapse it, drag it to move it.
 
 == Grouping panels
 
@@ -153,7 +181,8 @@ for every panel:
 |Renames the group.
 
 |Float Group / Dock Group
-|Toggles between floating and docked.
+|*Float Group* floats the group on its own, out of its cluster; *Dock Group* docks a floating
+group at its usual edge.
 
 |Close Group
 |Closes a floating group (docked groups offer *Collapse Group*).
@@ -164,9 +193,11 @@ for every panel:
 
 == Panel layouts
 
-Your arrangement -- which groups exist, which panels they hold and in what order, where they
-dock, their sizes and how the dock's height is divided, what is collapsed -- is saved
-automatically and restored when you relaunch.  You can also name layouts and switch
+Your arrangement -- which groups exist, which panels they hold and in what order, which groups
+have clicked together and where each cluster docks or floats, their columns and sizes and how
+each column's height is divided, what is collapsed -- is saved automatically and restored when
+you relaunch.  A layout saved by an earlier version opens with its docked groups as the cluster at
+their edge and each floating group floating on its own.  You can also name layouts and switch
 between them, and reset to the factory layout.
 
 To reset the panels to their default positions::
@@ -258,17 +289,28 @@ named layouts was considered and rejected: layouts depend on display geometry.)
 [source,json]
 ----
 {
-  "version": 1,
+  "version": 2,
   "docks": {
-    "right": [ { "name": "Properties", "panels": ["object", "document"], "collapsed": false, "height": 420 } ],
-    "left":  [ { "name": "Tools", "panels": ["tools"], "collapsed": false } ]
+    "top": [ { "name": "Text", "panels": ["toolbar.text"], "collapsed": false } ]
   },
-  "floating": [
-    { "name": "Layers", "panels": ["layers"], "frame": [1200, 300, 260, 480], "display": "<uuid>" }
+  "clusters": [
+    { "id": "right", "edge": "right", "columns": [
+        { "width": 280, "groups": [ { "name": "Properties", "panels": ["object", "document"], "collapsed": false, "height": 420 } ] } ] },
+    { "id": "left", "edge": "left", "columns": [
+        { "width": 84, "groups": [ { "name": "Tools", "panels": ["tools"], "collapsed": false } ] } ] },
+    { "id": "layers", "columns": [
+        { "width": 260, "groups": [ { "name": "Layers", "panels": ["layers"] } ] } ],
+      "frame": [1200, 300, 260, 480], "display": "<uuid>" }
   ],
-  "dockWidth": { "right": 280, "left": 44 }
+  "dockWidth": { "right": 280, "left": 84, "top": 44, "bottom": 44 }
 }
 ----
+
+`docks` holds only the top and bottom strips.  A cluster with an `edge` is docked there (at most
+one per side); one without has a `frame` in screen points.  Version 1 files -- `docks` with
+`left` and `right` groups and a `floating` list of groups with frames -- are read and migrated:
+the side edges' groups become the cluster docked there, at the edge's `dockWidth`, and each
+floating group becomes a floating cluster of its own, named after the group.
 
 === Merge semantics
 
@@ -414,6 +456,69 @@ moves its window).  This replaces the earlier deviation that kept a strip for on
 dock is our own glass view over the canvas, not an `NSSplitViewController` inspector with a background
 extension effect (the window keeps its own dock layout and the real artwork shows through, not a mirrored
 extension); the tab surface does not animate between tabs (it moves with the selection at once).
+
+NOTE: As built for D-077 revised again: magnetic panels (snp).  *Model* (`Panels/PanelCluster.swift`,
+`PanelLayout.swift`): `PanelLayout` version 2 holds `clusters` -- `PanelCluster { id, edge (left or right when
+docked, else nil), columns: [PanelColumn { groups, width }], frame, display }` -- and `strips` (the top and bottom
+rows, encoded as `docks`).  At most one cluster docks at each side edge; `dockWidth[left/right]` is kept equal to
+the docked cluster's edge column (the Toolbars' column test reads it) and is the width a cluster docked at an empty
+edge gets.  `docks` and `floating` remain as views of the clusters (a side edge's groups column by column; one
+`FloatingGroup` per floating cluster group, with the cluster's frame), so the older operations keep working:
+*Float Group* (`float(group:frame:)`) now pulls the group out of any cluster (docked, or floating with others) into a
+floating cluster of its own, named after the group; *Dock Group* and drops on a docked column insert into the edge
+column (or the column under the drop).  New operations: `detach(group:frame:)` (Option-drag), `undock(cluster:frame:)`
+(dragging a docked cluster away), `attach(cluster:to:)` for each `PanelSnapTarget` (`.dock(edge)` -- onto the outer
+side when the edge is taken --, `.column` beside a cluster, `.stack` into a column, `.merge` into a lone group's tabs,
+`.strip`), `setFrame(_:cluster:)` (a width change goes to the last column) and `setColumnWidth`.  A floating cluster
+joined on its left keeps its own place (its frame grows leftwards), joined on top grows upwards and below
+downwards; losing its leftmost column keeps the others in place.  `normalize()` drops empty columns, clusters and
+strips after every operation.  A version 1 file migrates on decode: its `left`/`right` groups become the cluster
+docked there (id `left`/`right`, width `dockWidth[edge]`), each floating group a floating cluster (id = the group's);
+`version` becomes 2, and a later version is left for `PanelLayoutStore` to refuse.
+*Snapping* (`Panels/PanelSnapping.swift`, pure): `PanelSnapping.snap(moving:pointer:groupCount:scene:)` over a
+`PanelSnapScene` (the window's canvas area, the other clusters with their column and group frames, the group
+headers, the shown strips; screen points).  In order: a lone group whose pointer is over another group's header merges
+(`.header` guide); a pointer over a docked column inserts between its groups by their middles (`.line` insertion
+guide, the cluster not pulled); a pointer over a shown strip joins its end; otherwise the nearest edge within
+`threshold` (10 pt) wins -- a free window side (the cluster is drawn flush, the full height; `.area` guide), another
+cluster's side with at least 24 pt of shared height (never outside a docked cluster's window edge; tops within the
+threshold line up), or a floating column's top or bottom with at least half the narrower width shared (lined up
+with the column).  *Dragging* (`Panels/PanelClusterDrag.swift`): the title bar and the gripper call
+`PanelInteraction.beginClusterDrag` (no longer an `NSDraggingSession`; a floating group's title bar no longer uses
+`performDrag`).  `PanelClusterDrag` begins by undocking the cluster, or -- Option held on the mouse-down or as the drag
+begins, or a strip's group -- by detaching the group (a collapsed one gets at least 160 pt, its top kept), so the
+moving thing is always a floating cluster window; each mouse position is snapped, the window placed at the snapped
+frame (`FloatingPanelWindow.isTracking` keeps those moves out of the layout), a `PanelSnapPreview` (a borderless
+click-through child window: accent line, or a tinted area or header with an accent border) shows the join and
+`NSHapticFeedbackManager`'s alignment tick marks entering a new target.  On release the window animates to the
+settled frame (0.14 s ease-out; at once under Reduce Motion) and the layout takes `attach` or `setFrame`; kbd:[Esc]
+restores the layout from before the drag.  The loop cancels at once if the button is already up (a synthetic
+mouse-down), and finishes if it came up unseen after dragging.  The scene is built from the document window
+(`PanelHost`: `DocumentWindowController.panelArea` is the ruler host in screen points, `panelDocks` its docks) and
+every visible `FloatingPanelWindow`.  *Look* (`Panels/PanelClusterView.swift`): a cluster is one `PanelClusterView`,
+docked in the side dock's view (flush: `PanelDockController.inset` is 0; the dock's width is the cluster's) or as a
+floating window's content: `PanelClusterChrome` (the glass, clipped; the chrome frost; docked, a layer shadow of radius
+8 at 22% along the shape) under columns (`DockColumnView`, one per column, 4 pt top and bottom inset) and
+`ClusterColumnDivider`s (5 pt, a hairline; drag or accessibility increment resizes the column on the left).  Docked,
+the corner radius is 12 and the glass extends past the window edge by it, so the attached corners are square (the
+system glass rounds all corners alike); `PanelFrostView` gained `squareEdge` and `strokesOutline` (a separator-colour
+hairline along the rounded sides only, `PanelShape`).  Floating, radius 14 all round, no view shadow (the window's).
+Group views no longer carry glass of their own.  A floating cluster whose columns are all collapsed shrinks to its
+title bars (`PanelClusterView.collapsedHeight`), its top kept; its window's minimum width keeps the last column 44 pt.
+An edge with nothing docked hides its dock and its handle, and the canvas's safe area then stops at the window edge;
+a floating cluster never counts.  *Tools panel*: unchanged as a panel (it always was a framework group, docked left at
+84 pt); it now sits on the same flush docked cluster as the right-hand panels, and `PanelGroupView` drops the gripper
+and disclosure triangle below 140 pt (`isCompact`) so its title shows -- which is what made it look unlike the others.
+The Options menu adds *Float Group* for a floating group clicked to others.  Accessibility: a cluster is a group
+("Panels, docked at the right edge", "Floating panels", identifier `panel-cluster.<id>`); column dividers are
+splitters; the edge column's group dividers keep their `panel-divider.<edge>.<n>` identifiers.  Tests:
+`PanelSnappingTests`, `PanelClusterLayoutTests`, `PanelClusterDragTests`, `MagneticPanelWindowTests`,
+`PanelClusterRenderingTests`.  Deviations: the window's top and bottom stay toolbar strips (a cluster dropped over a
+shown strip joins it as a row of groups; there is no cluster docked at the top or bottom); a cluster docks at an edge
+only when that edge is free (a taken edge offers the docked cluster's inner side, and `.dock` onto a taken edge adds
+columns on the outer side); groups in a floating cluster are one window, so *Cmd+`* cycles clusters, not groups; the
+haptic tick needs a Force Touch trackpad; column widths of a docked cluster other than the one beside the canvas change
+only with the column dividers.
 
 NOTE: As built by the control reachability audit (rch).  The *Select* panel is the Find & Replace
 panel's body on a state of its own opened on its *Select* tab (`ReachabilityFeatures.selectPanel`);

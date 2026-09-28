@@ -47,7 +47,7 @@ enum DockSizing {
     }
 }
 
-/// A side dock's column of groups: each group at the height `DockSizing` gives it, a divider
+/// A column of a cluster (docked or floating): each group at the height `DockSizing` gives it, a divider
 /// between neighbours, and the insertion line a group dragged over the dock shows.  Lays its
 /// subviews out by hand (flipped, top first): a group's frame is its title bar, tab strip and
 /// its share of the body height, so nothing draws over the next group's title.
@@ -57,6 +57,13 @@ final class DockColumnView: NSView {
     static let insertionThickness: CGFloat = 2
 
     let edge: DockEdge
+    /// The group dividers' accessibility identifiers are `<prefix>.<n>`.
+    var identifierPrefix: String {
+        didSet {
+            guard identifierPrefix != oldValue else { return }
+            for divider in dividers { divider.setAccessibilityIdentifier("\(identifierPrefix).\(divider.index)") }
+        }
+    }
     private(set) var groupViews: [PanelGroupView] = []
     private(set) var dividers: [DockDividerView] = []
     /// The content height each group had at the last layout (0 for a collapsed group).
@@ -77,8 +84,9 @@ final class DockColumnView: NSView {
         }
     }
 
-    init(edge: DockEdge) {
+    init(edge: DockEdge, identifierPrefix: String? = nil) {
         self.edge = edge
+        self.identifierPrefix = identifierPrefix ?? "panel-divider.\(edge.rawValue)"
         super.init(frame: .zero)
         insertionLine.wantsLayer = true
         insertionLine.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
@@ -107,6 +115,7 @@ final class DockColumnView: NSView {
         while dividers.count > needed { dividers.removeLast().removeFromSuperview() }
         while dividers.count < needed {
             let divider = DockDividerView(index: dividers.count, edge: edge)
+            divider.setAccessibilityIdentifier("\(identifierPrefix).\(divider.index)")
             divider.column = self
             addSubview(divider, positioned: .below, relativeTo: insertionLine)
             dividers.append(divider)

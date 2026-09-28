@@ -45,16 +45,16 @@ struct NamedLayoutStore: Sendable {
 }
 
 extension PanelLayout {
-    /// Floating groups on a display that is not connected, or off every screen, move onto the
+    /// Floating clusters on a display that is not connected, or off every screen, move onto the
     /// main display (panels.adoc, "Layout persistence").
     mutating func moveFloatingGroups(onto main: LayoutRect, displays: Set<String>, screens: [LayoutRect]) {
-        for index in floating.indices {
-            let group = floating[index]
-            let missingDisplay = group.display.map { !displays.contains($0) } ?? false
-            guard missingDisplay || !screens.contains(where: group.frame.intersects) else { continue }
-            floating[index].frame.x = main.x + 40
-            floating[index].frame.y = main.maxY - group.frame.height - 40
-            floating[index].display = nil
+        for index in clusters.indices where clusters[index].edge == nil {
+            guard let frame = clusters[index].frame else { continue }
+            let missingDisplay = clusters[index].display.map { !displays.contains($0) } ?? false
+            guard missingDisplay || !screens.contains(where: frame.intersects) else { continue }
+            clusters[index].frame?.x = main.x + 40
+            clusters[index].frame?.y = main.maxY - frame.height - 40
+            clusters[index].display = nil
         }
     }
 }

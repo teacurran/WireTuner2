@@ -19,6 +19,10 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
     var startDragSession: @MainActor (NSView, NSDraggingItem, NSEvent, NSDraggingSource) -> Void = { view, item, event, source in
         view.beginDraggingSession(with: [item], event: event, source: source)
     }
+    /// The cluster drag in flight or last run (D-077, magnetic panels).
+    var clusterDrag: PanelClusterDrag?
+    /// Runs a cluster drag's mouse loop (replaceable in tests, which have no mouse).
+    var runClusterDrag: @MainActor (PanelClusterDrag) -> Void = { PanelClusterDrag.track($0) }
     /// Shows the Options menu under its button (a modal tracking loop; replaceable in tests).
     var presentMenu: @MainActor (NSMenu, NSButton) -> Void = { menu, button in
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
@@ -40,7 +44,7 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
         groupView.onDragTab = { [weak self] button, event in self?.beginDrag(.panel(button.panelID), from: button, event: event) }
         groupView.onDragGroup = { [weak self, weak groupView] event in
             guard let self, let groupView else { return }
-            self.beginDrag(.group(id), from: groupView, event: event)
+            self.beginClusterDrag(from: groupView, event: event)
         }
         groupView.onRename = { [weak self] name in self?.update { $0.rename(group: id, to: name) } }
         groupView.onClose = { [weak self] in self?.update { $0.close(group: id) } }
@@ -94,11 +98,12 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
         }
     }
 
-    /// A panel dropped on a dock splits into a new group there; a group docks there.
-    func drop(_ payload: PanelDragPayload, onDock edge: DockEdge, at index: Int) {
+    /// A panel dropped on a dock splits into a new group there; a group docks there (in
+    /// `column` of the docked cluster, its edge column unless given).
+    func drop(_ payload: PanelDragPayload, onDock edge: DockEdge, at index: Int, column: Int? = nil) {
         switch payload {
-        case let .panel(panel): update { $0.movePanel(panel, toNewGroupAt: edge, index: index) }
-        case let .group(group): update { $0.dock(group: group, at: edge, index: index) }
+        case let .panel(panel): update { $0.movePanel(panel, toNewGroupAt: edge, index: index, column: column) }
+        case let .group(group): update { $0.dock(group: group, at: edge, index: index, column: column) }
         }
     }
 
@@ -298,21 +303,22 @@ final class PanelInteraction: NSObject, NSDraggingSource, NSMenuItemValidation {
 }
 
 
-/// Renders one edge of a `PanelLayout` into a dock.  A side dock (left, right) is a translucent
-/// glass sidebar floating over the canvas, which runs beneath it (D-077, revised): inset from the
-/// window's edges, the chrome's frost on the glass, holding a `DockColumnView` whose groups share
-/// its height through draggable dividers.  The dock's own view is clear around the glass.  A strip (top, bottom) is a row of groups.  Group views are kept
-/// while their panels stay the same -- choosing a tab, collapsing or resizing updates them in
-/// place, so the selection slides, the column animates and the keyboard focus stays -- and
-/// panel bodies are created once and reused, so a re-render never closes a panel.
+/// Renders one edge of a `PanelLayout` into the document window.  A side edge (left, right) shows
+/// the cluster docked there (D-077, magnetic panels): a `PanelClusterView` flush with the window
+/// edge -- square corners on that side, rounded ones and a hairline and shadow on the canvas side
+/// -- running the height of the content area, translucent over the canvas, which runs beneath it.
+/// Without a docked cluster the edge is empty.  A strip (top, bottom) is a row of groups.  Group
+/// views are kept while their panels stay the same -- choosing a tab, collapsing or resizing
+/// updates them in place, so the selection slides, the column animates and the keyboard focus
+/// stays -- and panel bodies are created once and reused, so a re-render never closes a panel.
 @MainActor
 final class PanelDockController: NSViewController {
     static let accessibilityIdentifier = "panel-dock"
     nonisolated static let pasteboardType = PanelDragPayload.panelType
     static let defaultWidth: CGFloat = 280
-    /// Between the side dock's glass and the window's edges.
-    static let inset: CGFloat = 6
-    static let cornerRadius: CGFloat = 14
+    /// Between a docked cluster and the window's edges: none, it is flush (D-077, magnetic panels).
+    static let inset: CGFloat = 0
+    static let cornerRadius: CGFloat = PanelClusterView.dockedCornerRadius
 
     let panels: PanelRegistry
     let layoutController: PanelLayoutController
@@ -320,12 +326,8 @@ final class PanelDockController: NSViewController {
     let interaction: PanelInteraction
 
     private let stack = NSStackView()
-    /// The side dock's column of groups (unused by a strip).
-    let column: DockColumnView
-    /// The side dock's glass (nil for a strip).
-    private(set) var glass: NSView?
-    /// The chrome's frost on the side dock's glass (nil for a strip).
-    private(set) var frost: PanelFrostView?
+    /// The side dock's cluster (unused by a strip).
+    let clusterView: PanelClusterView
     private(set) var groupViews: [PanelGroupView] = []
     private var bodies: [PanelID: NSView] = [:]
     /// Width for a side dock, height for a strip.
@@ -333,13 +335,17 @@ final class PanelDockController: NSViewController {
     private var observation: PanelLayoutController.ObservationToken?
     /// Reduce Transparency switched: the dock redraws solid or translucent.
     private var displayObserver: AccessibilityDisplayObserver?
+    /// A column that stands in for the edge column while nothing is docked.
+    private let emptyColumn: DockColumnView
 
     init(panels: PanelRegistry, layout: PanelLayoutController, edge: DockEdge = .right, interaction: PanelInteraction? = nil) {
         self.panels = panels
         self.layoutController = layout
         self.edge = edge
-        self.interaction = interaction ?? PanelInteraction(panels: panels, layout: layout)
-        column = DockColumnView(edge: edge)
+        let interaction = interaction ?? PanelInteraction(panels: panels, layout: layout)
+        self.interaction = interaction
+        clusterView = PanelClusterView(attachment: .docked(edge), translucent: interaction.appearance().isTranslucent)
+        emptyColumn = DockColumnView(edge: edge)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -351,13 +357,25 @@ final class PanelDockController: NSViewController {
     /// The width constraint of a side dock (nil for a strip).
     var widthConstraint: NSLayoutConstraint? { edge.isVertical ? sizeConstraint : nil }
 
+    /// The docked cluster's column at the window edge (a side dock).
+    var column: DockColumnView {
+        guard let cluster = layoutController.layout.dockedCluster(edge), clusterView.columnViews.indices.contains(cluster.edgeColumnIndex) else {
+            return clusterView.columnViews.first ?? emptyColumn
+        }
+        return clusterView.columnViews[cluster.edgeColumnIndex]
+    }
+
+    /// The side dock's glass and the chrome's frost on it (nil for a strip).
+    var glass: NSView? { edge.isVertical ? clusterView.chrome.glass : nil }
+    var frost: PanelFrostView? { edge.isVertical ? clusterView.chrome.frost : nil }
+
     override func loadView() {
         let dock = DockDropView()
         dock.controller = self
         dock.translatesAutoresizingMaskIntoConstraints = false
         dock.wantsLayer = true
         // A strip is opaque (it sits between the toolbar and the canvas); a side dock is clear
-        // around its glass, so the canvas shows beside it.
+        // around its cluster, so the canvas shows beside it.
         dock.layer?.backgroundColor = edge.isVertical ? nil : NSColor.windowBackgroundColor.cgColor
         dock.setAccessibilityElement(true)
         dock.setAccessibilityRole(.group)
@@ -365,28 +383,12 @@ final class PanelDockController: NSViewController {
         dock.setAccessibilityLabel("Panels")
 
         if edge.isVertical {
-            let surface = PanelGlass.surface(cornerRadius: Self.cornerRadius)
-            surface.translatesAutoresizingMaskIntoConstraints = false
-            surface.setAccessibilityElement(false)
-            dock.addSubview(surface)
-            NSLayoutConstraint.activate([
-                surface.topAnchor.constraint(equalTo: dock.topAnchor, constant: Self.inset),
-                surface.bottomAnchor.constraint(equalTo: dock.bottomAnchor, constant: -Self.inset),
-                surface.leadingAnchor.constraint(equalTo: dock.leadingAnchor, constant: edge == .right ? 0 : Self.inset),
-                surface.trailingAnchor.constraint(equalTo: dock.trailingAnchor, constant: edge == .right ? -Self.inset : 0),
-            ])
-            column.preferredHeight = { [weak self] group in self?.preferredHeight(for: group) ?? PanelLayout.defaultGroupHeight }
-            column.onResize = { [weak self] heights in self?.resize(heights) }
-            let wash = PanelFrostView(level: .chrome, translucent: interaction.appearance().isTranslucent, cornerRadius: Self.cornerRadius)
-            let holder = NSView()
-            for part in [wash, column] as [NSView] {
-                part.frame = holder.bounds
-                part.autoresizingMask = [.width, .height]
-                holder.addSubview(part)
-            }
-            PanelGlass.setContent(holder, of: surface)
-            glass = surface
-            frost = wash
+            clusterView.frame = dock.bounds
+            clusterView.autoresizingMask = [.width, .height]
+            clusterView.preferredHeight = { [weak self] group in self?.preferredHeight(for: group) ?? PanelLayout.defaultGroupHeight }
+            clusterView.onResize = { [weak self] heights in self?.resize(heights) }
+            clusterView.onColumnResize = { [weak self] column, width in self?.resizeColumn(column, to: width) }
+            dock.addSubview(clusterView)
         } else {
             stack.orientation = .horizontal
             stack.alignment = .top
@@ -420,35 +422,43 @@ final class PanelDockController: NSViewController {
 
     /// Brings the dock up to date with `layout`.
     func render(_ layout: PanelLayout) {
-        let groups = layout.docks[edge] ?? []
-        frost?.isTranslucent = interaction.appearance().isTranslucent
         if edge.isVertical {
-            renderColumn(groups)
+            clusterView.isTranslucent = interaction.appearance().isTranslucent
+            let cluster = layout.dockedCluster(edge)
+            renderCluster(cluster)
+            let hidden = layout.hiddenDocks.contains(edge) || cluster == nil
+            view.isHidden = hidden
+            sizeConstraint?.constant = hidden ? 0 : CGFloat(cluster?.width ?? 0)
         } else {
+            let groups = layout.docks[edge] ?? []
             renderStrip(groups)
+            let hidden = layout.hiddenDocks.contains(edge) || groups.isEmpty
+            view.isHidden = hidden
+            let size = layout.dockWidth[edge] ?? 44
+            sizeConstraint?.constant = hidden ? 0 : CGFloat(max(size, Self.stripHeight(for: groups)))
         }
-        let hidden = layout.hiddenDocks.contains(edge) || (!edge.isVertical && groups.isEmpty)
-        view.isHidden = hidden
-        let size = layout.dockWidth[edge] ?? (edge.isVertical ? Double(Self.defaultWidth) : 44)
-        sizeConstraint?.constant = hidden ? 0 : CGFloat(edge.isVertical ? size : max(size, Self.stripHeight(for: groups)))
     }
 
-    private func renderColumn(_ groups: [PanelGroup]) {
+    private func renderCluster(_ cluster: PanelCluster?) {
         let appearance = interaction.appearance()
         let existing = Dictionary(groupViews.map { ($0.group.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let views = groups.map { group -> PanelGroupView in
-            if let view = existing[group.id], view.canShow(group, appearance: appearance) {
-                view.show(group, body: body(for:))
+        let columns = (cluster?.columns ?? []).map { column in
+            column.groups.map { group -> PanelGroupView in
+                if let view = existing[group.id], view.canShow(group, appearance: appearance) {
+                    view.show(group, body: body(for:))
+                    return view
+                }
+                let view = interaction.makeGroupView(group, floating: false, body: body(for:))
+                view.dock = self
                 return view
             }
-            let view = interaction.makeGroupView(group, floating: false, body: body(for:))
-            view.dock = self
-            return view
         }
+        let views = columns.flatMap { $0 }
         let kept = views.map(ObjectIdentifier.init) == groupViews.map(ObjectIdentifier.init)
         groupViews = views
-        column.setGroupViews(views)
-        if kept { column.animateLayout() }
+        clusterView.show(columns: columns, widths: cluster?.columns.map(\.width) ?? [], attachment: .docked(edge), clusterID: cluster?.id)
+        view.needsLayout = true
+        if kept { clusterView.animateLayout() }
     }
 
     private func renderStrip(_ groups: [PanelGroup]) {
@@ -483,6 +493,12 @@ final class PanelDockController: NSViewController {
         }
     }
 
+    /// A column divider drag: column `column` of the docked cluster becomes `width` wide.
+    func resizeColumn(_ column: Int, to width: Double) {
+        guard let id = layoutController.layout.dockedCluster(edge)?.id else { return }
+        layoutController.update { $0.setColumnWidth(width, cluster: id, column: column) }
+    }
+
     /// The panel's body view, created once and reused across renders.
     func body(for panel: PanelID) -> NSView {
         if let existing = bodies[panel] { return existing }
@@ -493,27 +509,41 @@ final class PanelDockController: NSViewController {
 
     // MARK: Drag and drop
 
+    /// The column and group index a drop at `point` (in the dock view) lands before: the column
+    /// under the point (else the edge column) and the number of its groups whose middle is above.
+    func insertionTarget(atDockPoint point: CGPoint) -> (column: Int, index: Int) {
+        let columns = clusterView.columnViews
+        let under = columns.firstIndex { column in
+            let frame = view.convert(column.frame, from: column.superview)
+            return point.x >= frame.minX && point.x < frame.maxX
+        }
+        let index = under ?? layoutController.layout.dockedCluster(edge)?.edgeColumnIndex ?? 0
+        guard columns.indices.contains(index) else { return (0, 0) }
+        let frames = columns[index].groupViews.map { view.convert($0.frame, from: columns[index]) }
+        return (index, Self.insertionIndex(forY: point.y, groupFrames: frames))
+    }
+
     /// The group index a drop at `point` (in the dock view) lands before.
     func insertionIndex(atDockPoint point: CGPoint) -> Int {
-        if edge.isVertical {
-            let frames = groupViews.map { view.convert($0.frame, from: column) }
-            return Self.insertionIndex(forY: point.y, groupFrames: frames)
-        }
+        if edge.isVertical { return insertionTarget(atDockPoint: point).index }
         return Self.tabIndex(forX: stack.convert(point, from: view).x, frames: groupViews.map(\.frame))
     }
 
     /// A panel or group dragged over the dock at `point`: the insertion line shows where it
     /// would land.  Nil hides it.
     func showInsertion(atDockPoint point: CGPoint?) {
-        column.insertionIndex = point.map(insertionIndex(atDockPoint:))
+        let target = point.map(insertionTarget(atDockPoint:))
+        for (index, column) in clusterView.columnViews.enumerated() {
+            column.insertionIndex = target?.column == index ? target?.index : nil
+        }
     }
 
     /// A drop on the dock background: a panel splits into a new group at the drop position, a
     /// group docks there.
     func handleDrop(_ payload: PanelDragPayload, atDockPoint point: CGPoint) {
-        let index = insertionIndex(atDockPoint: point)
+        let target = edge.isVertical ? insertionTarget(atDockPoint: point) : (column: 0, index: insertionIndex(atDockPoint: point))
         showInsertion(atDockPoint: nil)
-        interaction.drop(payload, onDock: edge, at: index)
+        interaction.drop(payload, onDock: edge, at: target.index, column: edge.isVertical ? target.column : nil)
     }
 
     func handleDrop(of panel: PanelID, atDockPoint point: CGPoint) {
@@ -538,6 +568,30 @@ final class PanelDockController: NSViewController {
 
     func beginDrag(of panel: PanelID, from view: NSView, event: NSEvent) {
         interaction.beginDrag(.panel(panel), from: view, event: event)
+    }
+
+    // MARK: Snapping geometry
+
+    /// The docked cluster (or, for a strip, nothing) as snapping sees it, in screen points.  A
+    /// hidden dock still takes its edge, with no area to click to.
+    func snapCluster() -> PanelSnapScene.Cluster? {
+        guard edge.isVertical, let cluster = layoutController.layout.dockedCluster(edge) else { return nil }
+        guard !view.isHidden, let geometry = clusterView.snapGeometry(id: cluster.id, edge: edge) else {
+            return PanelSnapScene.Cluster(id: cluster.id, edge: edge, frame: .zero, columns: [])
+        }
+        return geometry
+    }
+
+    /// The strip's area in screen points (nil for a side dock or a hidden strip).
+    func snapStrip() -> CGRect? {
+        guard !edge.isVertical, !view.isHidden, let window = view.window else { return nil }
+        return window.convertToScreen(view.convert(view.bounds, to: nil))
+    }
+
+    /// The headers of the groups shown here, in screen points.
+    func snapHeaders() -> [PanelSnapScene.Header] {
+        guard !view.isHidden, let window = view.window else { return [] }
+        return groupViews.map { PanelSnapScene.Header(group: $0.group.id, frame: window.convertToScreen($0.convert($0.headerRect, to: nil))) }
     }
 }
 
@@ -583,7 +637,8 @@ final class DockDropView: NSView {
 }
 
 /// The thin handle between the canvas and a side dock (panels.adoc, "To show or hide the whole
-/// dock"): a click hides or shows the dock, a drag resizes it.  Drawn as a small grabber.
+/// dock"): a click hides or shows the dock, a drag resizes the docked cluster's column beside the
+/// canvas.  Drawn as a small grabber; absent while nothing is docked at its edge.
 @MainActor
 final class DockHandleView: NSView {
     static let thickness: CGFloat = 6
@@ -604,6 +659,13 @@ final class DockHandleView: NSView {
         setAccessibilityIdentifier("dock-handle.\(edge.rawValue)")
         setAccessibilityLabel("Show or hide the panels")
         toolTip = "Click to show or hide the panels; drag to resize"
+        // An edge with no docked cluster has no handle.
+        isHidden = layout.layout.dockedCluster(edge) == nil
+        layout.observe { [weak self] layout in
+            guard let self else { return }
+            let hidden = layout.dockedCluster(self.edge) == nil
+            if self.isHidden != hidden { self.isHidden = hidden }
+        }
     }
 
     @available(*, unavailable)
@@ -649,7 +711,8 @@ final class DockHandleView: NSView {
     override func mouseDown(with event: NSEvent) {
         guard let window else { return }
         let start = event.locationInWindow.x
-        let startWidth = layoutController.layout.dockWidth[edge] ?? Double(PanelDockController.defaultWidth)
+        let layout = layoutController.layout
+        let startWidth = layout.dockedCluster(edge).map { $0.columns[$0.innerColumnIndex].width } ?? layout.dockWidth[edge] ?? Double(PanelDockController.defaultWidth)
         var dx: CGFloat = 0
         while let next = window.nextEvent(matching: [.leftMouseUp, .leftMouseDragged], until: .distantFuture, inMode: .eventTracking, dequeue: true) {
             dx = next.locationInWindow.x - start

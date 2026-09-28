@@ -129,8 +129,9 @@ struct PanelGroup: Codable, Equatable, Sendable, Identifiable {
     }
 }
 
-/// A group floating over the document window.  Encoded flat: the group's fields plus `frame`
-/// and `display`, as the Panels page shows.
+/// A floating group as layouts before magnetic panels stored it, and as `PanelLayout.floating`
+/// lists the groups of floating clusters.  Encoded flat: the group's fields plus `frame` and
+/// `display` (version 1 files; read to migrate them).
 struct FloatingGroup: Equatable, Sendable, Codable {
     var group: PanelGroup
     var frame: LayoutRect
@@ -165,16 +166,25 @@ struct FloatingGroup: Equatable, Sendable, Codable {
 /// Where the panels are.  A value type: every operation is a pure transformation, so layouts
 /// can be tested without a window and compared for equality.  Persisted as JSON by
 /// `PanelLayoutStore`.
+///
+/// Panel groups live in *clusters* (D-077, magnetic panels): at most one docked at each side
+/// edge, and any number floating.  The top and bottom strips are rows of groups (toolbars and
+/// the Tools panel when docked there).  Version 2 stores the clusters; a version 1 file's docked
+/// groups become the cluster at that edge and each of its floating groups a cluster of its own.
 struct PanelLayout: Codable, Equatable, Sendable {
-    static let currentVersion = 1
-    /// Width of the side docks, height of the top and bottom strips.
+    static let currentVersion = 2
+    /// Width of the side docks' edge column, height of the top and bottom strips.
     static let defaultDockWidth: [DockEdge: Double] = [.right: 280, .left: 84, .top: 44, .bottom: 44]
     static let minimumDockWidth: Double = 44
     static let defaultGroupHeight: Double = 220
 
     var version: Int
-    var docks: [DockEdge: [PanelGroup]]
-    var floating: [FloatingGroup]
+    /// The top and bottom strips' groups, left first.
+    var strips: [DockEdge: [PanelGroup]]
+    /// Docked and floating clusters.
+    var clusters: [PanelCluster]
+    /// The height of the top and bottom strips; for the side edges, the width of the docked
+    /// cluster's edge column (kept equal to it), or the width a cluster docked there next gets.
     var dockWidth: [DockEdge: Double]
     /// Docks hidden with the dock handle or menu:View[Panels]; their groups keep their place.
     var hiddenDocks: Set<DockEdge>
@@ -191,28 +201,55 @@ struct PanelLayout: Codable, Equatable, Sendable {
         hiddenDocks: Set<DockEdge> = [], closedPanels: Set<PanelID> = [], flyoutSlots: [String: String] = [:]
     ) {
         self.version = version
-        self.docks = docks
-        self.floating = floating
+        self.strips = [:]
+        self.clusters = []
         self.dockWidth = dockWidth
         self.hiddenDocks = hiddenDocks
         self.closedPanels = closedPanels
         self.flyoutSlots = flyoutSlots
+        self.docks = docks
+        self.floating = floating
     }
 
     enum CodingKeys: String, CodingKey {
-        case version, docks, floating, dockWidth, hiddenDocks, closedPanels, flyoutSlots
+        case version, docks, clusters, floating, dockWidth, hiddenDocks, closedPanels, flyoutSlots
     }
 
-    /// Lenient about missing keys so a hand-edited or older file still loads.
+    /// Lenient about missing keys so a hand-edited or older file still loads; a version 1 file
+    /// (docked groups per edge, floating groups) is migrated to clusters.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? PanelLayout.currentVersion
-        docks = try container.decodeIfPresent([DockEdge: [PanelGroup]].self, forKey: .docks) ?? [:]
-        floating = try container.decodeIfPresent([FloatingGroup].self, forKey: .floating) ?? []
+        let docks = try container.decodeIfPresent([DockEdge: [PanelGroup]].self, forKey: .docks) ?? [:]
         dockWidth = try container.decodeIfPresent([DockEdge: Double].self, forKey: .dockWidth) ?? PanelLayout.defaultDockWidth
         hiddenDocks = try container.decodeIfPresent(Set<DockEdge>.self, forKey: .hiddenDocks) ?? []
         closedPanels = try container.decodeIfPresent(Set<PanelID>.self, forKey: .closedPanels) ?? []
         flyoutSlots = try container.decodeIfPresent([String: String].self, forKey: .flyoutSlots) ?? [:]
+        strips = docks.filter { !$0.key.isVertical }
+        clusters = try container.decodeIfPresent([PanelCluster].self, forKey: .clusters) ?? []
+        // Version 1: the side edges' groups become the cluster docked there (unless the file
+        // already has one), each floating group a floating cluster of its own.
+        for edge in [DockEdge.left, .right] where dockedClusterIndex(edge) == nil {
+            guard let groups = docks[edge], !groups.isEmpty else { continue }
+            let width = dockWidth[edge] ?? Self.defaultDockWidth[edge] ?? 280
+            clusters.append(PanelCluster(id: uniqueClusterID(edge.rawValue), edge: edge, columns: [PanelColumn(groups: groups, width: width)]))
+        }
+        for floater in try container.decodeIfPresent([FloatingGroup].self, forKey: .floating) ?? [] {
+            clusters.append(.floating(floater.group, id: uniqueClusterID(floater.group.id), frame: floater.frame, display: floater.display))
+        }
+        if version < Self.currentVersion { version = Self.currentVersion }
+        normalize()
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(strips, forKey: .docks)
+        try container.encode(clusters, forKey: .clusters)
+        try container.encode(dockWidth, forKey: .dockWidth)
+        try container.encode(hiddenDocks, forKey: .hiddenDocks)
+        try container.encode(closedPanels, forKey: .closedPanels)
+        try container.encode(flyoutSlots, forKey: .flyoutSlots)
     }
 
     /// The factory layout: one group per distinct `defaultGroup`, ordered and shown as
@@ -244,13 +281,63 @@ struct PanelLayout: Codable, Equatable, Sendable {
             )
             layout.insert(group, at: settings?.edge ?? edge, index: nil)
         }
+        layout.normalize()
         return layout
+    }
+
+    // MARK: Views of the clusters
+
+    /// The groups at each edge: a strip's row, or every group of the cluster docked at a side
+    /// (column by column).  Setting it replaces them (a side edge's groups keep their columns).
+    var docks: [DockEdge: [PanelGroup]] {
+        get {
+            var result = strips.filter { !$0.key.isVertical && !$0.value.isEmpty }
+            for cluster in clusters { if let edge = cluster.edge { result[edge] = cluster.groups } }
+            return result
+        }
+        set {
+            for edge in DockEdge.allCases {
+                if edge.isVertical { setDockedGroups(newValue[edge] ?? [], edge: edge) } else { strips[edge] = newValue[edge] }
+            }
+            normalize()
+        }
+    }
+
+    /// Every group of every floating cluster, each with its cluster's frame and display.
+    /// Setting it with the same groups in the same order changes their groups, frames and
+    /// displays in place; anything else makes one floating cluster per entry.
+    var floating: [FloatingGroup] {
+        get {
+            clusters.filter { $0.edge == nil }.flatMap { cluster in
+                cluster.groups.map { FloatingGroup(group: $0, frame: cluster.frame ?? LayoutRect(x: 0, y: 0, width: cluster.width, height: 320), display: cluster.display) }
+            }
+        }
+        set {
+            let current = floating
+            if newValue.map(\.group.id) == current.map(\.group.id) {
+                for (entry, old) in zip(newValue, current) where entry != old {
+                    update(group: entry.group.id) { $0 = entry.group }
+                    if let index = clusterIndex(containing: entry.group.id), entry.frame != old.frame || entry.display != old.display {
+                        clusters[index].frame = entry.frame
+                        clusters[index].display = entry.display
+                    }
+                }
+            } else {
+                clusters.removeAll { $0.edge == nil }
+                for entry in newValue {
+                    clusters.append(.floating(entry.group, id: uniqueClusterID(entry.group.id), frame: entry.frame, display: entry.display))
+                }
+            }
+            normalize()
+        }
     }
 
     // MARK: Queries
 
     enum GroupLocation: Equatable, Sendable {
+        /// At an edge: index among `docks[edge]`.
         case docked(DockEdge, Int)
+        /// Floating: index among `floating`.
         case floating(Int)
     }
 
@@ -279,6 +366,28 @@ struct PanelLayout: Codable, Equatable, Sendable {
         return nil
     }
 
+    /// The cluster `id`.
+    func cluster(_ id: PanelCluster.ID) -> PanelCluster? { clusters.first { $0.id == id } }
+
+    /// The cluster holding group `id` (nil for a strip's group).
+    func cluster(containing id: PanelGroup.ID) -> PanelCluster? { clusterIndex(containing: id).map { clusters[$0] } }
+
+    /// The cluster docked at `edge`.
+    func dockedCluster(_ edge: DockEdge) -> PanelCluster? { dockedClusterIndex(edge).map { clusters[$0] } }
+
+    var floatingClusters: [PanelCluster] { clusters.filter { $0.edge == nil } }
+
+    func clusterIndex(containing id: PanelGroup.ID) -> Int? {
+        clusters.firstIndex { $0.position(of: id) != nil }
+    }
+
+    func dockedClusterIndex(_ edge: DockEdge) -> Int? {
+        clusters.firstIndex { $0.edge == edge }
+    }
+
+    /// The width a side edge's docked cluster takes (0 without one).
+    func dockedWidth(_ edge: DockEdge) -> Double { dockedCluster(edge)?.width ?? 0 }
+
     /// A panel is visible when it is the front tab of an expanded group on a shown dock or
     /// floating.
     func isVisible(_ panel: PanelID) -> Bool {
@@ -289,28 +398,135 @@ struct PanelLayout: Codable, Equatable, Sendable {
         return true
     }
 
-    // MARK: Operations
+    /// The edge a group is docked at (a strip, or a docked cluster); nil when floating or unknown.
+    func edge(of id: PanelGroup.ID) -> DockEdge? {
+        if case let .docked(edge, _)? = location(of: id) { return edge }
+        return nil
+    }
+
+    // MARK: Structure
+
+    /// A cluster id not in use, `preferred` when free.
+    func uniqueClusterID(_ preferred: String) -> String {
+        clusters.contains { $0.id == preferred } ? UUID().uuidString : preferred
+    }
+
+    /// Keeps the structure tidy after every change: no empty columns or clusters, no empty strip
+    /// entries, a floating cluster as wide as its columns, and each side edge's `dockWidth` equal
+    /// to its docked cluster's edge column.
+    mutating func normalize() {
+        for edge in DockEdge.allCases where !edge.isVertical && strips[edge]?.isEmpty == true { strips[edge] = nil }
+        for edge in DockEdge.allCases where edge.isVertical { strips[edge] = nil }
+        for index in clusters.indices.reversed() {
+            clusters[index].columns.removeAll { $0.groups.isEmpty }
+            if clusters[index].columns.isEmpty {
+                clusters.remove(at: index)
+                continue
+            }
+            if clusters[index].edge == nil {
+                let width = clusters[index].width
+                clusters[index].frame?.width = width
+            } else {
+                clusters[index].frame = nil
+                clusters[index].display = nil
+            }
+        }
+        for cluster in clusters {
+            if let edge = cluster.edge { dockWidth[edge] = cluster.columns[cluster.edgeColumnIndex].width }
+        }
+    }
+
+    private enum GroupPath {
+        case strip(DockEdge, Int)
+        case cluster(Int, column: Int, index: Int)
+    }
+
+    private func path(of id: PanelGroup.ID) -> GroupPath? {
+        for edge in DockEdge.allCases where !edge.isVertical {
+            if let index = strips[edge]?.firstIndex(where: { $0.id == id }) { return .strip(edge, index) }
+        }
+        for (clusterIndex, cluster) in clusters.enumerated() {
+            if let position = cluster.position(of: id) { return .cluster(clusterIndex, column: position.column, index: position.index) }
+        }
+        return nil
+    }
 
     private mutating func update(group id: PanelGroup.ID, _ change: (inout PanelGroup) -> Void) {
-        switch location(of: id) {
-        case let .docked(edge, index): change(&docks[edge]![index])
-        case let .floating(index): change(&floating[index].group)
+        switch path(of: id) {
+        case let .strip(edge, index): change(&strips[edge]![index])
+        case let .cluster(cluster, column, index): change(&clusters[cluster].columns[column].groups[index])
         case nil: break
         }
     }
 
+    /// Takes group `id` out of its strip or cluster.  A column left empty goes (a floating
+    /// cluster losing its leftmost column keeps its other columns where they are); a cluster left
+    /// empty goes.
     private mutating func extract(group id: PanelGroup.ID) -> PanelGroup? {
-        switch location(of: id) {
-        case let .docked(edge, index): return docks[edge]!.remove(at: index)
-        case let .floating(index): return floating.remove(at: index).group
-        case nil: return nil
+        switch path(of: id) {
+        case let .strip(edge, index):
+            return strips[edge]!.remove(at: index)
+        case let .cluster(cluster, column, index):
+            let group = clusters[cluster].columns[column].groups.remove(at: index)
+            removeColumnIfEmpty(cluster: cluster, column: column)
+            return group
+        case nil:
+            return nil
         }
     }
 
-    fileprivate mutating func insert(_ group: PanelGroup, at edge: DockEdge, index: Int?) {
-        var list = docks[edge] ?? []
-        list.insert(group, at: min(max(index ?? list.count, 0), list.count))
-        docks[edge] = list
+    private mutating func removeColumnIfEmpty(cluster: Int, column: Int) {
+        guard clusters[cluster].columns[column].groups.isEmpty else { return }
+        let removed = clusters[cluster].columns.remove(at: column)
+        if clusters[cluster].columns.isEmpty {
+            clusters.remove(at: cluster)
+            return
+        }
+        if column == 0, clusters[cluster].edge == nil { clusters[cluster].frame?.x += removed.width + PanelCluster.columnDividerWidth }
+        if clusters[cluster].edge == nil {
+            let width = clusters[cluster].width
+            clusters[cluster].frame?.width = width
+        }
+    }
+
+    /// Puts `group` at `edge`: a strip's row, or a column of the cluster docked at a side (made
+    /// when there is none, as wide as `dockWidth` says) -- its edge column unless `column` says.
+    fileprivate mutating func insert(_ group: PanelGroup, at edge: DockEdge, index: Int?, column: Int? = nil) {
+        guard edge.isVertical else {
+            var list = strips[edge] ?? []
+            list.insert(group, at: min(max(index ?? list.count, 0), list.count))
+            strips[edge] = list
+            return
+        }
+        if let cluster = dockedClusterIndex(edge) {
+            let target = min(max(column ?? clusters[cluster].edgeColumnIndex, 0), clusters[cluster].columns.count - 1)
+            var list = clusters[cluster].columns[target].groups
+            list.insert(group, at: min(max(index ?? list.count, 0), list.count))
+            clusters[cluster].columns[target].groups = list
+        } else {
+            let width = dockWidth[edge] ?? Self.defaultDockWidth[edge] ?? 280
+            clusters.append(PanelCluster(id: uniqueClusterID(edge.rawValue), edge: edge, columns: [PanelColumn(groups: [group], width: width)]))
+        }
+    }
+
+    /// Replaces the groups of the cluster docked at `edge` (the `docks` setter): groups that stay
+    /// keep their column, new ones join the edge column.
+    private mutating func setDockedGroups(_ groups: [PanelGroup], edge: DockEdge) {
+        guard let index = dockedClusterIndex(edge) else {
+            guard !groups.isEmpty else { return }
+            let width = dockWidth[edge] ?? Self.defaultDockWidth[edge] ?? 280
+            clusters.append(PanelCluster(id: uniqueClusterID(edge.rawValue), edge: edge, columns: [PanelColumn(groups: groups, width: width)]))
+            return
+        }
+        guard !groups.isEmpty else {
+            clusters.remove(at: index)
+            return
+        }
+        var cluster = clusters[index]
+        let columnOf = Dictionary(cluster.columns.enumerated().flatMap { column, entry in entry.groups.map { ($0.id, column) } }, uniquingKeysWith: { first, _ in first })
+        for column in cluster.columns.indices { cluster.columns[column].groups = [] }
+        for group in groups { cluster.columns[columnOf[group.id] ?? cluster.edgeColumnIndex].groups.append(group) }
+        clusters[index] = cluster
     }
 
     private static func removing(_ panel: PanelID, from group: PanelGroup) -> PanelGroup? {
@@ -321,14 +537,22 @@ struct PanelLayout: Codable, Equatable, Sendable {
         return result
     }
 
+    // MARK: Operations
+
     /// Takes `panel` out of the layout; a group left empty disappears.
     mutating func removePanel(_ panel: PanelID) {
-        for edge in DockEdge.allCases where docks[edge] != nil {
-            docks[edge] = docks[edge]!.compactMap { Self.removing(panel, from: $0) }
+        for edge in DockEdge.allCases where strips[edge] != nil {
+            strips[edge] = strips[edge]!.compactMap { Self.removing(panel, from: $0) }
         }
-        floating = floating.compactMap { floater in
-            Self.removing(panel, from: floater.group).map { FloatingGroup(group: $0, frame: floater.frame, display: floater.display) }
+        for cluster in clusters.indices {
+            for column in clusters[cluster].columns.indices {
+                clusters[cluster].columns[column].groups = clusters[cluster].columns[column].groups.compactMap { Self.removing(panel, from: $0) }
+            }
+            for column in clusters[cluster].columns.indices.reversed() where clusters[cluster].columns[column].groups.isEmpty && clusters[cluster].columns.count > 1 {
+                removeColumnIfEmpty(cluster: cluster, column: column)
+            }
         }
+        normalize()
     }
 
     /// Moves `panel` into an existing group as its front tab (drag onto a tab strip, Group With).
@@ -344,44 +568,54 @@ struct PanelLayout: Codable, Equatable, Sendable {
             group.activePanel = panel
             group.collapsed = false
         }
+        normalize()
     }
 
     /// Splits `panel` into a new group docked at `edge` (drag onto the dock, New Panel Group).
-    /// `index` is the position among the groups docked there before the move.
+    /// `index` is the position among the groups docked there before the move (in `column` of a
+    /// docked cluster, its edge column unless given).
     @discardableResult
-    mutating func movePanel(_ panel: PanelID, toNewGroupAt edge: DockEdge, index: Int? = nil) -> PanelGroup.ID {
+    mutating func movePanel(_ panel: PanelID, toNewGroupAt edge: DockEdge, index: Int? = nil, column: Int? = nil) -> PanelGroup.ID {
         var insertion = index
         if let index, let current = group(containing: panel), current.panels == [panel],
             case let .docked(currentEdge, currentIndex)? = location(of: current.id), currentEdge == edge, currentIndex < index
         {
             insertion = index - 1
         }
+        let columns = dockedCluster(edge)?.columns.count
         removePanel(panel)
         let group = PanelGroup(panels: [panel])
-        insert(group, at: edge, index: insertion)
+        // A column the removal emptied has gone: fall back to the edge column.
+        insert(group, at: edge, index: insertion, column: columns == dockedCluster(edge)?.columns.count ? column : nil)
+        normalize()
         return group.id
     }
 
-    /// Splits `panel` into a new floating group.
+    /// Splits `panel` into a new floating group, a cluster of its own.
     @discardableResult
     mutating func floatPanel(_ panel: PanelID, frame: LayoutRect) -> PanelGroup.ID {
         removePanel(panel)
         let group = PanelGroup(panels: [panel])
-        floating.append(FloatingGroup(group: group, frame: frame))
+        clusters.append(.floating(group, id: uniqueClusterID(group.id), frame: frame))
+        normalize()
         return group.id
     }
 
-    /// Floats a docked group (Float Group).
+    /// Float Group: the group floats on its own at `frame`, leaving its cluster (docked, or
+    /// floating with other groups).  A group already floating alone stays where it is.
     mutating func float(group id: PanelGroup.ID, frame: LayoutRect) {
-        guard case .docked? = location(of: id), var group = extract(group: id) else { return }
-        group.collapsed = false
-        floating.append(FloatingGroup(group: group, frame: frame))
+        if let cluster = cluster(containing: id), cluster.edge == nil, cluster.groups.count == 1 { return }
+        guard path(of: id) != nil else { return }
+        detach(group: id, frame: frame)
+        update(group: id) { $0.collapsed = false }
+        normalize()
     }
 
     /// Docks a group at `edge` (Dock Group, drag to the dock edge), from floating or another edge.
-    mutating func dock(group id: PanelGroup.ID, at edge: DockEdge, index: Int? = nil) {
+    mutating func dock(group id: PanelGroup.ID, at edge: DockEdge, index: Int? = nil, column: Int? = nil) {
         guard let group = extract(group: id) else { return }
-        insert(group, at: edge, index: index)
+        insert(group, at: edge, index: index, column: column)
+        normalize()
     }
 
     mutating func setCollapsed(_ collapsed: Bool, group id: PanelGroup.ID) {
@@ -421,12 +655,41 @@ struct PanelLayout: Codable, Equatable, Sendable {
         update(group: id) { $0.height = height }
     }
 
+    /// Moves or resizes the floating cluster holding group `id` (its window was moved or resized).
     mutating func setFrame(_ frame: LayoutRect, floatingGroup id: PanelGroup.ID) {
-        if case let .floating(index)? = location(of: id) { floating[index].frame = frame }
+        guard let index = clusterIndex(containing: id), clusters[index].edge == nil else { return }
+        setFrame(frame, cluster: clusters[index].id)
     }
 
+    /// Moves or resizes floating cluster `id`.  A change of width goes to its last column (its
+    /// window keeps that column at least `PanelCluster.minimumColumnWidth` wide).
+    mutating func setFrame(_ frame: LayoutRect, cluster id: PanelCluster.ID) {
+        guard let index = clusters.firstIndex(where: { $0.id == id }), clusters[index].edge == nil else { return }
+        let delta = frame.width - clusters[index].width
+        if abs(delta) > 0.001, let last = clusters[index].columns.indices.last {
+            clusters[index].columns[last].width = max(1, clusters[index].columns[last].width + delta)
+        }
+        clusters[index].frame = frame
+        normalize()
+    }
+
+    /// The width of a side edge's docked cluster's column beside the canvas (the dock handle), or
+    /// a strip's height.
     mutating func setDockWidth(_ width: Double, edge: DockEdge) {
-        dockWidth[edge] = max(Self.minimumDockWidth, width)
+        let width = max(Self.minimumDockWidth, width)
+        if edge.isVertical, let index = dockedClusterIndex(edge) {
+            clusters[index].columns[clusters[index].innerColumnIndex].width = width
+        } else {
+            dockWidth[edge] = width
+        }
+        normalize()
+    }
+
+    /// Column `column` of cluster `id` becomes `width` points wide (a column divider's drag).
+    mutating func setColumnWidth(_ width: Double, cluster id: PanelCluster.ID, column: Int) {
+        guard let index = clusters.firstIndex(where: { $0.id == id }), clusters[index].columns.indices.contains(column) else { return }
+        clusters[index].columns[column].width = max(PanelCluster.minimumColumnWidth, width)
+        normalize()
     }
 
     mutating func setDockHidden(_ hidden: Bool, edge: DockEdge) {
@@ -456,6 +719,7 @@ struct PanelLayout: Codable, Equatable, Sendable {
             }
             place(descriptor, settings: settings, edge: edge)
         }
+        normalize()
     }
 
     private mutating func place(_ descriptor: PanelDescriptor, settings: PanelGroupDefaults?, edge: DockEdge) {
@@ -484,6 +748,7 @@ struct PanelLayout: Codable, Equatable, Sendable {
             closedPanels.remove(descriptor.id)
             place(descriptor, settings: defaults[descriptor.defaultGroup], edge: edge)
         }
+        normalize()
     }
 
     /// Close Group: the group's panels leave the layout and stay closed until shown again.
@@ -491,12 +756,6 @@ struct PanelLayout: Codable, Equatable, Sendable {
         guard let group = group(id) else { return }
         for panel in group.panels { removePanel(panel) }
         closedPanels.formUnion(group.panels)
-    }
-
-    /// The edge a group is docked at; nil when floating or unknown.
-    func edge(of id: PanelGroup.ID) -> DockEdge? {
-        if case let .docked(edge, _)? = location(of: id) { return edge }
-        return nil
     }
 
     /// Moves every panel of group `source` into group `target` (a group dragged onto a tab
@@ -507,12 +766,98 @@ struct PanelLayout: Codable, Equatable, Sendable {
         activate(moving.panels[0])
     }
 
-    /// Moves floating groups whose frame is off every display onto `screen`.
+    /// Moves floating clusters whose frame is off every display onto `screen`.
     mutating func moveOffscreenFloatingGroups(onto screen: LayoutRect) {
-        for index in floating.indices where !floating[index].frame.intersects(screen) {
-            floating[index].frame.x = screen.x + 40
-            floating[index].frame.y = screen.maxY - floating[index].frame.height - 40
-            floating[index].display = nil
+        for index in clusters.indices where clusters[index].edge == nil {
+            guard let frame = clusters[index].frame, !frame.intersects(screen) else { continue }
+            clusters[index].frame?.x = screen.x + 40
+            clusters[index].frame?.y = screen.maxY - frame.height - 40
+            clusters[index].display = nil
         }
+    }
+
+    // MARK: Clusters (D-077, magnetic panels)
+
+    /// Pulls group `id` out of its cluster (Option-drag, Float Group) into a floating cluster of
+    /// its own at `frame`, and returns that cluster's id.  The only group of a floating cluster
+    /// just moves; the only group of a docked cluster undocks it.
+    @discardableResult
+    mutating func detach(group id: PanelGroup.ID, frame: LayoutRect) -> PanelCluster.ID? {
+        if let index = clusterIndex(containing: id), clusters[index].groups.count == 1 {
+            let clusterID = clusters[index].id
+            clusters[index].edge = nil
+            clusters[index].columns[0].width = frame.width
+            clusters[index].frame = frame
+            normalize()
+            return clusterID
+        }
+        guard let group = extract(group: id) else { return nil }
+        let clusterID = uniqueClusterID(group.id)
+        clusters.append(.floating(group, id: clusterID, frame: frame))
+        normalize()
+        return clusterID
+    }
+
+    /// A docked cluster floats at `frame` (dragging it off its edge).
+    mutating func undock(cluster id: PanelCluster.ID, frame: LayoutRect) {
+        guard let index = clusters.firstIndex(where: { $0.id == id }), clusters[index].edge != nil else { return }
+        clusters[index].edge = nil
+        clusters[index].frame = frame
+        normalize()
+    }
+
+    /// Cluster `id` joins what it was dropped on (`PanelSnapping`): it docks at a free window
+    /// edge, becomes columns beside another cluster, joins one of its columns, merges into a
+    /// group's tabs, or joins a strip.
+    mutating func attach(cluster id: PanelCluster.ID, to target: PanelSnapTarget) {
+        guard let index = clusters.firstIndex(where: { $0.id == id }) else { return }
+        let moving = clusters[index]
+        switch target {
+        case let .dock(edge):
+            guard edge.isVertical else { return }
+            if let docked = dockedClusterIndex(edge), docked != index {
+                // The edge is taken: the columns go on its outer side.
+                clusters.remove(at: index)
+                let host = dockedClusterIndex(edge)!
+                let at = edge == .right ? clusters[host].columns.count : 0
+                clusters[host].columns.insert(contentsOf: moving.columns, at: at)
+            } else {
+                clusters[index].edge = edge
+            }
+        case let .column(targetID, at):
+            guard targetID != id, clusters.contains(where: { $0.id == targetID }) else { return }
+            clusters.remove(at: index)
+            let host = clusters.firstIndex { $0.id == targetID }!
+            let position = min(max(at, 0), clusters[host].columns.count)
+            clusters[host].columns.insert(contentsOf: moving.columns, at: position)
+            if position == 0, clusters[host].edge == nil {
+                // Beside it on the left: the host stays where it is.
+                clusters[host].frame?.x -= moving.width + PanelCluster.columnDividerWidth
+            }
+        case let .stack(targetID, column, at):
+            guard targetID != id, let host = clusters.firstIndex(where: { $0.id == targetID }), clusters[host].columns.indices.contains(column) else { return }
+            let groups = moving.groups
+            let position = min(max(at, 0), clusters[host].columns[column].groups.count)
+            clusters[host].columns[column].groups.insert(contentsOf: groups, at: position)
+            if clusters[host].edge == nil, position == 0, let frame = clusters[host].frame, let movingFrame = moving.frame {
+                // Stacked on top: the cluster grows upwards, its bottom stays.
+                clusters[host].frame?.height = frame.height + movingFrame.height
+            } else if clusters[host].edge == nil, let movingFrame = moving.frame {
+                // Stacked below: the cluster grows downwards, its top stays.
+                clusters[host].frame?.y -= movingFrame.height
+                clusters[host].frame?.height += movingFrame.height
+            }
+            clusters.remove(at: clusters.firstIndex { $0.id == id }!)
+        case let .merge(groupID):
+            guard moving.groups.count == 1, moving.position(of: groupID) == nil else { return }
+            merge(group: moving.groups[0].id, into: groupID)
+        case let .strip(edge, at):
+            guard !edge.isVertical else { return }
+            clusters.remove(at: index)
+            var list = strips[edge] ?? []
+            list.insert(contentsOf: moving.groups, at: min(max(at, 0), list.count))
+            strips[edge] = list
+        }
+        normalize()
     }
 }

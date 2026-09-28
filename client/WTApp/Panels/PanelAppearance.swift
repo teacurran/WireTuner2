@@ -86,7 +86,8 @@ enum PanelOption: Equatable, Sendable {
     }
 
     /// The menu for `panel`: its own items, a separator, then Group With (a submenu),
-    /// Rename, Float or Dock, Close (floating) or Collapse (docked), and Help.  Returned as
+    /// Rename, Float (docked, or floating clicked to other groups) and Dock (floating), Close
+    /// (floating) or Collapse (docked), and Help.  Returned as
     /// sections; `groupWith` and `newGroup` entries belong in the submenu.
     @MainActor
     static func menu(for panel: PanelID, layout: PanelLayout, registry: PanelRegistry) -> (custom: [PanelOption], groupWith: [PanelOption], tail: [PanelOption]) {
@@ -96,7 +97,12 @@ enum PanelOption: Equatable, Sendable {
         let title = registry.title(for:)
         let others = layout.groups.filter { $0.id != group.id }.map { PanelOption.groupWith($0.id, title: $0.displayName(titles: title)) }
         let floating = layout.edge(of: group.id) == nil
-        var tail: [PanelOption] = [.rename, floating ? .dock : .float, floating ? .close : .collapse]
+        // A floating group clicked to others can float on its own too (Option-drag's keyboard way).
+        let clustered = (layout.cluster(containing: group.id)?.groups.count ?? 1) > 1
+        var tail: [PanelOption] = [.rename]
+        if !floating || clustered { tail.append(.float) }
+        if floating { tail.append(.dock) }
+        tail.append(floating ? .close : .collapse)
         if let slug = descriptor?.helpSlug { tail.append(.help(slug: slug)) }
         return (custom, others + [.newGroup], tail)
     }

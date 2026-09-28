@@ -427,15 +427,15 @@ private final class DockFixture {
         let floated = try #require(fixture.layout.layout.floating.first)
         #expect(floated.group.panels == ["layers"] && floated.frame.x == 300 && floated.frame.maxY == 500)
         let window = try #require(floating.windows[floated.group.id])
-        let groupView = try #require(window.contentView as? PanelGroupView)
-        #expect(groupView.isFloating && groupView.background != nil && !window.isOpaque && window.backgroundColor == .clear)
+        let groupView = try #require(window.groupViews.first)
+        #expect(groupView.isFloating && window.clusterView?.chrome.glass != nil && !window.isOpaque && window.backgroundColor == .clear)
         #expect(window.standardWindowButton(.closeButton)?.isHidden == true)
         // Choosing its tab updates the floating group in place.
         fixture.layout.update { $0.activate("layers") }
-        #expect(window.contentView === groupView)
+        #expect(window.groupViews.first === groupView)
         // Collapsed, the window is its title bar, and the stored frame keeps its height.
         fixture.layout.update { $0.setCollapsed(true, group: floated.group.id) }
-        #expect(window.frame.height == PanelGroupView.titleHeight)
+        #expect(window.frame.height == PanelGroupView.titleHeight + 2 * PanelClusterView.verticalInset)
         window.setFrameOrigin(NSPoint(x: 320, y: window.frame.minY))
         window.frameDidChange()
         #expect(fixture.layout.layout.floating.first?.frame.height == floated.frame.height && fixture.layout.layout.floating.first?.frame.x == 320)
@@ -520,7 +520,7 @@ private final class DockFixture {
         window.postEvent(mouse(.leftMouseDragged, x: 140), atStart: false)
         bar.mouseDown(with: mouse(.leftMouseDown, x: 100))
         #expect(toggles == 1)
-        #expect(view.background != nil && view.closeButton != nil)
+        #expect(view.closeButton != nil)
         #expect(view.disclosure.accessibilityLabel() == "Collapse")
         view.gripper.frame = NSRect(x: 0, y: 0, width: 10, height: 10)
         view.gripper.resetCursorRects()

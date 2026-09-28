@@ -55,8 +55,10 @@ final class FakeShelfClient: LibraryShelfClient, @unchecked Sendable {
 
     func setArchived(_ branch: String, _ archived: Bool) async throws -> BranchInfo {
         try enter("archive \(branch) \(archived)")
-        return lock.withLock {
-            let index = stored.firstIndex { $0.id == branch }!
+        // A branch that is gone (trashed meanwhile) is an error, as on the server -- never a crash
+        // that takes the whole test host down.
+        return try lock.withLock {
+            guard let index = stored.firstIndex(where: { $0.id == branch }) else { throw RPCError(code: .notFound, message: "no branch \(branch)") }
             stored[index].state = archived ? .archived : .active
             return stored[index]
         }
@@ -196,7 +198,9 @@ func branchEvent(_ kind: Wiretuner_Sync_V1_BranchEventKind, branch: String, pare
         // The row buttons reach the same calls.
         world.online.value = true
         LibraryShelfList.restore(branches, merged)()
-        #expect(await eventually { world.client.calls.last == "archive b-merged false" })
+        // Wait for the restore to land (not just for the call to start), or the trash below can
+        // overtake it.
+        #expect(await eventually { world.client.calls.last == "archive b-merged false" && !branches.archived.contains { $0.id == "b-merged" } })
         LibraryShelfList.trash(branches, merged)()
         #expect(await eventually { world.client.calls.last == "delete b-merged" })
         await branches.show(nil)

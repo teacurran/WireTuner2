@@ -136,8 +136,9 @@ enum PanelFrost: Sendable {
     }
 }
 
-/// A rounded wash of `PanelFrost` (the dock's, under a floating group's glass): drawn, so it
-/// shows in bitmaps as on screen.
+/// A rounded wash of `PanelFrost` (a cluster's, on its glass): drawn, so it shows in bitmaps as
+/// on screen.  A docked cluster's wash is square on its attached side (`squareEdge`) and draws a
+/// hairline along the others (`strokesOutline`).
 @MainActor
 final class PanelFrostView: NSView {
     var level: PanelFrost {
@@ -148,6 +149,14 @@ final class PanelFrostView: NSView {
     }
     var cornerRadius: CGFloat {
         didSet { needsDisplay = true }
+    }
+    /// The side whose corners are square (a docked cluster's window edge).
+    var squareEdge: DockEdge? {
+        didSet { if squareEdge != oldValue { needsDisplay = true } }
+    }
+    /// Draws a hairline in the separator colour along the rounded outline (not the square side).
+    var strokesOutline = false {
+        didSet { if strokesOutline != oldValue { needsDisplay = true } }
     }
 
     init(level: PanelFrost, translucent: Bool, cornerRadius: CGFloat) {
@@ -168,7 +177,12 @@ final class PanelFrostView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         level.color(translucent: isTranslucent).setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: cornerRadius, yRadius: cornerRadius).fill()
+        PanelShape.path(in: bounds, radius: cornerRadius, squareEdge: squareEdge).fill()
+        guard strokesOutline else { return }
+        NSColor.separatorColor.setStroke()
+        let outline = PanelShape.outline(in: bounds.insetBy(dx: 0.5, dy: 0.5), radius: cornerRadius, squareEdge: squareEdge)
+        outline.lineWidth = 1
+        outline.stroke()
     }
 }
 

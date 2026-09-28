@@ -214,7 +214,8 @@ import Testing
         let data = try encoder.encode(layout)
         let text = String(decoding: data, as: UTF8.self)
         #expect(text.contains("\"frame\":[1200,300,260,480]"))
-        #expect(text.contains("\"docks\":{\"right\":[{\"active\":\"object\",\"collapsed\":true,\"height\":420,\"id\":\"properties\",\"name\":\"Properties\",\"panels\":[\"object\",\"document\"]}]}"))
+        // The docked groups are the right edge's cluster (D-077, magnetic panels).
+        #expect(text.contains("{\"columns\":[{\"groups\":[{\"active\":\"object\",\"collapsed\":true,\"height\":420,\"id\":\"properties\",\"name\":\"Properties\",\"panels\":[\"object\",\"document\"]}],\"width\":300}],\"edge\":\"right\",\"id\":\"right\"}"))
         #expect(text.contains("\"dockWidth\":{"))
         #expect(text.contains("\"hiddenDocks\":[\"left\"]"))
         #expect(try JSONDecoder().decode(PanelLayout.self, from: data) == layout)

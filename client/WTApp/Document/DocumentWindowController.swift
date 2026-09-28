@@ -105,7 +105,7 @@ struct PasteImport {
 /// the status bar below them, the panel dock at the right edge.  Owns the canvas's tool
 /// manager and the window's view state; zoom commands act on the key window's controller.
 @MainActor
-final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, PanelHost {
     /// Kept from APP-004 so UI tests find the window: every document window carries it.
     static let windowIdentifier = NSUserInterfaceItemIdentifier("main-window")
     static let tabbingIdentifier = NSWindow.TabbingIdentifier("com.villagecompute.wiretuner.document")
@@ -493,8 +493,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func updateCanvasInsets() {
         let host = rulerHost.frame
         guard host.width > 0, host.height > 0 else { return }
-        let left = max(0, leftHandle.frame.maxX - host.minX)
-        let right = max(0, host.maxX - rightHandle.frame.minX)
+        // A floating cluster is not part of the window: only docked clusters (and their handles)
+        // cover the canvas.  An edge with nothing docked has no handle.
+        let left = leftHandle.isHidden ? max(0, leftDock.view.frame.maxX - host.minX) : max(0, leftHandle.frame.maxX - host.minX)
+        let right = rightHandle.isHidden ? max(0, host.maxX - dock.view.frame.minX) : max(0, host.maxX - rightHandle.frame.minX)
         // The content view is not flipped: the bottom strip sits on the status bar.
         let bottom = max(0, max(bottomDock.view.isHidden ? 0 : bottomDock.view.frame.maxY, statusBar.frame.maxY) - host.minY)
         rulerHost.obscured = NSEdgeInsets(top: 0, left: left, bottom: bottom, right: right)
@@ -511,6 +513,16 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Every dock of the window, right first.
     var docks: [PanelDockController] { [dock, leftDock, topDock, bottomDock] }
+
+    /// The canvas area (beside the top strip) in screen points: where clusters dock (D-077,
+    /// magnetic panels).
+    var panelArea: CGRect {
+        guard let window, rulerHost.superview != nil else { return .zero }
+        return window.convertToScreen(rulerHost.convert(rulerHost.bounds, to: nil))
+    }
+
+    var panelDocks: [PanelDockController] { docks }
+    var panelWindow: NSWindow? { window }
 
     /// *Label panel tabs with* or *Show tooltips* changed: every strip re-renders, no panel
     /// closes.
