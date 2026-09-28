@@ -57,7 +57,7 @@ final class PointHandleLayer: CanvasHandleLayer {
         let selection = context.selection.selection
         return selection.ids.flatMap { id -> [Grab] in
             guard case let .points(points)? = selection.subSelection(of: id), let object = context.document.object(for: id),
-                  object.kind == .path, let path = object.path else { return [] }
+                  PointEditing.editsPoints(of: object), let path = object.path else { return [] }
             var grabs: [Grab] = []
             for contour in path.contours where contour.isRenderable {
                 let drawn = contour.drawn
@@ -201,12 +201,18 @@ enum PointEditing {
     /// meet the moved points (off).
     static var smoother: @MainActor () -> Bool = { true }
 
+    /// Whether the point gestures edit `object`'s points: a path's, or a live rectangle's, ellipse's
+    /// or polygon's, which the edit converts to a path first (D-078, `ShapeConversion`).
+    static func editsPoints(of object: SceneObject) -> Bool {
+        object.kind == .path || ShapeConversion.kinds.contains(object.kind)
+    }
+
     /// The one selected point under `e` (view), with its object.
     static func pressedPoint(_ e: CanvasEvent, context: ToolContext) -> (object: SceneObject, contour: VectorContour, point: VectorPoint)? {
         guard let (id, sub) = context.selection.pick(at: e.viewPoint, viewport: context.viewport, subselect: true),
               case let .points(points)? = sub, points.count == 1, let reference = points.first,
               case let .points(selected)? = context.selection.selection.subSelection(of: id), selected.contains(reference),
-              let object = context.document.object(for: id), object.kind == .path, let contour = object.path?.contour(reference.contour),
+              let object = context.document.object(for: id), editsPoints(of: object), let contour = object.path?.contour(reference.contour),
               let point = contour.drawn.first(where: { $0.id == reference.point }) else { return nil }
         return (object, contour, point)
     }

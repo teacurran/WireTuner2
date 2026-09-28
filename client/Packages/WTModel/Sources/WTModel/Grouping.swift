@@ -134,20 +134,8 @@ public struct Ungroup: Command {
         return result
     }
 
+    /// A rectangle, ellipse or polygon becomes a path drawing the same (`ShapeConversion.convert`).
     private func convert(_ shape: OpID, state: EngineState, builder: inout ChangeBuilder) throws {
-        guard let parent = Objects.parent(of: shape, in: state), let path = Objects.localPath(shape, in: state) else { return }
-        let props = state.props(shape)
-        var converted = Wiretuner_Doc_V1_NodeProps()
-        converted.path.common = NodeValues.common(props) ?? Wiretuner_Doc_V1_CommonProps()
-        converted.path.appearance = NodeValues.appearance(props) ?? Wiretuner_Doc_V1_AppearanceProps()
-        converted.path.contours = path.contours.map { contour in
-            var value = Wiretuner_Doc_V1_Contour()
-            value.closed = contour.closed
-            value.points = contour.drawn.map { PathEditing.stored($0, reversed: false) }
-            return value
-        }
-        let key = try Arranging.keys(next: shape, above: true, count: 1, in: state)[0]
-        try NodeCopier.create(NodeTree(props: converted), parent: parent, position: key, schema: state.schema, builder: &builder)
-        builder.append(Ops.setDeleted(shape))
+        try ShapeConversion.convert(shape, state: state, builder: &builder)
     }
 }

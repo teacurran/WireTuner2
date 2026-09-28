@@ -2,6 +2,7 @@ import Foundation
 import WTCRDT
 import WTGeometry
 import WTModel
+import WTProto
 import WTRender
 
 /// The selection of one document window and everything that changes it: clicks and marquees
@@ -51,9 +52,36 @@ final class SelectionController {
             tester.update(displayList: change.after, changes: change.summary)
             cachedTester = tester
         }
+        if let applied = change.change { followConversions(applied) }
         let document = document
         model.set(model.selection.filtered({ document.isSelectable($0) }, sub: { sub in
             sub.filtered(points: { document.contains($0) }, segments: { document.contains($0) })
+        }))
+    }
+
+    /// A change that converted selected shapes to paths (D-078: a point edit, a path command,
+    /// Ungroup; here or from someone else): each path is selected in its shape's place, with the
+    /// points and segments that were selected on the shape.
+    private func followConversions(_ change: Wiretuner_Doc_V1_Change) {
+        let state = document.state
+        guard model.selection.ids.contains(where: { ShapeConversion.isShape($0.opID, in: state) }) else { return }
+        let conversions = ShapeConversion.conversions(in: change, state: state)
+        guard !conversions.isEmpty else { return }
+        func point(_ reference: PointReference) -> PointReference {
+            guard let converted = conversions[OpID(reference.node)],
+                  let mapped = converted.points[PointRef(contour: reference.contour, point: reference.point)] else { return reference }
+            return PointReference(node: NodeID(converted.path), mapped)
+        }
+        func segment(_ reference: SegmentReference) -> SegmentReference {
+            let mapped = point(PointReference(node: reference.node, contour: reference.contour, point: reference.from))
+            return SegmentReference(node: mapped.node, contour: mapped.contour, from: mapped.point)
+        }
+        model.set(model.selection.remapped({ id in conversions[id.opID].map { SelectionID($0.path) } ?? id }, sub: { sub in
+            switch sub {
+            case let .points(points): .points(Set(points.map(point)))
+            case let .segments(segments): .segments(Set(segments.map(segment)))
+            case .textRange: sub
+            }
         }))
     }
 

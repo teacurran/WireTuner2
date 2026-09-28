@@ -253,6 +253,19 @@ public struct RemoveOverlap: Command {
         }
     }
 
+    /// What Remove Overlap can be chosen for (D-078): the paths `paths` gives and the editable live
+    /// shapes whose outline is closed (every shape but an open arc), which it converts first when
+    /// their outline overlaps itself.
+    public static func targets(_ nodes: [OpID], in state: EngineState) -> [OpID] {
+        let paths = Set(paths(nodes, in: state))
+        return Objects.editable(nodes, in: state).filter { node in
+            paths.contains(node) || ShapeConversion.path(of: node, in: state).map { outline in
+                let renderable = outline.contours.filter(\.isRenderable)
+                return !renderable.isEmpty && renderable.allSatisfy(\.closed)
+            } ?? false
+        }
+    }
+
     /// The path's region without overlap, as contours in drawing order; nil when the rewrite would
     /// change nothing -- no contour crosses or touches itself or another, and normalizing keeps
     /// the contour count (nested contours the fill rule already reads as holes) -- or leaves

@@ -302,8 +302,9 @@ final class DocumentHandle: Identifiable, CommandSink {
         previewScene = nil
         previewState = nil
         previewTouched = []
-        guard let command = previewCommand, let model else { return merged }
+        guard let previewing = previewCommand, let model else { return merged }
         var state = model.state
+        let command = ShapeConversion.asPaths(previewing, in: state)
         var changes = ChangeBuilder(replica: model.replica, startCounter: state.clock.peek)
         guard (try? command.execute(&changes, state: state)) != nil, !changes.ops.isEmpty else { return merged }
         var change = Wiretuner_Doc_V1_Change()
@@ -449,7 +450,9 @@ final class DocumentHandle: Identifiable, CommandSink {
             gestureEdit.updateSettling(command)
             return Task { nil }
         }
-        let transformed = commandTransform?(command) ?? command
+        // A path edit of a live shape converts the shape to a path first, in the same change (D-078).
+        let converted = ShapeConversion.asPaths(command, in: state)
+        let transformed = commandTransform?(converted) ?? converted
         // A symbol's canvas creates into the symbol (LIB-012); a glyph's or master's onto its canvas.
         let command = symbolCanvasNode.map { SymbolPlacedCommand.placing(transformed, in: $0) } ?? GlyphCanvas.placing(transformed, on: canvasNode)
         return now { try $0.performNow(command) } ?? run { model in try await model.perform(command) }

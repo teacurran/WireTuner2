@@ -815,6 +815,22 @@ Done when::
 * Two overlapping grey squares get a strip of the expected area in the lighter grey at 50%, set to overprint; Reverse takes the darker; Maximum value takes each ink's larger amount.
 * Objects that do not meet, or a selection that is not two filled closed paths, write nothing.
 
+=== Found in use
+
+Tasks from reports of the running app; each is a feature task whose spec lives on the page it names.
+
+[[DRAW-062]]
+==== DRAW-062 Edit a live shape's points
+[horizontal]
+Track:: client-ui
+Depends on:: DRAW-009, DRAW-012, DRAW-025, DRAW-026, DRAW-061
+Size:: M
+Delivers:: xref:decisions.adoc#D-078[D-078]: the point gestures and path commands on a live rectangle, ellipse, arc, polygon or star convert it to a path first, in the same change (`ShapeConversion`, `ConvertingShapes`), preserving its appearance exactly; the selection follows to the path; a status-line note; the Pointer keeps the live handles (the polygon's diamond and circle, a rectangle's corner-radius handles); xref:rectangles-ellipses-lines.adoc#editing-points[Editing a shape's points].
+Done when::
+* Dragging a point of each kind of shape with the Subselect tool leaves a path with that point moved and nothing else changed (pixel comparison), in one change "Edit Points" whose undo restores the live shape.
+* The live handles still work with the Pointer; the path commands take shapes and leave unchanged ones live.
+* Merge test: a conversion vs. a concurrent radius edit ends as *edit vs delete*.
+
 == Waves
 
 Agents work in waves; a wave's tasks depend only on earlier waves.
@@ -846,6 +862,9 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 
 |7
 |The reachability follow-ups: DRAW-060, DRAW-061, OBJ-060, IMG-060, COLLAB-060, TYPE-060, PRINT-060
+
+|8
+|Found in use: DRAW-062
 |===
 
 Feature epics list their own tasks on their pages; the xref:index.adoc[table of contents] is

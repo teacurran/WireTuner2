@@ -280,15 +280,21 @@ final class ObjectEditing: CommandSink {
 
     var canTransformAgain: Bool { hasSelection && lastTransform != nil }
 
-    /// menu:Extensions[Distort > Add Points] on the selected paths.
+    /// menu:Extensions[Distort > Add Points] on the selected paths; a live shape among them is
+    /// converted to a path in the same change (D-078).
     @discardableResult
     func addPoints() -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        let paths = selectedNodes.filter { document.state.nodeKind($0) == .path }
+        let paths = selectedNodes.filter(isPathLike)
         guard !paths.isEmpty else { return nil }
         return perform(AddPoints(paths))
     }
 
-    var hasSelectedPaths: Bool { selectedNodes.contains { document.state.nodeKind($0) == .path } }
+    /// Whether a path, or a live shape that a path command converts, is selected.
+    var hasSelectedPaths: Bool { selectedNodes.contains(where: isPathLike) }
+
+    private func isPathLike(_ node: OpID) -> Bool {
+        document.state.nodeKind(node) == .path || ShapeConversion.isShape(node, in: document.state)
+    }
 
     // MARK: Nudging (OBJ-009)
 

@@ -48,16 +48,18 @@ To set the corner radius before drawing:
 
 To round the corners of an existing rectangle by dragging:
 
-. Choose the Subselect tool and click the rectangle.  A small radius handle appears at each
-  corner.
-. Drag any handle inward.  With *Uniform* on (the default) all four corners follow.
+. Choose the Pointer tool and click the rectangle.  A small round radius handle appears just
+  inside each corner.
+. Drag any handle inward along the corner's diagonal.  With *Uniform* on (the default) all four
+  corners follow.  The handle sits at the centre of the rounding, so it moves in as the corners
+  grow.
 
 To round corners independently:
 
-. Select the rectangle with the Subselect tool.
+. Select the rectangle with the Pointer tool.
 . In the Object panel, turn off *Uniform*.  Four radius fields appear.
-. Type a radius for each corner, or drag a corner's handle.  Corners you re-lock (by turning
-  *Uniform* back on) share the largest value.
+. Type a radius for each corner, or drag a corner's handle: with *Uniform* off, a handle rounds
+  its own corner only.  Corners you re-lock (by turning *Uniform* back on) share the largest value.
 
 A radius larger than half the shorter side is shown clamped, so a very rounded rectangle
 becomes a stadium or a circle rather than folding over itself.
@@ -69,7 +71,8 @@ TIP: Corner rounding is not only for rectangles.  The *Corners* live effect
 shape -- stars, polygons, paths you drew -- and can be added to a rectangle too, for an
 inverted or chamfered corner.  The rectangle's own radius stays the quickest way to round a
 rectangle; while a rectangle carries a Corners effect, the effect takes over, the *Radius* field
-is dimmed with a note, and the corner handles adjust the effect instead.
+is dimmed with a note, the Pointer's radius handles go away, and the Subselect tool's corner
+widgets adjust the effect instead.
 
 == Editing a shape by numbers
 
@@ -108,21 +111,45 @@ be filled or used as a clipping path.  When the two angles are equal the whole e
 The ellipse stays a live shape: resize it and the arc follows.  To draw an arc as a free path
 instead, use the Arc tool (xref:spirals-arcs.adoc[Spirals and arcs]).
 
-== Converting a shape to a path
+[[editing-points]]
+== Editing a shape's points
 
-A rectangle or ellipse stays editable as a shape until you need to edit its points.  Choose
-menu:Modify[Ungroup] (kbd:[Cmd+Shift+G]) to convert it to a plain path with corner and curve
-points; the shape's rounded corners, position and size are preserved, but the Object panel no
-longer offers the radius or size fields.  Ungrouping cannot be reversed except by
-menu:Edit[Undo].
+A rectangle or ellipse stays a live shape until you edit its points; then it becomes an ordinary
+path, and you can reshape it like any path you drew.
+
+To edit a shape's points:
+
+. Choose the Subselect tool, or hold kbd:[Option] with the Pointer tool.  The shape's points show
+  as a path's do: four corners for a rectangle, two points at each rounded corner, four curve
+  points round an ellipse, an arc's points and its centre.
+. Click a point (kbd:[Shift]-click or drag a marquee for more), then drag it, drag its handles,
+  nudge it with the arrow keys, kbd:[Option]-click it to change its type, or press kbd:[Delete].  A click with the Pen tool on the shape's outline adds a
+  point.
+
+The first such edit converts the shape to a path and makes the edit, as one step: the Edit menu
+says *Undo Edit Points*, and one undo brings the live shape back.  The status bar notes the
+change ("Rectangle converted to a path").  Nothing else about the shape changes -- its fill,
+stroke, effects, position, rotation and rounded corners look exactly as before -- but the Object
+panel then shows a path's fields instead of the radius, size and arc fields.
+
+The path commands work the same way on a selected shape: menu:Extensions[Distort > Add Points],
+menu:Modify[Alter Path > Simplify], *Reverse Direction*, *Remove Overlap* and *Correct Direction*,
+menu:Modify[Split] at selected points, and the Knife, Eraser and Freeform tools convert the shape
+and apply in one step.  A command that would leave the shape unchanged -- *Correct Direction* on
+a rectangle, say -- leaves it live.
+
+To convert a shape without editing it, choose menu:Modify[Ungroup] (kbd:[Cmd+Shift+G]).  Either
+way, the conversion can only be reversed with menu:Edit[Undo].
 
 == Working with others
 
 A collaborator can round the corners of a rectangle you are resizing; you will see the corners
 change while your drag continues, and both edits stay.  If you both change the same thing --
 say, the width -- the value set last wins and the other person sees theirs replaced.  If
-someone converts a rectangle to a path while you are editing its radius, your radius change
-has nowhere to land: the shape becomes a path with the corners it had when they converted it.
+someone converts a rectangle to a path -- by editing its points or with Ungroup -- while you are
+editing its radius, your radius change has nowhere to land: the shape becomes a path with the
+corners it had when they converted it, and the review sheet offers to restore the rectangle
+beside the path.  If you both convert it at once, you each get a path.
 After working offline, any shape you and someone else both changed appears in the review
 sheet with both sets of values.
 
@@ -201,10 +228,12 @@ effect rounds it (xref:live-effects.adoc[Live vector effects]).  The `corners` r
 not rewritten, so concurrent edits to them still merge and read again once the effect is
 removed or hidden.  Nothing is reviewed: the two are different registers.
 
-Convert to path vs. any shape edit:: Conversion creates a `path` node from the geometry the
-converter saw and deletes the shape node.  Concurrent edits to the shape node apply to the
+Convert to path vs. any shape edit:: Conversion (menu:Modify[Ungroup], or a point edit or path
+command on the shape, xref:decisions.adoc#D-078[D-078]) creates a `path` node from the geometry
+the converter saw and deletes the shape node.  Concurrent edits to the shape node apply to the
 deleted node: *edit vs delete* in the review sheet, with *Restore* bringing the shape back
-alongside the path.
+alongside the path.  The point edit that converted it writes only to points its own change
+created, so it cannot collide with anyone.  Two concurrent conversions leave two paths.
 
 Read-time normalizations::
 * Each radius is clamped to half of `min(width, height)`.
@@ -240,13 +269,21 @@ composing a rotation into `common.transform` at creation.
 Object panel:: `rect` and `ellipse` sections registered with APP-007: X/Y/W/H (X/Y edit
 `transform`, W/H edit `size`), Radius with the Uniform lock, and per-corner fields.
 
-Subselect handles:: Radius handles are drawn at each corner along the diagonal, in the shape's
-local space, and drag in local units; hit-tested before points.  When the rectangle carries a
-live Corners effect they drive that effect's `radius` instead (FX-047), and the Object panel's
-*Radius* field is dimmed with "Overridden by Corners effect".
+Radius handles:: With the Pointer tool (xref:decisions.adoc#D-078[D-078]), radius handles are drawn at
+each corner along the diagonal, in the shape's local space, and drag in local units; hit-tested
+before the tool, except with kbd:[Option], which goes to the point under the handle.  When the rectangle carries a
+live Corners effect they are not shown; the Subselect tool's corner widgets drive that effect's
+`radius` instead (FX-047), and the Object panel's *Radius* field is dimmed with "Overridden by
+Corners effect".
+
+Point editing:: A shape's derived path carries synthetic point ids that selections name, so the
+point gestures, the point section and the path commands reach it as a path's (D-078).  WTModel's
+`ShapeConversion.asPaths` wraps any path command aimed at a live shape in `ConvertingShapes`: the
+conversion and then the command against the converted state, as one change.
 
 Undo:: One group per drag; one per Object panel field commit; Ungroup is one group labelled
-"Convert to path".
+"Convert to path"; a point edit that converts is one group labelled "Edit Points", a path command
+one under its own label.
 
 NOTE: As built by DRAW-007 and DRAW-008 (deviations).  The tools (`WTApp/Tools/ShapeTools.swift`)
 follow client.adoc's "preview during a drag and emit exactly one change on mouse-up": the shape is
@@ -282,6 +319,40 @@ the fields given, angles normalized and rounded to hundredths.  `ClipGroups.canC
 arc.  The Object panel's ellipse section (order 35, after the rectangle's) has *Start angle*, *End angle*
 and *Closed*.  The Ellipse tool still draws the whole ellipse; angles are set afterwards.  Tests:
 `EllipseArcTests` (WTModel), `EllipseSectionTests` (WTApp), the conformance vector above (both engines).
+
+NOTE: As built by DRAW-062 (xref:decisions.adoc#D-078[D-078]; xref:backlog.adoc#DRAW-062[backlog]).
+`WTModel/ShapeConversion.swift`: `ShapeConversion.convert` is the conversion Ungroup already wrote,
+moved out of `Ungroup` and completed -- the `path` node takes the shape's common properties, its
+attribute stack in its own interleaved order (`NodeTree.stackOrder`), and the outline as drawn,
+with a live Corners effect's square corners (`ShapeConversion.path(of:)`, as `DocumentScene` draws
+it; before, Ungroup baked the radius under the effect); the parent clip group's `clip_path` and
+every live connector end attached to the shape are pointed at the path in the same change.
+`ShapeRetargetable` is adopted by `MovePoints`, `SetHandles`, `SetPointKind`, `RetractHandles`,
+`SetAutomatic`, `DeletePoints`, `DeleteSegment`, `InsertPointOnSegment`, `SetClosed`,
+`ReverseContours`, `RewritePath` (Knife, Split, Eraser, Freeform, the distort tools, Mirror, 3D
+rotation), `AddPoints`, `SimplifyPaths`, `CorrectDirection`, `RemoveOverlap`, `Fractalize`,
+`CompositeCommand` and WTApp's `CommandBatch`; `ConvertingShapes` converts each editable shape
+among the command's nodes, maps the derived path's contour and point ids to the path's (paired in
+order), runs the command against the converted state, and drops the conversion of any shape the
+command then leaves unwritten.  `DocumentHandle.perform` and its preview pass every command through
+`ShapeConversion.asPaths`, so tools, menus and panels need no conversion code of their own;
+`PathSplitting.targets`, `ObjectEditing.addPoints`, `PathAlterFeatures.closedPaths`
+(`RemoveOverlap.targets`), `PointHandleLayer` and `PointEditing` admit shapes.  The Object
+panel's point section (`WTApp/Panels/ObjectPanel.swift`, `ObjectPanelModel.point`) admits a shape's
+point through `PointEditing.editsPoints(of:)` too, and its commands convert.  `ShapeConversion.conversions(in:state:)` reads the conversions back from an applied
+change (a created `path` whose stored outline is the deleted shape's; tombstones counted, so a
+point deleted in the same change keeps its place) and `SelectionController` moves the selection
+from each converted shape to its path with the same points.  `WTApp/Objects/ShapeConversionNotice.swift`
+shows the status-line note for this person's own conversions other than Ungroup.  The Pointer's
+radius handles are `WTModel/RectangleHandles.swift` and `RectangleRadiusHandles`
+(`WTApp/Objects/ShapeHandles.swift`, installed with the polygon handles by `DocumentGlueFeatures`),
+which also delivers DRAW-009's handles, on the Pointer rather than the Subselect tool.  The Rectangle
+Tool sheet is still not built.  No proto, merge-table or vector change.  Tests: `ShapeConversionTests`,
+`ShapeConversionMergeTests`, `RectangleHandlesTests` (WTModel); `ShapePointEditingTests` (WTApp: a
+point drag with the Subselect tool on each kind of shape is one change "Edit Points" whose undo
+restores the shape pixel for pixel, the conversion alone draws the same pixels, a handle drag,
+kbd:[Option]-click, nudge and Clear convert, the live handles stay with the Pointer, the path
+commands take shapes, the note).
 
 === Build tasks
 

@@ -86,18 +86,21 @@ final class ClipContentsHandle: CanvasHandleLayer {
     }
 }
 
-/// A polygon's diamond and a star's circle handle (polygons-stars.adoc, "Editing polygons and
-/// stars"; DRAW-010's app half): drawn with the Subselect tool on each selected polygon
-/// (`PolygonHandles.positions`).  Dragging the diamond moves every vertex -- its distance from the
-/// centre the radius, its angle the rotation -- and the circle every inner point; kbd:[Shift]
+/// A polygon's diamond and a star's circle handle (polygons-stars.adoc, "Editing a polygon or star";
+/// DRAW-010's app half, D-078): drawn with the Pointer tool on each selected polygon selected as a
+/// whole (`PolygonHandles.positions`).  Dragging the diamond moves every vertex -- its distance from
+/// the centre the radius, its angle the rotation -- and the circle every inner point; kbd:[Shift]
 /// keeps the angle.  The drag previews on the canvas and writes one `SetPolygonFields` on mouse-up
-/// (D-076), so it is one undo step; kbd:[Esc] drops the preview.
+/// (D-076), so it is one undo step; kbd:[Esc] drops the preview.  The handles sit on a vertex and a
+/// valley, so they give way to point editing: a press with kbd:[Option] (the Pointer's subselect)
+/// reaches the point under them, a polygon with points selected shows none, and the Subselect tool
+/// shows the polygon's points instead (dragging one converts it to a path, `ShapeConversion`).
 @MainActor
 final class PolygonShapeHandles: CanvasHandleLayer {
     static let size = 9.0
-    static let tool: ToolID = "subselect"
+    static let tool: ToolID = .pointer
 
-    /// The window's active tool (the handles show with the Subselect tool).
+    /// The window's active tool (the handles show with the Pointer tool).
     var activeTool: @MainActor () -> ToolID? = { nil }
     private(set) var dragging: (node: OpID, handle: PolygonHandles.Handle)?
     /// The drag's preview and its one change (D-076).
@@ -105,14 +108,17 @@ final class PolygonShapeHandles: CanvasHandleLayer {
 
     init() {}
 
-    /// The selected polygons (the handles show with the Subselect tool only).
+    /// The selected polygons showing handles: with the Pointer tool, unlocked, selected as a whole.
     func polygons(_ context: ToolContext) -> [OpID] {
         guard activeTool() == Self.tool else { return [] }
         let state = context.document.state
-        return context.selection.selection.ids.map(\.opID).filter { state.nodeKind($0) == .polygon && !Objects.isEffectivelyLocked($0, in: state) }
+        let selection = context.selection.selection
+        return selection.ids.filter { selection.subSelection(of: $0) == nil }.map(\.opID)
+            .filter { state.nodeKind($0) == .polygon && !Objects.isEffectivelyLocked($0, in: state) }
     }
 
     func press(_ e: CanvasEvent, context: ToolContext) -> Bool {
+        guard !e.modifiers.contains(.option) else { return false }
         let tolerance = max(context.selection.pickDistance(), Self.size / 2) / context.viewport.zoom
         for node in polygons(context) {
             if let handle = PolygonHandles.hit(e.pasteboardPoint, on: node, tolerance: tolerance, in: context.document.state) {
@@ -168,6 +174,89 @@ final class PolygonShapeHandles: CanvasHandleLayer {
                 CanvasHandleLayers.drawHandle(at, size: Self.size, hollow: true, in: ctx)
             }
         }
+    }
+}
+
+/// A live rectangle's corner-radius handles (rectangles-ellipses-lines.adoc, "Rectangles with rounded
+/// corners"; D-078, DRAW-009's radius handles): drawn with the Pointer tool inside each corner of
+/// each selected rectangle selected as a whole (`RectangleHandles.positions`), at the centre of the
+/// corner's rounding or `inset` view points in from a square corner.  Dragging one along the
+/// diagonal rounds every corner with *Uniform* on, that corner alone with it off; the drag
+/// previews on the canvas and writes one `SetCornerRadius` on mouse-up (D-076), and kbd:[Esc] drops
+/// it.  A press with kbd:[Option] is the Pointer's subselect, so it goes to the tool.  A rectangle
+/// whose corners a live Corners effect sets has none (the Subselect tool's corner widgets adjust
+/// the effect).
+@MainActor
+final class RectangleRadiusHandles: CanvasHandleLayer {
+    static let size = 7.0
+    /// The handle's distance inside a square corner, view points.
+    static let inset = 8.0
+    static let tool: ToolID = .pointer
+
+    /// The window's active tool (the handles show with the Pointer tool).
+    var activeTool: @MainActor () -> ToolID? = { nil }
+    private(set) var dragging: (node: OpID, corner: Corner)?
+    private var edit: GestureEdit?
+
+    init() {}
+
+    /// The selected rectangles showing handles: with the Pointer tool, unlocked, selected as a whole.
+    func rectangles(_ context: ToolContext) -> [OpID] {
+        guard activeTool() == Self.tool else { return [] }
+        let state = context.document.state
+        let selection = context.selection.selection
+        return selection.ids.filter { selection.subSelection(of: $0) == nil }.map(\.opID)
+            .filter { state.nodeKind($0) == .rect && !Objects.isEffectivelyLocked($0, in: state) }
+    }
+
+    static func inset(_ context: ToolContext) -> Double { inset / max(context.viewport.zoom, 1e-9) }
+
+    func press(_ e: CanvasEvent, context: ToolContext) -> Bool {
+        guard !e.modifiers.contains(.option) else { return false }
+        let tolerance = max(context.selection.pickDistance(), Self.size / 2) / max(context.viewport.zoom, 1e-9)
+        for node in rectangles(context) {
+            if let corner = RectangleHandles.hit(e.pasteboardPoint, on: node, inset: Self.inset(context), tolerance: tolerance, in: context.document.state) {
+                dragging = (node, corner)
+                edit = GestureEdit(document: context.document)
+                return true
+            }
+        }
+        return false
+    }
+
+    func drag(_ e: CanvasEvent, context: ToolContext) {
+        guard let dragging, let command = RectangleHandles.drag(dragging.corner, of: dragging.node, to: e.pasteboardPoint, in: context.document.state) else { return }
+        edit?.update(command)
+    }
+
+    func release(_ e: CanvasEvent, context: ToolContext) {
+        drag(e, context: context)
+        edit?.commit()
+        dragging = nil
+        edit = nil
+    }
+
+    func cancel(context: ToolContext) {
+        edit?.cancel()
+        dragging = nil
+        edit = nil
+    }
+
+    func draw(in ctx: CGContext, viewport: Viewport, context: ToolContext) {
+        let nodes = rectangles(context)
+        guard !nodes.isEmpty else { return }
+        ctx.saveGState()
+        ctx.setFillColor(NSColor.white.cgColor)
+        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+        ctx.setLineWidth(1)
+        for node in nodes {
+            for handle in RectangleHandles.positions(of: node, inset: Self.inset(context), in: context.document.shownState) ?? [] {
+                let at = viewport.toView(handle.position)
+                CanvasHandleLayers.drawHandle(at, size: Self.size, in: ctx)
+                CanvasHandleLayers.drawHandle(at, size: Self.size, hollow: true, in: ctx)
+            }
+        }
+        ctx.restoreGState()
     }
 }
 

@@ -39,10 +39,12 @@ enum PathSplitting {
         var contours: [VectorContour]
     }
 
+    /// The selected unlocked paths, and the live rectangles, ellipses and polygons, which the
+    /// command performed on them converts to paths first (D-078, `ShapeConversion`).
     static func targets(_ selection: Selection, document: DocumentHandle) -> [Target] {
         let state = document.state
         return selection.ids.compactMap { id in
-            guard state.nodeKind(id.opID) == .path, !Objects.isEffectivelyLocked(id.opID, in: state),
+            guard state.nodeKind(id.opID) == .path || ShapeConversion.isShape(id.opID, in: state), !Objects.isEffectivelyLocked(id.opID, in: state),
                   let path = document.object(for: id)?.path else { return nil }
             return Target(node: id.opID, transform: Objects.pasteboardTransform(of: id.opID, in: state), contours: path.contours)
         }

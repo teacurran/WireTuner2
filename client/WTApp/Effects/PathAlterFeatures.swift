@@ -49,9 +49,10 @@ final class PathAlterFeatures {
 
     static let noClosedPath = "Select a closed path"
 
-    /// The selected closed paths Remove Overlap rewrites (DRAW-060).
+    /// The selected closed paths Remove Overlap rewrites (DRAW-060), and the closed live shapes it
+    /// converts when their outline overlaps (D-078).
     static func closedPaths(_ editing: ObjectEditing) -> [OpID] {
-        RemoveOverlap.paths(paths(editing), in: editing.document.state)
+        RemoveOverlap.targets(paths(editing), in: editing.document.state)
     }
 
     static func closedPathSelected(_ target: @escaping Target) -> @MainActor @Sendable () -> CommandValidation {

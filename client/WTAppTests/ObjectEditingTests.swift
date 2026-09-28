@@ -167,6 +167,9 @@ final class EditingBox {
         f.select([f.selection.b])
         _ = await f.editing.transformAgain()?.value
         #expect(f.document.undoTitle == "Undo Rotate")
+        // A live rectangle counts: Add Points converts it to a path first (D-078).
+        #expect(f.editing.hasSelectedPaths)
+        f.select([])
         #expect(f.editing.addPoints() == nil && !f.editing.hasSelectedPaths)
         let path = try #require(await f.document.addPath([Point(x: 0, y: 200), Point(x: 40, y: 200)]))
         f.select([path])
@@ -252,7 +255,7 @@ final class EditingBox {
         #expect(command(ids.ungroup).validation().isEnabled)
         #expect(!command(ObjectMenuCommands.ID.pasteInFront).validation().isEnabled)
         #expect(!command(ObjectMenuCommands.ID.transformAgain).validation().isEnabled)
-        #expect(!command(ObjectMenuCommands.ID.addPoints).validation().isEnabled)
+        #expect(command(ObjectMenuCommands.ID.addPoints).validation().isEnabled, "rectangles take Add Points, converted first (D-078)")
         if case let .perform(action) = command(ids.lock).action { action() }
         await f.document.settle()
         #expect(f.document.undoTitle == "Undo Lock 2 objects")

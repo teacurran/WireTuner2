@@ -108,12 +108,15 @@ import WTRender
         #expect(none.setKind(.curve) == nil && none.retractHandles() == nil && none.setAutomatic(true) == nil && none.setLocation(.zero) == nil)
     }
 
-    @Test func rectanglesAreNotPaths() async throws {
+    @Test func aRectangleHasNoPathSectionButItsPointShowsThePointSection() async throws {
         let document = DocumentHandle.memory(title: "Shapes")
         let ids = await document.addRectangles([Rect(x: 0, y: 0, width: 10, height: 10)])
         let corner = PointReference(node: ids[0].node, contour: .zero, point: OpID(counter: 1, replica: 0))
         let model = ObjectPanelModel(document: document, selection: Selection().applying(ids, sub: [ids[0]: .points([corner])], mode: .replace))
-        #expect(model.path == nil && model.point == nil)
+        // A live shape has no Path section; its selected point shows the Point section, whose
+        // commands convert the shape to a path first (D-078).
+        #expect(model.path == nil)
+        #expect(model.point != nil)
     }
 
     @Test func aRemoteChangeReachesThePanelModel() async throws {

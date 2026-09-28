@@ -401,6 +401,7 @@
 		701DF9A49ABE373D8D156D84 /* ToolRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED63417FF8C44E31F8AA8AC5 /* ToolRegistry.swift */; };
 		706CF7F9AECC6A01A5232441 /* PanelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A919DDFD79C472BB83F545 /* PanelRegistry.swift */; };
 		7110EB06FB3BFAEAFDA89C2A /* KeywordTokenField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0780148B8A0FA6C5EA34897B /* KeywordTokenField.swift */; };
+		71A5A5446C47EAB4D4E83C46 /* ShapePointEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD3C8EA5E6DDC3E11F0E3D8 /* ShapePointEditingTests.swift */; };
 		7232986D22DFD180CD8E9DAE /* ObjectEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78B04E7A04BA0044182DD95 /* ObjectEditingTests.swift */; };
 		729657AB7077C6FEA64DD54D /* CollaborationWebImagesWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3914F49358B43BFFEB34013 /* CollaborationWebImagesWiringTests.swift */; };
 		732D9D4B062F862D636BF1BC /* ModelGlueWorld.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6360B872B3D8DC389472E5FD /* ModelGlueWorld.swift */; };
@@ -594,6 +595,7 @@
 		B22D488A405BDABC1258E9EB /* GroupSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F56B2089B8121DE5AFDB36B /* GroupSection.swift */; };
 		B250A94DCE4B93D9AFE24BFD /* PrintPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A052F2A44D20B2719305F4E /* PrintPane.swift */; };
 		B2CA27F87BE10B2D0D4ACD72 /* DataSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44B54AFDBF45C1C6DF3BF778 /* DataSheets.swift */; };
+		B2D0DC9CE84B2C7CDEA8E398 /* ShapeConversionNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = C75A2CA1E865A435395183F3 /* ShapeConversionNotice.swift */; };
 		B3309CC7239E86DADE7F4F69 /* SelectMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DBEF8FCAEBD97A25AF6173D /* SelectMenuTests.swift */; };
 		B33C111D8D63603CBBA12A28 /* RulersUnitsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14735B85509491DEF6F4090A /* RulersUnitsTests.swift */; };
 		B33D58A61B3D2BAD3E05A224 /* ToolEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C88A7CD04144785B0F6BDB /* ToolEdgeCaseTests.swift */; };
@@ -1388,6 +1390,7 @@
 		8BAF17EA9FE70DFB02F0C115 /* PreferenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceStore.swift; sourceTree = "<group>"; };
 		8BB31B4216E5D9BFBBE026ED /* ObjectDragging.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDragging.swift; sourceTree = "<group>"; };
 		8C14A88008F7A18A164F8351 /* WebLinkPublishing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebLinkPublishing.swift; sourceTree = "<group>"; };
+		8CD3C8EA5E6DDC3E11F0E3D8 /* ShapePointEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapePointEditingTests.swift; sourceTree = "<group>"; };
 		8D4DE3822192195BE6B5FF16 /* ShortcutCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutCard.swift; sourceTree = "<group>"; };
 		8D6D21EBB6888AF21EF58BCB /* TemporaryToolMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryToolMachineTests.swift; sourceTree = "<group>"; };
 		8D7D98DA32859AE911D9C64D /* ChartPictographs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartPictographs.swift; sourceTree = "<group>"; };
@@ -1559,6 +1562,7 @@
 		C6D7F9F4CE2153814FB687DD /* ToolbarWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarWiringTests.swift; sourceTree = "<group>"; };
 		C6F7D2055D3C51A0609CC026 /* TextEffectEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEffectEditingTests.swift; sourceTree = "<group>"; };
 		C75A18E14BE106858870318F /* CropToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropToolTests.swift; sourceTree = "<group>"; };
+		C75A2CA1E865A435395183F3 /* ShapeConversionNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeConversionNotice.swift; sourceTree = "<group>"; };
 		C7651BAA836159A4C0F3E7A0 /* SyncActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncActivity.swift; sourceTree = "<group>"; };
 		C844C7325FF4365AAEB4D184 /* TypefaceSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypefaceSheets.swift; sourceTree = "<group>"; };
 		C8DB294857C98F05FA60B107 /* ImportOptionsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportOptionsSheet.swift; sourceTree = "<group>"; };
@@ -3133,6 +3137,7 @@
 				0D2FF91027DA175B260C664A /* ScriptingTextSuiteTests.swift */,
 				6E4730554F7A9DC77FD14BFF /* SelectionTests.swift */,
 				1DBEF8FCAEBD97A25AF6173D /* SelectMenuTests.swift */,
+				8CD3C8EA5E6DDC3E11F0E3D8 /* ShapePointEditingTests.swift */,
 				0492CE3674826818F0704C0C /* ShapeSimilarTests.swift */,
 				13F862A762B8016A40F93B52 /* ShapeToolTests.swift */,
 				78768A339D2FD2D531D3FA62 /* ShareExtensionTests.swift */,
@@ -3276,6 +3281,7 @@
 				1E82FF5BF1D9D5CF82BBEC41 /* PathOperationSheets.swift */,
 				FC6B326ECFAB01437F50A69C /* RasterizeSheet.swift */,
 				5F51FAB0D5FEA021C9FF4662 /* ShapeClassifierResource.swift */,
+				C75A2CA1E865A435395183F3 /* ShapeConversionNotice.swift */,
 				A886C011DD31AADC9D257B7B /* ShapeHandles.swift */,
 			);
 			path = Objects;
@@ -3995,6 +4001,7 @@
 				0D2D639A417AABA82664BA06 /* SessionServices.swift in Sources */,
 				93BE0C1DCE13C705775D6167 /* SetupSheets.swift in Sources */,
 				1266922BAC94470D2EA629C0 /* ShapeClassifierResource.swift in Sources */,
+				B2D0DC9CE84B2C7CDEA8E398 /* ShapeConversionNotice.swift in Sources */,
 				9A82E66C9B46D1C3AB093BA0 /* ShapeFamilyTools.swift in Sources */,
 				4D38963A6EDE2E4C793282FA /* ShapeHandles.swift in Sources */,
 				F24539B93AFF84AD54CB0E73 /* ShapeTools.swift in Sources */,
@@ -4353,6 +4360,7 @@
 				E5E2234C60E593722DF71979 /* ScriptingTextSuiteTests.swift in Sources */,
 				B3309CC7239E86DADE7F4F69 /* SelectMenuTests.swift in Sources */,
 				665CAFB75D41606A7F91D56F /* SelectionTests.swift in Sources */,
+				71A5A5446C47EAB4D4E83C46 /* ShapePointEditingTests.swift in Sources */,
 				7488A2A8634F64CE3AF69007 /* ShapeSimilarTests.swift in Sources */,
 				7F7A3CFB4D87EE9AF27C26F0 /* ShapeToolTests.swift in Sources */,
 				B7AF1A7EE09CF0FBCC24D94A /* ShareExtensionTests.swift in Sources */,

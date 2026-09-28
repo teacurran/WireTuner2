@@ -750,6 +750,50 @@ the others behind.  So panels become *magnetic*:
   and widths, and the groups in each column; an older layout's docked groups become the cluster
   at that edge and each floating group its own cluster.
 
+[[D-078]]
+=== D-078 A live shape keeps its live handles; editing its points converts it to a path in the same change
+Found in use (2026-09-28): "After making a shape I couldn't edit it like I could a polygon path."
+The spec followed FreeHand, where a rectangle or ellipse behaves like a grouped path that has to be
+ungrouped before its points can be edited: the Subselect tool showed and selected a shape's points,
+but dragging them wrote nothing.  WireTuner takes the current Mac expectation (Illustrator's live
+shapes) instead:
+
+* *The Pointer keeps the live handles.*  A selected rectangle shows a corner-radius handle inside
+  each corner (dragging one rounds every corner with *Uniform* on, that corner alone with it off);
+  a polygon shows its diamond and a star its circle.  The handles give way to point editing: a
+  press with kbd:[Option] (the Pointer's subselect) reaches the point under a handle, and a shape
+  with points selected shows none.  Ellipse arcs keep their Object panel fields.
+* *Point editing converts.*  The Subselect tool, the Pointer with kbd:[Option], a marquee over
+  anchors, the arrow keys, the Object panel's point section, menu:Edit[Clear] on points or
+  segments and the Pen's click on a segment all reach a live shape's points as they reach a path's.
+  Any edit of them -- moving a point, dragging or retracting a handle, changing the point type or
+  *Automatic*, deleting a point or segment, adding a point -- first replaces the shape with an
+  ordinary path and then edits the path, in one change labelled "Edit Points".  One undo brings the
+  live shape back.
+* *Path commands take shapes.*  Add Points, Simplify, Correct Direction, Remove Overlap, Reverse
+  Direction, Fractalize, Split at points, the Knife, Eraser and Freeform tools, the distort tools,
+  the Mirror tool's *Close paths* and the expert 3D rotation work on a selected shape, converting
+  it in the same change under their own label.  A shape the command would leave as it is
+  (Correct Direction on a rectangle, Remove Overlap on a shape that does not cross itself,
+  Simplify at 0) stays live and nothing is written.  None of these is disabled for a shape.
+* *Conversion changes nothing you can see.*  The path has the shape's outline as drawn (a rounded
+  corner's two points with quarter-circle handles, an ellipse's four curve points, an arc's pieces
+  and centre, a polygon's or star's corners), its transform and other common properties, and its
+  attribute stack in the same order; a Corners effect stays and the corners under it are square,
+  as they were drawn.  The clip group the shape clipped with and the connectors attached to it name
+  the path.  The selection follows: the path is selected with the points that were selected.
+* *The status line says so.*  "Rectangle converted to a path. Undo brings the live rectangle
+  back." shows each time an edit converts a shape; it blocks nothing and asks nothing, so there is
+  no "don't show again" preference.  Illustrator's modal alert was rejected: the conversion is one
+  undo step, and the note says which.  menu:Modify[Ungroup] still converts on purpose, without the
+  note.
+
+Merge semantics are unchanged: the conversion is the one Ungroup has written since DRAW-009 (a `path`
+node created from the geometry the converter saw, the shape node deleted), so a concurrent edit of
+the shape is *edit vs delete* with *Restore* bringing the shape back beside the path, and two
+concurrent conversions leave two paths.  The point edit that follows writes only to points the same
+change created, which no one else can have edited.  No new op, register or conformance vector.
+
 == Open questions
 
 [[Q-001]]

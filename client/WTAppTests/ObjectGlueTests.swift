@@ -119,9 +119,9 @@ final class HandleWorld {
         #expect(layer.polygons(world.context).isEmpty, "no tool: no handles")
         layer.draw(in: world.bitmap(), viewport: world.host.viewport, context: world.context)
         #expect(!layer.press(world.event(150, 100), context: world.context))
-        let tool = TestBox<ToolID>(.pointer)
+        let tool = TestBox<ToolID>(PointerTool.subselectID)
         layer.activeTool = { tool.value }
-        #expect(layer.polygons(world.context).isEmpty, "the Pointer: no handles")
+        #expect(layer.polygons(world.context).isEmpty, "the Subselect tool: the points, no handles (D-078)")
         tool.value = PolygonShapeHandles.tool
         #expect(layer.polygons(world.context) == [node])
         layer.draw(in: world.bitmap(), viewport: world.host.viewport, context: world.context)

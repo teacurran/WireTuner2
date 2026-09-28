@@ -1,7 +1,7 @@
 The Polygon tool draws regular polygons -- triangles, pentagons, hexagons, anything up to 360
 sides -- and stars.  Like rectangles and ellipses, a polygon stays a live shape: its number of
 sides, its star points and its proportions can be changed after drawing, by dragging handles
-with the Subselect tool or by typing in the Object panel.  Every polygon is a closed path,
+with the Pointer tool or by typing in the Object panel.  Every polygon is a closed path,
 drawn clockwise from its center.
 
 == Setting the Polygon tool options
@@ -50,12 +50,12 @@ kbd:[Space]:: Repositions the shape while you keep dragging.
 
 == Editing a polygon or star
 
-A selected polygon shows two kinds of handles with the Subselect tool: a diamond at one
+A selected polygon shows two kinds of handles with the Pointer tool: a diamond at one
 vertex (a *peak*) and, for stars, a circle at one inner point (a *valley*).
 
 To reshape a polygon or star by dragging:
 
-. Choose the Subselect tool and click the polygon.
+. Choose the Pointer tool and click the polygon.
 . Drag the diamond handle to move every vertex at once -- outward to enlarge, around the
   center to rotate.
 . For a star, drag the circle handle to move every inner point: closer to the center for
@@ -66,18 +66,34 @@ To reshape a polygon or star by dragging:
 
 The Object panel shows the same things as numbers: *Sides*, *Star*, *Radius*, *Inner radius*
 (stars, with *Automatic* to let {product} choose it) and *Rotation*.  Changing the number of
-sides regenerates the shape around the same center.  To edit individual points, convert the
-polygon to a path with menu:Modify[Ungroup]; it cannot be turned back into a live polygon.
+sides regenerates the shape around the same center.
 
-// TODO screenshot: Subselect handles (diamond and circle) on a star
+// TODO screenshot: the Pointer's handles (diamond and circle) on a star
+
+[[editing-polygon-points]]
+== Editing a polygon's points
+
+To move one vertex of a polygon or one point of a star on its own, edit its points as you would a
+path's:
+
+. Choose the Subselect tool, or hold kbd:[Option] with the Pointer tool.  Every vertex (and every
+  inner point of a star) shows as a corner point; the diamond and circle handles give way to them.
+. Click a point and drag it, pull a handle out of it with kbd:[Option], nudge it with the arrow
+  keys, or press kbd:[Delete].
+
+The first such edit turns the polygon into an ordinary path and makes the edit, as one step
+(*Undo Edit Points* brings the live polygon back); the status bar notes the change.  It looks
+exactly as it did, but the Object panel no longer offers *Sides*, *Star* or the radii.  The path
+commands -- Add Points, Simplify, the Knife and the rest -- convert a selected polygon the same way,
+and menu:Modify[Ungroup] converts it without editing it (xref:rectangles-ellipses-lines.adoc#editing-points[Editing a shape's points]).
 
 == Working with others
 
 Polygons merge property by property.  A collaborator can change a star's number of points
 while you drag its valleys; you see the new points appear mid-drag and your inner radius
 applies to all of them.  If you both drag the same handle, the later release wins.  Converting
-a polygon to a path while someone else is editing it turns their edit into a review item after
-they reconnect, the same as for rectangles.
+a polygon to a path -- by editing its points or with Ungroup -- while someone else is editing it
+turns their edit into a review item after they reconnect, the same as for rectangles.
 
 ifdef::spec[]
 == Specification
@@ -135,7 +151,8 @@ to it would be worse.
 Star turned off vs. inner radius edited:: `star = false` hides the inner points; the
 `inner_radius` write is kept and reappears when `star` is turned back on.
 
-Convert to path vs. edit:: As for rectangles: the shape node is deleted, the edit is listed as
+Convert to path vs. edit:: As for rectangles (Ungroup, or a point edit or path command on the
+polygon, xref:decisions.adoc#D-078[D-078]): the shape node is deleted, the edit is listed as
 *edit vs delete*.
 
 Read-time normalizations::
@@ -164,8 +181,10 @@ Geometry:: `WTGeometry.polygonPath(props:)` yields `sides` (or `2 × sides` for 
 points, clockwise starting at `rotation`.  The Polygon Tool sheet preview draws the same path
 into a small `NSView`.
 
-Handles:: Diamond at vertex 0, circle at valley 0, drawn in the overlay; drags convert the
-pointer position into polar coordinates around the local center.
+Handles:: Diamond at vertex 0, circle at valley 0, drawn in the overlay with the Pointer tool
+(D-078; the Subselect tool shows the points instead); drags convert the pointer position into
+polar coordinates around the local center.  A press with kbd:[Option] goes to the point under a
+handle, and a polygon with points selected shows no handles.
 
 Object panel:: `polygon` section: Sides (stepper 3--360), Star, Radius, Inner radius with
 Automatic, Rotation (degrees in the UI, radians stored).
@@ -197,6 +216,12 @@ NOTE: As built by DRAW-010's app half (`WTApp/Objects/ShapeHandles.swift`, `Poly
 canvas handle layer draws each selected unlocked polygon's diamond and a star's circle, and takes presses on them before the tool:
 each drag event writes `PolygonHandles.drag` (kbd:[Shift] keeps the angle) inside one undo group, so the drag is one undo step, and
 kbd:[Esc] undoes it.
+
+NOTE: As built by DRAW-062 (xref:decisions.adoc#D-078[D-078]).  `PolygonShapeHandles` shows the
+diamond and circle with the Pointer tool instead of the Subselect tool, on polygons selected as a
+whole, and leaves a press with kbd:[Option] to the tool; with the Subselect tool a polygon shows its
+points, and editing them converts it (`ShapeConversion`, rectangles-ellipses-lines.adoc's DRAW-062
+note).  Tests: `ShapePointEditingTests`, `ObjectGlueTests` (the handles' tool).
 
 === Build tasks
 

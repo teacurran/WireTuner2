@@ -82,7 +82,7 @@ struct ObjectPanelModel {
             return []
         }
         guard references.count == 1, let reference = references.first, let object = document.object(for: SelectionID(reference.node)),
-              object.kind == .path, let contour = object.path?.contour(reference.contour),
+              PointEditing.editsPoints(of: object), let contour = object.path?.contour(reference.contour),
               let point = contour.drawn.first(where: { $0.id == reference.point }) else { return nil }
         return PointSection(
             node: object.id, contour: contour.id, point: point.id, kind: point.kind, automatic: point.automatic,

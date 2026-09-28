@@ -3,7 +3,7 @@ import WTCRDT
 import WTGeometry
 import WTProto
 
-/// The Subselect tool's polygon handles (DRAW-010's remainder, polygons-stars.adoc "Editing a
+/// The Pointer tool's polygon handles (DRAW-010's remainder, D-078; polygons-stars.adoc "Editing a
 /// polygon or star" and "Client", Handles): a diamond at vertex 0 (a peak) and, on a star, a
 /// circle at valley 0.  A drag converts the pointer into polar coordinates about the polygon's
 /// local centre: the diamond writes `radius` and `rotation` (every vertex moves at once), the

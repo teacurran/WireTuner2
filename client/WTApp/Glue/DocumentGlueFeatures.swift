@@ -24,6 +24,8 @@ final class DocumentGlueFeatures {
     let sheets: SheetPresenter
     /// Each document window's master notices.
     private(set) var notices: [ObjectIdentifier: MasterNotices] = [:]
+    /// Each window's status-line note of shapes converted to paths (D-078).
+    private(set) var shapeNotices: [ObjectIdentifier: ShapeConversionNotice] = [:]
     /// The *Profiles…* sheet's model while it is open.
     private(set) var profiles: ProfilesModel?
     /// Called after commands were added to the registry (the bundled shape model loaded).
@@ -70,7 +72,10 @@ final class DocumentGlueFeatures {
     func attach(_ window: DocumentWindowController) {
         let polygons = PolygonShapeHandles()
         polygons.activeTool = { [weak window] in window?.toolManager.activeToolID }
-        window.toolManager.handleLayers += [ClipContentsHandle(), polygons, ImageResolutionHandles()]
+        let rectangles = RectangleRadiusHandles()
+        rectangles.activeTool = { [weak window] in window?.toolManager.activeToolID }
+        window.toolManager.handleLayers += [ClipContentsHandle(), polygons, rectangles, ImageResolutionHandles()]
+        shapeNotices[ObjectIdentifier(window)] = ShapeConversionNotice(window: window)
         views.attach(window)
         let key = ObjectIdentifier(window)
         notices[key] = MasterNotices(window: window)
@@ -88,6 +93,7 @@ final class DocumentGlueFeatures {
     /// The window closed.
     func detach(_ window: DocumentWindowController) {
         notices.removeValue(forKey: ObjectIdentifier(window))?.stop()
+        shapeNotices.removeValue(forKey: ObjectIdentifier(window))?.stop()
     }
 
     /// The Color Settings sheet's btn:[Profiles…]: the sheet for `document`.
