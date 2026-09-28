@@ -52,17 +52,21 @@ Show it with menu:Window[Toolbars > Text].  From left to right:
 |===
 |Control |Does
 
-|*Font Family* box
-|Chooses the family.  Type part of a name and the box completes it; open its list for every
-family, your recent ones first and any font the document uses that is missing on your Mac in
-brackets.
+|*Font Family* picker
+|Shows the family of the selected text (*Mixed* when it has several; pause over it to read a long
+name whole).  Click it for the family list: each family shown in its own face, your recent ones
+first, then any font the document uses that is missing on your Mac (in brackets, with a warning
+icon), then every family.  Type in the search field at its top to filter the list; use the arrow
+keys and kbd:[Return] to choose, or click a family; kbd:[Esc] closes the list.  A symbol font shows
+its name in the plain system font beside its own face.  The family applies as soon as you choose
+it.
 
 |*Font Style* pop-up
 |Chooses the face within the family.
 
 |*Font Size* box
-|Type size in points: pick a preset from its list or type any size from 1 to 10,000 and press
-kbd:[Return].
+|Type size in points: pick a preset from its list (it applies at once) or type any size from 1 to
+10,000 and press kbd:[Return] or click elsewhere.
 
 |btn:[Leading]
 |Opens the *Leading* sheet: mode and value (the same as menu:Text[Leading > Other…]).
@@ -84,6 +88,10 @@ kbd:[Return].
 |===
 
 The font boxes show *Mixed* when the selected text holds more than one family, face or size.
+
+Docked beside the panels or floating, the toolbar wraps into rows: the family picker on a row of
+its own, style and size together, then the buttons.  In the strip under the Main toolbar it is one
+row (xref:toolbars.adoc[Toolbars]).
 
 The toolbar can be extended with any text command through xref:customizing.adoc[Customizing].
 
@@ -268,6 +276,25 @@ whole, one change each.  Mixed text shows *Mixed* in the toolbar and a dash on e
 in the Font and Style menus.  *Deviations*: there is no hover preview (the *Display font preview*
 preference is not wired); the toolbar's font controls do not drag while customizing (remove or
 move them from the Customize window's list).
+
+NOTE: As built by D-077's revision (tbr; `WTApp/Text/Fonts/FontFamilyPicker.swift`, a new file;
+`FontToolbarControls.swift`).  The family `NSComboBox` is replaced by `FontFamilyPicker`, an
+`NSButton` at regular size and 13 pt showing the shared family (truncated at the tail, the whole
+name in its tooltip; *Mixed* when mixed) that opens `FontFamilyListController` in a transient
+`NSPopover`: an `NSSearchField` over a one-column `NSTableView`.  The list is as wide as its widest
+row (`FontFamilyFaces.listWidth`: the name in its own face at 15 pt, plus the plain name in the
+13 pt system font for a family whose face is symbolic or ornamental or lacks the name's letters,
+within 90% of the screen), not the button.  Its rows come from `FontFamilyPickerModel` over the
+Font menu's `FontFamilyList` (headings *Recently Used*, *Missing Fonts*, *All Fonts*; while
+searching, `FontFilter`'s matches, each family once).  The arrow keys (from the search field too)
+move over families and skip the headings, kbd:[Return] or a click chooses, kbd:[Esc] closes, and
+typing in the table jumps to a family (`typeSelectStringFor`).  A choice applies at once through
+`FontCommands.apply(family:)`, one change, "Font", and shows in the button before the document is
+read again.  The style pop-up and size box are regular size too.  The size box applies a preset
+when it is picked (`comboBoxSelectionDidChange`, reading the list, since `NSComboBox` posts it
+before its text changes) and a typed size on kbd:[Return] or when editing ends, once.  Every
+control targets the document window hosting the toolbar -- its own window, or the window a
+floating group floats over (`NSView.hostedDocumentWindow`) -- before the front document window.
 
 NOTE: As built by the control reachability audit (rch; `WTApp/Text/Paragraph/AlignLeadingCommands.swift`,
 a new file).  menu:Text[Align] is four commands (`text.align.left`, `.center`, `.right`,

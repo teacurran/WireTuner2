@@ -2,90 +2,25 @@ import AppKit
 import WTModel
 import WTText
 
-/// The Text toolbar's font family, style and size (type-tools.adoc, "The Text toolbar"): a combo
-/// box of every family that completes as you type (the recent ones first, the document's missing
-/// ones in brackets), a pop-up of the family's faces, and a combo box of the preset sizes that
-/// takes any size from 1 to 10,000 points.  Each applies to the selected blocks or the Text
-/// tool's selection as one change; a value the text does not share shows as *Mixed*.
+/// The Text toolbar's font family, style and size (type-tools.adoc, "The Text toolbar"): our own
+/// family picker (`FontFamilyPicker`: a list sized to the longest name, each family in its own
+/// face, filtered as you type; the recent ones first, the document's missing ones marked), a
+/// pop-up of the family's faces, and a combo box of the preset sizes that takes any size from 1 to
+/// 10,000 points.  Each applies to the selected blocks or the Text tool's selection of the window
+/// hosting the toolbar as one change -- a family or face as soon as it is picked, a size when it is
+/// picked or typed and entered; a value the text does not share shows as *Mixed*.
 @MainActor
 enum FontToolbarControls {
     static let mixed = TextSectionView.mixed
+    static var controlFont: NSFont { .systemFont(ofSize: NSFont.systemFontSize) }
 
     /// The makers `ToolbarController.controls` takes.
     static func makers(window: @escaping FontCommands.Window, recents: FontRecentsStore = .shared) -> [CommandID: @MainActor () -> any ToolbarControl] {
         [
-            FontCommands.ID.family: { FamilyComboBox(window: window, recents: recents) },
+            FontCommands.ID.family: { FontFamilyPicker(window: window, recents: recents) },
             FontCommands.ID.style: { StylePopUp(window: window) },
             FontCommands.ID.fontSize: { SizeComboBox(window: window) },
         ]
-    }
-}
-
-/// The family combo box.
-@MainActor
-final class FamilyComboBox: NSComboBox, ToolbarControl {
-    let documentWindow: FontCommands.Window
-    let recents: FontRecentsStore
-    /// The families listed, as chosen (the titles may carry brackets).
-    private(set) var choices: [FontFamilyChoice] = []
-
-    init(window: @escaping FontCommands.Window, recents: FontRecentsStore) {
-        self.documentWindow = window
-        self.recents = recents
-        super.init(frame: NSRect(x: 0, y: 0, width: 170, height: 24))
-        completes = true
-        numberOfVisibleItems = 20
-        controlSize = .small
-        font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        placeholderString = FontToolbarControls.mixed
-        target = self
-        action = #selector(commit(_:))
-        setAccessibilityLabel("Font Family")
-        setAccessibilityIdentifier(ToolbarID.text.accessibilityIdentifier(for: FontCommands.ID.family))
-        widthAnchor.constraint(equalToConstant: 170).isActive = true
-        NotificationCenter.default.addObserver(self, selector: #selector(willPopUp(_:)), name: NSComboBox.willPopUpNotification, object: self)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("FamilyComboBox is built in code")
-    }
-
-    /// Reads the list again (the recent families and the document's fonts change).
-    func reloadChoices() {
-        guard let front = documentWindow() else { return }
-        choices = FontMenus.familyList(document: front.documentHandle, recents: recents.families).flattened
-        removeAllItems()
-        addItems(withObjectValues: choices.map(\.title))
-    }
-
-    @objc func willPopUp(_ notification: Notification) {
-        reloadChoices()
-    }
-
-    func refresh() {
-        let model = FontCommands.model(documentWindow())
-        isEnabled = model != nil
-        if choices.isEmpty { reloadChoices() }
-        // Leave what the user is typing alone.
-        guard currentEditor() == nil else { return }
-        stringValue = model?.text?.family.map { family in choices.first { $0.family == family }?.title ?? family } ?? ""
-    }
-
-    /// The family a typed or chosen title names: a listed family (by title or name, ignoring
-    /// case); nil for anything else.
-    func family(for title: String) -> String? {
-        let trimmed = title.trimmingCharacters(in: .whitespaces)
-        return choices.first { $0.title == trimmed || $0.family == trimmed }?.family
-            ?? choices.first { $0.family.caseInsensitiveCompare(trimmed) == .orderedSame }?.family
-    }
-
-    @objc func commit(_ sender: Any?) {
-        if let family = family(for: stringValue), FontCommands.model(documentWindow())?.text?.family != family {
-            FontCommands.apply(family: family, window: documentWindow(), recents: recents)
-            reloadChoices()
-        }
-        refresh()
     }
 }
 
@@ -96,15 +31,22 @@ final class StylePopUp: NSPopUpButton, ToolbarControl {
 
     init(window: @escaping FontCommands.Window) {
         self.documentWindow = window
-        super.init(frame: NSRect(x: 0, y: 0, width: 120, height: 24), pullsDown: false)
-        controlSize = .small
-        font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        super.init(frame: NSRect(x: 0, y: 0, width: Self.naturalWidth, height: 24), pullsDown: false)
+        controlSize = .regular
+        font = FontToolbarControls.controlFont
+        (cell as? NSPopUpButtonCell)?.lineBreakMode = .byTruncatingTail
         target = self
         action = #selector(choose(_:))
         setAccessibilityLabel("Font Style")
         setAccessibilityIdentifier(ToolbarID.text.accessibilityIdentifier(for: FontCommands.ID.style))
-        widthAnchor.constraint(equalToConstant: 120).isActive = true
     }
+
+    static let naturalWidth: CGFloat = 130
+    var toolbarSize: NSSize { NSSize(width: Self.naturalWidth, height: max(fittingSize.height, 24)) }
+    var minimumToolbarWidth: CGFloat { 90 }
+
+    /// The document the face goes to: the window hosting the toolbar, else the front one.
+    var documentTarget: DocumentWindowController? { hostedDocumentWindow ?? documentWindow() }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
@@ -121,7 +63,7 @@ final class StylePopUp: NSPopUpButton, ToolbarControl {
     }
 
     func refresh() {
-        guard let front = documentWindow(), let model = FontCommands.model(front), let section = model.text else {
+        guard let front = documentTarget, let model = FontCommands.model(front), let section = model.text else {
             isEnabled = false
             return
         }
@@ -137,28 +79,31 @@ final class StylePopUp: NSPopUpButton, ToolbarControl {
 
     @objc func choose(_ sender: Any?) {
         guard let title = titleOfSelectedItem, title != FontToolbarControls.mixed else { return }
-        FontCommands.apply(style: title, window: documentWindow())
-        refresh()
+        FontCommands.apply(style: title, window: documentTarget)
     }
 }
 
-/// The size combo box: the presets, or any size typed.
+/// The size combo box: a preset applies as soon as it is picked from the list; a typed size when
+/// Return is pressed or editing ends.  (NSComboBox sends its action for a pick before its text
+/// changes, so a pick is read from the list, not the text.)
 @MainActor
-final class SizeComboBox: NSComboBox, ToolbarControl {
+final class SizeComboBox: NSComboBox, ToolbarControl, NSComboBoxDelegate {
     let documentWindow: FontCommands.Window
+    static let naturalWidth: CGFloat = 72
 
     init(window: @escaping FontCommands.Window) {
         self.documentWindow = window
-        super.init(frame: NSRect(x: 0, y: 0, width: 64, height: 24))
+        super.init(frame: NSRect(x: 0, y: 0, width: Self.naturalWidth, height: 24))
         addItems(withObjectValues: TypeSizes.presets.map(TypeSizes.format))
-        controlSize = .small
-        font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        numberOfVisibleItems = TypeSizes.presets.count
+        controlSize = .regular
+        font = FontToolbarControls.controlFont
         placeholderString = FontToolbarControls.mixed
         target = self
         action = #selector(commit(_:))
+        delegate = self
         setAccessibilityLabel("Font Size")
         setAccessibilityIdentifier(ToolbarID.text.accessibilityIdentifier(for: FontCommands.ID.fontSize))
-        widthAnchor.constraint(equalToConstant: 64).isActive = true
     }
 
     @available(*, unavailable)
@@ -166,17 +111,54 @@ final class SizeComboBox: NSComboBox, ToolbarControl {
         fatalError("SizeComboBox is built in code")
     }
 
+    var toolbarSize: NSSize { NSSize(width: Self.naturalWidth, height: max(fittingSize.height, 24)) }
+    var minimumToolbarWidth: CGFloat { 60 }
+
+    /// The document the size goes to: the window hosting the toolbar, else the front one.
+    var documentTarget: DocumentWindowController? { hostedDocumentWindow ?? documentWindow() }
+
+    /// The size applied since the text was last read: Return and the end of editing that follows
+    /// it apply it once.
+    private(set) var applied: Double?
+
     func refresh() {
-        let model = FontCommands.model(documentWindow())
+        let model = FontCommands.model(documentTarget)
         isEnabled = model != nil
         guard currentEditor() == nil else { return }
+        applied = nil
         stringValue = model?.text?.size.map(TypeSizes.format) ?? ""
     }
 
+    /// A preset picked from the list.
+    func comboBoxSelectionDidChange(_ notification: Notification) {
+        let index = indexOfSelectedItem
+        guard TypeSizes.presets.indices.contains(index) else { return }
+        let size = TypeSizes.presets[index]
+        // The text follows the pick now, so an action sent after it reads the same size.
+        stringValue = TypeSizes.format(size)
+        currentEditor()?.string = TypeSizes.format(size)
+        apply(size)
+    }
+
+    /// Editing ended (Tab, a click elsewhere): the typed size applies, as Return does.
+    override func textDidEndEditing(_ notification: Notification) {
+        super.textDidEndEditing(notification)
+        commit(nil)
+    }
+
     @objc func commit(_ sender: Any?) {
-        if let size = TypeSizes.parse(stringValue), FontCommands.model(documentWindow())?.text?.size != size {
-            FontCommands.apply(size: size, window: documentWindow())
+        guard let size = TypeSizes.parse(stringValue) else {
+            refresh()
+            return
         }
-        refresh()
+        apply(size)
+    }
+
+    /// Applies `size` when the text does not have it already, and shows it.
+    func apply(_ size: Double) {
+        guard let model = FontCommands.model(documentTarget) else { return }
+        if model.text?.size != size && applied != size { FontCommands.apply(size: size, window: documentTarget) }
+        applied = size
+        if currentEditor() == nil { stringValue = TypeSizes.format(size) }
     }
 }

@@ -3,50 +3,57 @@ import SwiftUI
 import WTGeometry
 import WTModel
 
-/// One toolbar's buttons (toolbars.adoc, "Client": `ToolbarView`, an `NSStackView` row of
-/// `NSButton`s): a row when its host is wider than tall, a column otherwise.  Buttons follow
-/// the controller; enabled and checked states are re-read after every window update, as
-/// `NSToolbar` validates its items.  A drop target for toolbar drags; its buttons are the drag
-/// sources.
+/// One toolbar's buttons (toolbars.adoc, "Client": `ToolbarView`).  Its placement comes from
+/// where it is hosted (`ToolbarPlacement.hosting`): one row in a top or bottom strip, a column in
+/// a narrow side strip, and rows that wrap at its width in a panel group, docked or floating --
+/// items keep their natural sizes and wide controls (the font family) take a row of their own
+/// (`ToolbarFlowLayout`).  Buttons follow the controller; enabled and checked states are re-read
+/// after every window update, as `NSToolbar` validates its items.  A drop target for toolbar
+/// drags; its buttons are the drag sources.
 @MainActor
 final class ToolbarView: NSView {
     let controller: ToolbarController
     let toolbar: ToolbarID
-    let stack = NSStackView()
     private(set) var buttons: [ToolbarButton] = []
-    /// What the stack shows for each button: the button, or the command's own control
+    /// What the toolbar shows for each button: the button, or the command's own control
     /// (`ToolbarController.controls`: the Text toolbar's font family, style and size).
     private(set) var arranged: [NSView] = []
     /// The Info toolbar's readout, before its buttons.
     private(set) var readout: NSHostingView<InfoReadoutView>?
+    /// A placement set by the host (the Tools panel's extra buttons); nil reads it from the
+    /// panel layout.
+    var placementOverride: ToolbarPlacement? {
+        didSet { placementDidChange() }
+    }
+    /// The frames of the last layout pass (for tests and the insertion point).
+    private(set) var flow = ToolbarFlowLayout.Result(frames: [], rows: [], size: .zero)
+    /// Keeps a scrolling host from squeezing the rows: the height the rows need.
+    private var minimumHeight: NSLayoutConstraint?
     private var token: ToolbarController.ObservationToken?
+    private var layoutToken: PanelLayoutController.ObservationToken?
     private var windowObserver: NSObjectProtocol?
+    private var lastPlacement: ToolbarPlacement?
 
-    init(controller: ToolbarController, toolbar: ToolbarID) {
+    init(controller: ToolbarController, toolbar: ToolbarID, placement: ToolbarPlacement? = nil) {
         self.controller = controller
         self.toolbar = toolbar
+        self.placementOverride = placement
         super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 32))
         setAccessibilityElement(true)
         setAccessibilityRole(.toolbar)
         setAccessibilityLabel("\(toolbar.title) toolbar")
         setAccessibilityIdentifier("toolbar.\(toolbar.rawValue)")
-        stack.spacing = 2
-        stack.edgeInsets = NSEdgeInsets(top: 2, left: 4, bottom: 2, right: 4)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor),
-        ])
+        let minimum = heightAnchor.constraint(greaterThanOrEqualToConstant: 0)
+        minimum.isActive = true
+        minimumHeight = minimum
         if toolbar == .info {
             let readout = NSHostingView(rootView: InfoReadoutView(model: controller.info))
-            stack.addArrangedSubview(readout)
+            addSubview(readout)
             self.readout = readout
         }
         registerForDraggedTypes([.string])
         token = controller.observe { [weak self] in self?.reload() }
+        layoutToken = controller.layout.observe { [weak self] _ in self?.placementDidChange() }
         reload()
     }
 
@@ -57,7 +64,10 @@ final class ToolbarView: NSView {
 
     isolated deinit {
         if let token { controller.stopObserving(token) }
+        if let layoutToken { controller.layout.stopObserving(layoutToken) }
     }
+
+    override var isFlipped: Bool { true }
 
     /// Rebuilds the buttons from the controller and refreshes their states.
     func reload() {
@@ -68,7 +78,8 @@ final class ToolbarView: NSView {
             for view in arranged { view.removeFromSuperview() }
             buttons = items.map { ToolbarButton(command: $0, toolbarView: self) }
             arranged = buttons.map { button in controller.controls[button.command].map { $0() } ?? button }
-            for view in arranged { stack.addArrangedSubview(view) }
+            for view in arranged { addSubview(view) }
+            placementDidChange()
         }
         refreshStates()
     }
@@ -85,15 +96,73 @@ final class ToolbarView: NSView {
         for case let control as any ToolbarControl in arranged { control.refresh() }
     }
 
-    /// Row when wider than tall.
-    var isHorizontal: Bool { bounds.width >= bounds.height }
+    // MARK: Layout
+
+    /// Where the toolbar is hosted decides how it lays out.
+    var placement: ToolbarPlacement {
+        placementOverride ?? ToolbarPlacement.hosting(toolbar, in: controller.layout.layout)
+    }
+
+    /// Whether the items run in rows (a strip or a panel) rather than a column.
+    var isHorizontal: Bool { placement != .column }
+
+    /// Every shown view, readout first, with its natural size and minimum width.
+    var layoutViews: [NSView] { (readout.map { [$0] } ?? []) + arranged }
+
+    func layoutItems() -> [ToolbarFlowLayout.Item] {
+        layoutViews.map { view in
+            if let control = view as? any ToolbarControl {
+                return ToolbarFlowLayout.Item(size: control.toolbarSize, minimumWidth: control.minimumToolbarWidth, fullRow: control.takesFullRow)
+            }
+            let fitting = view.fittingSize
+            if view is ToolbarButton { return ToolbarFlowLayout.Item(size: CGSize(width: max(fitting.width, 26), height: max(fitting.height, 24))) }
+            return ToolbarFlowLayout.Item(size: fitting)
+        }
+    }
+
+    /// The layout at `width` (the host's proposal).
+    func flow(width: CGFloat) -> ToolbarFlowLayout.Result {
+        ToolbarFlowLayout.layout(layoutItems(), placement: placement, width: width)
+    }
+
+    private func placementDidChange() {
+        needsLayout = true
+        invalidateIntrinsicContentSize()
+    }
+
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        placementDidChange()
+    }
 
     override func layout() {
-        stack.orientation = isHorizontal ? .horizontal : .vertical
+        let placement = placement
+        let result = flow(width: bounds.width)
+        flow = result
+        for (view, frame) in zip(layoutViews, result.frames) where view.frame != frame { view.frame = frame }
+        // A row is clipped by its strip; a flow or a column asks its host for its height.
+        let needed = placement == .row ? 0 : result.size.height
+        if minimumHeight?.constant != needed { minimumHeight?.constant = needed }
+        if placement != lastPlacement {
+            lastPlacement = placement
+            invalidateIntrinsicContentSize()
+        }
         super.layout()
     }
 
-    override var intrinsicContentSize: NSSize { stack.fittingSize }
+    override var intrinsicContentSize: NSSize {
+        let result = flow(width: bounds.width)
+        switch placement {
+        case .row, .column: return result.size
+        case .flow: return NSSize(width: NSView.noIntrinsicMetric, height: result.size.height)
+        }
+    }
+
+    override func setFrameSize(_ size: NSSize) {
+        let widthChanged = size.width != frame.width
+        super.setFrameSize(size)
+        if widthChanged && placement == .flow { invalidateIntrinsicContentSize() }
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
@@ -107,12 +176,16 @@ final class ToolbarView: NSView {
 
     // MARK: Dropping
 
-    /// The button index a drop at `point` (this view's coordinates) inserts before.
+    /// The button index a drop at `point` (this view's coordinates, y down) inserts before: in
+    /// reading order, the first item on the point's row (or a later row) whose middle is past it.
     func insertionIndex(at point: NSPoint) -> Int {
-        let horizontal = stack.orientation == .horizontal
         for (index, view) in arranged.enumerated() {
-            let frame = convert(view.bounds, from: view)
-            if horizontal ? point.x < frame.midX : point.y > frame.midY { return index }
+            let frame = view.frame
+            if placement == .column {
+                if point.y < frame.midY { return index }
+            } else if point.y < frame.minY || (point.y <= frame.maxY && point.x < frame.midX) {
+                return index
+            }
         }
         return buttons.count
     }
@@ -138,9 +211,20 @@ final class ToolbarView: NSView {
 
 /// A toolbar item drawn as its own control instead of a button (the Text toolbar's font family,
 /// style and size); it re-reads the selection after every window update, as buttons revalidate.
+/// The toolbar lays it out at its natural size, never narrower than its minimum; a full-row
+/// control takes a row of its own when the toolbar flows in a panel.
 @MainActor
 protocol ToolbarControl: NSView {
     func refresh()
+    var toolbarSize: NSSize { get }
+    var minimumToolbarWidth: CGFloat { get }
+    var takesFullRow: Bool { get }
+}
+
+extension ToolbarControl {
+    var toolbarSize: NSSize { fittingSize }
+    var minimumToolbarWidth: CGFloat { toolbarSize.width }
+    var takesFullRow: Bool { false }
 }
 
 /// One toolbar button: its command's symbol (or title), a tooltip with the shortcut, and the
@@ -306,16 +390,27 @@ enum InfoReadout {
     }
 }
 
-/// A toolbar's buttons inside SwiftUI (the Tools panel's customized buttons).
+/// A toolbar's buttons inside SwiftUI (the Tools panel's customized buttons): rows that wrap
+/// at the width SwiftUI offers, one row when it offers any width.
 struct ToolbarViewRepresentable: NSViewRepresentable {
     let controller: ToolbarController
     let toolbar: ToolbarID
 
     func makeNSView(context: Context) -> ToolbarView {
-        ToolbarView(controller: controller, toolbar: toolbar)
+        ToolbarView(controller: controller, toolbar: toolbar, placement: .flow)
     }
 
     func updateNSView(_ view: ToolbarView, context: Context) {
         view.reload()
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView view: ToolbarView, context: Context) -> CGSize? {
+        Self.size(of: view, proposedWidth: proposal.width)
+    }
+
+    /// The size at `width`; nil or infinite lays everything in one row.
+    static func size(of view: ToolbarView, proposedWidth width: CGFloat?) -> CGSize {
+        guard let width, width.isFinite else { return ToolbarFlowLayout.layout(view.layoutItems(), placement: .row, width: 0).size }
+        return view.flow(width: width).size
     }
 }

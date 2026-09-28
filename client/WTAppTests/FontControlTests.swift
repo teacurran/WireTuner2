@@ -358,7 +358,7 @@ import WTText
         let recents = Self.recents()
         let window: FontCommands.Window = { [weak window = world.window] in window }
         let makers = FontToolbarControls.makers(window: window, recents: recents)
-        let family = try #require(makers[FontCommands.ID.family]?() as? FamilyComboBox)
+        let family = try #require(makers[FontCommands.ID.family]?() as? FontFamilyPicker)
         let style = try #require(makers[FontCommands.ID.style]?() as? StylePopUp)
         let size = try #require(makers[FontCommands.ID.fontSize]?() as? SizeComboBox)
         // Nothing selected: disabled.
@@ -366,25 +366,22 @@ import WTText
         style.refresh()
         size.refresh()
         #expect(!family.isEnabled && !style.isEnabled && !size.isEnabled)
+        #expect(family.openList(nil) == nil)
         let node = try await world.block("Toolbar")
         family.refresh()
         style.refresh()
         size.refresh()
-        #expect(family.isEnabled && family.stringValue == ObjectPanelModel.defaultFamily && size.stringValue == "12")
+        #expect(family.isEnabled && family.title == ObjectPanelModel.defaultFamily && size.stringValue == "12")
         #expect(style.titleOfSelectedItem == ObjectPanelModel.defaultStyle)
-        // The family box completes names; a typed name is matched ignoring case.
-        #expect(family.family(for: "menlo") == Self.first && family.family(for: "No such") == nil)
-        family.stringValue = "menlo"
-        family.commit(nil)
+        // The family list filters as you type; Return chooses.
+        let list = try #require(family.openList(nil))
+        list.filter("menlo")
+        #expect(list.model.selectedFamily == Self.first)
+        list.handle(#selector(NSResponder.insertNewline(_:)))
         await world.settle()
         #expect(Self.families(world, node) == [Self.first] && recents.families == [Self.first])
-        family.willPopUp(Notification(name: NSComboBox.willPopUpNotification))
-        #expect((family.objectValues.first as? String) == Self.first, "recent first")
-        let count = world.document.changeCount
-        family.stringValue = "No such family"
-        family.commit(nil)
-        await world.settle()
-        #expect(world.document.changeCount == count, "a name that is not listed is refused")
+        #expect(family.title == Self.first)
+        #expect(family.makeModel()?.choices.first?.family == Self.first, "recent first")
         // The face pop-up.
         style.refresh()
         style.selectItem(withTitle: "Bold")
@@ -404,8 +401,7 @@ import WTText
         await world.edit(node, select: 0..<3)
         size.stringValue = "30"
         size.commit(nil)
-        family.stringValue = Self.second
-        family.commit(nil)
+        family.choose(Self.second)
         await world.settle()
         #expect(TextFixtureReading.sizes(world, node) == [18, 30] && Set(Self.families(world, node)) == [Self.first, Self.second])
         // Mixed over the whole block.
@@ -414,7 +410,7 @@ import WTText
         family.refresh()
         size.refresh()
         style.refresh()
-        #expect(family.stringValue.isEmpty && family.placeholderString == TextSectionView.mixed)
+        #expect(family.title == TextSectionView.mixed && family.family == nil)
         #expect(size.stringValue.isEmpty && size.placeholderString == TextSectionView.mixed)
         _ = await world.document.perform(ApplyMark(node: node, from: .start, to: TextFixtureReading.anchor(world, node, 2), value: .with { $0.fontStyle = "Italic" })).value
         await world.settle()

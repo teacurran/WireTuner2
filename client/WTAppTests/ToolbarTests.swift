@@ -342,9 +342,9 @@ final class FakeDraggingInfo: NSObject, @preconcurrency NSDraggingInfo {
         view.frame = NSRect(x: 0, y: 0, width: 600, height: 30)
         view.layoutSubtreeIfNeeded()
         view.layout()
-        #expect(view.isHorizontal && view.stack.orientation == .horizontal)
+        #expect(view.isHorizontal && view.placement == .flow)
         #expect(view.buttons.map(\.command) == controller.items(.text))
-        #expect(view.intrinsicContentSize.width > 0)
+        #expect(view.intrinsicContentSize.height > 0)
         let first = view.buttons[0]
         #expect(first.accessibilityIdentifier() == "toolbar.text.text.fontFamily")
         #expect(!first.isEnabled)
@@ -380,12 +380,13 @@ final class FakeDraggingInfo: NSObject, @preconcurrency NSDraggingInfo {
         #expect(!view.performDragOperation(junk))
         #expect(!view.performDragOperation(FakeDraggingInfo(string: nil, location: .zero)))
 
-        // A column when taller than wide.
+        // A column when its host is a narrow strip.
+        view.placementOverride = .column
         view.frame = NSRect(x: 0, y: 0, width: 30, height: 600)
         view.layout()
-        #expect(view.stack.orientation == .vertical)
-        view.layoutSubtreeIfNeeded()
-        #expect(view.insertionIndex(at: NSPoint(x: 10, y: 10_000)) == 0)
+        #expect(!view.isHorizontal && view.flow.rows.allSatisfy { $0.count == 1 })
+        #expect(view.insertionIndex(at: NSPoint(x: 10, y: -10)) == 0)
+        #expect(view.insertionIndex(at: NSPoint(x: 10, y: 10_000)) == view.buttons.count)
 
         // Window updates revalidate.
         let window = TestWindow.make(NSRect(x: 0, y: 0, width: 600, height: 40))

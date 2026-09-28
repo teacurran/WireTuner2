@@ -24,6 +24,13 @@ land: the strip under the Main toolbar, the left or right edge, or the bottom ab
 bar.  Drop it on the pasteboard to make it a floating, resizable palette.  The Tools panel
 docks vertically at a side edge or horizontally at the top or bottom.
 
+How a toolbar lays out::
+Where it is decides its shape.  In the strip under the Main toolbar or at the bottom it is one
+row.  In the narrow strip at the left edge it is a column.  Docked beside the panels -- alone or
+as a tab in a group -- or floating, its controls keep their natural size and wrap into rows as
+wide as the group: the Text toolbar's font family takes a row of its own, style and size share
+the next, and the buttons fill the rows after them.
+
 To see what a button does::
 Pause the pointer over it.  The tooltip shows the name and the shortcut.  Turn tooltips off in
 the *Panels* preferences (xref:preferences.adoc[Preferences]).
@@ -284,9 +291,11 @@ Nothing beyond storing and relaying changes.
   APP-003's `ToolManager.pushTemporary`, restored on key-up even mid-drag.
 * The Main toolbar is an `NSToolbar` with `allowsUserCustomization = true`; items are built
   from the command registry (APP-005) so the standard customization sheet lists every
-  command.  The other toolbars are `ToolbarView`s: `NSStackView` rows of `NSButton`s in a
-  `ToolbarHost` that supports dock strips (top, left, right, bottom) and floating `NSPanel`s,
-  sharing the drag code with panels.
+  command.  The other toolbars are `ToolbarView`s of `NSButton`s in a `ToolbarHost` that supports
+  dock strips (top, left, right, bottom) and floating `NSPanel`s, sharing the drag code with
+  panels.  Their layout follows where they are hosted, never their aspect ratio: one row in a top
+  or bottom strip, a column in a narrow side strip, rows that wrap at the host's width in a panel
+  group (wide controls on a row of their own).
 * Tool option sheets: `NSViewController`s hosting SwiftUI forms, presented as sheets on
   double-click; options persist in `NSUserDefaults` per tool id (they are preferences, not
   document data).
@@ -330,10 +339,10 @@ menu's panel list (`PanelDescriptor.showsInWindowMenu`) and listed under menu:Wi
 (`toolbar.show.<name>`): the five toolbars, a line, then *Customize…* (`toolbars.customize`) and
 *Reset Toolbars* (`toolbars.reset`), grouped by `MenuPath.subsection`.  menu:View[Toolbars] (`view.toolbars`) hides and restores the five toolbars and the
 Tools panel (not the Main `NSToolbar`); the set it hid is kept in
-`Application Support/WireTuner/Toolbars.json` with the customized buttons.  A `ToolbarView` is an
-`NSStackView` of `NSButton`s, a row when its host is wider than tall and a column otherwise, and
+`Application Support/WireTuner/Toolbars.json` with the customized buttons.  A `ToolbarView` lays out
+its `NSButton`s by where it is hosted (see the note on D-077's revision below) and
 revalidates its buttons after every window update.  The Text toolbar's font family, style and size are
-their own controls (two combo boxes and a pop-up, `ToolbarController.controls`; TYPE-017's note on
+their own controls (a family picker, a pop-up and a combo box, `ToolbarController.controls`; TYPE-017's note on
 xref:type-tools.adoc[Type tools]); its leading field, its alignment buttons and the Envelope
 toolbar's buttons and preset pop-up are disabled placeholder commands (`text.*`, `envelope.*`, no
 menu item) until the type and envelope epics register them.  The Info toolbar reads `ToolManager.info` (`ToolInfo`: position, delta, angle,
@@ -342,6 +351,21 @@ every pointer event (the canvas tracks `mouseMoved`), merged with the readouts o
 to `ToolInfoPublishing`; until their epics land, the stub transformation tools report the drag's
 angle about the press point, Polygon its default five sides and every other stub the drag's delta
 (`ToolReadout`).  Readouts are in points until the document's units reach the toolbar.
+
+NOTE: As built by D-077's revision (tbr; `WTApp/Toolbars/ToolbarFlowLayout.swift`, a new file;
+`ToolbarView.swift`).  `ToolbarView` no longer uses an `NSStackView` whose orientation followed
+`bounds.width >= bounds.height`: it places its items itself (`ToolbarFlowLayout`, flipped, 6 pt
+side and 4 pt top and bottom insets, 4 pt between items and rows) by `ToolbarPlacement`, read from
+the panel layout (`ToolbarPlacement.hosting`): `.row` (one row, never wrapping) in a top or bottom
+strip; `.column` in a left or right dock narrower than 140 pt (the 84 pt left strip); `.flow` in a
+wider side dock, as a tab among panels, floating, or outside the layout.  The Tools panel's extra
+buttons (`ToolbarViewRepresentable`) flow at the width SwiftUI proposes, one row when it proposes
+none.  In a flow, items keep their natural sizes (`ToolbarControl.toolbarSize`; buttons at least
+26 by 24 pt) and wrap at the view's width; a control with `takesFullRow` (the font family picker)
+starts a row of its own and stretches to the width, never below `minimumToolbarWidth`.  A flow or
+column asks its host for the rows' height (a required minimum-height constraint), so a docked
+group scrolls rather than squeezing them; its intrinsic width is none, so the host's width decides
+the wrapping.  The view re-lays out when the panel layout changes.  Drops insert in reading order.
 
 NOTE: Deviations recorded by BASIC-010.  The Main toolbar is `MainToolbarController`'s
 `NSToolbar` (identifier `com.villagecompute.wiretuner.main`, icon-only, unified compact), whose item

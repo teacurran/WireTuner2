@@ -14,8 +14,8 @@ To choose a font for selected text, do one of the following:
   warning icon), then every installed family; the families the document uses are marked.
 * Choose menu:Text[Font > Other…] to search: type part of a name to filter the list, pick a
   family and a face, and click btn:[OK].
-* Type or pick a family in the *Font Family* box of the Text toolbar.  The box completes the
-  name as you type; its list has your recent families first.
+* Click the *Font Family* picker in the Text toolbar and choose a family.  Each family is shown
+  in its own face, your recent ones first; type in its search field to filter the list.
 * Pick from the *Font* pop-up in the Text section of the Object panel.
 
 To set the size:
@@ -23,8 +23,8 @@ To set the size:
 * Choose menu:Text[Size] and a preset (9 to 72 points), *Smaller* (kbd:[Cmd+Shift+,]) or
   *Larger* (kbd:[Cmd+Shift+.]) for 1-point steps, or *Other…* to type any size from 1 to
   10,000 points.
-* Type a value in the *Font Size* box of the Text toolbar (or pick a preset from its list) and
-  press kbd:[Return].
+* Pick a preset from the *Font Size* box of the Text toolbar, or type a value and press
+  kbd:[Return].
 * Type a value in the *Size* field of the Object panel's Text section and press kbd:[Return].
 
 To choose a face:
