@@ -116,9 +116,15 @@ enum DistortKernels {
         return center + offset * (radius * lens(d / radius, perspective: perspective) / d)
     }
 
-    /// Fisheye: every anchor inside the lens mapped along its radial, its handles mapped with it.
+    /// Fisheye: the outline seen through the lens, wherever its points are.  Every segment that
+    /// passes through the lens is cut into pieces (see `warped`), each reshaped along its radials,
+    /// so an outline crossing the lens between two points bends smoothly; what lies outside the
+    /// lens keeps its points and handles.
     static func fisheye(_ contour: DistortContour, center: Point, radius: Double, perspective: Double) -> DistortContour {
-        mapped(contour) { fisheye($0, center: center, radius: radius, perspective: perspective) }
+        guard radius > 0 else { return contour }
+        return warped(contour, Warp(radius: radius, touches: { hullMeetsDisk([$0.p0, $0.p1, $0.p2, $0.p3], center: center, radius: radius) }) {
+            fisheye($0, center: center, radius: radius, perspective: perspective)
+        })
     }
 
     /// `contour` with every anchor and handle end mapped through `map`.
@@ -130,6 +136,150 @@ enum DistortKernels {
             copy.outHandle = point.outHandle == .zero ? .zero : map(point.anchor + point.outHandle) - copy.anchor
             return copy
         }, closed: contour.closed)
+    }
+
+    // MARK: Warping
+
+    /// A non-affine map of a region, and how finely an outline is cut to follow it.
+    struct Warp {
+        /// The map, the identity wherever `touches` is false.
+        var map: (Point) -> Point
+        /// Whether the map may move any point of the curve (tested on its control points' hull).
+        var touches: (CubicBezier) -> Bool
+        /// The longest piece mapped at once (control-polygon length).
+        var spacing: Double
+        /// The largest distance a piece may stray from the true mapped curve.
+        var tolerance: Double
+        /// The shortest piece cut further.
+        var minimum: Double
+        /// The finite-difference step of the map's derivative.
+        var step: Double
+
+        /// The warp of a region of `radius`: pieces no longer than a radius / 8, true to within
+        /// 0.05 pt (a radius / 200 for a small one).
+        init(radius: Double, touches: @escaping (CubicBezier) -> Bool, map: @escaping (Point) -> Point) {
+            self.map = map
+            self.touches = touches
+            spacing = radius / 8
+            tolerance = min(0.05, radius / 200)
+            minimum = radius / 256
+            step = radius / 512
+        }
+    }
+
+    /// `contour` through `warp`: a segment the warp does not touch is kept as it is; one it does is
+    /// cut into pieces no longer than `warp.spacing` (shorter where the mapped piece strays more than
+    /// `warp.tolerance`), each mapped as the cubic with the mapped ends and the mapped end tangents.
+    /// Existing points keep their ids and kinds; the points between pieces are new (the zero id)
+    /// smooth curve points.
+    static func warped(_ contour: DistortContour, _ warp: Warp) -> DistortContour {
+        let points = contour.points
+        let segments = contour.segments
+        guard !segments.isEmpty else { return mapped(contour, warp.map) }
+        let pieces = segments.map { warp.touches($0) ? warpedPieces($0, warp) : nil }
+        var result: [VectorPoint] = []
+        for index in points.indices {
+            var point = points[index]
+            point.anchor = warp.map(point.anchor)
+            let arriving = index > 0 ? index - 1 : (contour.closed ? segments.count - 1 : nil)
+            if let arriving {
+                if let last = pieces[arriving]?.last { point.inHandle = last.p2 - last.p3 }
+            } else {
+                point.inHandle = point.inHandle == .zero ? .zero : warp.map(points[index].anchor + point.inHandle) - point.anchor
+            }
+            if index < segments.count {
+                if let first = pieces[index]?.first { point.outHandle = first.p1 - first.p0 }
+            } else {
+                point.outHandle = point.outHandle == .zero ? .zero : warp.map(points[index].anchor + point.outHandle) - point.anchor
+            }
+            result.append(point)
+            guard index < segments.count, let cut = pieces[index] else { continue }
+            for (previous, piece) in zip(cut, cut.dropFirst()) {
+                let inHandle = previous.p2 - previous.p3, outHandle = piece.p1 - piece.p0
+                result.append(VectorPoint(anchor: piece.p0, inHandle: inHandle, outHandle: outHandle,
+                                          kind: ContourPoints.smooth(inHandle, outHandle) ? .curve : .corner))
+            }
+        }
+        return DistortContour(points: result, closed: contour.closed)
+    }
+
+    /// `segment` through `warp` as mapped pieces, in order.
+    static func warpedPieces(_ segment: CubicBezier, _ warp: Warp) -> [CubicBezier] {
+        // The parameter ranges, and whether the warp moves each.
+        var ranges: [(t0: Double, t1: Double, moved: Bool)] = []
+        func visit(_ t0: Double, _ t1: Double, depth: Int) {
+            let piece = segment.subdivide(from: t0, to: t1)
+            guard warp.touches(piece) else {
+                if let last = ranges.last, !last.moved, last.t1 == t0 { ranges[ranges.count - 1].t1 = t1 } else { ranges.append((t0, t1, false)) }
+                return
+            }
+            let length = piece.controlPolygonLength
+            let divisible = depth < 16 && length > warp.minimum
+            if divisible, length > warp.spacing || strays(segment, t0, t1, warp) {
+                let middle = (t0 + t1) / 2
+                visit(t0, middle, depth: depth + 1)
+                visit(middle, t1, depth: depth + 1)
+            } else {
+                ranges.append((t0, t1, true))
+            }
+        }
+        visit(0, 1, depth: 0)
+        return ranges.map { $0.moved ? mappedPiece(segment, $0.t0, $0.t1, warp) : segment.subdivide(from: $0.t0, to: $0.t1) }
+    }
+
+    /// The cubic from the mapped point at `t0` to the one at `t1` with the mapped tangents there.
+    static func mappedPiece(_ segment: CubicBezier, _ t0: Double, _ t1: Double, _ warp: Warp) -> CubicBezier {
+        let span = t1 - t0
+        let start = warp.map(segment.evaluate(t0)), end = warp.map(segment.evaluate(t1))
+        return CubicBezier(start, start + mappedTangent(segment, t0, warp) * (span / 3), end - mappedTangent(segment, t1, warp) * (span / 3), end)
+    }
+
+    /// The derivative of the mapped curve at `t`: the map's derivative along the curve's tangent
+    /// (a central difference of `warp.step`), times the curve's speed.
+    static func mappedTangent(_ segment: CubicBezier, _ t: Double, _ warp: Warp) -> Vector {
+        let velocity = segment.derivative(t)
+        let speed = velocity.length
+        guard speed > 1e-12 else { return Vector(dx: 0, dy: 0) }
+        let unit = velocity / speed, point = segment.evaluate(t)
+        return (warp.map(point + unit * warp.step) - warp.map(point - unit * warp.step)) * (speed / (2 * warp.step))
+    }
+
+    /// Whether the mapped piece strays from the true mapped curve by more than the tolerance
+    /// (checked at its quarters).
+    static func strays(_ segment: CubicBezier, _ t0: Double, _ t1: Double, _ warp: Warp) -> Bool {
+        let piece = mappedPiece(segment, t0, t1, warp)
+        return [0.25, 0.5, 0.75].contains { s in
+            piece.evaluate(s).distance(to: warp.map(segment.evaluate(t0 + (t1 - t0) * s))) > warp.tolerance
+        }
+    }
+
+    /// Whether the convex hull of `points` meets the open disk of `radius` about `center`.
+    static func hullMeetsDisk(_ points: [Point], center: Point, radius: Double) -> Bool {
+        if points.contains(where: { $0.distance(to: center) < radius }) { return true }
+        for (i, a) in points.enumerated() {
+            for b in points[(i + 1)...] where distance(from: center, toSegment: a, b) < radius { return true }
+        }
+        // The disk wholly inside the hull: the centre inside one of its triangles.
+        for i in points.indices {
+            for j in (i + 1)..<points.count {
+                for k in (j + 1)..<points.count where inside(center, points[i], points[j], points[k]) { return true }
+            }
+        }
+        return false
+    }
+
+    static func distance(from p: Point, toSegment a: Point, _ b: Point) -> Double {
+        let ab = b - a
+        let lengthSquared = ab.lengthSquared
+        guard lengthSquared > 0 else { return p.distance(to: a) }
+        let t = min(max((p - a).dot(ab) / lengthSquared, 0), 1)
+        return p.distance(to: a + ab * t)
+    }
+
+    static func inside(_ p: Point, _ a: Point, _ b: Point, _ c: Point) -> Bool {
+        guard abs((b - a).cross(c - a)) > 1e-12 else { return false }
+        let d1 = (b - a).cross(p - a), d2 = (c - b).cross(p - b), d3 = (a - c).cross(p - c)
+        return (d1 >= 0 && d2 >= 0 && d3 >= 0) || (d1 <= 0 && d2 <= 0 && d3 <= 0)
     }
 
     // MARK: Bend

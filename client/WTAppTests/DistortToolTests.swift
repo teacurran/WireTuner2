@@ -104,7 +104,7 @@ import WTRender
         let lensed = DistortKernels.fisheye(DistortContour(points: Self.circle, closed: true), center: Point(x: 150, y: 150), radius: 80, perspective: -50)
         #expect(lensed.points[0].anchor.x < 200 && lensed.points[0].outHandle.length > 0)
         let corners = DistortKernels.fisheye(Self.contour(Self.square), center: Point(x: 150, y: 150), radius: 200, perspective: 50)
-        #expect(corners.points.allSatisfy { $0.inHandle == .zero }, "retracted handles stay retracted")
+        #expect(corners.points.count > 4 && corners.points.contains { $0.inHandle != .zero }, "the straight sides bow through the lens")
     }
 
     @Test func bendSpikesOnAnUpDragAndBloatsOnADownDrag() {

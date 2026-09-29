@@ -5,7 +5,8 @@ import WTModel
 import WTProto
 import WTRender
 
-/// The selected paths a distortion drag reshapes, captured at the press (path-effects.adoc; FX-032):
+/// The selected paths and live shapes (a group's, too) a distortion drag reshapes, captured at the
+/// press (path-effects.adoc; FX-032; a shape converts to a path in the same change, D-078):
 /// each path's contours in pasteboard space, the preview the overlay draws, and the one change the
 /// release writes -- a `RewritePath` per path, its points mapped back into the path's own space
 /// (existing points keep their ids, so the change merges point by point).
@@ -14,7 +15,16 @@ struct DistortTargets {
     let targets: [PathSplitting.Target]
 
     init(_ context: ToolContext) {
-        targets = PathSplitting.targets(context.selection.selection, document: context.document)
+        targets = PathSplitting.targets(Self.members(context.selection.selection, document: context.document), document: context.document)
+    }
+
+    /// `selection` with every group opened to the objects inside it, at any depth: a distortion
+    /// reshapes a group's paths and live shapes as if each were selected (FreeHand's distort tools
+    /// work on a selected group).  Anything else inside (text, images) is left alone.
+    static func members(_ selection: Selection, document: DocumentHandle) -> Selection {
+        let state = document.state
+        func opened(_ node: OpID) -> [OpID] { state.nodeKind(node) == .group ? state.liveChildren(node).flatMap(opened) : [node] }
+        return Selection(selection.ids.flatMap { id in state.nodeKind(id.opID) == .group ? opened(id.opID).map { SelectionID($0) } : [id] })
     }
 
     var isEmpty: Bool { targets.isEmpty }

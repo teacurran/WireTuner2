@@ -69,21 +69,31 @@ paths]).
 == Fisheye lens
 
 The Fisheye Lens tool distorts the selection as if seen through a round lens: *convex* bulges
-the middle outward, *concave* sinks it.  Symmetrical shapes and grids show it best.
+the artwork under the lens outward, *concave* pinches it in.  The outline changes smoothly
+wherever it passes under the lens, however few points it has there -- {product} adds the points
+the new shape needs -- and whatever lies outside the lens is left as it was.  Symmetrical
+shapes and grids show it best.
+
+The lens works on selected paths, on rectangles, ellipses and polygons (each becomes an
+ordinary path in the same step, and one undo brings the live shape back), and on every path and
+shape inside a selected group.  To distort text, convert it to paths first
+(xref:text-to-paths.adoc[Converting text to paths]).  A lens that covers no outline -- one
+drawn wholly inside a shape's fill -- changes nothing.
 
 To set Fisheye Lens options:
 
-. Double-click the Fisheye Lens tool.
-. Set *Perspective* from −100 (fully concave) to 100 (fully convex), by field or slider.  The
-  preview shows the distortion.
-. Click btn:[OK].
+. Double-click the Fisheye Lens tool, or choose menu:Extensions[Distort > Fisheye Lens…].
+. Set *Perspective* from −100 (fully concave) to 100 (fully convex) in the field or with its
+  arrows; 0 changes nothing.
+. Click btn:[Done].  The setting applies to the next lens you draw.
 
 To apply the lens:
 
-. Select the Fisheye Lens tool from its pop-up.
-. Drag over the selection to draw the lens.  The drag's start is the lens centre and its
-  length the radius; kbd:[Option]-drag draws the lens from its centre outward.  Release to
-  apply.
+. Select the Fisheye Lens tool from the Freeform tool's pop-up in the Tools panel.
+. Drag across the selection to draw the lens: the circle whose diameter is the drag.
+  kbd:[Option]-drag draws the lens from its centre: the press is the centre and the drag the
+  radius.  The distorted outline previews as you drag.
+. Release to apply.  The lens is one undo step, "Fisheye lens".
 
 == Bending and bloating
 
@@ -406,9 +416,11 @@ Kernels::
 * *Roughen*: sample the outline every `1/amount` inch, displace by
   `random(−1, 1) × dragDistance × 0.1`, rebuild corner or curve points.  Unseeded: this is a
   one-time operation and the result is written, so replicas never recompute it.
-* *Fisheye*: for each point inside the lens circle of radius `r` at distance `d`, map
-  `d' = r × f(d/r, perspective)` with `f` the barrel/pincushion curve; handles mapped with
-  their anchors.
+* *Fisheye*: every point of the outline inside the lens circle of radius `r` at distance `d`
+  maps to `d' = r × f(d/r, perspective)` with `f` the barrel/pincushion curve.  Segments that
+  pass through the lens are subdivided first (pieces no longer than `r/8`, finer where the
+  mapped piece strays more than 0.05 pt), so the outline follows the map between its points;
+  points outside the lens are untouched.
 * *Bend tool*: the Bend effect kernel with `size = ±dragDistance × amount/10`, sign from the
   drag direction (up negative for spike: points outward, segments inward -- implemented as
   anchor displacement outward with handle displacement inward).
@@ -517,9 +529,26 @@ and renders the same outline as the effect of the same size.  Roughen samples ev
 by arc length and moves every point along the normal by `random(−1, 1) × distance × 0.1` with one
 random seed per press (preview and result agree); *Smooth* gives Catmull-Rom curve points.  The lens
 curve is `x^(1 / (1 + 2p))` for a convex perspective `p` and `x^(1 − 2p)` for a concave one.  The
-Fisheye drag draws the circle *across* the drag; with kbd:[Option] the press is the centre and the
-drag the radius.  The tools reshape paths; select a shape's path to distort it.  Options are the
-tools' preferences (their sheets list them).
+Fisheye drag draws the circle *across* the drag (its diameter); with kbd:[Option] the press is the
+centre and the drag the radius.  The tools reshape the selected paths and live shapes (converted in
+the same change, D-078) and the paths and shapes inside a selected group, at any depth
+(`DistortTargets.members`).  Options are the tools' preferences (their sheets list them: a stepper
+field and btn:[Done]; *Deviation*: no slider and no preview in the sheet, the drag previews).
+
+NOTE: As built, Fisheye Lens fix (found in use, 2026-09-29: "the Fisheye filter isn't working" on an
+ellipse).  The kernel had moved only the anchors and handle ends strictly inside the lens, so a lens
+over an outline between points (an ellipse is four) moved nothing, and a live ellipse left
+unchanged stayed live with nothing written.  `DistortKernels.fisheye` now runs through
+`DistortKernels.warped`: a segment whose control hull meets the lens is bisected until each piece's
+control polygon is at most `r/8` long and the piece, mapped as the cubic through the mapped ends
+with the mapped end tangents (a central difference of the lens map, step `r/512`), stays within
+`min(0.05 pt, r/200)` of the mapped curve at its quarters (pieces no shorter than `r/256`, depth
+16); pieces the lens misses are kept exactly and merged back, so a segment the lens misses keeps its
+points and handles.  Existing points keep their ids and kinds; the points between pieces are new
+(the zero id) smooth curve points.  The preview is the same kernel over the same targets, so it is
+the change.  Of the other kernels, Roughen already samples the outline, and the Bend tool keeps
+the Bend effect's anchor-and-handle arithmetic so it draws what the effect draws
+(`DistortToolTests`); neither was changed.  Tests: `FisheyeLensTests`.
 
 NOTE: As built by FX-033 (`WTApp/Effects/Distort/CopyTools.swift`; the change is WTModel's
 `CopiesBehind`).  Each object's copies are deep copies placed behind it and grouped with it in its
