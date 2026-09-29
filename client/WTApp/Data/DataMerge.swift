@@ -331,13 +331,25 @@ final class MergePrintView: NSView {
     /// Each output page's size, in order (pages stack top to bottom).
     private let sizes: [CGSize]
 
+    // Not optimized: the Swift 6.3 optimizer (Xcode 26.4) crashes on this initializer in Release
+    // ("Invalid SIL provided to OSSACompleteLifetime"); it runs once per Print Merge, so -Onone
+    // here costs nothing.  Remove when a toolchain compiles it.
+    @_optimize(none)
     init(output: MergeOutput, textLayout: TextSceneLayout) {
+        // The sizes are computed before any stored property is set.
+        let sizes = Self.pageSizes(output)
         self.output = output
         self.textLayout = textLayout
-        let pages = PageList(output.state)
-        sizes = output.plan.map { planned in pages[planned.template].map { CGSize(width: $0.rect.width, height: $0.rect.height) } ?? CGSize(width: 612, height: 792) }
+        self.sizes = sizes
         let width = sizes.map(\.width).max() ?? 612
         super.init(frame: NSRect(x: 0, y: 0, width: width, height: sizes.reduce(0) { $0 + $1.height }))
+    }
+
+    private static func pageSizes(_ output: MergeOutput) -> [CGSize] {
+        let pages = PageList(output.state)
+        return output.plan.map { planned in
+            pages[planned.template].map { CGSize(width: $0.rect.width, height: $0.rect.height) } ?? CGSize(width: 612, height: 792)
+        }
     }
 
     @available(*, unavailable)
