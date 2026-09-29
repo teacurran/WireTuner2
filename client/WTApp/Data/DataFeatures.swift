@@ -30,6 +30,9 @@ final class DataPanelState {
 /// every command acts on the front window, each window keeping its own `DataSession`.
 @MainActor
 final class DataFeatures {
+    /// Local mode (D-079): web API sources, credentials and hosts need the WireTuner service.
+    var isLocal: @MainActor () -> Bool = { false }
+
     enum ID {
         static let insertField: CommandID = "data.insertField"
         static let insertBarcode: CommandID = "data.insertBarcode"

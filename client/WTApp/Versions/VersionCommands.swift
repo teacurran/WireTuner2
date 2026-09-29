@@ -140,14 +140,17 @@ final class VersionFeatures {
     @discardableResult
     func save(name: String, note: String, in window: DocumentWindowController) async -> VersionSaving.Outcome {
         let outcome = await saver(for: window.documentHandle).save(name: name, note: note)
-        window.statusBar.show(message: Self.message(for: outcome, name: name))
+        window.statusBar.show(message: Self.message(for: outcome, name: name, isLocal: isLocal()))
         return outcome
     }
 
-    static func message(for outcome: VersionSaving.Outcome, name: String) -> String {
+    /// Local mode (D-079): a version waits on this Mac, and says so.
+    var isLocal: @MainActor () -> Bool = { false }
+
+    static func message(for outcome: VersionSaving.Outcome, name: String, isLocal: Bool = false) -> String {
         switch outcome {
         case .named: "Saved version “\(name)”"
-        case .pending: "Saved version “\(name)”, pending until your changes upload"
+        case .pending: isLocal ? "Saved version “\(name)” on this Mac" : "Saved version “\(name)”, pending until your changes upload"
         }
     }
 

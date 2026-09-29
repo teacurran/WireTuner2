@@ -687,7 +687,8 @@ import WTProto
         #expect(delegate.documents.documents.count == 1)
         #expect(delegate.menuTarget?.perform(StandardCommands.ID.new) == true)
         #expect(delegate.documents.documents.count == 2)
-        #expect(library.cache.documents.count == 1)
+        // The launch document is a library document too (D-079).
+        #expect(library.cache.documents.count == 2)
         library.open([LibraryDocument(id: "lib-1", spaceID: "s", name: "From library")])
         #expect(delegate.documents.document(id: "lib-1")?.title == "From library")
         let task = delegate.showLibrary()

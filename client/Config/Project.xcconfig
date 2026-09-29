@@ -1,0 +1,5 @@
+// The project-level build settings every configuration of every target starts from
+// (project.yml, configFiles).  Each included file owns one concern.
+#include "Signing.xcconfig"
+#include "Version.xcconfig"
+#include "Distribution.xcconfig"

@@ -245,5 +245,9 @@ import WTRender
         #expect(links.open(UUID().uuidString, "Linked") != nil && delegate.documents.documents.count == before + 1)
         // The URL handler takes deep links; the link lands in the open window.
         #expect(delegate.open(DeepLink(documentID: window.documentHandle.id).url))
+        // It lands before the windows close: the launch document is in the library (D-079), so a
+        // link landing after them would open it again.
+        let landing = try #require(links.opens(DeepLink(documentID: window.documentHandle.id).url))
+        if case .landed = await landing.value {} else { Issue.record("the link did not land in the open window") }
     }
 }

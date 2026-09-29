@@ -831,7 +831,18 @@ Done when::
 * The live handles still work with the Pointer; the path commands take shapes and leave unchanged ones live.
 * Merge test: a conversion vs. a concurrent radius edit ends as *edit vs delete*.
 
-== Waves
+[[APP-012]]
+==== APP-012 Local mode
+[horizontal]
+Track:: client-ui
+Depends on:: APP-008, APP-009, IO-001, IO-005, IO-006, IO-007
+Size:: L
+Delivers:: xref:decisions.adoc#D-079[D-079]: `WT_LOCAL_MODE` and endpoint-less builds run without a server, and a build with a server runs so after *Use Without an Account*; the *On this Mac* state, no sign-in, no quit sheet, no launch uploads; server-only commands disabled with *Needs a WireTuner account* (the command registry's gate); the Library's rename, move, folders, duplicate, Trash with Restore, Delete Permanently and Empty Trash on the cache alone; menu:File[Save a Copy As…]; the launch's untitled document recorded in the Library; the upload of everything made in Local mode on the first sign-in (xref:saving.adoc#using-wiretuner-without-an-account[saving.adoc], xref:creating-opening.adoc[]).
+Done when::
+* A Local mode launch shows no sign-in command, no *Sign in to sync*, no cloud state and no quit sheet; server commands are disabled with the reason.
+* Local trash, restore, delete permanently, folders, duplicate and rename work without a server; *Save a Copy As…* round-trips a document; the launch document is in the Library.
+* Signing in afterwards creates the documents in the personal space and uploads their changes (fake server).
+
 
 Agents work in waves; a wave's tasks depend only on earlier waves.
 
@@ -864,7 +875,7 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 |The reachability follow-ups: DRAW-060, DRAW-061, OBJ-060, IMG-060, COLLAB-060, TYPE-060, PRINT-060
 
 |8
-|Found in use: DRAW-062
+|Found in use: DRAW-062, APP-012
 |===
 
 Feature epics list their own tasks on their pages; the xref:index.adoc[table of contents] is

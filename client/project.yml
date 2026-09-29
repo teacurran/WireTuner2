@@ -17,10 +17,11 @@ configs:
   Debug: debug
   Release: release
 
-# Signing is entirely in the xcconfig so a team id never lands in the pbxproj.
+# Signing, the version and the update feed are in the xcconfigs (Config/Project.xcconfig includes
+# them) so a team id never lands in the pbxproj and the version has one source (releasing.adoc).
 configFiles:
-  Debug: Config/Signing.xcconfig
-  Release: Config/Signing.xcconfig
+  Debug: Config/Project.xcconfig
+  Release: Config/Project.xcconfig
 
 settings:
   base:
@@ -31,8 +32,7 @@ settings:
     DEAD_CODE_STRIPPING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
-    CURRENT_PROJECT_VERSION: 1
-    MARKETING_VERSION: 0.1.0
+    # MARKETING_VERSION and CURRENT_PROJECT_VERSION: Config/Version.xcconfig (make bump-build).
   configs:
     Debug:
       SWIFT_OPTIMIZATION_LEVEL: -Onone
@@ -84,14 +84,18 @@ targets:
         NSHumanReadableCopyright: "Copyright 2026 Village Compute"
         NSHighResolutionCapable: true
         NSSupportsAutomaticGraphicsSwitching: true
-        # Sparkle.  The feed URL is a placeholder until the distribution task publishes an
-        # appcast; SUPublicEDKey is added by the same task (generate_keys), and the updater is
-        # started only once it is present (see AppDelegate).
-        SUFeedURL: https://updates.villagecompute.com/wiretuner/appcast.xml
+        # Sparkle (releasing.adoc; D-080): the channel's appcast and the EdDSA public key, both
+        # from Config/Distribution.xcconfig.  The key is empty except in `make release` builds,
+        # and the updater starts only when it is present (AppDelegate).
+        SUFeedURL: $(WT_UPDATE_FEED_URL)
+        SUPublicEDKey: $(WT_SPARKLE_PUBLIC_KEY)
         SUEnableInstallerLauncherService: true
         # Sign-in and API endpoints (APP-008), from the build settings below.
         WTAuthIssuer: $(WT_AUTH_ISSUER)
         WTAPIURL: $(WT_API_URL)
+        # Local mode (decisions.adoc D-079): YES runs the app without a server -- no sign-in, no
+        # sync, the library on this Mac alone.  Empty endpoints above do the same.
+        WTLocalMode: $(WT_LOCAL_MODE)
         # Where share links and team invitations point (the server's wt.links.base-url).
         WTLinksURL: $(WT_LINKS_URL)
         # The app group the share extension's inbox lives in (IMG-026): team-prefixed, as macOS
@@ -227,10 +231,16 @@ targets:
         WT_AUTH_ISSUER: http://localhost:8180/realms/wiretuner
         WT_API_URL: http://localhost:8080
         WT_LINKS_URL: https://wiretuner.app
+        # Local mode (D-079; building.adoc, "Local mode builds"): NO for Debug, which talks to the
+        # compose stack; YES for Release until a server exists, so beta builds need no account.
+        WT_LOCAL_MODE: NO
         GENERATE_INFOPLIST_FILE: NO
         # App only: a hardened XCUITest runner refuses to load an ad-hoc-signed test bundle
         # ("different Team IDs"), so the test targets are not hardened.
         ENABLE_HARDENED_RUNTIME: YES
+      configs:
+        Release:
+          WT_LOCAL_MODE: YES
     # The Help Book (BASIC-007; building.adoc, "Help Book"): `make help-book` renders the guide into
     # client/build/HelpBook, and this phase copies it into Resources/HelpBook, where the Help panel
     # loads a page by slug.  Without it (a plain local build) the panel shows its catalog pages and

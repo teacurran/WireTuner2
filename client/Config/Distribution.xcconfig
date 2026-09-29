@@ -1,0 +1,16 @@
+// Sparkle updates (docs/spec/releasing.adoc; decisions.adoc D-080).
+//
+// WT_UPDATE_CHANNEL names the feed a build follows: the appcast is
+// https://updates.villagecompute.com/wiretuner/<channel>/appcast.xml, served from the R2 bucket
+// behind updates.villagecompute.com.  The release scripts read the feed back from the built app's
+// SUFeedURL, so this file is the only place the URL is written.  ("$()" keeps xcconfig from
+// reading the "//" of the scheme as a comment.)
+WT_UPDATE_CHANNEL = beta
+WT_UPDATE_FEED_URL = https:/$()/updates.villagecompute.com/wiretuner/$(WT_UPDATE_CHANNEL)/appcast.xml
+
+// The EdDSA public key Sparkle checks every update against (SUPublicEDKey).  Empty here on
+// purpose: `make release` passes it on the command line from WT_SPARKLE_PUBLIC_KEY or from the
+// private key in the owner's keychain (`generate_keys -p`), and the app starts its updater only
+// when the key is present (AppDelegate).  Debug and test builds therefore never check for updates.
+// The private key never enters the repository.
+WT_SPARKLE_PUBLIC_KEY =

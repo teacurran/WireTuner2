@@ -1,0 +1,14 @@
+// The version of WireTuner and of everything it embeds: the single source for
+// CFBundleShortVersionString (MARKETING_VERSION) and CFBundleVersion (CURRENT_PROJECT_VERSION).
+//
+// Edit it only through the Makefile (docs/spec/releasing.adoc):
+//
+//     make bump-build                  # CURRENT_PROJECT_VERSION + 1, every release
+//     make bump-version VERSION=0.2.0  # a new marketing version; the build number keeps counting
+//
+// The build number never resets and never goes down: Sparkle compares CFBundleVersion to decide
+// whether an update is newer, and `make release` refuses a build number the published appcast
+// already holds.
+
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1

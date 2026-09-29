@@ -151,8 +151,10 @@ extension AppDelegate {
                                                                   defaults: preferences.defaults, enabled: preferences.syncEnabled))
 
         // WEB-013.
+        let localMode = localMode
         WebLinks.services = launchEnvironment.makeWebLinkServices(sessions: sessions, account: account, library: library,
-                                                                  infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults)
+                                                                  infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults,
+                                                                  isLocal: { localMode.isActive })
 
         // LIB-013.
         let transfer = SymbolTransferFeatures()

@@ -20,7 +20,13 @@ move it; both can be done from the title bar's document menu or in the Library w
 document is shared with nobody until you share it (xref:sharing.adoc[Sharing]).
 
 If you are offline, the document is created locally and uploaded when you reconnect; you can work
-in it in the meantime exactly as if you were online.
+in it in the meantime exactly as if you were online.  The same goes for working without an account
+(xref:saving.adoc#using-wiretuner-without-an-account[Using {product} without an account]): documents
+are made on this Mac and uploaded to your personal space if you sign in one day.
+
+When {product} starts with nothing to reopen, it opens a new *Untitled* document, made exactly as
+menu:File[New] makes one: it is in the Library straight away, and you can rename, move or trash it
+there like any other.
 
 == Opening a document
 
@@ -51,13 +57,33 @@ menu:File[Open Recent], ten deep.
 Offline available:: A badge on every document that has a copy on this Mac.  Only these can be
 opened without a network connection; the rest are listed but dimmed while offline.  Right-click a
 document and choose *Keep Available Offline* to download it now.
+Trash:: *Move to Trash* in a document's menu.  With an account, the *Trash* in the sidebar is your
+space's, kept 30 days (xref:branches.adoc[Branches]).
+
+=== The Library without an account
+
+Without an account the Library window lists the documents on this Mac, and its toolbar reads *On
+this Mac* instead of *Offline*.  Everything in it works on this Mac:
+
+* Right-click a document to *Rename…*, *Duplicate* (a new document "<name> copy" with the same
+  content), *Use as Template* or *Move to Trash*; drag it onto a folder to move it.
+* btn:[New] > *New Folder* makes a folder; right-click a folder to *Rename Folder…* or *Delete
+  Folder* (what it held moves up to the folder around it).
+* *Trash* in the sidebar lists what you trashed.  Right-click a document there to *Restore* it or
+  *Delete Permanently…*; btn:[Empty Trash] deletes them all.  A document deleted permanently is
+  gone from this Mac, and nothing else holds a copy -- save a copy as a package first if you may
+  need it (xref:saving.adoc#packages-a-document-as-a-file[Packages]).
+
+*Shared with me*, *Join Team…* and *Keep Available Offline* need an account and are not shown.
 
 Opening a document you already have open brings its window forward.  Opening a document someone
 else is editing simply joins them (xref:collaboration.adoc[Working together]).
 
 === Opening other file types
 
-menu:File[Open…] opens {product} documents from the library.  To bring in Illustrator files,
+menu:File[Open…] opens {product} documents from the library.  A {product} package -- the
+`.wiretuner` file menu:File[Save a Copy As…] writes -- opens with menu:File[Open Package…] or a
+double-click in the Finder, as a new document in the library.  To bring in Illustrator files,
 PDF, EPS and other formats, use menu:File[Import…] or drag the file onto the Library window,
 which creates a new document from it (xref:import-formats.adoc[Import formats]).  The original
 file is never modified.
@@ -76,6 +102,7 @@ menu:{product}[Quit {product}] (kbd:[Cmd+Q]).  Nothing is asked about saving: ev
 already in the document.  If some of your changes have not reached the server yet -- you are
 offline, or the upload is still running -- quitting keeps them on this Mac and sends them next time
 {product} runs, and the quit alert says so ("3 changes will sync when you are back online").
+Without an account nothing is ever waiting, so quitting asks nothing.
 
 == Document preferences
 
@@ -210,7 +237,7 @@ uploads.  Being signed out is treated like being offline (cached list, names-onl
 Recents are this Mac's (50 kept) until DOC-020 syncs them through the account.  A search hit
 missing from the cache is fetched with `Get`.  menu:File[New] and btn:[New] create through the
 library at once (UUIDv7, *Waiting to upload* until `Create` succeeds; `ALREADY_EXISTS` counts as
-uploaded), but the untitled document opened at launch has no library record until DOC-019.  The
+uploaded), but the untitled document opened at launch has no library record until DOC-019 (APP-012 records it).  The
 template gallery offers only the built-in template until DOC-019.  Documents move between
 folders by dragging onto a folder tile; there is no Trash view yet (`LIST_SCOPE_TRASH`).  (COLLAB-016 added the sidebar's
 *Trash* and *Archived*, `LibraryBranches`; branches.adoc.)
@@ -244,11 +271,25 @@ another Mac opened shows (by name) before this Mac has listed it.  The Window me
 window, the front one checked (`window.document.<n>`).  kbd:[Cmd+Shift+\]] and kbd:[Cmd+Shift+[] are alternate keys of *Show
 Next Tab* and *Show Previous Tab*.  The quit alert (IO-007's `QuitCoordinator`), *Restore view when opening* and *Remember window
 size and location* (BASIC-001, `WindowStateStore`) were already built.  The untitled document opened at launch (when no session
-is restored and the gallery is not shown) still has no library record.  DOC-020's UI tests are app-hosted tests over a whole
+is restored and the gallery is not shown) still has no library record (APP-012 records it: see below).  DOC-020's UI tests are app-hosted tests over a whole
 `AppDelegate` (`WTAppTests/DocumentFlowTests.swift`) rather than XCUITest, which the build machine does not run: menu:File[New]
 through its kbd:[Cmd+N] menu item, open from Recents after closing, kbd:[Cmd+Shift+\]] / kbd:[Cmd+Shift+[] through the active
 shortcut set (alternate keys are bindings, not menu items) to `selectNextTab:` / `selectPreviousTab:` on the front
 window (the tab group's selection is checked when the test host is the active app: AppKit moves it only then), kbd:[Cmd+W], and quitting with a session's changes waiting (the quit sheet, Cancel).
+
+NOTE: As built by APP-012 (Local mode, xref:decisions.adoc#D-079[D-079]; `WTApp/Library/LibraryModel.swift`, `LibraryView.swift`,
+`WTApp/Account/LocalModeFeatures.swift`).  The launch's untitled document is made by `TemplateFeatures.newDocumentNow()` (the
+library's `createDocument`, the default template), so it has a library record, a UUIDv7 and the recents entry.  In Local mode
+(`LibraryModel.isLocal`) `refresh`, `reloadSection`, `loadMore`, search, thumbnails, templates and mentions call nothing; every
+document is available; `recordDocument` starts no upload; rename, move, *Use as Template*, trash, `restore`, `deletePermanently`
+(the app closes its windows, releases its session and deletes the store, `removeFromThisMac`), `emptyTrash`, `duplicate` (a new
+record whose store is filled through `LocalDocumentCopy`, the source's state re-issued as `DuplicateChunk`s) and the folder
+operations change `Library.json` alone, one save each.  A folder made in Local mode carries `local: true`; the first refresh after a
+sign-in creates such folders on the server parents first (`CreateFolder`), re-points their documents and subfolders at the new ids,
+then uploads the pending documents (a trashed one is trashed after its `Create`).  The sidebar shows *Trash* (`Section.trash`,
+`LibraryCacheFile.trashedDocuments`) in place of *Shared with Me* and the server's *Archived* and *Trash*; *Join Team…*, *Keep
+Available Offline*, *Remove Local Copy…* and the refresh button are not shown; *Use as Team Library* is disabled with *Needs a
+WireTuner account*.  Tests: `LocalLibraryTests`, `LocalModeTests.theLaunchDocumentIsInTheLibrary`.
 
 === Build tasks
 

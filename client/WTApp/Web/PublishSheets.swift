@@ -135,7 +135,8 @@ final class PublishModel {
     private func publishToWebLink() -> Task<Void, Never>? {
         guard let window, phase != .publishing else { return nil }
         guard let services = WebLinks.services, services.isOnline else {
-            phase = .failed("Publishing to a web link needs a connection")
+            phase = .failed(WebLinks.unavailableReason == LocalMode.needsAccount
+                ? "Publishing to a web link needs a WireTuner account" : "Publishing to a web link needs a connection")
             return nil
         }
         guard let pages, !pages.isEmpty else {
@@ -231,7 +232,7 @@ struct PublishSheet: View {
             }
             Picker("Publish to", selection: $model.destination) {
                 Text("Folder on this Mac").tag(PublishDestination.folder)
-                Text(model.webLinkAvailable ? "Web link" : "Web link (Needs a connection)").tag(PublishDestination.webLink)
+                Text(model.webLinkAvailable ? "Web link" : "Web link (\(WebLinks.unavailableReason))").tag(PublishDestination.webLink)
                     .selectionDisabled(!model.webLinkAvailable)
             }
             .pickerStyle(.radioGroup)

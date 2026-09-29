@@ -138,7 +138,8 @@ final class SyncActivityWindow {
 /// saved (the *Available offline* badge says the rest).
 enum LibrarySyncBadge {
     static func badge(_ state: SyncState?) -> (symbol: String, help: String)? {
-        guard let state, state != .saved, state != .opening else { return nil }
+        // Local mode's *On this Mac* is every document's state there: no badge (D-079).
+        guard let state, state != .saved, state != .opening, state != .localOnly else { return nil }
         return (state.symbolName, state.description)
     }
 }

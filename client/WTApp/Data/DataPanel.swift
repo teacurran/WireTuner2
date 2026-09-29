@@ -52,7 +52,19 @@ struct DataPanelModel {
         var id: String { rawValue }
     }
 
+    /// Why a *Connect…* item is disabled: a web API is fetched by the WireTuner service, which
+    /// Local mode does not have (D-079).  nil when it can be chosen.
+    func refusal(_ kind: Connect) -> String? {
+        kind == .web && features.isLocal() ? LocalMode.needsAccount : nil
+    }
+
+    /// The *Connect…* item's title, with the reason when it is disabled.
+    func title(_ kind: Connect) -> String {
+        refusal(kind).map { "\(kind.rawValue) (\($0))" } ?? kind.rawValue
+    }
+
     func connect(_ kind: Connect) {
+        guard refusal(kind) == nil else { return }
         switch kind {
         case .delimited: Task { await features.chooseFile(json: false) }
         case .json: Task { await features.chooseFile(json: true) }
@@ -237,7 +249,7 @@ struct DataPanelContent: View {
                     .accessibilityIdentifier("data.refresh")
                 Menu("Connect…") {
                     ForEach(DataPanelModel.Connect.allCases) { kind in
-                        Button(kind.rawValue, action: Self.connect(kind, model))
+                        Button(model.title(kind), action: Self.connect(kind, model)).disabled(model.refusal(kind) != nil)
                     }
                     Divider()
                     Button("Disconnect", action: model.disconnect).disabled(model.source == nil)

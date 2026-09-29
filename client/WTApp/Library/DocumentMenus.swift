@@ -213,12 +213,14 @@ extension AppDelegate {
     }
 
     /// Launch with no session to restore: the gallery when *Show the gallery at launch* is on
-    /// (test launches only when they ask, `-WTShowGallery`), else an untitled document.
+    /// (test launches only when they ask, `-WTShowGallery`), else an untitled document made as
+    /// menu:File[New] makes one -- recorded in the Library with a UUIDv7, from the default
+    /// template -- so it is listed, renamed and trashed like any other (D-079).
     func openUntitledAtLaunch() {
         if preferences[PreferenceCatalog.General.showGalleryAtLaunch], launchEnvironment.showsGalleryAtLaunch() {
             templates.showGallery()
         } else {
-            documents.newDocument()
+            templates.newDocumentNow()
         }
     }
 

@@ -10,7 +10,7 @@ final class AccountWindowController: NSWindowController {
 
     let model: AccountModel
 
-    init(model: AccountModel) {
+    init(model: AccountModel, localMode: LocalMode? = nil) {
         self.model = model
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 420, height: 460), styleMask: [.titled, .closable, .resizable],
@@ -20,7 +20,7 @@ final class AccountWindowController: NSWindowController {
         window.identifier = Self.identifier
         window.setAccessibilityIdentifier(Self.identifier.rawValue)
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: AccountView(model: model))
+        window.contentView = NSHostingView(rootView: AccountView(model: model, localMode: localMode))
         super.init(window: window)
     }
 
@@ -45,6 +45,8 @@ struct AccountView: View {
     }
 
     let model: AccountModel
+    /// *Use Without an Account* (D-079); nil leaves it out.
+    var localMode: LocalMode?
     @State private var workspace = ""
 
     /// A button's action; the buttons hold these instead of closures of their own.
@@ -88,7 +90,21 @@ struct AccountView: View {
                 .disabled(workspace.trimmingCharacters(in: .whitespaces).isEmpty)
                 .accessibilityIdentifier("account.signInWorkspace")
         }
+        if let localMode {
+            Divider()
+            if localMode.usesWithoutAccount {
+                Text(Self.localNote).font(.callout).foregroundStyle(.secondary).accessibilityIdentifier("account.localNote")
+            } else {
+                Text(Self.localOffer).font(.callout).foregroundStyle(.secondary)
+                Button("Use Without an Account") { localMode.useWithoutAccount() }
+                    .accessibilityIdentifier("account.useWithoutAccount")
+            }
+        }
     }
+
+    static let localOffer = "Or keep your documents on this Mac only. Signing in later uploads them to your account."
+    static let localNote = "You are using WireTuner without an account. Your documents are on this Mac; signing in uploads them to your account."
+
 
     @ViewBuilder private var signedIn: some View {
         if let profile = model.profile {

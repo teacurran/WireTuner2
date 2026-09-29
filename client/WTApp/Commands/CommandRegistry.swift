@@ -17,6 +17,20 @@ final class CommandRegistry {
     /// Called after every registration, so the menu bar can be rebuilt.
     var onChange: (@MainActor () -> Void)?
 
+    /// Answers a command's validation before the command itself does (Local mode's *Needs a
+    /// WireTuner account*, D-079); nil lets the command validate.  Applies to every command,
+    /// whenever it was registered, wherever its validation is asked (menus, palette, toolbars).
+    var gate: (@MainActor (CommandID) -> CommandValidation?)?
+
+    /// `command` with its validation behind `gate`.
+    private func gated(_ command: Command) -> Command {
+        var command = command
+        let id = command.id
+        let own = command.validation
+        command.validation = { [weak self] in self?.gate?(id) ?? own() }
+        return command
+    }
+
     init() {}
 
     var ids: [CommandID] { commands.map(\.id) }
@@ -24,7 +38,7 @@ final class CommandRegistry {
     func register(_ command: Command) throws {
         guard indexByID[command.id] == nil else { throw Failure.duplicateID(command.id) }
         indexByID[command.id] = commands.count
-        commands.append(command)
+        commands.append(gated(command))
         onChange?()
     }
 
@@ -38,7 +52,7 @@ final class CommandRegistry {
     func registerIfAbsent(_ command: Command) -> Bool {
         guard indexByID[command.id] == nil else { return false }
         indexByID[command.id] = commands.count
-        commands.append(command)
+        commands.append(gated(command))
         onChange?()
         return true
     }
@@ -48,7 +62,7 @@ final class CommandRegistry {
     /// Registers it when no command has the id.
     func replace(_ command: Command) {
         if let index = indexByID[command.id] {
-            commands[index] = command
+            commands[index] = gated(command)
             onChange?()
         } else {
             registerIfAbsent(command)

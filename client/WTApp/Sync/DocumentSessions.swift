@@ -44,18 +44,24 @@ final class DocumentSessions {
     /// Sign-in and export from any document's popover.
     @ObservationIgnored var onSignIn: @MainActor () -> Void = {}
     @ObservationIgnored var onExportPackage: @MainActor () -> Void = {}
+    @ObservationIgnored var onUseWithoutAccount: @MainActor () -> Void = {}
+    /// Local mode (D-079): sessions run no client and read *On this Mac*.
+    @ObservationIgnored let isLocal: @MainActor () -> Bool
 
-    init(connector: (any SyncConnecting)?, localUserID: @escaping @MainActor () -> String = { "" }) {
+    init(connector: (any SyncConnecting)?, localUserID: @escaping @MainActor () -> String = { "" },
+         isLocal: @escaping @MainActor () -> Bool = { false }) {
         self.connector = connector
         self.localUserID = localUserID
+        self.isLocal = isLocal
     }
 
     /// The session of `document`, created and started on first use.
     func session(for document: DocumentHandle) -> DocumentSession {
         if let existing = sessions[document.id] { return existing }
-        let session = DocumentSession(document: document, connector: connector, localUserID: localUserID())
+        let session = DocumentSession(document: document, connector: connector, localUserID: localUserID(), isLocal: isLocal)
         session.onSignIn = { [weak self] in self?.onSignIn() }
         session.onExportPackage = { [weak self] in self?.onExportPackage() }
+        session.onUseWithoutAccount = { [weak self] in self?.onUseWithoutAccount() }
         sessions[document.id] = session
         session.start()
         session.status.observe { [weak self] in self?.notify() }
@@ -157,6 +163,23 @@ final class DocumentSessions {
     /// The account signed in again: every session reconnects.
     func signedIn() {
         for session in sessions.values { session.signedIn() }
+    }
+
+    /// Local mode began or ended (D-079).  Entering it, every session's client stops and the
+    /// launch's headless uploads end (their stores keep the outbox); leaving it, every session
+    /// connects.  The returned task finishes once each session has changed over.
+    @discardableResult
+    func localModeDidChange() -> Task<Void, Never> {
+        let all = Array(sessions.values) + Array(background.values)
+        if isLocal() {
+            let uploads = Array(headless.values)
+            return Task {
+                for session in all { await session.enterLocalMode() }
+                for upload in uploads { await upload.stop() }
+            }
+        }
+        let starts = all.compactMap { $0.leaveLocalMode() }
+        return Task { for start in starts { await start.value } }
     }
 
     /// Stops every session (quitting).

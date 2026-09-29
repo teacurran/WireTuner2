@@ -103,4 +103,7 @@ streaming, versioning.
 
 |xref:building.adoc[Building]
 |The contract a task is built under: reading, directories, verify commands, coverage gate, reporting.
+
+|xref:releasing.adoc[Releasing a beta]
+|Versioning, Developer ID signing, notarization, the DMG, Sparkle's appcast and publishing to R2.
 |===

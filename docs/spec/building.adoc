@@ -77,6 +77,30 @@ The Help panel shows the rendered guide when the app carries it (BASIC-007): `ma
 Book* build phase copies the folder into the bundle's `Resources/HelpBook`.  Run it before a release
 build; without it the panel falls back to pages generated from the catalog.
 
+[[local-mode-builds]]
+=== Local mode builds
+
+The build setting `WT_LOCAL_MODE` (`client/project.yml`, written into the Info.plist as `WTLocalMode`)
+decides whether the app runs without a server (xref:decisions.adoc#D-079[D-079]; saving.adoc,
+"Using WireTuner without an account").  It is `NO` for Debug, which signs in to the compose stack
+(`WT_AUTH_ISSUER`, `WT_API_URL`), and `YES` for Release until a server exists, so beta builds need no
+account.  Emptying `WT_API_URL` or `WT_AUTH_ISSUER` has the same effect.  Override it per build on the
+command line (`xcodebuild ... WT_LOCAL_MODE=NO WT_API_URL=https://api.example WT_AUTH_ISSUER=https://id.example/realms/wiretuner`)
+to make a Release build that signs in.  A Local mode build offers no sign-in and opens no connection;
+its documents upload to the personal space the first time a build with a server signs in on that Mac.
+
+[[releasing]]
+== Releasing a beta
+
+`make release` builds a DMG and a zip named `YYYY.MM.DD-NNN` (Developer ID signed and notarized
+when the credentials exist) with a Sparkle appcast; `make release-publish PUBLISH=1` makes the GitHub
+release and `make release-upload UPLOAD=1` puts the appcast on `updates.villagecompute.com`.  With no
+credentials the same commands produce an ad-hoc signed test build, which goes out only as a GitHub
+pre-release.  The version lives in
+`client/Config/Version.xcconfig` (`make bump-build`, `make bump-version`).  The owner's one-time
+setup, the per-release steps and what `make release-check` verifies are on
+xref:releasing.adoc[Releasing a beta]; the script tests run with `make release-tools-test`.
+
 == Reporting a task
 
 The report names: the task id; files created and changed; the exact verify commands run and

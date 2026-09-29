@@ -6,6 +6,18 @@ include::_attributes.adoc[]
 
 NOTE: As built (SEC-003): the account window lists every device (`ListDevices`) with its sign-in method and Revoke for other Macs; adding or removing linked identities opens the realm's account console on its linked-accounts page (*Add Sign-in Method…*, *Remove…*; `AccountService` has no RPC for it), and the list is read back with Refresh.  The team settings sheet covers members, invitations (resend = `InviteMember` again), default document access, domains with status and TXT record, and the three workspace switches; transfer, delete and leave team are not in the sheet, and the default role cannot be set back to None because `UpdateTeam` refuses UNSPECIFIED.  The history window (`history_retention_days`) is the sheet's *History* row: admins choose 30 days to 10 years (`TeamHistory`, `UpdateTeam`).  `wiretuner://invite/<token>`, an `https://…/invite/<token>` link or a bare token opens the Join Team sheet; the links host comes from `WT_LINKS_URL` (default `https://wiretuner.app`).
 
+An account is needed for everything that involves the server -- sync, sharing, teams -- but not to
+use the app: a *Local mode* build (no server configured, or `WT_LOCAL_MODE`), or a person who chose
+*Use Without an Account*, runs with every document on this Mac, no sign-in offered or asked for, and
+the server features disabled with *Needs a WireTuner account*.  Signing in later uploads those
+documents to the personal space (xref:decisions.adoc#D-079[D-079]; saving.adoc, "Using WireTuner
+without an account").  Nobody reaches anyone else's documents without an account: D-034 stands.
+
+NOTE: As built by APP-012: `LocalMode` (`WTApp/Account/LocalMode.swift`).  A Local mode build installs no account commands and never
+reads the keychain; in a build with a server the account window offers *Use Without an Account* while signed out
+(`WTUseWithoutAccount` in the defaults), and `AccountModel.signedInHandlers` / `signedOutHandlers` tell `LocalMode` when a
+sign-in ends Local mode or a sign-out returns to it.
+
 Every person has one *personal account*, identified by a Keycloak subject.  Sign-in is OIDC
 with PKCE from the Mac (`ASWebAuthenticationSession`); Keycloak owns every credential and
 the server never sees one.  The realm declares, in this order of preference:

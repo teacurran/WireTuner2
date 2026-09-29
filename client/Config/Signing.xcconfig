@@ -10,8 +10,10 @@
 // `make client-build` and the CI workflow pass exactly that, reading DEVELOPMENT_TEAM from
 // their own environment.  With no override (a fresh checkout, a CI runner without
 // certificates) the app is ad-hoc signed ("-") with no team, which is enough to build, run
-// and test locally.  Notarization and the Developer ID profile are wired by the distribution
-// task; this file is where they plug in.
+// and test locally.  Release builds (`make release`, tools/release/release.sh) pass the
+// Developer ID identity, the team, OTHER_CODE_SIGN_FLAGS=--timestamp and
+// CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO the same way, from WT_DEVELOPER_ID_IDENTITY and
+// WT_TEAM_ID or the keychain, then notarize (docs/spec/releasing.adoc).
 
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -

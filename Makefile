@@ -155,3 +155,43 @@ conformance:
 # The multi-client simulator (docs/spec/testing.adoc, "Multi-client simulation"); SIM_RUNS=n seeded random runs, SIM_COMPOSE=1 also against the compose server.
 client-sim:
 	cd client/Packages/WTTestSupport && WT_SIM_RUNS=$(or $(SIM_RUNS),4) $(if $(SIM_COMPOSE),WT_SIM_COMPOSE=1) swift test --filter 'ScenarioTests|RandomizedSimulationTests|ComposeSimulationTests'
+
+.PHONY: release release-check appcast release-publish release-upload bump-build bump-version release-version release-tools-test
+
+# Beta releases (docs/spec/releasing.adoc; decisions.adoc D-080).  Credentials come only from the
+# environment and the keychain (WT_DEVELOPER_ID_IDENTITY, WT_TEAM_ID, WT_NOTARY_PROFILE or
+# WT_NOTARY_KEY_*, WT_SPARKLE_*; tools/release/common.sh); with none, `make release` builds an
+# ad-hoc "unsigned test build" and says so.  Output: client/build/release/<YYYY.MM.DD-NNN>/.
+release:
+	tools/release/release.sh
+
+# Verifies the exported app and its DMG (APP=path/WireTuner.app DMG=path.dmg to check others).
+release-check:
+	tools/release/check.sh $(APP) $(DMG)
+
+# Writes the release's appcast.xml (EdDSA-signed when the Sparkle key is present); release runs it.
+appcast:
+	tools/release/appcast.sh
+
+# Creates the GitHub release YYYY.MM.DD-NNN with the DMG, zip and SHA256SUMS.txt (a pre-release
+# unless notarized).  A dry run that prints the gh call and the notes unless PUBLISH=1.
+release-publish:
+	tools/release/publish-github.sh $(if $(filter 1,$(PUBLISH)),--publish)
+
+# Uploads the DMG, zip and appcast to R2.  A dry run that prints the commands unless UPLOAD=1.
+release-upload:
+	tools/release/upload.sh $(if $(filter 1,$(UPLOAD)),--upload)
+
+# client/Config/Version.xcconfig: the build number goes up by one; VERSION=X.Y.Z (default: the next
+# patch) starts a marketing version and also takes the next build number.
+bump-build:
+	tools/release/version.sh bump-build
+
+bump-version:
+	tools/release/version.sh bump-version $(VERSION)
+
+release-version:
+	@tools/release/version.sh show
+
+release-tools-test:
+	tools/release/Tests/run.sh

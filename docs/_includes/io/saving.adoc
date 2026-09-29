@@ -2,8 +2,10 @@
 instant you make it, written to this Mac within a quarter of a second, and sent to the cloud as
 soon as there is a connection.  A crash, a dead battery or a closed lid loses at most that last
 quarter second, and you never have to remember to save.  What the File menu offers instead is a set of commands about *versions* and *copies*:
-bookmarking a moment in the document's history, duplicating the document, exporting a
-self-contained package for backup or exchange, and restoring an earlier version.
+bookmarking a moment in the document's history, duplicating the document, saving a copy as a
+self-contained file for backup or exchange, and restoring an earlier version.  {product} also
+works fully without an account, keeping everything on this Mac
+(<<using-wiretuner-without-an-account,Using {product} without an account>>).
 
 NOTE: menu:File[Save Version…] marks a named point in the document's history rather than
 writing a file.  There is no asterisk in the title bar: the sync indicator described below
@@ -64,13 +66,18 @@ the plan is raised (see <<storage,Storage>>).
 
 |*Can't sync*
 |Something is wrong that {product} cannot fix by retrying.  The popover explains and offers
-*Export a Package…* so your work can be kept outside the cloud while the problem is sorted out.
+*Save a Copy As…* so your work can be kept outside the cloud while the problem is sorted out.
+
+|*On this Mac*
+|You are using {product} without an account
+(<<using-wiretuner-without-an-account,below>>).  Every change is written to this Mac as you make
+it; nothing is sent anywhere, and there is nothing to wait for.
 |===
 
 Clicking the indicator opens a popover with the details behind the state: when the document
 was last fully synced, how many changes and images are waiting, who else has the document open,
 and the actions that make sense in the current state (*Retry now*, *Review Merge…*, *Sign In…*,
-*Export a Package…*).
+*Use Without an Account*, *Save a Copy As…*).
 
 The indicator describes *this Mac's* changes.  It cannot tell you about changes other people
 made while you were offline, because nobody can know those until you reconnect.
@@ -132,10 +139,13 @@ and a preview of the first page for the Finder.  It is the way to keep a backup 
 cloud, archive a finished job, hand a document to someone who is not on your team, or move a
 document between accounts.
 
-To export a package:
+To save a copy as a package:
 
-. Choose menu:File[Export a Package…].
-. Choose a name and location and click btn:[Export].
+. Choose menu:File[Save a Copy As…] (kbd:[Option+Shift+Cmd+S]).
+. Choose a name and location and click btn:[Save].
+
+The document you are working in stays as it is; the package is a copy of it at that moment.
+*Export a Package…*, the command's earlier name, still finds it in the command palette.
 
 If some of your changes have not reached the cloud yet (the indicator shows *Offline* or
 *Syncing*), they are included -- the package is what you see on screen.  The Finder's preview
@@ -211,6 +221,32 @@ document itself comes from the cloud, or from the copy already on the second Mac
 about it is stored in iCloud.  If the second Mac is offline and has no copy, it shows the
 Library window with a note instead.
 
+== Using {product} without an account [[using-wiretuner-without-an-account]]
+
+{product} works fully without an account.  Test builds made before the {product} service opens
+always work this way; a build that can sign in offers *Use Without an Account* in the account
+window (menu:{product}[Account…]) and in the popover of *Sign in to sync*.  Without an account:
+
+* Documents live on this Mac.  The indicator reads *On this Mac*, nothing asks you to sign in, and
+  quitting never waits for anything.
+* The Library window lists every document on this Mac and reads *On this Mac* at the top.  You
+  can rename, duplicate and move documents, make, rename and delete folders, and move documents to
+  the *Trash* in its sidebar, where *Restore* brings one back and *Delete Permanently…* removes it
+  from this Mac for good (*Empty Trash* does that to all of them).
+* The things that need the {product} service -- sharing, comments, branches, *Restore Version…*,
+  following collaborators, team libraries, publishing to a web link and web API data sources --
+  stay in the menus, dimmed, with the reason *Needs a WireTuner account*.  *Save Version…* and the
+  History panel work, on this Mac.
+* *Packages are how work moves between Macs.*  Choose menu:File[Save a Copy As…] to write the
+  document as a `.wiretuner` file, move the file (AirDrop, a drive, mail), and double-click it on
+  the other Mac -- or choose menu:File[Open Package…] there.  It opens as a new document in that
+  Mac's library.  A package is also the way to keep a backup: nothing else holds a copy of a
+  document made without an account.
+
+When you later sign in, everything you made on this Mac is uploaded to your personal space --
+folders first, then the documents and their changes -- and from then on it syncs like any other
+document.  Nothing is lost and nothing needs converting.
+
 == Closing and quitting with changes waiting
 
 Closing a window while its state is *Syncing* or *Uploading* is fine: the upload continues in
@@ -234,7 +270,8 @@ Quitting while changes are waiting shows a sheet:
 *Quit When Uploaded* keeps the app running only as long as it takes, then quits on its own.
 *Quit Now* is always safe: nothing is lost, and the next launch resumes the uploads for those
 documents in the background before you even open them.  Turn the sheet off with *Warn when
-quitting with changes waiting* in menu:{product}[Settings… > Document].
+quitting with changes waiting* in menu:{product}[Settings… > Document].  Without an account there
+is never anything waiting, so the sheet does not appear.
 
 == Storage [[storage]]
 
@@ -389,7 +426,7 @@ enter the new document and two imports of the same package are two unrelated doc
 * *Restore as a copy* offline: only if the version's `server_seq` is inside the local log;
   otherwise the command is disabled with "Connect to restore versions older than what's on
   this Mac".
-* *Export a Package* works offline from the local merged state; `unsynced_changes` counts the
+* *Save a Copy As* (*Export a Package*) works offline from the local merged state; `unsynced_changes` counts the
   outbox, `missing_blobs` lists referenced hashes absent from the cache.
 * *Thumbnail*: the local snapshot write (on close and at the snapshot interval) also captures
   the library thumbnail when the document changed since the last capture (DOC-032 on
@@ -464,6 +501,11 @@ subtitle shows it because collaborators see placeholders until it clears.
 |A change was rejected for a reason the client cannot recover from (validation failure
 already reverted locally and reported; repeated `REPLICA_CONFLICT` after rotation), or the
 state hash check failed and re-bootstrap also failed.
+
+|`localOnly`
+|*On this Mac*
+|Local mode (xref:decisions.adoc#D-079[D-079]): no client runs for the document.  `SyncClient`
+never publishes it; the app shows it in place of a client's states.  Not waiting work.
 |===
 
 Transitions (the UI state is a pure function of these; every arrow is logged with its cause):
@@ -521,7 +563,7 @@ strip rather than being an `NSToolbarItem` of the customizable Main toolbar, and
 keeps its glyph.  The symbols are as listed except `icloud.and.arrow.up` for syncing, uploading and
 the backlog (SF Symbols has no `arrow.up.icloud`) and `icloud` for *Opening…*.  The popover shows
 the state, why (the `readOnly` reason, the error), when the document was last fully synced on this
-Mac, who else has it open, and *Retry Now*, *Review Merge…*, *Sign In…* or *Export a Package…*
+Mac, who else has it open, and *Retry Now*, *Review Merge…*, *Sign In…* or *Save a Copy As…* (IO-002's *Export a Package…*, renamed by D-079)
 (the latter runs `file.exportPackage` when an export task registers it).  VoiceOver, the *Sync
 Activity* window and the library badges are delivered by `WTApp/Sync/SyncActivity.swift`: each window's
 `SyncAnnouncer` posts the state's text as a VoiceOver announcement when the state's case changes (a
@@ -660,7 +702,7 @@ blobs become placeholder `asset` nodes (note "Missing from the package") unless 
 carries the hash.  Changes are cut after the step that reaches 5,000 ops or 2 MiB, each performed
 as a `ReissueChunk` command in one undo group, so -- deviation -- the new document's undo list
 holds one step, "Import package" (`DocumentBackend` has no unrecorded perform; undoing it empties
-the document, redo restores it).  menu:File[Export a Package…] warns, naming them, about blobs
+the document, redo restores it).  menu:File[Save a Copy As…] warns, naming them, about blobs
 not on this Mac; menu:File[Open Package…] and a package opened from the Finder
 (`application(_:open:)`, the UTI `com.villagecompute.wiretuner.package` exported and claimed as
 the owner in `project.yml`) validate the package before anything is created, then make the new
@@ -825,6 +867,24 @@ library window's banner (IO-009's rest; `LibraryModel.storageNotes`, `storageBan
 usage hands the notes by space to the library (`StorageMonitor.onUsage`), which shows *Storage almost full — 9.3 GB of 10 GB
 used* above the documents while the space it shows (the current team's, else the personal space) is at 90% or more; the
 usage is read again each time the Library window is shown.  Tests: `WindowGlueTests.theLibraryWindowShowsStorageAlmostFull`.
+
+NOTE: As built by APP-012 (Local mode, xref:decisions.adoc#D-079[D-079]; `WTApp/Account/LocalMode.swift`,
+`LocalModeFeatures.swift`).  `LocalMode.isActive` is true in a Local mode build (`WTLocalMode` in the
+Info.plist, from the build setting `WT_LOCAL_MODE`, or a missing, empty or unexpanded `WTAPIURL` or
+`WTAuthIssuer`) and in a build with a server while nobody is signed in and *Use Without an Account* was
+chosen (`WTUseWithoutAccount` in the defaults).  `DocumentSession.start()` then publishes
+`SyncState.localOnly` (*On this Mac*, `internaldrive`) and connects nothing; `hasWaitingWork` is false
+for it, so `QuitCoordinator` never shows the sheet, and the launch's `HeadlessUploads` are skipped.  A
+sign-in that ends Local mode runs the library's `refresh()` (pending creations, folders made on this
+Mac first), then `DocumentSessions.localModeDidChange()` connects every session
+(`DocumentSession.leaveLocalMode()`) and `HeadlessUploads.begin` uploads the closed stores;
+*Use Without an Account* stops every client (`enterLocalMode()`).  `CommandRegistry.gate` answers
+`LocalMode.gate(_:)` before every command's own validation: `ServerFeatures.commands` are disabled
+with *Needs a WireTuner account*, *Remove Local Copy* with "This Mac has the only copy…".
+menu:File[Save a Copy As…] is `file.saveCopyAs` (`PackageController.saveCopy(of:)`, the same writer);
+`file.exportPackage` stays without a menu item, and the popover's action runs `file.saveCopyAs`.  A Local
+mode build installs no account commands, reads no keychain session and makes no sync connector or team
+font client.  Tests: `LocalModeTests`, `LocalLibraryTests`, `LocalUpgradeTests`.
 
 === Build tasks
 

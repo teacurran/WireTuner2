@@ -19,7 +19,7 @@ import WTProto
             (.uploadingBacklog(42), "Uploading backlog 42%"), (.needsReview, "Needs review"),
             (.readOnly(.role), "View only"), (.needsSignIn, "Sign in to sync"),
             (.storageFull(1), "Storage full — 1 image waiting"), (.storageFull(2), "Storage full — 2 images waiting"),
-            (.error("x"), "Can't sync"),
+            (.error("x"), "Can't sync"), (.localOnly, "On this Mac"),
         ]
         for (state, text) in texts {
             #expect(state.description == text)

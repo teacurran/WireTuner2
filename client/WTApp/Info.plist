@@ -148,7 +148,9 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://updates.villagecompute.com/wiretuner/appcast.xml</string>
+	<string>$(WT_UPDATE_FEED_URL)</string>
+	<key>SUPublicEDKey</key>
+	<string>$(WT_SPARKLE_PUBLIC_KEY)</string>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
@@ -297,5 +299,7 @@
 	<string>$(WT_AUTH_ISSUER)</string>
 	<key>WTLinksURL</key>
 	<string>$(WT_LINKS_URL)</string>
+	<key>WTLocalMode</key>
+	<string>$(WT_LOCAL_MODE)</string>
 </dict>
 </plist>

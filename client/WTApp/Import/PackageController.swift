@@ -7,8 +7,9 @@ import WTInterchange
 import WTModel
 import WTSync
 
-/// menu:File[Export a Package…] and menu:File[Open Package…] (saving.adoc, "Packages: a document
-/// as a file"; IO-005, IO-006), and a package double-clicked in the Finder.  Exporting writes the
+/// menu:File[Save a Copy As…] (and its alias *Export a Package…*) and menu:File[Open Package…]
+/// (saving.adoc, "Packages: a document as a file"; IO-005, IO-006, D-079), and a package
+/// double-clicked in the Finder.  Exporting writes the
 /// merged state as this Mac has it -- unsynced changes included and counted -- with every
 /// referenced blob in the cache; the ones that are not are named in a warning.  Opening validates
 /// the package before anything is created, then makes a new document, stores the package's blobs
@@ -41,12 +42,20 @@ final class PackageController {
 
     // MARK: Export
 
-    /// menu:File[Export a Package…] for the window's document.
+    /// menu:File[Save a Copy As…] (D-079): the window's document written as a `.wiretuner`
+    /// package where the save panel says -- how work moves between Macs without an account.  The
+    /// same file *Export a Package…* writes; the document stays as it is.
     @discardableResult
-    func exportPackage(of window: DocumentWindowController) async -> PackageSummary? {
+    func saveCopy(of window: DocumentWindowController) async -> PackageSummary? {
+        await exportPackage(of: window, title: "Save a Copy As", prompt: "Save")
+    }
+
+    /// menu:File[Export a Package…] (the palette's name for Save a Copy As…) for the window's document.
+    @discardableResult
+    func exportPackage(of window: DocumentWindowController, title: String = "Export a Package", prompt: String = "Export") async -> PackageSummary? {
         let panel = NSSavePanel()
-        panel.title = "Export a Package"
-        panel.prompt = "Export"
+        panel.title = title
+        panel.prompt = prompt
         panel.allowedContentTypes = [Self.contentType]
         panel.nameFieldStringValue = "\(window.documentHandle.title).\(Self.fileExtension)"
         guard let url = await runSavePanel(panel, window.window) else { return nil }

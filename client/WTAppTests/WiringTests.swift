@@ -227,8 +227,8 @@ private func mouse(_ type: NSEvent.EventType, x: CGFloat, in window: NSWindow) -
         _ = await model.pendingSearch?.value
         _ = render(LibraryView(model: model))
         let pending = model.createDocument()
-        _ = render(LibraryDocumentTile(model: model, row: LibraryRow(document: pending), renaming: .constant(nil)))
-        _ = render(LibraryFolderTile(model: model, folder: LibraryFolder(id: "f1", spaceID: me, parentID: nil, name: "Clients")))
+        _ = render(LibraryDocumentTile(model: model, row: LibraryRow(document: pending), renaming: .constant(nil), deleting: .constant(nil)))
+        _ = render(LibraryFolderTile(model: model, folder: LibraryFolder(id: "f1", spaceID: me, parentID: nil, name: "Clients"), renaming: .constant(nil)))
         _ = render(LibrarySidebar(model: model))
     }
 }

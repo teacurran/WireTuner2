@@ -22,6 +22,8 @@ struct LibraryView: View {
     @Bindable var model: LibraryModel
     @State private var renaming: LibraryDocument?
     @State private var newName = ""
+    @State private var renamingFolder: LibraryFolder?
+    @State private var deleting: LibraryDocument?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -50,10 +52,10 @@ struct LibraryView: View {
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], alignment: .leading, spacing: 16) {
                             ForEach(model.searchResults == nil ? model.folders : []) { folder in
-                                LibraryFolderTile(model: model, folder: folder)
+                                LibraryFolderTile(model: model, folder: folder, renaming: $renamingFolder)
                             }
                             ForEach(model.rows) { row in
-                                LibraryDocumentTile(model: model, row: row, renaming: $renaming)
+                                LibraryDocumentTile(model: model, row: row, renaming: $renaming, deleting: $deleting)
                             }
                         }
                         .padding(12)
@@ -74,7 +76,36 @@ struct LibraryView: View {
             Button("Rename") { rename() }
             Button("Cancel", role: .cancel) { renaming = nil }
         }
+        .alert("Rename Folder", isPresented: Binding(get: { renamingFolder != nil }, set: { if !$0 { renamingFolder = nil } })) {
+            TextField("Name", text: $newName)
+            Button("Rename") { renameFolder() }
+            Button("Cancel", role: .cancel) { renamingFolder = nil }
+        }
+        .alert(
+            "Delete “\(deleting?.name ?? "")” permanently?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })
+        ) {
+            Button("Delete Permanently", role: .destructive) { deletePermanently() }
+            Button("Cancel", role: .cancel) { deleting = nil }
+        } message: {
+            Text(LibraryView.deleteWarning)
+        }
         .onChange(of: renaming) { _, document in newName = document?.name ?? "" }
+        .onChange(of: renamingFolder) { _, folder in newName = folder?.name ?? "" }
+    }
+
+    /// Local mode's *Delete Permanently* confirmation (D-079).
+    static let deleteWarning = "It is removed from this Mac and cannot be recovered. Save a Copy As… first if you may need it."
+
+    private func renameFolder() {
+        guard let folder = renamingFolder else { return }
+        renamingFolder = nil
+        Task { await model.renameFolder(folder.id, to: newName) }
+    }
+
+    private func deletePermanently() {
+        guard let document = deleting else { return }
+        deleting = nil
+        Task { await model.deletePermanently(document.id) }
     }
 
     private func rename() {
@@ -91,9 +122,15 @@ struct LibrarySidebar: View {
         List {
             Section("Library") {
                 row("Recents", symbol: "clock", section: .recents, identifier: "library.sidebar.recents")
-                row("Shared with Me", symbol: "person.2", section: .sharedWithMe, identifier: "library.sidebar.shared")
-                row("Templates", symbol: "doc.on.doc", section: .templates, identifier: "library.sidebar.templates")
-                if let branches = model.branches {
+                if model.isLocal() {
+                    // Local mode (D-079): nothing is shared, and the Trash is this Mac's.
+                    row("Templates", symbol: "doc.on.doc", section: .templates, identifier: "library.sidebar.templates")
+                    row("Trash", symbol: "trash", section: .trash, identifier: "library.sidebar.localTrash")
+                } else {
+                    row("Shared with Me", symbol: "person.2", section: .sharedWithMe, identifier: "library.sidebar.shared")
+                    row("Templates", symbol: "doc.on.doc", section: .templates, identifier: "library.sidebar.templates")
+                }
+                if !model.isLocal(), let branches = model.branches {
                     shelf(branches, "Archived", symbol: "archivebox", shelf: .archived, identifier: "library.sidebar.archived")
                     shelf(branches, "Trash", symbol: "trash", shelf: .trash, identifier: "library.sidebar.trash")
                 }
@@ -108,7 +145,7 @@ struct LibrarySidebar: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("library.space.\(space.id)")
                 }
-                if model.collaboration != nil {
+                if model.collaboration != nil, !model.isLocal() {
                     Button(action: model.openJoinTeam) { Label("Join Team…", systemImage: "person.badge.plus") }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("library.joinTeam")
@@ -142,9 +179,9 @@ struct LibraryToolbar: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(title).font(.headline).lineLimit(1).accessibilityIdentifier("library.path")
-            if !model.isOnline {
-                Label("Offline", systemImage: "icloud.slash").font(.caption).foregroundStyle(.secondary)
-                    .accessibilityIdentifier("library.offline")
+            if let note = model.connectionNote {
+                Label(note.title, systemImage: note.symbol).font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier(model.isLocal() ? "library.local" : "library.offline")
             }
             Spacer()
             TextField("Search", text: $model.searchText)
@@ -168,9 +205,16 @@ struct LibraryToolbar: View {
             Button("Open") { model.openSelection() }
                 .disabled(model.selection.isEmpty)
                 .accessibilityIdentifier("library.open")
-            Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise") }
-                .help("Refresh")
-                .accessibilityIdentifier("library.refresh")
+            if model.section == .trash {
+                Button("Empty Trash") { Task { await model.emptyTrash() } }
+                    .disabled(model.documents.isEmpty)
+                    .accessibilityIdentifier("library.emptyTrash")
+            }
+            if !model.isLocal() {
+                Button { Task { await model.refresh() } } label: { Image(systemName: "arrow.clockwise") }
+                    .help("Refresh")
+                    .accessibilityIdentifier("library.refresh")
+            }
         }
         .padding(12)
     }
@@ -183,6 +227,7 @@ struct LibraryToolbar: View {
         case .recents: return "Recents"
         case .sharedWithMe: return "Shared with Me"
         case .templates: return "\(model.currentSpace.name) › Templates"
+        case .trash: return "\(model.currentSpace.name) › Trash"
         case .folder: return ([model.currentSpace.name] + model.folderPath.map(\.name)).joined(separator: " › ")
         }
     }
@@ -191,6 +236,7 @@ struct LibraryToolbar: View {
 struct LibraryFolderTile: View {
     let model: LibraryModel
     let folder: LibraryFolder
+    @Binding var renaming: LibraryFolder?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -206,7 +252,9 @@ struct LibraryFolderTile: View {
             return !ids.isEmpty
         }
         .contextMenu {
+            Button("Rename Folder…") { renaming = folder }
             Button("Delete Folder") { Task { await model.deleteFolder(folder.id) } }
+                .help("What the folder holds moves up to the folder around it")
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("library.folder.\(folder.id)")
@@ -217,6 +265,7 @@ struct LibraryDocumentTile: View {
     let model: LibraryModel
     let row: LibraryRow
     @Binding var renaming: LibraryDocument?
+    @Binding var deleting: LibraryDocument?
 
     private var document: LibraryDocument { row.document }
 
@@ -239,7 +288,8 @@ struct LibraryDocumentTile: View {
                     Image(systemName: "doc.on.doc").foregroundStyle(.secondary).help("Template")
                         .accessibilityIdentifier("library.document.\(document.id).template")
                 }
-                if model.isOfflineAvailable(document) {
+                // Local mode: everything is on this Mac and nothing is waiting (D-079).
+                if !model.isLocal(), model.isOfflineAvailable(document) {
                     Image(systemName: document.isPendingUpload ? "icloud.and.arrow.up" : "laptopcomputer")
                         .foregroundStyle(.secondary)
                         .help(document.isPendingUpload ? "Waiting to upload" : "Available offline")
@@ -269,25 +319,41 @@ struct LibraryDocumentTile: View {
         .onTapGesture { model.selection = [document.id] }
         .draggable(document.id)
         .contextMenu {
+            if document.isTrashed {
+                // Local mode's Trash (D-079).
+                Button("Restore") { model.restore(document.id) }
+                Button("Delete Permanently…") { deleting = document }
+            } else {
+                menu
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("library.document.\(document.id)")
+    }
+
+    /// A document's menu; Local mode leaves out what only an account's library has (D-079).
+    @ViewBuilder private var menu: some View {
+        let local = model.isLocal()
+        Group {
             Button("Open") { model.open([document]) }
             Button("Rename…") { renaming = document }
             Button("Duplicate") { Task { await model.duplicate(document.id) } }
-            Button("Keep Available Offline") { model.keepAvailableOffline(document.id) }
-            if let remove = model.removeLocalCopy, model.hasLocalCopy(document.id) {
-                Button("Remove Local Copy…") { remove(document) }
+            if !local {
+                Button("Keep Available Offline") { model.keepAvailableOffline(document.id) }
+                if let remove = model.removeLocalCopy, model.hasLocalCopy(document.id) {
+                    Button("Remove Local Copy…") { remove(document) }
+                }
             }
             Button(document.isTemplate ? "Use as Document" : "Use as Template") { Task { await model.setTemplate(document.id, !document.isTemplate) } }
-                .disabled(!model.isOnline && !document.isPendingUpload)
-                .help(model.isOnline || document.isPendingUpload ? "" : LibraryModel.templateFlagOfflineMessage)
+                .disabled(!local && !model.isOnline && !document.isPendingUpload)
+                .help(local || model.isOnline || document.isPendingUpload ? "" : LibraryModel.templateFlagOfflineMessage)
             if let use = model.useAsTeamLibrary {
-                let refusal = model.teamLibraryRefusal?(document)
+                let refusal: String? = local ? LocalMode.needsAccount : model.teamLibraryRefusal?(document)
                 Button("Use as Team Library") { use(document) }.disabled(refusal != nil).help(refusal ?? "Offer this document's symbols, styles and master pages to the team")
             }
             Divider()
             Button("Move to Trash") { Task { await model.trash(document.id) } }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("library.document.\(document.id)")
     }
 
     @ViewBuilder private var thumbnail: some View {

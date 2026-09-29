@@ -29,6 +29,11 @@ public enum SyncState: Sendable, Hashable, CustomStringConvertible {
     case storageFull(Int)
     /// Something retrying cannot fix.
     case error(String)
+    /// No sync runs for this document: the app is in Local mode (decisions.adoc D-079) -- the
+    /// build has no server, or the person chose to use WireTuner without an account.  Every
+    /// change is kept on this Mac only.  `SyncClient` never publishes it; the app shows it in
+    /// place of a client's states.
+    case localOnly
 
     /// The window subtitle (saving.adoc, "The sync indicator").
     public var description: String {
@@ -45,6 +50,7 @@ public enum SyncState: Sendable, Hashable, CustomStringConvertible {
         case .needsSignIn: "Sign in to sync"
         case .storageFull(let count): count == 1 ? "Storage full — 1 image waiting" : "Storage full — \(count) images waiting"
         case .error: "Can't sync"
+        case .localOnly: "On this Mac"
         }
     }
 }

@@ -16,8 +16,14 @@ final class SyncIndicatorModel {
 
     init() {}
 
+    /// Local mode's line in place of the last sync (D-079).
+    static let localText = "Every change is written to this Mac as you work"
+    /// Local mode's explanation.
+    static let localExplanation = "This document is kept on this Mac only. To move it to another Mac, choose File > Save a Copy As… and open the package there."
+
     /// "Last fully synced 3 minutes ago" / "Not synced yet".
     func lastSyncedText(now: Date = Date()) -> String {
+        if state == .localOnly { return Self.localText }
         guard let date = details.lastSynced else { return "Not fully synced yet on this Mac" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
@@ -42,6 +48,7 @@ final class SyncIndicatorModel {
         case .needsSignIn: return "Your session expired. Work continues on this Mac; sign in again to sync."
         case .storageFull: return "Your team's storage is full. Changes still sync; new images wait until space is freed."
         case .offline: return "Everything you do is kept on this Mac and syncs when you reconnect."
+        case .localOnly: return Self.localExplanation
         default: return nil
         }
     }

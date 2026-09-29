@@ -72,7 +72,8 @@ engine feeds both renderers, so glyph positions cannot differ between screen and
 
 |Distribution
 |Developer ID, notarized, Sparkle updates; Mac App Store later
-|Sharing and cloud fonts are not App Store blockers, but updates must be fast in beta.
+|Sharing and cloud fonts are not App Store blockers, but updates must be fast in beta
+(xref:releasing.adoc[Releasing a beta], xref:decisions.adoc#D-080[D-080]).
 |===
 
 == Server

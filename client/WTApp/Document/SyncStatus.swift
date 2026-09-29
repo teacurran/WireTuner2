@@ -13,13 +13,17 @@ enum SyncAction: String, CaseIterable, Sendable {
     case reviewMerge
     case signIn
     case exportPackage
+    /// Local mode instead of signing in (D-079), from *Sign in to sync*.
+    case useWithoutAccount
 
     var title: String {
         switch self {
         case .retryNow: "Retry Now"
         case .reviewMerge: "Review Merge…"
         case .signIn: "Sign In…"
-        case .exportPackage: "Export a Package…"
+        // The package File > Save a Copy As… writes (D-079; `file.exportPackage`).
+        case .exportPackage: "Save a Copy As…"
+        case .useWithoutAccount: "Use Without an Account"
         }
     }
 }
@@ -36,6 +40,8 @@ extension WTSync.SyncState {
         case .needsReview, .storageFull, .error: "exclamationmark.icloud"
         case .readOnly: "lock.icloud"
         case .needsSignIn: "person.icloud"
+        // Local mode (D-079): kept on this Mac, nothing to sync.
+        case .localOnly: "internaldrive"
         }
     }
 
@@ -56,7 +62,7 @@ extension WTSync.SyncState {
         case .offline, .storageFull: [.retryNow]
         case .readOnly(.accessRemoved): [.retryNow]
         case .needsReview: [.reviewMerge]
-        case .needsSignIn: [.signIn]
+        case .needsSignIn: [.signIn, .useWithoutAccount]
         case .error: [.retryNow, .exportPackage]
         default: []
         }
@@ -65,7 +71,7 @@ extension WTSync.SyncState {
     /// Changes or images made on this Mac have not all reached the cloud (the quit sheet).
     var hasWaitingWork: Bool {
         switch self {
-        case .saved, .opening, .readOnly(.role), .readOnly(.clientTooOld): false
+        case .saved, .opening, .readOnly(.role), .readOnly(.clientTooOld), .localOnly: false
         case .offline(let count): count > 0
         default: true
         }

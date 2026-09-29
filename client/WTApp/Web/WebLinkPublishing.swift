@@ -26,9 +26,20 @@ protocol WebLinkServices: AnyObject {
     func events(for document: DocumentHandle) -> AsyncStream<SyncEvent>?
     /// The server seq the document's local copy has reached (the version a publish renders).
     func serverSeq(of document: DocumentHandle) async -> UInt64
+    /// Why the web link cannot be chosen while `isOnline` is false.
+    var unavailableReason: String { get }
+}
+
+extension WebLinkServices {
+    var unavailableReason: String { WebLinks.needsConnection }
 }
 
 enum WebLinks {
+    static let needsConnection = "Needs a connection"
+
+    /// Why the web link cannot be chosen now: the services' reason, a connection without them.
+    @MainActor static var unavailableReason: String { services?.unavailableReason ?? needsConnection }
+
     /// The app's services; nil in tests that set none (the destination is then offline).
     @MainActor static var services: (any WebLinkServices)?
 
@@ -73,6 +84,10 @@ final class AppWebLinkServices: WebLinkServices {
 
     var isOnline: Bool { isReachable() }
 
+    /// Local mode (D-079) says an account is needed, not a connection.
+    var isLocal: @MainActor () -> Bool = { false }
+    var unavailableReason: String { isLocal() ? LocalMode.needsAccount : WebLinks.needsConnection }
+
     private func publishTransport() -> (any PublishTransport)? {
         if let transport { return transport }
         transport = try? makeTransport()
@@ -113,15 +128,17 @@ extension LaunchEnvironment {
     /// The Publish service client over the configured API; nil in test launches.
     @MainActor
     func makeWebLinkServices(sessions: DocumentSessions, account: AccountModel, library: LibraryModel, infoDictionary: [String: Any]?,
-                             defaults: UserDefaults) -> (any WebLinkServices)? {
+                             defaults: UserDefaults, isLocal: @escaping @MainActor () -> Bool = { false }) -> (any WebLinkServices)? {
         guard !isTesting else { return nil }
         let configuration = AuthConfiguration(infoDictionary: infoDictionary)
         let identity = GRPCSyncTransport<HTTP2ClientTransport.Posix>.Identity(clientVersion: Self.clientVersion(infoDictionary),
                                                                                deviceID: DeviceIdentity.current(defaults: defaults))
         let auth = account.auth
-        return AppWebLinkServices(sessions: sessions, isReachable: { library.isOnline && account.isSignedIn },
-                                  token: { try await auth.validAccessToken() },
-                                  makeTransport: { try GRPCPublishTransport.http2(api: configuration.api, identity: identity) })
+        let services = AppWebLinkServices(sessions: sessions, isReachable: { !isLocal() && library.isOnline && account.isSignedIn },
+                                          token: { try await auth.validAccessToken() },
+                                          makeTransport: { try GRPCPublishTransport.http2(api: configuration.api, identity: identity) })
+        services.isLocal = isLocal
+        return services
     }
 }
 

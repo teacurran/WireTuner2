@@ -19,6 +19,8 @@ final class AccountModel {
     @ObservationIgnored let deviceClient: (any DeviceClient)?
     /// Called each time the account goes from signed out to signed in (the preferences fetch).
     @ObservationIgnored var signedInHandlers: [@MainActor () -> Void] = []
+    /// Called each time the account goes from signed in to signed out (Local mode, D-079).
+    @ObservationIgnored var signedOutHandlers: [@MainActor () -> Void] = []
 
     init(auth: AuthService, client: AccountClient, devices: (any DeviceClient)? = nil) {
         self.auth = auth
@@ -54,6 +56,7 @@ final class AccountModel {
         if state == .signedOut {
             profile = nil
             devices = nil
+            if wasSignedIn { for handler in signedOutHandlers { handler() } }
         }
     }
 

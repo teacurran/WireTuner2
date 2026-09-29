@@ -100,7 +100,7 @@ enum HeadlessUploads {
     static func begin(in directory: URL, connector: any SyncConnecting, sessions: DocumentSessions,
                       title: @MainActor (String) -> String) async -> [HeadlessUpload] {
         var started: [HeadlessUpload] = []
-        for id in storedDocuments(in: directory) where sessions.sessions[id] == nil {
+        for id in storedDocuments(in: directory) where sessions.sessions[id] == nil && sessions.headless[id] == nil {
             do {
                 let store = try await LocalStore.open(documentID: id, at: directory.appending(components: id, "store.sqlite"))
                 guard await needsUpload(store) else {

@@ -794,6 +794,115 @@ the shape is *edit vs delete* with *Restore* bringing the shape back beside the 
 concurrent conversions leave two paths.  The point edit that follows writes only to points the same
 change created, which no one else can have edited.  No new op, register or conformance vector.
 
+[[D-079]]
+=== D-079 Local mode: the app works fully without a server or an account
+Found in use (2026-09-27): beta builds go out before the server exists, and an audit showed the app
+treating "no account" as "offline" -- every document read *Sign in to sync*, the Library said
+*Offline*, every quit with a document open showed the quit sheet, trash, delete and folders failed
+with "You are offline…", there was no way to take a document to another Mac as a file except
+*Export a Package…*, and the untitled document a launch opens was not in the Library.  The spec
+assumed accounts everywhere (D-034, xref:security.adoc[Accounts]).  WireTuner now has a first-class
+*Local mode*:
+
+* *When.*  A build is a *Local mode build* when the build setting `WT_LOCAL_MODE` is `YES` (the
+  Release default until a server exists, so the beta builds published to GitHub Releases run
+  without an account; Debug is `NO` and talks to the compose stack) or when it
+  has no server configured (`WT_API_URL` or `WT_AUTH_ISSUER` empty or absent).  A Local mode build
+  offers no sign-in: menu:{product}[Sign In…], *Sign In with Apple…*, *Account…* and *Sign Out* are
+  not in the menu, and no keychain session is read.  A build with a server runs in Local mode while
+  nobody is signed in and the person chose *Use Without an Account* (the account window, and the
+  popover of *Sign in to sync*); signing in leaves it and signing out returns to it.
+* *No sync, no sign-in, no quit sheet.*  No document connects; the indicator reads *On this Mac*
+  (`internaldrive`, never in the attention colour) and its popover explains that the document is
+  kept on this Mac and how to move it (menu:File[Save a Copy As…]).  Nothing says *Sign in to sync*.
+  *On this Mac* is not waiting work, so quitting never shows the quit sheet.  The launch's
+  background uploads are skipped.
+* *The Library works on this Mac.*  It reads *On this Mac* where it read *Offline*; rename, move,
+  folders (new, rename, delete -- what a deleted folder held moves up, as on the server), duplicate
+  (the content re-issued into a new document, as menu:File[Duplicate] does), *Use as Template*,
+  *Move to Trash*, and a local *Trash* with *Restore*, *Delete Permanently…* (after a confirmation;
+  the store leaves this Mac) and *Empty Trash* all change the library cache alone, one save each.
+  *Shared with Me*, *Join Team…*, *Keep Available Offline*, *Remove Local Copy* (this Mac has the
+  only copy) and the server's *Archived* and *Trash* are not shown.
+* *Server features say why.*  Share, comments (the Comment tool and pins), branches and *Review
+  Merge…*, *Restore Version…* (the server's version list), Spotlight and Follow of collaborators,
+  team color libraries, *Use as Team Library*, publishing to a web link, and web API data sources
+  (with *Credentials…* and *Show Hosts*) are disabled with the reason *Needs a WireTuner account*
+  -- never an error or a spinner.  The commands stay in the menus (the command registry's gate), so
+  the menus are the same in every build.  menu:File[Save Version…], *Name This Version…* and the
+  History panel stay enabled: they work from the history kept on this Mac, and a named version waits
+  in the store and uploads after the first sign-in.  *Restore Version…* is disabled because it lists
+  the server's versions.
+* *Files move work between Macs.*  menu:File[Save a Copy As…] (kbd:[Option+Shift+Cmd+S]) writes the
+  document as a `.wiretuner` package; it is the command *Export a Package…* was, which stays as its
+  name in the command palette and shortcut sets.  menu:File[Open Package…] and a package
+  double-clicked in the Finder open it as a new document on this Mac.
+* *The launch's untitled document is a library document.*  With no session to restore, the launch
+  makes its document as menu:File[New] does -- recorded in the Library with a UUIDv7, from the
+  default template -- so it can be found, renamed and trashed like any other.
+* *Upgrading keeps everything.*  A document made in Local mode stays *waiting to upload*: its
+  library record is pending and its store keeps its outbox.  When an account exists and the person
+  signs in, the library creates the documents in the personal space (folders made on this Mac
+  first, parents before children; a trashed document goes to the server's Trash), then every open
+  document connects and every closed store with changes uploads in the background -- the paths
+  offline work has always used (xref:saving.adoc[Saving], xref:creating-opening.adoc[]).
+
+D-034 is unchanged: sharing still requires sign-in, and Local mode has no sharing at all.  No
+protocol, server or conformance change; `WTSync.SyncState` gains `localOnly`, which `SyncClient`
+never publishes.
+
+[[D-080]]
+=== D-080 Beta distribution: GitHub releases named by date, a DMG and a zip, the appcast on R2
+The beta ships outside the App Store (xref:stack.adoc[Technology stack], "Distribution"), so each
+release needs an installable download, an update Sparkle can apply inside the sandbox, and a place to
+serve both (xref:releasing.adoc[Releasing a beta]):
+
+* *GitHub releases are the download.*  The owner published the first beta by hand as a GitHub
+  pre-release on `teacurran/WireTuner2`, and the scripts keep that format: tag and title
+  `YYYY.MM.DD-NNN` (the date and that day's three-digit sequence from `001`, the next free one among
+  the existing tags), assets `WireTuner-<name>.dmg`, `WireTuner-<name>.zip` and `SHA256SUMS.txt`, a
+  pre-release while the build is not notarized.  A date name tells testers at a glance how recent a
+  build is and needs no bookkeeping; the app's own version and build number stay in
+  `Version.xcconfig`, because Sparkle needs a monotonic `CFBundleVersion`.
+* *The appcast is on R2 and points at the GitHub assets.*  A feed needs a fixed URL that the owner's
+  domain controls and can cache briefly; GitHub has none that fits (`releases/latest` skips
+  pre-releases).  So `appcast.xml` is served from `updates.villagecompute.com`, and each enclosure is
+  the zip's GitHub asset URL, so the bytes testers download are the ones on the release page and R2
+  holds only the feed and a mirror.  `WT_APPCAST_ENCLOSURE=r2` points the enclosures at the R2 copies
+  instead, should GitHub's download limits or redirects get in the way.  The feed is uploaded after
+  the release exists (the upload checks the asset answers).
+
+* *A DMG for people, a zip for Sparkle.*  The DMG (the app and an `Applications` link) is what a
+  web page links to: it is signed, notarized and stapled, so the first launch passes Gatekeeper
+  offline.  The appcast's enclosure is a zip of the stapled app (`ditto --keepParent`): Sparkle's
+  sandboxed installer extracts a zip without mounting an image, and the zip is the smaller update.
+  One notarization of the DMG covers both, since it notarizes the app inside; the app is stapled from
+  the same ticket before it is zipped.  A `.pkg` was rejected: nothing needs installing outside the
+  app bundle.
+* *One feed per channel*, `https://updates.villagecompute.com/wiretuner/<channel>/appcast.xml`, the
+  channel set by `WT_UPDATE_CHANNEL` in `client/Config/Distribution.xcconfig` (`beta` now).
+  Sparkle's in-feed `sparkle:channel` was rejected for now: with one audience a separate feed per
+  channel keeps a stable release from ever reaching beta testers' feed by a tagging mistake, and a
+  build's channel is visible in its `SUFeedURL`.  A stable channel later is a second feed, and a
+  build moving a user between feeds is an ordinary update whose `SUFeedURL` differs.
+* *The version has one source*, `client/Config/Version.xcconfig`, and the build number only goes up
+  across marketing versions (Sparkle orders updates by it); a build number taken from the git commit
+  count was rejected because snapshots and squash merges would make it go backwards.  The commit is
+  recorded in `release.json`, and the GitHub tag is made at it.
+* *An unsigned build has no hardened runtime.*  Ad-hoc code has no team, so library validation under
+  the hardened runtime refuses the embedded Sparkle framework and the app aborts at launch; Developer
+  ID builds keep it.  Release builds strip our products (not `COPY_PHASE_STRIP`, which breaks
+  Sparkle's signatures), and `make release-check` launches the built app every time.
+* *Credentials never enter the repository*: the identity, team, notarization profile or API key,
+  Sparkle private key and R2 key pair come from the environment or the keychain when used.  The
+  public Sparkle key is passed as a build setting at release time rather than committed, so Debug and
+  test builds carry none and never start the updater.  Without credentials every step still runs and
+  produces an *unsigned test build*, announced so, which goes out only as a GitHub pre-release and
+  never to the feed; so the pipeline is exercised before the certificates exist.
+* *R2* (production object storage already) serves the files through a custom domain; artifacts are
+  immutable and cached for a year, the appcast and the fixed-name DMG for five minutes, and the
+  appcast is uploaded last.
+
 == Open questions
 
 [[Q-001]]

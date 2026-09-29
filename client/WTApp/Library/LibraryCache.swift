@@ -57,6 +57,11 @@ struct LibraryCacheFile: Codable, Equatable, Sendable {
         documents.values.filter { !$0.isTrashed && Self.matches($0, scope: scope, spaceID: spaceID) }.sorted(by: Self.byName)
     }
 
+    /// The trashed documents of `spaceID` (Local mode's Trash, D-079), by name.
+    func trashedDocuments(spaceID: String?) -> [LibraryDocument] {
+        documents.values.filter { $0.isTrashed && !$0.isSharedWithMe && $0.spaceID == spaceID }.sorted(by: Self.byName)
+    }
+
     func folders(in spaceID: String?, parent: String?) -> [LibraryFolder] {
         folders.values.filter { $0.spaceID == spaceID && $0.parentID == parent }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

@@ -251,13 +251,13 @@ func heldReview(_ node: OpID, kinds: Set<OverlapKind> = [.sameRegister], actions
         #expect(SyncState.readOnly(.roleInsufficient).hasWaitingWork && !SyncState.readOnly(.role).hasWaitingWork)
         #expect(SyncState.needsReview.needsAttention && !SyncState.saved.needsAttention)
         #expect(SyncState.offline(2).actions == [.retryNow] && SyncState.readOnly(.accessRemoved).actions == [.retryNow])
-        #expect(SyncState.needsReview.actions == [.reviewMerge] && SyncState.needsSignIn.actions == [.signIn])
+        #expect(SyncState.needsReview.actions == [.reviewMerge] && SyncState.needsSignIn.actions == [.signIn, .useWithoutAccount])
         #expect(SyncState.error("x").actions == [.retryNow, .exportPackage] && SyncState.saved.actions.isEmpty)
         #expect(SyncState.saved.readOnlyReason == nil)
         for reason in [ReadOnlyReason.role, .clientTooOld, .roleInsufficient, .accessRemoved] {
             #expect(SyncState.readOnly(reason).readOnlyReason?.isEmpty == false)
         }
-        #expect(SyncAction.allCases.map(\.title) == ["Retry Now", "Review Merge…", "Sign In…", "Export a Package…"])
+        #expect(SyncAction.allCases.map(\.title) == ["Retry Now", "Review Merge…", "Sign In…", "Save a Copy As…", "Use Without an Account"])
     }
 }
 

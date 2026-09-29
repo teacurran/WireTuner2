@@ -100,6 +100,8 @@ final class FakeLibraryServer: LibraryDocumentClient, TeamListClient, BlobDownlo
         try enter("create:\(document.name)")
         var created = document
         created.isPendingUpload = false
+        // As the server does: a document is created live; trashing is its own call.
+        created.isTrashed = false
         put(created)
         return created
     }

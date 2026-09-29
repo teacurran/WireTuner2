@@ -25,9 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         app.run()
     }
 
-    /// Sparkle.  Not started until the distribution task ships an `SUPublicEDKey`; starting
-    /// the updater without one is a fatal Sparkle error.  The menu item stays disabled until
-    /// then because its command validates against `canCheckForUpdates`.
+    /// Sparkle.  Started in `applicationDidFinishLaunching` only when the build carries an
+    /// `SUPublicEDKey` and an https `SUFeedURL` (`make release` builds; releasing.adoc): starting
+    /// the updater without a key is a fatal Sparkle error.  Otherwise the menu item stays disabled
+    /// because its command validates against `canCheckForUpdates`.
     let updaterController = SPUStandardUpdaterController(
         startingUpdater: false,
         updaterDelegate: nil,
@@ -55,6 +56,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let launchEnvironment: LaunchEnvironment
     /// The signed-in account (APP-008).
     let account: AccountModel
+    /// Local mode: the app without a server or without an account (D-079).
+    let localMode: LocalMode
+    /// The work the last change of Local mode started (`localModeDidChange`).
+    var localModeChange: Task<Void, Never>?
     private(set) var accountWindowController: AccountWindowController?
     /// The document library (APP-009).
     let library: LibraryModel
@@ -168,8 +173,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sessionStore: SessionStore? = nil, toolbarStore: ToolbarStore? = nil, layoutsDirectory: URL? = nil,
         shortcutSetsURL: URL? = nil, paletteHistoryURL: URL? = nil, collaboration: CollaborationServices? = nil,
         syncConnector: (any SyncConnecting)? = nil, storesDirectory: @escaping @Sendable () throws -> URL = { try HeadlessUploads.defaultDirectory() },
-        spotlight: SpotlightIndexer = SpotlightIndexer(index: NoSpotlightIndex())
+        spotlight: SpotlightIndexer = SpotlightIndexer(index: NoSpotlightIndex()), localMode: LocalMode? = nil
     ) {
+        let localMode = localMode ?? LocalMode(infoDictionary: Bundle.main.infoDictionary, defaults: defaults)
+        self.localMode = localMode
         self.storesDirectory = storesDirectory
         self.spotlight = spotlight
         layout = PanelLayoutController(registry: panels, store: layoutStore)
@@ -205,10 +212,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         shortcutSets = ShortcutSetStore(url: shortcutSetsURL)
         palette = CommandPaletteController(model: CommandPaletteModel(history: PaletteHistory(url: paletteHistoryURL)))
         let accountModel = self.account
-        let sessions = DocumentSessions(
-            connector: syncConnector ?? launchEnvironment.makeSyncConnector(account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults, preferences: preferences),
-            localUserID: { accountModel.profile?.accountID ?? "" }
-        )
+        // A Local mode build has no server to connect to (D-079).
+        let connector = syncConnector ?? (localMode.isLocalBuild ? nil : launchEnvironment.makeSyncConnector(
+            account: accountModel, infoDictionary: Bundle.main.infoDictionary, defaults: defaults, preferences: preferences
+        ))
+        let sessions = DocumentSessions(connector: connector, localUserID: { accountModel.profile?.accountID ?? "" }, isLocal: { localMode.isActive })
         self.sessions = sessions
         let preferenceStore = preferences
         quit = QuitCoordinator(sessions: sessions, warns: { preferenceStore[PreferenceCatalog.Document.warnUnsyncedQuit] })
@@ -280,11 +288,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             documents.open(documents.environment.makeDocument(id: id, title: name))
         }
         sessions.onSignIn = { [weak self] in self?.showAccount() }
-        sessions.onExportPackage = { [weak self] in _ = self?.menuTarget?.perform(CommandID("file.exportPackage")) }
+        sessions.onExportPackage = { [weak self] in _ = self?.menuTarget?.perform(ImportCommands.ID.saveCopy) }
         if let socketMonitor {
             environment.diagnostics = { socketMonitor.counts.accessibilityText }
         }
         documents = DocumentController(environment: environment)
+        installLocalMode()
         socketMonitor?.onChange = { [weak self] _ in self?.socketCountsDidChange() }
         socketMonitor?.start()
     }
@@ -302,7 +311,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The front document window (the one the View menu acts on).
     var activeDocumentWindow: DocumentWindowController? { documents.activeWindowController }
 
+    /// Whether an Info.plist configures Sparkle: a non-empty `SUPublicEDKey` and an https
+    /// `SUFeedURL`.  Debug and test builds carry an empty key (Config/Distribution.xcconfig).
+    nonisolated static func updatesConfigured(_ info: [String: Any]?) -> Bool {
+        let key = (info?["SUPublicEDKey"] as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
+        let feed = (info?["SUFeedURL"] as? String).flatMap(URL.init(string:))
+        return !key.isEmpty && feed?.scheme == "https" && feed?.host != nil
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if Self.updatesConfigured(Bundle.main.infoDictionary) {
+            updaterController.startUpdater()
+        }
         let updater = updaterController
         StandardCommands.register(
             into: commands,
@@ -339,9 +359,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         PreferenceCommands.install(into: commands, store: preferences) { [weak self] in self?.showPreferences() }
         installTools()
         installShortcutsAndPalette()
-        AccountCommands.install(into: commands, model: account) { [weak self] in self?.showAccount() }
-        let account = account
-        Task { await account.start() }
+        // A Local mode build offers no sign-in at all (D-079).
+        if localMode.offersSignIn {
+            AccountCommands.install(into: commands, model: account) { [weak self] in self?.showAccount() }
+            let account = account
+            Task { await account.start() }
+        }
 
         installContextMenus()
         layersPanel.clickMoves = { preferences[PreferenceCatalog.Panels.layerClickMoves] }
@@ -384,7 +407,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         documents.onChange = { [weak self] in self?.documentsDidChange() }
         let sessions = sessions
-        if let connector = sessions.connector, let directory = try? storesDirectory() {
+        if let connector = sessions.connector, !localMode.isActive, let directory = try? storesDirectory() {
             // Stores with changes still waiting upload in the background before any window opens.
             Task { [weak self] in
                 await HeadlessUploads.begin(in: directory, connector: connector, sessions: sessions) { id in
@@ -490,7 +513,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         UndoCommands.install(into: commands) { documents.activeWindowController }
         WindowTabCommands.install(into: commands)
         toolPalette.reload(from: tools)
-        toolPalette.select = { id in documents.activeWindowController?.toolManager.select(id) }
+        let localMode = localMode
+        toolPalette.select = { id in
+            // A tool that needs the server (the Comment tool) says why in Local mode (D-079).
+            if let refusal = localMode.gate(ToolRegistry.commandID(for: id)) {
+                documents.activeWindowController?.statusBar.show(message: refusal.reason ?? LocalMode.needsAccount)
+                return
+            }
+            documents.activeWindowController?.toolManager.select(id)
+        }
         toolPalette.presentOptions = { descriptor in _ = documents.activeWindowController?.presentToolOptions(descriptor) }
         toolPalette.presentOptions = editingPanels.toolOptions(previous: toolPalette.presentOptions)
         toolPalette.perform = { [weak self] id in _ = self?.menuTarget?.perform(id) }
@@ -612,7 +643,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         packages.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
         packages.createDocument = { title in documents.document(id: library.createDocument(name: title).id) }
         fonts.closeDocument = { documents.close($0.documentHandle.id) }
-        if let client = launchEnvironment.makeFontLibraryClient(account: account, infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults) {
+        if !localMode.isLocalBuild, let client = launchEnvironment.makeFontLibraryClient(account: account, infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults) {
             fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)
         }
         ImportCommands.install(into: commands, hooks: ImportCommands.hooks(imports: imports, packages: packages) { documents.activeWindowController })
@@ -674,7 +705,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// menu:WireTuner[Account…].
     func showAccount() {
-        let controller = accountWindowController ?? AccountWindowController(model: account)
+        let controller = accountWindowController ?? AccountWindowController(model: account, localMode: localMode.offersSignIn ? localMode : nil)
         accountWindowController = controller
         controller.show()
     }

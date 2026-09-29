@@ -83,6 +83,11 @@ struct LibraryFolder: Codable, Equatable, Hashable, Sendable, Identifiable {
     /// nil: at the space's top level.
     var parentID: String?
     var name: String
+    /// Made in Local mode (D-079) and not on the server yet: created there, parents first, before
+    /// the documents in it upload.  Stored only when set.
+    var local: Bool? = nil
+
+    var isLocal: Bool { local ?? false }
 }
 
 /// What `DocumentService.List` is asked for.

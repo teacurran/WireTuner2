@@ -1,0 +1,335 @@
+= Releasing a beta
+include::_attributes.adoc[]
+:page-slug: releasing
+
+How a WireTuner beta goes from a commit to a Mac that did not build it: a DMG and a zip published as
+a GitHub release on `teacurran/WireTuner2`, Developer ID signed and notarized once the certificates
+exist, and Sparkle updates from an appcast served by the R2 bucket behind `updates.villagecompute.com`
+(xref:stack.adoc[Technology stack], "Distribution"; xref:decisions.adoc#D-080[D-080]).  Everything runs from the root `Makefile`; the scripts are in
+`tools/release/`.
+
+NOTE: As built by the release pipeline (APP-001's signing, notarization and Sparkle delivery).
+Every credential -- the Developer ID identity, the team, the notarization profile or API key, the
+Sparkle private key, the R2 key pair -- is read from the environment or the login keychain at the
+moment it is used and is never written to the repository; the only generated file that holds the
+team id, `ExportOptions.plist`, is written under `client/build/`.  With no credential present the
+same commands run end to end and produce an ad-hoc signed *unsigned test build*, named so and
+announced in a banner, which can go out only as a GitHub pre-release and which the R2 upload
+refuses.  The first beta, `2026.09.28-001`, was published by hand in this format before the scripts
+existed; they reproduce it.  Verified on this basis: `make release` (unsigned, universal), `make
+release-check` (including the launch test), `make release-tools-test` (a throwaway Ed25519 key signs
+and verifies a fabricated release's appcast; stubbed `gh`, `aws` and `curl` record the publishing).
+The Developer ID, notarization, GitHub and R2 writes run for the first time when the owner runs
+them with credentials.
+
+== The commands
+
+[cols="1,3"]
+|===
+|Command |What it does
+
+|`make release`
+|`tools/release/release.sh`: names the release (<<versioning>>), then the Help Book, a Release
+archive (universal, stripped), the export, a DMG, notarization and stapling, a zip, the dSYMs,
+`SHA256SUMS.txt`, `release.json`, then `release-check` and `appcast`.  Output:
+`client/build/release/<YYYY.MM.DD-NNN>/`, what ships in its `dist/`;
+`client/build/release/release-dir.txt` points the other targets at it (`WT_RELEASE_DIR` overrides).
+
+|`make release-check`
+|`tools/release/check.sh`: verifies the exported app and its DMG (<<release-check>>).
+`APP=… DMG=…` checks others.
+
+|`make appcast`
+|`tools/release/appcast.sh`: this release's `dist/appcast.xml` (<<appcast>>).
+
+|`make release-publish`
+|`tools/release/publish-github.sh`: a dry run that prints the `gh release create` call and the notes;
+`PUBLISH=1` creates the GitHub release (<<github>>).
+
+|`make release-upload`
+|`tools/release/upload.sh`: a dry run that prints every upload; `UPLOAD=1` publishes the appcast and
+copies to R2 (<<publishing>>).
+
+|`make bump-build`, `make bump-version VERSION=X.Y.Z`, `make release-version`
+|The version file (<<versioning>>).
+
+|`make release-tools-test`
+|`tools/release/Tests/run.sh`: the scripts against fabricated releases, offline.
+|===
+
+[[versioning]]
+== Versioning
+
+`client/Config/Version.xcconfig` is the one place the version lives: `MARKETING_VERSION`
+(`CFBundleShortVersionString`, `X.Y.Z`) and `CURRENT_PROJECT_VERSION` (`CFBundleVersion`, an
+integer).  `client/project.yml` includes it through `Config/Project.xcconfig`, so the app and its four
+extensions carry the same numbers, and `release-check` fails if any bundle differs.
+
+* `make bump-build` adds one to the build number; every release that is uploaded has its own.
+* `make bump-version VERSION=0.2.0` (no `VERSION`: the next patch) sets the marketing version and
+  also takes the next build number.  A version lower than the current one is refused.
+* The build number never resets and never goes down: Sparkle orders updates by `CFBundleVersion`, so
+  `make appcast` refuses a build that is not newer than every item in the published appcast.
+* A release is *named* `YYYY.MM.DD-NNN`: the local date and that day's three-digit sequence from
+  `001`, the next number free among this checkout's git tags and the GitHub repository's tags and
+  releases (read with `gh`; `WT_RELEASE_NAME` overrides, and a name already taken is refused).  The
+  name is the GitHub tag and title and the file stem: `WireTuner-<name>.dmg`, `WireTuner-<name>.zip`,
+  `SHA256SUMS.txt`.  Whether a build is signed shows in `release.json` and in the GitHub pre-release
+  flag, not in the file names.
+* The app still carries `Version.xcconfig`'s numbers (the About window and Sparkle's comparison);
+  the release notes' footer and `release.json` give both, with the commit the build came from.
+
+[[signing]]
+== Signing and notarization
+
+[cols="1,3"]
+|===
+|Variable |Meaning
+
+|`WT_DEVELOPER_ID_IDENTITY`
+|`Developer ID Application: <Name> (<TEAMID>)`.  Unset: the one such identity in the keychain is used;
+with several, set it.
+
+|`WT_TEAM_ID`
+|The team.  Unset: read from the identity's `(TEAMID)`.
+
+|`WT_NOTARY_PROFILE`
+|A `xcrun notarytool store-credentials` profile in the keychain.
+
+|`WT_NOTARY_KEY_PATH`, `WT_NOTARY_KEY_ID`, `WT_NOTARY_ISSUER`
+|Instead of the profile: an App Store Connect API key (the `.p8` kept outside the repository; no
+issuer for an individual key).  CI uses this.
+
+|`WT_RELEASE_UNSIGNED=1`
+|Build the unsigned test build even when credentials are present.
+
+|`WT_RELEASE_REQUIRE_NOTARIZED=1`
+|Fail instead of falling back when any credential or the Sparkle public key is missing (CI).
+
+|`WT_API_URL`, `WT_AUTH_ISSUER`, `WT_LINKS_URL`
+|The production endpoints baked into the build; unset, the compose defaults stay and `make release`
+warns.
+
+|`WT_RELEASE_ARCHS`
+|Limit the architectures (default: universal, `arm64 x86_64`).
+
+|`WT_RELEASE_NAME`, `WT_RELEASE_DATE`
+|Set the release name, or only its date, instead of today's next free one.
+|===
+
+Every release build strips our own products (`DEPLOYMENT_POSTPROCESSING=YES`,
+`STRIP_INSTALLED_PRODUCT=YES`, `STRIP_STYLE=non-global`; the app goes from 664 MB to 306 MB, the DMG
+is about 141 MB and the zip 130 MB).  `COPY_PHASE_STRIP` stays off: it strips Sparkle's binaries,
+which arrive signed, as they are copied, and breaks their signatures.  The dSYMs are kept beside the
+release as `WireTuner-<name>-dSYMs.zip`.  Follow-up: the Spotlight importer links WTModel statically
+(about 137 MB stripped); a shared WTModel framework in `Contents/Frameworks` would halve the app.
+
+With an identity, the archive is built with it (`OTHER_CODE_SIGN_FLAGS=--timestamp`,
+`CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO`, so no `get-task-allow`) and exported with
+`xcodebuild -exportArchive`, method `developer-id`, manual signing: the export re-signs the app, the
+Thumbnail, Preview, Share and Spotlight extensions and Sparkle's `Autoupdate`, `Updater.app`,
+`Installer.xpc` and `Downloader.xpc`, each with its own entitlements, the hardened runtime and a
+secure timestamp.  The app group is `$(TeamIdentifierPrefix)com.villagecompute.wiretuner`, which
+signing resolves to `<TEAMID>.com.villagecompute.wiretuner`: a team-prefixed macOS group needs no
+provisioning profile, so none is involved.
+
+The DMG is signed, submitted with `xcrun notarytool submit --wait` (the notary's log is saved to
+`logs/notarize-log.json` whatever the outcome), and stapled; the app is stapled too, from the same
+ticket, before it is zipped.  One submission covers both, since notarizing the DMG notarizes the
+code inside it.
+
+Without an identity the archived app is used as built, ad-hoc signed and *without the hardened
+runtime* (`ENABLE_HARDENED_RUNTIME=NO`): the *unsigned test build*.  Under the hardened runtime,
+library validation requires every loaded library to share the app's team, and ad-hoc code has none,
+so it refuses the embedded `Sparkle.framework` ("mapping process and mapped file (non-platform) have
+different Team IDs") and the app aborts at launch; Developer ID builds keep the hardened runtime,
+which notarization requires and which works there because the export signs everything with the one
+team.  `release-check` skips only what a Developer ID signature alone can pass, and Gatekeeper
+blocks the build on any other Mac until the user opens it with Control-click → Open (the GitHub notes
+say how).  An identity without a notarization credential gives a signed build that is not notarized,
+which Gatekeeper refuses too.  Neither goes to R2; on GitHub both are pre-releases.
+
+[[sparkle]]
+== Sparkle updates
+
+The feed is set by `WT_UPDATE_CHANNEL` in `client/Config/Distribution.xcconfig`:
+`https://updates.villagecompute.com/wiretuner/<channel>/appcast.xml`, `beta` for now.  The release
+scripts read it back from the built app's `SUFeedURL`, so the xcconfig is the only place it is
+written.
+
+The public EdDSA key reaches `SUPublicEDKey` through the `WT_SPARKLE_PUBLIC_KEY` build setting, which
+is empty in the xcconfig: `make release` passes it from `WT_SPARKLE_PUBLIC_KEY` or, failing that, from
+the private key in the keychain (`generate_keys -p`).  `AppDelegate` starts the updater only when the
+key is present and `SUFeedURL` is https, so Debug and test builds never check for updates and a
+build without a key keeps *Check for Updates…* disabled rather than failing at launch.  The private
+key stays in the owner's keychain; CI gets it as a secret file (`WT_SPARKLE_KEY_FILE`, exported with
+`generate_keys -x`) and the public key as `WT_SPARKLE_PUBLIC_KEY`.
+
+[[appcast]]
+=== The appcast
+
+`make appcast` (the last step of `make release`) writes `dist/appcast.xml`:
+
+* The enclosure URL is the zip's GitHub release asset,
+  `https://github.com/teacurran/WireTuner2/releases/download/<name>/WireTuner-<name>.zip`, or with
+  `WT_APPCAST_ENCLOSURE=r2` its copy beside the appcast (D-080).
+* It starts from the channel's published appcast (`WT_APPCAST_BASE` names a file or URL instead); a
+  404 starts a new one.  The items already there are kept, newest build first; the same build
+  replaces its own item.
+* The enclosure is the zip, signed with `sign_update` (the keychain's key, or `WT_SPARKLE_KEY_FILE`).
+  The signature is verified against the app's own `SUPublicEDKey` before anything is written
+  (`tools/release/verify-signature.sh`, OpenSSL's Ed25519), so a key that differs from the one
+  installed copies trust cannot be published.
+* The item carries `sparkle:version` (the build), `sparkle:shortVersionString`,
+  `sparkle:minimumSystemVersion` from the app, and the release notes.
+* The finished feed is itself signed (`sign_update` on the XML embeds the signature), ready for
+  `SURequireSignedFeed` should the app turn it on.
+
+Without a key, or for a test build, the appcast is written unsigned with an `UNSIGNED TEST APPCAST`
+comment.
+
+[[release-notes]]
+=== Release notes
+
+Markdown in `docs/release-notes/<version>.md`, or `<version>-<build>.md` for one build
+(`WT_RELEASE_NOTES` names another file).  `tools/release/appcast.py` renders the subset Sparkle's
+window shows well -- `#` headings, paragraphs, `-` and `1.` lists, `*emphasis*`, `**strong**`,
+`` `code` ``, `[links](https://…)` -- into the item's `<description>`.  A notarized release without
+notes is refused.
+
+[[github]]
+== GitHub Releases
+
+`make release-publish` checks the release (the files match `SHA256SUMS.txt`, the name is still free,
+the build came from a clean checkout whose commit is known) and prints the call and the notes;
+`make release-publish PUBLISH=1` runs it:
+
+[source,sh]
+----
+gh release create <name> WireTuner-<name>.dmg WireTuner-<name>.zip SHA256SUMS.txt \
+    --repo teacurran/WireTuner2 --title "WireTuner <name>" --notes-file github-notes.md \
+    --target <commit> [--prerelease]
+----
+
+The tag is made at the commit the build came from (which must be pushed).  A build that is not
+notarized is a pre-release, and its notes open with *Opening it the first time* (Control-click →
+Open, or `xattr -dr com.apple.quarantine`); `WT_RELEASE_PRERELEASE=1` makes a notarized beta a
+pre-release too.  The notes are the release-notes Markdown (<<release-notes>>; `<name>.md` is also
+looked for), then a footer with the version, build, architectures and commit.
+
+[[publishing]]
+== Publishing the appcast to R2
+
+`make release-upload` checks the release (the files match `SHA256SUMS`; Developer ID signed and
+notarized; every appcast item EdDSA-signed; an item for this build) and prints the `aws s3 cp` calls
+it would make.  `make release-upload UPLOAD=1` makes them, to R2 through its S3 API:
+
+[cols="2,1,2"]
+|===
+|Key under `wiretuner/<channel>/` |Cache |What
+
+|`WireTuner-<name>.zip` |a year, immutable |The zip (the enclosure with `WT_APPCAST_ENCLOSURE=r2`)
+|`WireTuner-<name>.dmg` |a year, immutable |A mirror of the download
+|`WireTuner-<name>.sha256` |a year, immutable |`SHA256SUMS.txt`
+|`WireTuner-<channel>.dmg` |5 minutes |The DMG at a fixed name, for a web page's download link
+|`appcast.xml` |5 minutes |Uploaded last, so the feed never names a file that is not there yet
+|===
+
+Credentials: `WT_R2_BUCKET`, `WT_R2_ENDPOINT` (or `WT_R2_ACCOUNT_ID`, giving
+`https://<id>.r2.cloudflarestorage.com`), and `WT_R2_PROFILE` (an aws CLI profile holding the R2 API
+token's key pair) or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.  The script sets region `auto` and
+turns off the CLI's newer default checksum headers, which R2 does not take.  When the appcast's
+enclosure is the GitHub asset, a real upload first checks the asset answers 200, so the GitHub release
+is published before the feed names it.  After uploading it fetches
+the appcast and the zip from the public URL and warns if either does not answer 200.
+
+[[release-check]]
+== What release-check verifies
+
+* `codesign --verify --deep --strict` over the app, and for every Mach-O inside it: a valid strict
+  signature, the hardened runtime, no `get-task-allow`; when Developer ID signed, the Developer ID
+  authority, the one team and a secure timestamp.
+* The app and each of the four extensions: sandboxed, its entitlements dumped to
+  `logs/entitlements/`, the app's version and build; in the app and the share extension the app group
+  entitlement equal to `<TEAMID>.com.villagecompute.wiretuner` (the bare id when ad-hoc) and to the
+  bundle's `WTAppGroup`.
+* Sparkle: the framework embedded, an https `SUFeedURL`, and `SUPublicEDKey` a 32-byte key (required
+  when Developer ID signed).
+* Gatekeeper when Developer ID signed: `spctl -a -vvv -t exec` accepts the app (and says
+  `Notarized Developer ID` once notarized), the ticket is stapled; the DMG is signed and
+  `spctl -a -t open --context context:primary-signature` accepts it.
+* The DMG passes `hdiutil verify`, mounts, holds an `Applications` link, and its app verifies and is
+  this build.
+* Our code is hardened when Developer ID signed and is not when ad-hoc (<<signing>>).
+* The app launches: `open -n` (window restoration off), still running 8 seconds later, and no new
+  `WireTuner*` report in `~/Library/Logs/DiagnosticReports`; then it is terminated.
+  `WT_RELEASE_SKIP_LAUNCH=1` skips this on a Mac without a login session.
+
+[[owner-setup]]
+== One-time setup (the owner)
+
+. *Developer ID certificate.*  In the Apple Developer account (Account Holder role), Certificates →
+  `+` → *Developer ID Application*; create it from Xcode (Settings → Accounts → Manage Certificates →
+  `+` → Developer ID Application) so the private key lands in the login keychain.
+  `security find-identity -v -p codesigning` then lists `Developer ID Application: <Name> (<TEAMID>)`.
+  Export a `.p12` backup to a password manager, never into the repository.
+. *Notarization credential.*  Either an app-specific password for the Apple ID
+  (appleid.apple.com → Sign-In and Security → App-Specific Passwords) stored as a keychain profile:
++
+[source,sh]
+----
+xcrun notarytool store-credentials wiretuner-notary --apple-id <apple id> --team-id <TEAMID>
+export WT_NOTARY_PROFILE=wiretuner-notary     # in ~/.zshrc
+----
++
+or an App Store Connect API key (Users and Access → Integrations → Team Keys, role Developer):
+`WT_NOTARY_KEY_PATH`, `WT_NOTARY_KEY_ID`, `WT_NOTARY_ISSUER`.  CI uses the API key.
+. *Sparkle keys.*  After one build has resolved the packages (`make release` or `make client-build`):
++
+[source,sh]
+----
+client/build/release/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys
+----
++
+It stores the private key in the login keychain and prints the public key; `make release` reads it
+from there.  Back the private key up (`generate_keys -x sparkle-private-key`, into the password
+manager, then delete the file): losing it means no installed copy can be updated again.  For CI, the
+exported file becomes the secret behind `WT_SPARKLE_KEY_FILE` and the public key the variable
+`WT_SPARKLE_PUBLIC_KEY`.
+. *R2 bucket and the update domain.*  In Cloudflare: R2 → create a bucket (for example
+  `wiretuner-updates`); its Settings → Custom Domains → connect `updates.villagecompute.com` (the zone
+  must be on Cloudflare; this makes the bucket publicly readable at that host).  R2 → Manage API
+  tokens → an *Object Read & Write* token scoped to the bucket; keep its key pair in an aws CLI profile
+  (`aws configure --profile wiretuner-r2`, region `auto`) and export `WT_R2_BUCKET`,
+  `WT_R2_ACCOUNT_ID` and `WT_R2_PROFILE=wiretuner-r2`.
+. *GitHub.*  `gh auth login` with write access to `teacurran/WireTuner2`.
+. *Production endpoints.*  Export `WT_API_URL`, `WT_AUTH_ISSUER` and `WT_LINKS_URL` for the beta's
+  server, or leave them unset for a build that runs in Local mode against no server.
+
+[[per-release]]
+== Each release
+
+. `make bump-build` (or `make bump-version VERSION=X.Y.Z`); commit `client/Config/Version.xcconfig`.
+. Write `docs/release-notes/<version>.md`; commit it, and push: the build must come from a clean
+  checkout of a pushed commit.
+. `make release`.  The first lines say which mode it runs in; a banner says *UNSIGNED TEST BUILD* or
+  *SIGNED BUT NOT NOTARIZED* when a credential is missing.  It ends with `release-check`'s summary and
+  the `dist/` listing.
+. Open the DMG from `dist/` on another Mac (or after `xattr -w com.apple.quarantine` on a copy) and
+  launch the app: Gatekeeper must open it without a warning.
+. `make release-publish` (dry run), read the notes, then `make release-publish PUBLISH=1`.
+. When the build is notarized and the appcast signed: `make release-upload` (dry run), read it, then
+  `make release-upload UPLOAD=1`.
+. On a Mac running the previous beta: *WireTuner > Check for Updates…* offers the new build.
+
+== Troubleshooting
+
+* *Notarization rejected*: `logs/notarize-log.json` lists each file and the reason (usually a nested
+  binary without the hardened runtime or a timestamp; `make release-check` names the same file).
+* *`exportArchive` asks for a provisioning profile*: an entitlement that needs one was added (an
+  iCloud container, a `group.` app group).  Keep app groups team-prefixed, or add a Developer ID
+  profile to the generated `ExportOptions.plist` (`provisioningProfiles`) in `release.sh`.
+* *The appcast refuses the build number*: the published feed already has that build or a newer one;
+  `make bump-build`.
+* *`the signing key and the embedded public key differ`*: the keychain's Sparkle key is not the one
+  the app was built with; restore the backed-up key (`generate_keys -f`).

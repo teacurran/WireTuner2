@@ -108,13 +108,19 @@ final class DocumentSession {
     private var observers: [UUID: @MainActor (SessionNotice) -> Void] = [:]
     private(set) var isStopped = false
 
-    /// *Sign In…* and *Export a Package…* from the popover (the app's account and export).
+    /// *Sign In…*, *Export a Package…* and *Use Without an Account* from the popover (the app's
+    /// account, export and Local mode).
     var onSignIn: @MainActor () -> Void = {}
     var onExportPackage: @MainActor () -> Void = {}
+    var onUseWithoutAccount: @MainActor () -> Void = {}
+    /// Local mode (D-079): no client runs and the state is *On this Mac*.
+    let isLocal: @MainActor () -> Bool
 
-    init(document: DocumentHandle, connector: (any SyncConnecting)?, localUserID: String, clearAfter: Duration = .seconds(5)) {
+    init(document: DocumentHandle, connector: (any SyncConnecting)?, localUserID: String, clearAfter: Duration = .seconds(5),
+         isLocal: @escaping @MainActor () -> Bool = { false }) {
         self.document = document
         self.connector = connector
+        self.isLocal = isLocal
         presenceModel = PresenceModel(localUserID: localUserID, clearAfter: clearAfter)
         presence = PresenceAdapter(source: presenceModel)
         status.onAction = { [weak self] action in self?.perform(action) }
@@ -132,6 +138,11 @@ final class DocumentSession {
         if let starting { return starting }
         let task = Task { [weak self] in
             guard let self else { return }
+            guard !self.isLocal() else {
+                // Local mode: nothing syncs; leaving it (a sign-in) connects (`leaveLocalMode`).
+                self.status.update(.localOnly)
+                return
+            }
             guard let connector = self.connector, let model = await self.document.openedModel(),
                   let store = model.backend as? LocalStore, !self.isStopped else {
                 // Nothing to sync (a memory document, or sync is off in this launch).
@@ -179,17 +190,33 @@ final class DocumentSession {
         await client.start()
     }
 
-    /// Stops the client (ack, `GONE`), closes its transport and stops following it.
-    func stop() async {
-        isStopped = true
-        ReviewFloors.shared.update(nil, for: document.id)
+    // MARK: Local mode (D-079)
+
+    /// Local mode began (*Use Without an Account*): the client stops and the state is *On this
+    /// Mac*; the store keeps its outbox for the upload after a sign-in.
+    func enterLocalMode() async {
         await starting?.value
+        starting = nil
+        await disconnect()
+        status.update(.localOnly)
+    }
+
+    /// Local mode ended (a sign-in): the session connects as if the window had just opened.
+    @discardableResult
+    func leaveLocalMode() -> Task<Void, Never>? {
+        guard !isStopped, connection == nil, !isLocal() else { return nil }
+        starting = nil
+        status.update(.opening)
+        return start()
+    }
+
+    /// Ends the running client and what follows it, keeping the session usable.
+    private func disconnect() async {
         for feed in feeds { feed.cancel() }
         feeds = []
         if let documentToken { document.stopObserving(documentToken) }
         documentToken = nil
         presenceModel.unbind()
-        presence.detach()
         // The thumbnail is captured once more, into the queue, before the client stops.
         if let thumbnails {
             self.thumbnails = nil
@@ -199,6 +226,15 @@ final class DocumentSession {
         self.connection = nil
         await connection.client.stop()
         await connection.close()
+    }
+
+    /// Stops the client (ack, `GONE`), closes its transport and stops following it.
+    func stop() async {
+        isStopped = true
+        ReviewFloors.shared.update(nil, for: document.id)
+        await starting?.value
+        presence.detach()
+        await disconnect()
     }
 
     // MARK: Local changes and presence
@@ -288,6 +324,8 @@ final class DocumentSession {
             onSignIn()
         case .exportPackage:
             onExportPackage()
+        case .useWithoutAccount:
+            onUseWithoutAccount()
         }
     }
 

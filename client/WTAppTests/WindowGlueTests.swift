@@ -50,7 +50,8 @@ extension FakeCollaborationServer {
         delegate.documentSetup.links?.close()
         #expect(delegate.documentInfo.userName().isEmpty)
         #expect(await delegate.storage.refresh() == false, "not signed in: nothing read")
-        #expect(delegate.storage.windows().contains { $0 === window } && delegate.storage.space(window.documentHandle) == nil)
+        // The launch document is in the library (D-079), so its space is known: the personal one.
+        #expect(delegate.storage.windows().contains { $0 === window } && delegate.storage.space(window.documentHandle) == delegate.library.personalSpace.id)
         // Paste reads plain text through the clipboard reader.
         let pasteImport = try #require(window.environment.pasteImport)
         let general = NSPasteboard.general

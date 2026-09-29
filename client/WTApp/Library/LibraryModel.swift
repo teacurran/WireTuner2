@@ -31,6 +31,9 @@ final class LibraryModel {
         case folder(String?)
         /// The current space's templates (DOC-030).
         case templates
+        /// The current space's trashed documents, in Local mode (D-079): restored or deleted
+        /// permanently on this Mac.  With an account the server's Trash is `LibraryBranches`'.
+        case trash
     }
 
     static let searchDebounce: Duration = .milliseconds(300)
@@ -38,6 +41,9 @@ final class LibraryModel {
     static let offlineActionMessage = "You are offline. Connect to change documents in the library."
     static let templateFlagOfflineMessage = "You are offline. Connect to change whether a document is a template."
     static let untitled = "Untitled"
+    /// The toolbar's state in Local mode, in place of *Offline* (D-079).
+    static let onThisMac = "On this Mac"
+    static let copyFailedMessage = "The copy could not be made on this Mac."
     /// The personal space's id until `Me` has told us the account id (documents created
     /// before then are moved into the real space when they upload).
     static let localPersonalID = "personal"
@@ -51,6 +57,15 @@ final class LibraryModel {
     /// none runs.
     @ObservationIgnored var syncState: @MainActor (String) -> SyncState? = { _ in nil }
     @ObservationIgnored var makeID: @MainActor () -> String = { UUIDv7.make() }
+    /// Local mode (D-079): every operation changes the cache alone, nothing is listed from or sent
+    /// to the server, and documents keep their pending upload for a later sign-in.
+    @ObservationIgnored var isLocal: @MainActor () -> Bool = { false }
+    /// Fills the new document `copy` with `source`'s content on this Mac (Local mode's Duplicate);
+    /// false when it could not.  nil records the copy empty.
+    @ObservationIgnored var copyContent: (@MainActor (_ source: String, _ copy: String) async -> Bool)?
+    /// Closes the document's windows and removes its store from this Mac (Local mode's *Delete
+    /// Permanently*).
+    @ObservationIgnored var removeFromThisMac: @MainActor (String) async -> Void = { _ in }
     /// Opens documents in tabs (`DocumentController`).
     @ObservationIgnored var onOpen: @MainActor ([LibraryDocument]) -> Void = { _ in }
     /// The branches nested under their parents, *Archived* and *Trash* (COLLAB-016); nil leaves them out.
@@ -143,6 +158,7 @@ final class LibraryModel {
         case .sharedWithMe: cache.documents(in: .sharedWithMe, spaceID: nil)
         case let .folder(folderID): cache.documents(in: .folder(folderID), spaceID: currentSpace.id)
         case .templates: cache.documents(in: .templates, spaceID: currentSpace.id)
+        case .trash: cache.trashedDocuments(spaceID: currentSpace.id)
         }
     }
 
@@ -150,7 +166,14 @@ final class LibraryModel {
     var rows: [LibraryRow] { searchResults ?? documents.map { LibraryRow(document: $0) } }
 
     var searchHint: String? {
-        searchText.trimmingCharacters(in: .whitespaces).isEmpty || isOnline ? nil : Self.namesOnlyHint
+        searchText.trimmingCharacters(in: .whitespaces).isEmpty || isOnline || isLocal() ? nil : Self.namesOnlyHint
+    }
+
+    /// The toolbar's connection note: *On this Mac* in Local mode, *Offline* when the server
+    /// cannot be reached, nothing online.
+    var connectionNote: (title: String, symbol: String)? {
+        if isLocal() { return (Self.onThisMac, "internaldrive") }
+        return isOnline ? nil : ("Offline", "icloud.slash")
     }
 
     /// Whether this Mac has a copy (the offline badge).
@@ -160,7 +183,7 @@ final class LibraryModel {
 
     /// Whether the document can be opened now; the rest are dimmed while offline.
     func isAvailable(_ document: LibraryDocument) -> Bool {
-        isOnline || isOfflineAvailable(document)
+        isOnline || isLocal() || isOfflineAvailable(document)
     }
 
     static func notOnThisMacMessage(_ name: String) -> String {
@@ -176,6 +199,7 @@ final class LibraryModel {
 
     /// Everything: the account id, the teams, uploads waiting from offline, the section.
     func refresh() async {
+        guard !isLocal() else { return saveLocal() }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -201,7 +225,7 @@ final class LibraryModel {
 
     /// The mention dots, read again (kept as they were when the call fails).
     func refreshMentions() async {
-        guard let mentions, let documents = try? await mentions.mentionedDocuments() else { return }
+        guard !isLocal(), let mentions, let documents = try? await mentions.mentionedDocuments() else { return }
         mentioned = documents
     }
 
@@ -226,6 +250,7 @@ final class LibraryModel {
 
     /// The current section only.
     func reloadSection() async {
+        guard !isLocal() else { return saveLocal() }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -241,7 +266,7 @@ final class LibraryModel {
 
     /// The next page of the section (`List` cursors).
     func loadMore() async {
-        guard let cursor = nextCursor else { return }
+        guard !isLocal(), let cursor = nextCursor else { return }
         do {
             try await list(accessToken: try await services.accessToken(), cursor: cursor)
         } catch {
@@ -257,6 +282,7 @@ final class LibraryModel {
         case .sharedWithMe: .sharedWithMe
         case let .folder(folderID): .folder(folderID)
         case .templates: .templates
+        case .trash: nil
         }
     }
 
@@ -304,6 +330,14 @@ final class LibraryModel {
 
     private func save() {
         try? store?.save(cache)
+    }
+
+    /// Local mode's refresh: nothing to fetch; the cache is what there is.
+    private func saveLocal() {
+        isOnline = true
+        errorMessage = nil
+        nextCursor = nil
+        save()
     }
 
     // MARK: Opening
@@ -424,7 +458,8 @@ final class LibraryModel {
         cache.documents[document.id] = document
         save()
         let id = document.id
-        pendingUploads[id] = Task { [weak self] in await self?.upload(id) }
+        // Local mode keeps it waiting to upload until someone signs in (D-079).
+        if !isLocal() { pendingUploads[id] = Task { [weak self] in await self?.upload(id) } }
         return document
     }
 
@@ -438,8 +473,25 @@ final class LibraryModel {
     }
 
     private func uploadPending(accessToken: String) async throws {
+        try await uploadLocalFolders(accessToken: accessToken)
         for document in cache.documents.values.filter(\.isPendingUpload).sorted(by: { $0.id < $1.id }) {
             try await upload(document.id, accessToken: accessToken)
+        }
+    }
+
+    /// Folders made in Local mode (D-079), created on the server top-down before the documents
+    /// in them upload; each document and subfolder follows its folder's new id.
+    private func uploadLocalFolders(accessToken: String) async throws {
+        while let folder = cache.folders.values.filter({ $0.isLocal && !($0.parentID.flatMap { cache.folders[$0]?.isLocal } ?? false) })
+            .sorted(by: { $0.id < $1.id }).first {
+            let spaceID = folder.spaceID == Self.localPersonalID ? (cache.personalSpaceID ?? folder.spaceID) : folder.spaceID
+            let created = try await services.documents.createFolder(spaceID: spaceID, parentFolderID: folder.parentID, name: folder.name, accessToken: accessToken)
+            cache.folders[folder.id] = nil
+            cache.folders[created.id] = created
+            for (id, child) in cache.folders where child.parentID == folder.id { cache.folders[id]?.parentID = created.id }
+            for (id, document) in cache.documents where document.folderID == folder.id { cache.documents[id]?.folderID = created.id }
+            if section == .folder(folder.id) { section = .folder(created.id) }
+            save()
         }
     }
 
@@ -452,6 +504,10 @@ final class LibraryModel {
         } catch let error as RPCError where error.code == .alreadyExists {
             // An earlier Create reached the server but its answer did not reach us.
             uploaded = document
+        }
+        if document.isTrashed, !uploaded.isTrashed {
+            // Trashed in Local mode (D-079): it goes to the server's Trash once it exists.
+            uploaded = try await services.documents.trash(documentID: id, accessToken: accessToken)
         }
         if document.isTemplate, !uploaded.isTemplate {
             // Saved as a template offline (templates.adoc, "Offline behavior"): flagged once it exists.
@@ -496,7 +552,7 @@ final class LibraryModel {
     /// keeps the flag locally and is flagged after its `Create`.
     func setTemplate(_ id: String, _ isTemplate: Bool) async {
         guard var document = cache.documents[id], document.isTemplate != isTemplate else { return }
-        if document.isPendingUpload {
+        if document.isPendingUpload || isLocal() {
             document.isTemplate = isTemplate
             store(document)
             return
@@ -514,6 +570,7 @@ final class LibraryModel {
     /// Lists every space's templates into the cache (the gallery opening); offline the cache
     /// stands.
     func refreshTemplates() async {
+        guard !isLocal() else { return }
         do {
             let token = try await services.accessToken()
             for space in spaces {
@@ -531,7 +588,7 @@ final class LibraryModel {
     func rename(_ id: String, to name: String) async {
         let name = name.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, var document = cache.documents[id] else { return }
-        if document.isPendingUpload {
+        if document.isPendingUpload || isLocal() {
             document.name = name
             store(document)
             return
@@ -543,6 +600,7 @@ final class LibraryModel {
     /// the cached entry, else `DocumentService.Get`, stored; nil offline or without access.
     func document(withID id: String) async -> LibraryDocument? {
         if let cached = cache.documents[id] { return cached }
+        guard !isLocal() else { return nil }
         let fetched = await perform { try await services.documents.get(documentID: id, accessToken: $0) }
         store(fetched)
         return fetched
@@ -554,10 +612,46 @@ final class LibraryModel {
     }
 
     func trash(_ id: String) async {
-        let trashed = await perform { try await services.documents.trash(documentID: id, accessToken: $0) }
+        let trashed = isLocal() ? local(id) { $0.isTrashed = true } : await perform { try await services.documents.trash(documentID: id, accessToken: $0) }
         store(trashed)
         selection.remove(id)
         if trashed != nil { onTrashed(id) }
+    }
+
+    /// The cached document `id` changed by `body`, for Local mode's operations; nil when unknown.
+    private func local(_ id: String, _ body: (inout LibraryDocument) -> Void) -> LibraryDocument? {
+        guard var document = cache.documents[id] else { return nil }
+        body(&document)
+        document.updatedAt = now()
+        return document
+    }
+
+    /// Local mode's Trash (D-079): back where it was, or at the top level when its folder is gone.
+    func restore(_ id: String) {
+        guard isLocal() else { return }
+        store(local(id) { document in
+            document.isTrashed = false
+            if let folder = document.folderID, cache.folders[folder] == nil { document.folderID = nil }
+        })
+        selection.remove(id)
+    }
+
+    /// Local mode's *Delete Permanently* for a trashed document (D-079): its windows close, its
+    /// store leaves this Mac and it leaves the library.  Nothing else holds a copy.
+    func deletePermanently(_ id: String) async {
+        guard isLocal(), cache.documents[id]?.isTrashed == true else { return }
+        await removeFromThisMac(id)
+        cache.documents[id] = nil
+        cache.recents.removeAll { $0.documentID == id }
+        cache.offlineAvailable.remove(id)
+        selection.remove(id)
+        save()
+        onRecentsChange()
+    }
+
+    /// *Empty Trash* in Local mode: every trashed document of the space shown.
+    func emptyTrash() async {
+        for document in cache.trashedDocuments(spaceID: currentSpace.id) { await deletePermanently(document.id) }
     }
 
     /// A document was moved to the trash (Spotlight drops it, IO-035).
@@ -566,6 +660,17 @@ final class LibraryModel {
     @discardableResult
     func duplicate(_ id: String) async -> LibraryDocument? {
         guard let source = cache.documents[id] else { return nil }
+        if isLocal() {
+            // Local mode (D-079): a new document here, filled from the source's content.
+            let copy = recordDocument(name: "\(source.name) copy", like: id, isTemplate: source.isTemplate)
+            guard await copyContent?(id, copy.id) ?? true else {
+                cache.documents[copy.id] = nil
+                save()
+                errorMessage = Self.copyFailedMessage
+                return nil
+            }
+            return copy
+        }
         let copy = await perform { try await services.documents.duplicate(documentID: id, newDocumentID: makeID(), name: "\(source.name) copy", accessToken: $0) }
         store(copy)
         return copy
@@ -575,12 +680,19 @@ final class LibraryModel {
     /// top level.
     func move(_ id: String, toFolder folderID: String?) async {
         let spaceID = currentSpace.id
+        if isLocal() { return store(local(id) { $0.spaceID = spaceID; $0.folderID = folderID }) }
         store(await perform { try await services.documents.move(documentID: id, spaceID: spaceID, folderID: folderID, accessToken: $0) })
     }
 
     @discardableResult
     func createFolder(named name: String) async -> LibraryFolder? {
         let target = creationTarget
+        if isLocal() {
+            let folder = LibraryFolder(id: makeID(), spaceID: target.spaceID, parentID: target.folderID, name: name, local: true)
+            cache.folders[folder.id] = folder
+            save()
+            return folder
+        }
         let folder = await perform { try await services.documents.createFolder(spaceID: target.spaceID, parentFolderID: target.folderID, name: name, accessToken: $0) }
         if let folder {
             cache.folders[folder.id] = folder
@@ -590,12 +702,27 @@ final class LibraryModel {
     }
 
     func renameFolder(_ id: String, to name: String) async {
+        let name = name.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        if isLocal() || cache.folders[id]?.isLocal == true {
+            guard cache.folders[id] != nil else { return }
+            cache.folders[id]?.name = name
+            return save()
+        }
         guard let folder = await perform({ try await services.documents.renameFolder(folderID: id, name: name, accessToken: $0) }) else { return }
         cache.folders[folder.id] = folder
         save()
     }
 
     func deleteFolder(_ id: String) async {
+        if isLocal() || cache.folders[id]?.isLocal == true {
+            // As the server does: what the folder held moves up to its parent.
+            guard let folder = cache.folders.removeValue(forKey: id) else { return }
+            for (child, entry) in cache.folders where entry.parentID == id { cache.folders[child]?.parentID = folder.parentID }
+            for (document, entry) in cache.documents where entry.folderID == id { cache.documents[document]?.folderID = folder.parentID }
+            if section == .folder(id) { section = .folder(folder.parentID) }
+            return save()
+        }
         guard await perform({ try await services.documents.deleteFolder(folderID: id, accessToken: $0) }) != nil else { return }
         cache.folders[id] = nil
         if section == .folder(id) { section = .folder(nil) }
@@ -651,7 +778,7 @@ final class LibraryModel {
             return
         }
         searchResults = nameMatches(query).map { LibraryRow(document: $0) }
-        guard isOnline else { return }
+        guard isOnline, !isLocal() else { return }
         pendingSearch = Task { [weak self, debounce] in
             do {
                 try await Task.sleep(for: debounce)
@@ -678,6 +805,7 @@ final class LibraryModel {
     /// `DocumentService.Search` for `query`, merged with the cached name matches it did not
     /// return; dropped if the field changed meanwhile.
     func runSearch(_ query: String) async {
+        guard !isLocal() else { return }
         do {
             let token = try await services.accessToken()
             let page = try await services.documents.search(query: query, spaceID: currentSpace.id, cursor: nil, accessToken: token)
@@ -712,7 +840,7 @@ final class LibraryModel {
     /// disk cache.  A new `thumbnail_blob` hash after an upload is simply a new key, so the
     /// picture updates on the next list refresh.
     func prefetchThumbnails(for documents: [LibraryDocument]? = nil) async {
-        guard isOnline else { return }
+        guard isOnline, !isLocal() else { return }
         let wanted = (documents ?? rows.map(\.document)).filter { document in
             document.thumbnail.map { !thumbnails.contains($0) && !downloading.contains($0) } ?? false
         }
