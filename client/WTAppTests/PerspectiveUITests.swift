@@ -35,6 +35,7 @@ import WTRender
         }
 
         var state: EngineState { document.state }
+        var page: Page { document.pageList.pages[0] }
 
         func down(_ point: Point, _ modifiers: KeyModifiers = [], clicks: Int = 1) {
             tool.mouseDown(CanvasEvent(pasteboardPoint: point, viewPoint: point, modifiers: modifiers, clickCount: clicks))
@@ -79,7 +80,7 @@ import WTRender
         let start = try #require(f.center(rect))
         f.down(start)
         let bounds = try #require(f.document.object(for: SelectionID(rect))?.bounds)
-        #expect(f.tool.gesture == .attach(rect, bounds: bounds, plane: nil) && f.tool.hasSomethingToCancel)
+        #expect(f.tool.gesture == .attach(rect, bounds: bounds, plane: nil, flip: false) && f.tool.hasSomethingToCancel)
         f.drag(Point(x: start.x + 10, y: start.y))
         await f.up(Point(x: start.x + 10, y: start.y))
         #expect(f.document.undoTitle == "Undo Move" || f.document.undoTitle.hasPrefix("Undo Move"))
@@ -93,7 +94,7 @@ import WTRender
         f.down(moved)
         #expect(f.tool.keyDown(TestEvents.key("", keyCode: 123)))
         let movedBounds = try #require(f.document.object(for: SelectionID(rect))?.bounds)
-        #expect(f.tool.gesture == .attach(rect, bounds: movedBounds, plane: .leftWall))
+        #expect(f.tool.gesture == .attach(rect, bounds: movedBounds, plane: .leftWall, flip: false))
         #expect(!f.tool.keyDown(TestEvents.key("x", keyCode: 7)), "not an arrow")
         f.drag(Point(x: 240, y: 200))
         await f.up(Point(x: 240, y: 200))
@@ -152,7 +153,9 @@ import WTRender
         // Space and the digits while pressed, then a release without a move: one change.
         let again = try #require(f.center(wrapper))
         f.down(again)
-        #expect(f.tool.keyDown(TestEvents.space))
+        #expect(f.tool.isDragging && !f.tool.keyDown(TestEvents.space), "Space comes through SpaceDragging")
+        f.tool.spaceChanged(down: true)
+        f.tool.spaceChanged(down: false)
         #expect(f.tool.keyDown(TestEvents.key("2", keyCode: 19)) && f.tool.keyDown(TestEvents.key("3", keyCode: 20)) && f.tool.keyDown(TestEvents.key("6", keyCode: 22)))
         #expect(f.tool.keyDown(TestEvents.key("1", keyCode: 18)) && f.tool.keyDown(TestEvents.key("5", keyCode: 23)) && f.tool.keyDown(TestEvents.key("4", keyCode: 21)))
         #expect(!f.tool.keyDown(TestEvents.key("9", keyCode: 25)) && !f.tool.keyDown(TestEvents.key("a", keyCode: 0)))
@@ -165,7 +168,7 @@ import WTRender
         #expect(f.state.props(wrapper).perspective.cellWidth > 0)
         // A flip alone.
         f.down(try #require(f.center(wrapper)))
-        _ = f.tool.keyDown(TestEvents.space)
+        f.tool.spaceChanged(down: true)
         await f.up(try #require(f.center(wrapper)))
         #expect(!f.state.props(wrapper).perspective.flipped)
         // Resize alone.
@@ -175,7 +178,8 @@ import WTRender
         #expect(f.document.undoTitle == "Undo Resize on grid")
         // A press on nothing, a key with nothing pressed, and Esc.
         f.down(Point(x: 5, y: 5))
-        #expect(f.tool.gesture == nil && !f.tool.keyDown(TestEvents.space))
+        #expect(f.tool.gesture == nil && !f.tool.keyDown(TestEvents.space) && !f.tool.isDragging)
+        f.tool.spaceChanged(down: true)
         f.drag(Point(x: 6, y: 6))
         await f.up(Point(x: 6, y: 6))
         f.down(try #require(f.center(wrapper)))
@@ -201,9 +205,11 @@ import WTRender
         let f = await Fixture.make()
         defer { PerspectiveTool.showsGrid = { _ in false } }
         PerspectiveTool.showsGrid = { _ in true }
-        // The built-in grid has nothing to edit: the tool says to define one.
+        // The built-in grid's handles drag too (PerspectiveEventPathTests follows one through).
         f.down(Point(x: 0, y: 150))
-        #expect(f.host.messages.last == PerspectiveTool.defineFirst && f.tool.gesture == nil)
+        #expect(f.tool.gesture == .vanishingPoint(grid: nil, page: f.page, field: .leftVP) && f.host.messages.last == PerspectiveTool.hint(f.tool.gesture!))
+        #expect(!f.tool.isDragging && f.tool.cursor == PerspectiveTool.badgeCursor)
+        f.tool.cancel()
         // Away from the handles a press takes the object.
         let rect = try #require(f.rect)
         f.down(try #require(f.center(rect)))
@@ -212,7 +218,7 @@ import WTRender
         let grid = try #require(await f.defineGrid())
         // Drag the left vanishing point.
         f.down(Point(x: 0, y: 150))
-        #expect(f.tool.gesture == .vanishingPoint(grid: grid, page: Self.page, field: .leftVP))
+        #expect(f.tool.gesture == .vanishingPoint(grid: grid, page: f.page, field: .leftVP))
         f.drag(Point(x: 10, y: 140))
         await f.up(Point(x: 10, y: 140))
         #expect(f.document.undoTitle == "Undo Move vanishing point" && PerspectiveReading.grids(f.state)[0].stored.leftVp.x == 10)
@@ -222,7 +228,7 @@ import WTRender
         #expect(f.document.undoTitle == "Undo Clone on grid")
         // The horizon.
         f.down(Point(x: 300, y: 150))
-        #expect(f.tool.gesture == .horizon(grid: grid, page: Self.page))
+        #expect(f.tool.gesture == .horizon(grid: grid, page: f.page))
         f.drag(Point(x: 300, y: 120))
         await f.up(Point(x: 300, y: 120))
         #expect(f.document.undoTitle == "Undo Move horizon" && PerspectiveReading.grids(f.state)[0].stored.horizonY == 180)
@@ -258,7 +264,7 @@ import WTRender
         #expect(!PerspectiveReading.grids(f.state)[0].stored.floorHidden)
         // The vertical vanishing point hides nothing.
         let drawing = PerspectiveGridDrawing(page: f.document.pageList.pages[0], state: f.state)
-        #expect(PerspectiveTool.toggle(.vanishingPoint(grid: grid, page: Self.page, field: .verticalVP), drawing: drawing) == nil)
+        #expect(PerspectiveTool.toggle(.vanishingPoint(grid: grid, page: f.page, field: .verticalVP), drawing: drawing) == nil)
         // Keys do nothing to a handle drag; the overlay draws its ring.
         f.down(Point(x: 200, y: 110))
         #expect(!f.tool.keyDown(TestEvents.space))
@@ -270,32 +276,36 @@ import WTRender
         let f = await Fixture.make()
         defer { PerspectiveTool.showsGrid = { _ in false } }
         PerspectiveTool.showsGrid = { _ in true }
-        // Over a line of the built-in grid the badge shows, though a press says to define one.
+        // Over a line of the built-in grid the badge shows, the line is highlighted and the status
+        // line says what a drag does.
         #expect(f.tool.cursor == .crosshair)
         f.tool.pointerMoved(TestEvents.point(200, 200))
-        #expect(f.tool.overHandle && f.tool.cursor == PerspectiveTool.badgeCursor)
+        #expect(f.tool.overHandle && f.tool.cursor == PerspectiveTool.badgeCursor && f.host.messages.last == "Drag to move the wall")
+        f.tool.drawOverlay(in: GlueWorld.bitmapContext(), viewport: f.host.viewport)
         f.tool.pointerMoved(TestEvents.point(200, 200))
         f.tool.pointerMoved(TestEvents.point(300, 60))
         #expect(!f.tool.overHandle && f.tool.cursor == .crosshair)
+        #expect(f.host.messages.last == PerspectiveTool.statusMessage)
         f.down(Point(x: 200, y: 200))
-        #expect(f.host.messages.last == PerspectiveTool.defineFirst && f.tool.gesture == nil)
+        #expect(f.tool.gesture == .edge(grid: nil, page: f.page, field: .leftWallX))
+        f.tool.cancel()
         let grid = try #require(await f.defineGrid())
         let drawing = PerspectiveGridDrawing(page: f.document.pageList.pages[0], state: f.state)
         #expect(drawing.edges.map(\.field) == [.leftWallX, .rightWallX, .floorFrontY])
         #expect(PerspectiveGridDrawing.distance(Point(x: 5, y: 5), Point(x: 0, y: 0), Point(x: 0, y: 0)) == Point(x: 5, y: 5).distance(to: .zero))
         // The walls meet at the centre: the left edge is picked first; dragging it moves the wall.
         f.down(Point(x: 200, y: 200))
-        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .leftWallX))
+        #expect(f.tool.gesture == .edge(grid: grid, page: f.page, field: .leftWallX))
         f.drag(Point(x: 180, y: 200))
         await f.up(Point(x: 180, y: 200))
         #expect(f.document.undoTitle == "Undo Move wall" && PerspectiveReading.grids(f.state)[0].stored.leftWallX == 180)
         f.down(Point(x: 200, y: 200))
-        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .rightWallX))
+        #expect(f.tool.gesture == .edge(grid: grid, page: f.page, field: .rightWallX))
         await f.up(Point(x: 230, y: 200))
         #expect(PerspectiveReading.grids(f.state)[0].stored.rightWallX == 230)
         // The floor's front edge.
         f.down(Point(x: 100, y: 225))
-        #expect(f.tool.gesture == .edge(grid: grid, page: Self.page, field: .floorFrontY))
+        #expect(f.tool.gesture == .edge(grid: grid, page: f.page, field: .floorFrontY))
         await f.up(Point(x: 100, y: 250))
         #expect(f.document.undoTitle == "Undo Move floor" && PerspectiveReading.grids(f.state)[0].stored.floorFrontY == 50)
         let count = f.document.changeCount
@@ -444,7 +454,7 @@ import WTRender
         PerspectiveTool.showsGrid = { _ in true }
         let vertical = three.spec.verticalVP
         f.down(vertical)
-        #expect(f.tool.gesture == .vanishingPoint(grid: one.grid!, page: Self.page, field: .verticalVP))
+        #expect(f.tool.gesture == .vanishingPoint(grid: one.grid!, page: f.page, field: .verticalVP))
         await f.up(Point(x: vertical.x + 5, y: vertical.y))
         #expect(PerspectiveReading.grids(f.state)[0].stored.verticalVp.x == vertical.x + 5)
         // An axis toward the viewer stops before the horizon.
@@ -503,13 +513,14 @@ import WTRender
         #expect(model.grids.isEmpty && model.selected == nil && model.selectedGrid == nil)
         #expect(model.duplicate() == nil && model.delete() == nil && model.rename("X") == nil && model.setVanishingPoints(1) == nil)
         #expect(model.color(.leftColor) == PerspectiveGridDrawing.leftColor && model.confirm() == nil)
-        #expect(model.vanishingPoints == 2 && model.cellSize == nil)
+        #expect(model.vanishingPoints == 2 && model.cellSize == nil && model.hint == DefineGridsModel.builtInHint)
+        Render.view(DefineGridsSheet(model: model) {}, size: CGSize(width: 520, height: 400))
         DefineGridsSheet.adding(model)()
         await world.document.settle()
         for _ in 0..<200 where model.selected == nil { await Task.yield() }
         let first = try #require(model.selected)
         #expect(model.cellSize == 36)
-        #expect(model.grids.map(\.name) == ["Grid"] && world.document.undoTitle == "Undo Define grid")
+        #expect(model.grids.map(\.name) == ["Grid"] && world.document.undoTitle == "Undo Define grid" && model.hint == nil)
         DefineGridsSheet.duplicating(model)()
         await world.document.settle()
         for _ in 0..<200 where model.selected == first { await Task.yield() }

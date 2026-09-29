@@ -203,6 +203,11 @@ final class DefineGridsModel {
 
     var selectedGrid: PerspectiveGridInfo? { grids.first { $0.id == selected } }
 
+    static let builtInHint = "The pages use the built-in grid. Click New to define it, or reshape it on the canvas with the Perspective tool."
+
+    /// What the sheet says while the document has no grid of its own.
+    var hint: String? { grids.isEmpty ? Self.builtInHint : nil }
+
     /// Performs `command`, then selects the grid it added (when it added one).
     @discardableResult
     func perform(_ command: any WTModel.Command, selectingAdded: Bool = false) -> Task<Void, Never> {
@@ -388,6 +393,9 @@ struct DefineGridsSheet: View {
                     ColorPicker("Horizontal grid", selection: Self.color(model, .floorColor)).accessibilityIdentifier("defineGrids.floorColor")
                 }
                 .disabled(model.selectedGrid == nil)
+            }
+            if let hint = model.hint {
+                Text(hint).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("defineGrids.hint")
             }
             if let message = model.message {
                 Text(message).font(.caption).foregroundStyle(.red).accessibilityIdentifier("defineGrids.message")

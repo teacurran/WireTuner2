@@ -903,6 +903,34 @@ serve both (xref:releasing.adoc[Releasing a beta]):
   immutable and cached for a year, the appcast and the fixed-name DMG for five minutes, and the
   appcast is uploaded last.
 
+
+[[D-081]]
+=== D-081 The default perspective grid reshapes on the canvas; the Perspective tool owns the press
+Found in use (2026-09-29): "I can now see the perspective grid, but I can't edit it, and I can't
+attach objects to it."  FreeHand MX shows a default grid you drag directly with the Perspective tool
+("Using FreeHand MX", "Editing perspective grids"); WireTuner's built-in grid was not stored, so its
+handles only said to define a grid first.  WireTuner keeps FreeHand's behaviour, updated where the
+Mac expects more feedback (xref:perspective.adoc[Perspective grids]):
+
+* *The built-in grid is editable.*  Dragging or double-clicking any of its handles defines it in the
+  same change (a grid "Grid" with the page's built-in geometry and the edit, made the page's grid);
+  one undo restores the built-in grid.  Objects attached to the built-in grid follow it, since an
+  unset grid reads the default grid, now that element.  Asking the person to open Define Grids and
+  click New first was rejected: it is a step FreeHand never had and nothing on the canvas says so.
+* *The press says what the keys do.*  A pending attach lists the arrow keys for the grid's
+  vanishing-point count in the status line, and names the plane once one is picked; the handle under
+  the pointer is highlighted with its hint; a handle drag draws the grid it will leave.  FreeHand's
+  arrow badge stays.
+* *Objects land where they are held.*  The attach puts the grabbed point of the object under the
+  pointer (FreeHand keeps the object under the pointer), not its corner; an object that would reach
+  past the horizon is refused with a message rather than drawn inverted.
+* *Space belongs to the tool while an object is pressed* (as the shape tools take it to reposition),
+  so FreeHand's Space flip works; with nothing pressed Space is still the temporary Hand.
+
+Merge: the definition is an element insert of a new grid, so it merges as Define Grids' btn:[New]
+does; two offline definitions keep both and the page register is LWW (perspective.adoc, "Reshaping
+the built-in grid").  No new op, register or conformance vector.
+
 == Open questions
 
 [[Q-001]]

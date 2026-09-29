@@ -17,13 +17,17 @@ To show or hide the perspective grid:
 * Choose menu:View[Perspective Grid > Show].  Choose it again to hide.  Whether the grid is
   shown is your own view setting; collaborators choose for themselves.
 
-The default grid has two vanishing points on a horizon across the middle of the page.  See
-<<Defining grids>> to change it.
+The default grid has two vanishing points on a horizon across the middle of the page: a left and
+a right wall meet at a corner in the middle, each receding to its vanishing point, over a floor
+that recedes from the corner.  Reshape it straight away on the canvas with the Perspective tool
+(<<reshape-grid,below>>) -- the first change keeps it in the document as a
+grid named "Grid" -- or set its options in <<Defining grids>>.
 
 == Attaching objects to the grid
 
 The Perspective tool shares a Tools panel slot with the other effect tools.  While you drag an
-object with it, the arrow keys choose which plane the object lands on.
+object with it, the arrow keys choose which plane the object lands on; the status line lists the
+keys while the button is down and names the plane you picked.
 
 To attach an object to the grid:
 
@@ -37,7 +41,13 @@ To attach an object to the grid:
 * Two- or three-point grid: kbd:[Left Arrow] puts it on the left wall, kbd:[Right Arrow] on
   the right wall; kbd:[Up Arrow] on the floor aligned to the right vanishing point,
   kbd:[Down Arrow] on the floor aligned to the left vanishing point.
-. Release the mouse button.  The object is redrawn in perspective on that plane.
+. Release the mouse button.  The object is redrawn in perspective on that plane, under the pointer
+  at the point you grabbed it; the outline shows where while you drag.  Press another arrow key
+  first to change your mind, or kbd:[Space] to flip it as it lands.
+
+An object that would reach past the horizon is not attached; the status line says to drag it
+nearer.  Pressing an arrow key without the mouse button down nudges the selection as it always
+does.
 
 To move an object on the grid:
 
@@ -118,16 +128,23 @@ To delete a grid:
 * Select it in Define Grids and click btn:[Delete].  Pages using it fall back to the default
   grid.
 
+[[reshape-grid]]
 To reshape the grid on the canvas:
 
-. Select the Perspective tool.
+. Show the grid and select the Perspective tool.
 . Point at a grid line, a vanishing point or the horizon; a small arrow beside the pointer
-  shows the line is live.
+  shows the line is live, the line is highlighted, and the status line says what a drag does.
 . Drag:
 * a *vanishing point* to move it (and its wall);
 * the *horizon line* up or down to change eye level;
 * a *wall's edge line* to change the wall's position and the grid's angle;
 * the *floor's front edge* to move the floor.
++
+Where an object lies over a line, a press takes the object; drag the line elsewhere along it.
++
+The grid is redrawn as you drag, and every object attached to it follows when you release.
+This works on the default grid too: the first change makes it a grid named "Grid" in Define
+Grids, used by the page, and one undo puts the default grid back.
 . Double-click a vanishing point to hide or show its wall; a small arrow stays to mark the
   point.  Double-click the horizon to hide or show the floor; the horizon line stays.
 
@@ -140,6 +157,9 @@ To make a new grid by dragging:
 
 == Working with others
 
+* If two people reshape the default grid while offline, each makes a "Grid"; after the merge
+  both are in Define Grids (the later shown as "Grid 2") and the page uses the one chosen
+  later.  Nothing needs review.
 * The grid is shared.  When someone moves a vanishing point or the horizon, every object
   attached to the grid -- yours included -- is redrawn on every screen to match.  Objects
   remember where they sit on their plane, not their old pixels, so they land in the right
@@ -246,6 +266,16 @@ copy from the releasing replica's state (text → paths), deletes the wrapper wi
 inside; a concurrent child edit is reviewed as edit-vs-delete with *Restore* (re-deletes the
 baked copy, restores the wrapper), as for blends and extrusions.
 
+Reshaping the built-in grid:: A handle drag while the page uses the built-in grid inserts a
+grid element holding the page's built-in geometry with the dragged registers already set (one
+`ElementInsert`, named "Grid" or the next free name) and writes `PageProps.perspective_grid`,
+one change.  The element is new, so nothing concurrent touches it; two replicas doing this
+offline insert two elements (both keep; duplicate names display with a suffix) and the page
+register is LWW.  Pages and wrappers with `perspective_grid`/`grid` unset follow the default
+grid, which is now that element (the sequence's first live one).  kbd:[Option] (fork) inserts
+the unedited built-in geometry first and the edited copy after it; kbd:[Option+Shift] (clone)
+inserts the edited grid and a pinned copy of the old geometry that the duplicated wrappers name.
+
 Option+Shift grid clone:: One change: the grid's registers move and, for every attached
 object, a duplicate wrapper+child is created at the old grid position -- as new nodes, so
 concurrent edits to the originals are untouched.
@@ -282,6 +312,12 @@ subdivided until the projected error is under 0.1 pt (perspective is not affine,
 points cannot simply be mapped).  Text is laid out flat and its glyph outlines projected, with
 the inverse homography used for caret hit testing so it remains editable.
 
+Grid overlay extent:: Each plane is drawn over the cells between its near edge and its
+vanishing point: an axis stored as running away from its vanishing point (the left wall's and
+the left floor's u, so that objects read left to right) is drawn over u from −12 to 0, where it
+recedes; other axes over 0 to 12 (a vertical running away from a vanishing point below stops
+short of the horizon's far side).
+
 Cache:: Keyed by `(wrapper id, wrapper state hash, child subtree hash, grid state hash)`;
 REND-004 evicts on any change to those, and a grid change evicts every wrapper on pages using
 that grid.
@@ -292,10 +328,13 @@ lines, points and the horizon have the `Pick` preference tolerance and show the 
 cursor.
 
 Tool:: `PerspectiveTool`: press on an unattached object begins a *pending attach* drag; arrow
-keys during the drag set the plane (mid-drag modifier delivery from APP-003); release with a
-plane writes wrap + `cell_position` in one change, release without a plane moves the object
-flat.  Press on an attached object: drag writes `cell_position` (kbd:[Shift] snaps to integer
-cells), kbd:[Space] toggles `flipped`, digits adjust `cell_width`/`cell_height` by one cell,
+keys during the drag set the plane (the tool manager offers a key to the tool before it nudges;
+nothing is nudged while the button is down); release with a plane writes wrap + `cell_position`
+(the pointer's cell less the grab point's offset within the object) in one change, release
+without a plane moves the object flat.  Press on an attached object: drag writes
+`cell_position` (kbd:[Shift] snaps to integer cells), kbd:[Space] toggles `flipped` (the tool
+adopts `SpaceDragging`, so Space mid-press never pushes the temporary Hand), digits adjust
+`cell_width`/`cell_height` by one cell,
 all committed on release as one change.  kbd:[Option+Shift]-drag on a grid line: the clone
 change above.  kbd:[Option]-drag on a grid line: duplicate the grid element, point the page to
 it, then drag.  kbd:[Cmd+Option]-double-click on attached text opens the TYPE epic's Text
@@ -363,7 +402,7 @@ kbd:[6] resize by a cell, written on release as one change; with the grid shown 
 shows a wall or the floor.  *Deviations*: *Show* is window state (as the page grid's *Show* is) rather than
 `PageProps.perspective_grid_visible`, because a new document's page is synthesized and has no node to hold the register;
 the overlay and the tool use `PlaneMap`, a copy of WTRender's internal `PlaneProjector` homography (the tests hold the two
-to the same drawing); the built-in grid is reshaped only after it is defined (the tool says so).  The
+to the same drawing); the built-in grid was reshaped only after it was defined (superseded by the psp note below).  The
 grid-line and wall-edge handles and the arrow badge cursor, kbd:[Option]-drag grid creation, kbd:[Cmd+Option]-double-click
 text editing, and the Pointer tool's detach with Snap to Grid came with FX-043's remainder (the next note).  Tests: `PerspectiveUITests`.
 
@@ -382,6 +421,27 @@ wrapper in the Text Editor (`TextEditorFeatures.show`).  Moving attached objects
 already moved by the drag -- and the wrapper deleted, while other objects in the selection move as `MoveObjects` moves
 them; one change "Move".  While the window shows the grid, every page's plane lines are `SnapSources.gridLines`, which
 snap (at guide priority) only with menu:View[Grid > Snap to Grid] on; nothing gains perspective from them.
+
+NOTE: As built for FreeHand parity (psp, D-081; `WTModel/PerspectiveGridEdits.swift` `ReshapePageGrid`;
+`WTApp/Tools/PerspectiveTool.swift`, `Effects/PerspectiveGeometry.swift`, `Effects/PerspectiveFeatures.swift`).
+Found in use: "I can see the perspective grid, but I can't edit it, and I can't attach objects to it."  Causes: the
+built-in grid's handles answered only "Define a grid first"; the overlay drew the default grid's left wall on the wrong
+side of the corner (over u 0…12, flaring toward the viewer across the right wall) so what was shown did not match where
+objects landed; the object landed with its corner, not the grabbed point, at the pointer; nothing said mid-press that an
+arrow key attaches; and kbd:[Space] mid-press pushed the temporary Hand, so the flip never reached the tool.  The arrow
+keys themselves always reached the tool (`CanvasView.keyDown` → `ToolManager.keyDown` asks the tool before nudging; no key
+equivalent takes a bare arrow).  Now: every handle of the built-in grid drags and double-clicks, the change defining the
+grid (`ReshapePageGrid`, see *Reshaping the built-in grid*); a press takes a vanishing point first, then an object,
+then a line, so an object lying on a line can still be grabbed; the grid being dragged is drawn live; the line under the
+pointer is highlighted and the status line gives the gesture's hint (pending attach: the arrow keys for the grid's
+vanishing-point count; after an arrow: "Release to attach it to the left wall…"; on an attached object: slide, Space,
+1–6); the object lands under the pointer at the grabbed point (`PerspectiveTool.placement`), an object reaching past the
+horizon is refused with a message; kbd:[Space] flips through `SpaceDragging` for a pending attach
+(`AttachToPerspectiveGrid(flipped:)`) and an attached object; the overlay's extents follow *Grid overlay extent*; Define
+Grids says when the pages use the built-in grid.  Tests: `PerspectiveEventPathTests` (AppKit events through the canvas and
+the tool manager, and a pixel check of the built-in grid), `PerspectiveUITests`, `PerspectiveGridReshapeTests`.
+*Not built* (FreeHand MX has them, or users expect them): the grid names in menu:View[Perspective Grid] for choosing the
+active grid (Define Grids' btn:[OK] chooses it per page); resizing by one pixel rather than one cell (kept from FX-041).
 
 === Build tasks
 

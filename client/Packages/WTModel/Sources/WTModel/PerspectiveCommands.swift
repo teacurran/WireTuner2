@@ -154,7 +154,12 @@ public enum PerspectiveReading {
     /// Grid `id` (nil: the built-in default) resolved for a page with rectangle `page`.
     public static func spec(grid id: OpID?, page: Rect, in state: EngineState) -> PerspectiveGridSpec {
         guard let id, let grid = grids(state).first(where: { $0.id == id })?.stored else { return PerspectiveGridSpec.defaultGrid(page: page) }
-        return PerspectiveGridSpec(
+        return spec(stored: grid, page: page)
+    }
+
+    /// Stored grid `grid` (page coordinates) resolved for a page with rectangle `page`.
+    public static func spec(stored grid: Wiretuner_Doc_V1_PerspectiveGrid, page: Rect) -> PerspectiveGridSpec {
+        PerspectiveGridSpec(
             vanishingPoints: Int(grid.vanishingPoints), cellSize: grid.cellSize, horizonY: page.maxY - grid.horizonY,
             leftVP: pasteboard(grid.leftVp, page: page), rightVP: pasteboard(grid.rightVp, page: page), verticalVP: pasteboard(grid.verticalVp, page: page),
             leftWallX: page.minX + grid.leftWallX, rightWallX: page.minX + grid.rightWallX, floorFrontY: page.maxY - grid.floorFrontY
@@ -257,12 +262,19 @@ enum PerspectiveEditing {
 
     /// Appends grid `grid` (its id cleared) after the last element; returns its id.
     static func insert(_ grid: Wiretuner_Doc_V1_PerspectiveGrid, in state: EngineState, builder: inout ChangeBuilder) throws -> OpID {
+        try insert([grid], in: state, builder: &builder)[0]
+    }
+
+    /// Appends `grids` (ids cleared), in order, after the last element; returns their ids.
+    static func insert(_ grids: [Wiretuner_Doc_V1_PerspectiveGrid], in state: EngineState, builder: inout ChangeBuilder) throws -> [OpID] {
         let path = PerspectiveFields.grids
         let last = state.store.elementOrder(WellKnown.settings, path).last.flatMap { state.position(WellKnown.settings, path, $0) }
-        var element = grid
-        element.clearID()
-        return builder.append(Ops.elementInsert(WellKnown.settings, path, positions: [try PathEditing.keys(between: last, and: nil, count: 1)[0]],
-                                                values: PerspectiveFields.gridValues(element)))
+        let keys = try PathEditing.keys(between: last, and: nil, count: grids.count)
+        return zip(grids, keys).map { grid, key in
+            var element = grid
+            element.clearID()
+            return builder.append(Ops.elementInsert(WellKnown.settings, path, positions: [key], values: PerspectiveFields.gridValues(element)))
+        }
     }
 
     /// Points `page` at grid `grid` (nil: unset, the default), materializing a synthesized page.
@@ -290,20 +302,24 @@ enum PerspectiveEditing {
 /// Attaching objects to the grid (the Perspective tool's release with a plane chosen): each
 /// selected object wrapped, at its slot, in a `perspective` node with the plane, the cell
 /// placement and the grid its page uses, and moved inside -- one change labelled "Attach to
-/// perspective grid".  A width or height of 0 reads the object's flat size in cells.
+/// perspective grid".  A width or height of 0 reads the object's flat size in cells; `flipped`
+/// is kbd:[Space] pressed before the release.
 public struct AttachToPerspectiveGrid: Command {
     public var nodes: [OpID]
     public var plane: Wiretuner_Doc_V1_PerspectivePlane
     public var cellPosition: Point
     public var cellWidth: Double
     public var cellHeight: Double
+    public var flipped: Bool
 
-    public init(_ nodes: [OpID], plane: Wiretuner_Doc_V1_PerspectivePlane, at cellPosition: Point, cellWidth: Double = 0, cellHeight: Double = 0) {
+    public init(_ nodes: [OpID], plane: Wiretuner_Doc_V1_PerspectivePlane, at cellPosition: Point, cellWidth: Double = 0, cellHeight: Double = 0,
+                flipped: Bool = false) {
         self.nodes = nodes
         self.plane = plane
         self.cellPosition = cellPosition
         self.cellWidth = cellWidth
         self.cellHeight = cellHeight
+        self.flipped = flipped
     }
 
     public var label: String { "Attach to perspective grid" }
@@ -320,6 +336,7 @@ public struct AttachToPerspectiveGrid: Command {
             props.cellPosition = PathEditing.proto(cellPosition)
             props.cellWidth = max(cellWidth, 0)
             props.cellHeight = max(cellHeight, 0)
+            props.flipped = flipped
             if let grid = PerspectiveReading.grid(of: page, in: state) { props.grid = grid.elementID }
             let key = try Arranging.keys(next: node, above: true, count: 1, in: state)[0]
             let wrapper = builder.append(Ops.create(parent: parent, position: key, props: PerspectiveFields.values(props)))
@@ -656,8 +673,8 @@ public struct CloneOnGrid: Command {
         }
     }
 
-    /// The live wrappers projecting onto `grid`, in tree order.
-    static func wrappers(on grid: OpID, in state: EngineState) -> [OpID] {
+    /// The live wrappers projecting onto `grid` (nil: the built-in grid), in tree order.
+    static func wrappers(on grid: OpID?, in state: EngineState) -> [OpID] {
         var result: [OpID] = []
         func visit(_ node: OpID) {
             if PerspectiveReading.isWrapper(node, in: state) {

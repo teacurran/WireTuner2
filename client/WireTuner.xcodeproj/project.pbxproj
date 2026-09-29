@@ -342,6 +342,7 @@
 		5FE94ADFE2A0A38BD9F10AF5 /* ObjectStyleRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F67C42CA4B988760A8B84E /* ObjectStyleRow.swift */; };
 		60302B411DC05172FDB9AD8E /* ScriptPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A3F9492C4EAD3226D3B4F4B /* ScriptPrinting.swift */; };
 		6115183A3E516E6E8BE62AA9 /* ExtensionCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41CD061582DD3EE783F5755C /* ExtensionCatalog.swift */; };
+		611B2BAB917A78815ACD6DA7 /* PerspectiveEventPathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAB347ACEDF4CDD512486DA9 /* PerspectiveEventPathTests.swift */; };
 		611FF98B3C42532BE0504C0E /* ToolWellColoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48B615D557122C25011B1F01 /* ToolWellColoring.swift */; };
 		6173B1F1C812EBEF221AE5A9 /* ColorLibraryMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67FCC9777AF2C77BE8DF7FC9 /* ColorLibraryMenu.swift */; };
 		617AD1808F659CA3EF4C7701 /* LibraryTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 605441A159CCA66DB739F9D3 /* LibraryTypes.swift */; };
@@ -1746,6 +1747,7 @@
 		FA2909781EAF635ED21012DC /* SetupSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupSheets.swift; sourceTree = "<group>"; };
 		FA3320673F3BD614D15E9A50 /* CropTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropTool.swift; sourceTree = "<group>"; };
 		FA6A5E665BDEC1023A1DEF93 /* SyncConnector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConnector.swift; sourceTree = "<group>"; };
+		FAB347ACEDF4CDD512486DA9 /* PerspectiveEventPathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerspectiveEventPathTests.swift; sourceTree = "<group>"; };
 		FB7A39E9A016E1AE3D7655D1 /* FreeformToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreeformToolTests.swift; sourceTree = "<group>"; };
 		FC02FD086106D3E63568CE28 /* TextFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextFeatures.swift; sourceTree = "<group>"; };
 		FC2A33139B2B75633F5B0655 /* TypeHandleDragAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypeHandleDragAppTests.swift; sourceTree = "<group>"; };
@@ -3140,6 +3142,7 @@
 				235072F2C84E4FA73903594E /* PathOperationSheetsTests.swift */,
 				470B1742DCDDA0D4286183B8 /* PenBezigonTests.swift */,
 				0661A34BF673EBC576DE8ED7 /* PenToolTests.swift */,
+				FAB347ACEDF4CDD512486DA9 /* PerspectiveEventPathTests.swift */,
 				D36B6C14CDD29B4CB44B4530 /* PerspectiveUITests.swift */,
 				6B72CFD34CC8CB571C446740 /* PointerMoveTests.swift */,
 				4E82155BEA5A3C26441687C1 /* PointHandleTests.swift */,
@@ -4381,6 +4384,7 @@
 				28F100470848DBF83D29D123 /* PenBezigonTests.swift in Sources */,
 				CA1887762985552D0994BDFA /* PenToolTests.swift in Sources */,
 				EF16D340EA4F1E91F9EF4598 /* PerfBudget.swift in Sources */,
+				611B2BAB917A78815ACD6DA7 /* PerspectiveEventPathTests.swift in Sources */,
 				24039848E35B7EFCEDD9D943 /* PerspectiveUITests.swift in Sources */,
 				58ED787DD9CE68BBED1FA84D /* PointHandleTests.swift in Sources */,
 				8B7D11267A1DF750283E4FD4 /* PointerMoveTests.swift in Sources */,

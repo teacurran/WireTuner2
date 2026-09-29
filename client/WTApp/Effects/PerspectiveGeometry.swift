@@ -142,19 +142,29 @@ struct PerspectiveGridDrawing: Equatable {
         return min(Double(extent), 0.9 * point.distance(to: origin) / cell)
     }
 
+    /// The cells an axis of a plane is drawn over, from its near edge (0) toward its vanishing
+    /// point: an axis stored as running *away* from its vanishing point (the left wall's u, so
+    /// objects read left to right on it) is drawn over negative cells, where it recedes to the
+    /// point as FreeHand draws the left wall; a vertical running away from a vanishing point below
+    /// stops short of the horizon's far side.
+    static func range(_ axis: PlaneMap.Axis, origin: Point, cell: Double, isU: Bool) -> ClosedRange<Double> {
+        if isU, case .vanishing(_, let sign) = axis, sign < 0 { return -Double(extent)...0 }
+        return 0...reach(axis, origin: origin, cell: cell)
+    }
+
     /// The lines of `plane`.
     static func lines(_ spec: PerspectiveGridSpec, plane: PerspectiveSpec.Plane) -> [(Point, Point)] {
         let effective = PerspectiveSpec(grid: spec, plane: plane).effectivePlane
         let map = PlaneMap(spec, plane: effective)
         let (origin, u, v) = PlaneMap.axes(spec, plane: effective)
         let cell = spec.effectiveCellSize
-        let maxU = reach(u, origin: origin, cell: cell), maxV = reach(v, origin: origin, cell: cell)
+        let us = range(u, origin: origin, cell: cell, isU: true), vs = range(v, origin: origin, cell: cell, isU: false)
         var result: [(Point, Point)] = []
-        for i in 0...Int(maxU.rounded(.down)) {
-            result.append((map.apply(Point(x: Double(i), y: 0)), map.apply(Point(x: Double(i), y: maxV))))
+        for i in Int(us.lowerBound.rounded(.up))...Int(us.upperBound.rounded(.down)) {
+            result.append((map.apply(Point(x: Double(i), y: vs.lowerBound)), map.apply(Point(x: Double(i), y: vs.upperBound))))
         }
-        for j in 0...Int(maxV.rounded(.down)) {
-            result.append((map.apply(Point(x: 0, y: Double(j))), map.apply(Point(x: maxU, y: Double(j)))))
+        for j in Int(vs.lowerBound.rounded(.up))...Int(vs.upperBound.rounded(.down)) {
+            result.append((map.apply(Point(x: us.lowerBound, y: Double(j))), map.apply(Point(x: us.upperBound, y: Double(j)))))
         }
         return result
     }
@@ -162,15 +172,30 @@ struct PerspectiveGridDrawing: Equatable {
     /// The overlay of `page` (its grid, or the built-in default when it uses none).
     init(page: Page, state: EngineState) {
         let grid = PerspectiveReading.grid(of: page, in: state)
-        let stored = PerspectiveReading.grids(state).first { $0.id == grid }?.stored ?? Wiretuner_Doc_V1_PerspectiveGrid()
-        let spec = PerspectiveReading.spec(grid: grid, page: page.rect, in: state)
-        self.page = page.rect
+        let stored = PerspectiveReading.grids(state).first { $0.id == grid }?.stored ?? PerspectiveReading.defaultGrid(name: "", page: page.rect)
+        self.init(page: page.rect, grid: grid, stored: stored, resolver: ColorResolver(state))
+    }
+
+    /// The overlay of `page` were its grid's registers `fields` set from `values` (the grid the
+    /// Perspective tool's handle drag previews).
+    func editing(_ fields: [PerspectiveFields.GridField], _ values: Wiretuner_Doc_V1_PerspectiveGrid, state: EngineState) -> PerspectiveGridDrawing {
+        var edited = stored
+        ReshapePageGrid.assign(fields, from: values, to: &edited)
+        return PerspectiveGridDrawing(page: page, grid: grid, stored: edited, resolver: ColorResolver(state))
+    }
+
+    /// The stored grid drawn (the built-in grid's geometry in page coordinates when the page uses none).
+    let stored: Wiretuner_Doc_V1_PerspectiveGrid
+
+    init(page rect: Rect, grid: OpID?, stored: Wiretuner_Doc_V1_PerspectiveGrid, resolver: ColorResolver) {
+        let spec = PerspectiveReading.spec(stored: stored, page: rect)
+        self.page = rect
         self.spec = spec
         self.grid = grid
+        self.stored = stored
         leftHidden = stored.leftHidden
         rightHidden = stored.rightHidden
         floorHidden = stored.floorHidden
-        let resolver = ColorResolver(state)
         func plane(_ plane: PerspectiveSpec.Plane, _ ref: Wiretuner_Doc_V1_ColorRef, _ fallback: Color) -> Plane {
             Plane(plane: plane, color: resolver.color(ref) ?? fallback, lines: Self.lines(spec, plane: plane))
         }
@@ -194,7 +219,7 @@ struct PerspectiveGridDrawing: Equatable {
         if !stored.leftHidden { wallEdge(onePoint ? .wall : .leftWall, .leftWallX) }
         if !stored.rightHidden && !onePoint { wallEdge(.rightWall, .rightWallX) }
         if !stored.floorHidden {
-            edges.append((Point(x: page.rect.minX, y: spec.floorFrontY), Point(x: page.rect.maxX, y: spec.floorFrontY), .floorFrontY))
+            edges.append((Point(x: rect.minX, y: spec.floorFrontY), Point(x: rect.maxX, y: spec.floorFrontY), .floorFrontY))
         }
         self.edges = edges
     }
