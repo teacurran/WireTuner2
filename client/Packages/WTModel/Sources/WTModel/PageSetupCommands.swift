@@ -19,6 +19,9 @@ public enum PageSetupError: Error, Equatable, Sendable {
     case unknownElement(OpID)
     /// The last page cannot be removed.
     case lastPage
+    /// A single-page document has exactly one page (typeface-documents.adoc, "Document kinds"):
+    /// convert it to multi-page first.
+    case singlePageDocument
 }
 
 /// Shared helpers of the page commands.

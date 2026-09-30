@@ -339,6 +339,25 @@ presence dots, encoding placeholders, drag reordering, the Select submenu, the S
 sheet for many glyphs, the Glyph section of the Object panel (a glyph tab's bar carries Width, LSB
 and RSB), and the collision notices.
 
+NOTE: As built by FONT-008's and FONT-010's rests (`WTModel/GlyphMenuCommands.swift`, a new file, `.thirds` in
+`SetGlyphBearings`; `WTApp/Typeface/GlyphMenu.swift`, registered by `TypefaceFeatures`).  The Glyph menu now acts on the
+targeted glyphs (a glyph tab's glyph, else the grid's selection), each item one change: *Set Advance Width…*, *Set Left Side
+Bearing…* and *Set Right Side Bearing…* open one sheet with *Set to*, *Add* and *Scale by %* (`AdjustGlyphMetrics`; a glyph
+without an outline has no bearings and is left alone by the bearing forms), *Center in Width*, *Thirds in Width*, the *Set Kind*
+and *Set Mark Color* submenus (checked, or mixed, for the selection), *Export Glyph*, *Build Accented Glyphs*
+(`BuildAccentedGlyphs`: a glyph whose character decomposes canonically into glyphs of the font has its foreground artwork and
+components replaced by components of the base and marks, placed by anchors -- a mark on a mark attaches to the lower mark's own
+base anchor -- and takes the base's width), *Snap Components to Anchors* (`SnapComponentsToAnchors`; the glyph's own base
+anchors win over its base component's), *Decompose Components*, *Remove Overlaps*, *Correct Directions*, *Add Extrema*
+(`RewriteGlyphOutlines`) and *Round to Units* (`RoundGlyphsToUnits`), and a *Select* submenu with the seven items above
+(`GlyphSelectionQuery`; from a glyph tab it selects in the grid window).  Deviations: the rewrites replace the glyph's
+foreground paths that reach the font with *one* black path holding every resulting contour (a path per contour, as the
+Data model says, would fill the counter of an `o`), paths that contribute nothing (an open unstroked path) are left as drawn,
+and components are left alone; *Decompose* likewise writes one path per component (it wrote one per contour, which filled
+counters -- fixed).  Not built: copy, paste-replace, paste-new and Paste as Component, encoding placeholders, drag
+reordering, presence dots, the Glyph section of the Object panel, the collision notices, menu:View[Glyph Labels] and *Show
+Metrics in Cells*, and the Add Glyph sheet's *Kind* and btn:[Add and Open].
+
 === Build tasks
 
 [[FONT-008]]

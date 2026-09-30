@@ -65,6 +65,7 @@ public struct MergeToPages: Command {
         let plan = MergeEngine.plan(templates: templates, indices: indices.filter { records.record(at: $0) != nil && $0 < records.count },
                                     layout: options.layout, page: first.rect, selection: selectionBounds)
         guard !plan.isEmpty else { return }
+        guard DocumentKind(state) != .singlePage else { throw PageSetupError.singlePageDocument }
         // Page order: after `after` (default: the last template page), before the next live page.
         let anchor = try PageEditing.page(after ?? templates[templates.count - 1], in: list)
         let siblings = state.store.children(WellKnown.pages)

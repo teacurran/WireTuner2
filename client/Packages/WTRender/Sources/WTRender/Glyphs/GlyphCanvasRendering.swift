@@ -125,6 +125,62 @@ public enum GlyphCanvasRendering {
         .group(GroupItem(children: items(frame)))
     }
 
+    // MARK: Components (glyph-editing.adoc, "Components"; FONT-012)
+
+    /// The colour components are drawn in: their outline, and a faint tint of it inside.
+    public static let componentColor = Color(red: 0.1, green: 0.55, blue: 0.75)
+
+    /// A component as the canvas draws it: the source's outline placed in glyph space, or a
+    /// hatched placeholder over `bounds` (a removed source's cached outline, a cut loop).
+    public struct Component: Hashable, Sendable {
+        public var outline: FilledPath
+        public var bounds: Rect
+        public var isPlaceholder: Bool
+
+        public init(outline: FilledPath, bounds: Rect, isPlaceholder: Bool) {
+            self.outline = outline
+            self.bounds = bounds
+            self.isPlaceholder = isPlaceholder
+        }
+    }
+
+    /// The display items of `components`: each outline tinted and outlined with a hairline in
+    /// `componentColor` (so it reads as a reference, not artwork), each placeholder a dashed
+    /// box with diagonal hatching and its remembered outline dashed inside.
+    public static func componentItems(_ components: [Component], color: Color = componentColor) -> [DisplayItem] {
+        var items: [DisplayItem] = []
+        let hairline = StrokeStyle(width: 0)
+        let dashed = StrokeStyle(width: 0, dash: [3, 3], dashInDevicePixels: true)
+        for component in components {
+            let display = DisplayPath(contours: component.outline.contours)
+            if !component.isPlaceholder {
+                items.append(.fill(FillItem(path: display, paint: .solid(color.withAlpha(multipliedBy: 0.25)))))
+                items.append(.stroke(StrokeItem(path: display, style: hairline, paint: .solid(color))))
+                continue
+            }
+            let box = component.bounds
+            items.append(.stroke(StrokeItem(path: DisplayPath(rect: box), style: dashed, paint: .solid(color))))
+            items.append(.stroke(StrokeItem(path: hatching(box), style: hairline, paint: .solid(color.withAlpha(multipliedBy: 0.5)))))
+            if !component.outline.isEmpty { items.append(.stroke(StrokeItem(path: display, style: dashed, paint: .solid(color)))) }
+        }
+        return items
+    }
+
+    /// Diagonal lines across `box` every tenth of its larger side: the lines u + v = k, with u
+    /// running right from the left edge and v up from the bottom edge.
+    static func hatching(_ box: Rect) -> DisplayPath {
+        let step = max(max(box.width, box.height) / 10, 1)
+        var elements: [DisplayPath.Element] = []
+        var k = step
+        while k < box.width + box.height {
+            let u0 = max(0, k - box.height), u1 = min(k, box.width)
+            elements.append(.move(to: Point(x: box.minX + u0, y: box.maxY - (k - u0))))
+            elements.append(.line(to: Point(x: box.minX + u1, y: box.maxY - (k - u1))))
+            k += step
+        }
+        return DisplayPath(elements: elements)
+    }
+
     /// The metric lines and side bearings as snap targets in glyph-canvas space.
     public static func snapGuides(_ frame: GlyphCanvasFrame) -> [SnapGuide] {
         var guides = lines(frame).map { SnapGuide.horizontal(y: $0.canvasY) }

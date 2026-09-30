@@ -18,6 +18,9 @@ final class TypefaceWindowMode {
         case glyphs, sketches
     }
 
+    /// What a glyph tab's Units pop-up shows, disabled.
+    static let fontUnits = "Font units"
+
     private weak var features: TypefaceFeatures?
     let controller: DocumentWindowController
     /// The document's cell images, shared with its other windows.
@@ -32,6 +35,8 @@ final class TypefaceWindowMode {
     private(set) var grid: GlyphGridController?
     /// The glyph bar of a glyph tab.
     private(set) var glyphBar: GlyphBarModel?
+    /// A glyph tab's bearing, anchor and component handles.
+    private(set) var glyphHandles: GlyphCanvasHandles?
     let switcher = NSSegmentedControl(labels: ["Glyphs", "Sketches"], trackingMode: .selectOne, target: nil, action: nil)
     private var switcherAccessory: NSTitlebarAccessoryViewController?
     private var tokens: [DocumentHandle.ObservationToken] = []
@@ -89,9 +94,16 @@ final class TypefaceWindowMode {
                 closeWindow(controller)
                 return
             }
+            // A glyph canvas has no pages, and its units are font units (FONT-003).
+            controller.statusBar.fixedUnits = Self.fontUnits
+            controller.statusBar.hidesPageControls = true
             glyphBar?.reload()
             updateScrollBounds()
             return
+        }
+        // A single-page document shows no page controls (typeface-documents.adoc, "Document kinds").
+        if document.masterCanvasNode == nil, document.symbolCanvasNode == nil {
+            controller.statusBar.hidesPageControls = layout == .singlePage
         }
         let isTypeface = layout == .typeface
         if isTypeface, switcherAccessory == nil { installSwitcher() }
@@ -158,6 +170,11 @@ final class TypefaceWindowMode {
         accessory.view = hosting
         accessory.layoutAttribute = .bottom
         controller.window?.addTitlebarAccessoryViewController(accessory)
+        let handles = GlyphCanvasHandles(glyph: controller.documentHandle.canvasNode!)
+        handles.openGlyph = { [weak self] glyph in self?.open(glyph) }
+        handles.showsMarkAttachment = { [weak features] in features?.showsMarkAttachment ?? false }
+        controller.toolManager?.handleLayers.insert(handles, at: 0)
+        glyphHandles = handles
         fitGlyph()
     }
 

@@ -409,6 +409,26 @@ kerning is the same), missing characters as hollow boxes, the tab's glyph tinted
 glyph clicked, redrawn 150 ms after a change; the size pop-up, *Kern*, the top edge resizing it (below
 40 points it hides) and menu:View[Preview Strip].
 
+NOTE: As built by FONT-011's, FONT-012's and FONT-013's rests (`WTApp/Typeface/GlyphCanvasHandles.swift`, a new
+file, installed by `TypefaceWindowMode` on each glyph tab; `GlyphCanvas.background`; `WTRender.GlyphCanvasRendering.componentItems`;
+`WTModel.GlyphOutlines.placedComponents` and `MarkAttachment`).  Over the Pointer and Subselect tools a glyph tab takes presses
+within 6 view points of the advance-width line (slanted by the italic angle) and, when the glyph has an outline, of the LSB
+line, when no object is under the pointer: the advance line sets the width, kbd:[Option] moves the artwork with it keeping the
+RSB; the LSB line moves the artwork the other way (the line follows the pointer over it), kbd:[Option] keeping the RSB;
+kbd:[Shift] steps by 10 units, otherwise whole units; the dragged line and a readout ("LSB 100  RSB 140  Width 540") follow the
+pointer, and the release writes one change.  Components are drawn under the artwork in their own colour (a faint tint and a
+hairline outline), a removed source's as a dashed, hatched box with its remembered outline; a press inside one when no object
+is hit drags it (kbd:[Shift] keeps one axis; `SetComponentTransform`, one change) and a double-click opens its source glyph.
+Anchors are drawn as diamonds (green base, purple mark) with their names, taken before objects within 6 view points and
+dragged -- snapped like points, whole units (`EditAnchor .move`).  menu:View[Show Mark Attachment] (for every glyph tab) draws
+at 30% opacity each mark whose mark anchor matches one of the glyph's base anchors, or on a mark glyph a sample base (`a`,
+then `A`, then the first matching glyph), following an anchor drag live; at most 64 marks.  Not built: the *Add Anchor Here*
+context menu item, the Component and Anchor sections of the Object panel, kbd:[Delete] and arrow-key nudges for a selected
+anchor, component selection as an object (and its scale and flip with the transform tools), the shortcuts
+kbd:[Cmd+Shift+R] / kbd:[Cmd+Shift+A] / kbd:[Cmd+Shift+D] (menu:Glyph[Components and Anchors…] adds both, *Decompose
+Components* has no shortcut), labels drawn in screen space at the visible edge, and the 100 ms debounce (the preview is
+recomputed with each overlay draw, its outlines cached per document change).
+
 === Build tasks
 
 [[FONT-011]]

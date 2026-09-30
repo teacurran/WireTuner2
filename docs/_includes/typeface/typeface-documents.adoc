@@ -456,6 +456,15 @@ makes (glyph paths, the block's own rectangle, inline graphics moved in) -- the 
 text, which Convert to Paths refuses, stays text.  The *Done when* UI test is an app-hosted unit test
 (`TypefaceToolTests`).
 
+NOTE: As built by FONT-003's rest (`WTModel/PageCommands.swift`, `MergeToPages.swift`, `PageSetupCommands.swift`;
+`WTApp/Typeface/TypefaceWindowMode.swift`, one property each in `Document/StatusBarView.swift` and `Panels/DocumentPanel.swift`).  A
+single-page document hides the status bar's Add Page button and page selector (`StatusBarView.hidesPageControls`, set from the
+kind as the window lays out), the Document panel disables *Add Pages…* and *Duplicate*, and `AddPages` (which *Duplicate* uses)
+and `MergeToPages` refuse with `PageSetupError.singlePageDocument`, so no path -- menu, panel, script -- adds a second page; a
+page arriving from a concurrent add still lays the window out as multi-page, as above.  A glyph tab hides the page controls
+too and its Units pop-up shows only *Font units*, disabled (`StatusBarView.fixedUnits`).  Not built: team typeface templates
+in the New Typeface sheet (the four starting sets only), and hiding the Page tool in a single-page document.
+
 === Build tasks
 
 [[FONT-001]]

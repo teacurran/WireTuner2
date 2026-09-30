@@ -65,6 +65,8 @@ final class TypefaceFeatures {
     var installer = TestFontInstaller(directory: TypefaceFeatures.testFontsDirectory())
     /// The fonts *Install for Testing* registered, by document id.
     private(set) var installed: [String: [URL]] = [:]
+    /// menu:View[Show Mark Attachment] (FONT-013): on for every glyph tab.
+    var showsMarkAttachment = false
     /// Every window's typeface layout.
     private(set) var modes: [ObjectIdentifier: TypefaceWindowMode] = [:]
     /// Each document's glyph cell images.
@@ -106,7 +108,7 @@ final class TypefaceFeatures {
     func install(commands: CommandRegistry, documents: DocumentController?, window: @escaping @MainActor () -> DocumentWindowController?) {
         self.window = window
         self.documents = documents
-        for command in self.commands() { commands.replace(command) }
+        for command in self.commands() + glyphMenuCommands() { commands.replace(command) }
     }
 
     // MARK: Windows

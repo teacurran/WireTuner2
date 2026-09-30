@@ -36,6 +36,8 @@ public struct AddPages: Command {
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
         guard count >= 1, count <= 1000 else { throw PageSetupError.invalidValue("count") }
+        // A single-page document never gets a second page (FONT-003); Duplicate adds through here.
+        guard DocumentKind(state) != .singlePage else { throw PageSetupError.singlePageDocument }
         if let geometry, !geometry.isValid { throw PageSetupError.invalidValue("geometry") }
         if let bleed, !(bleed.isFinite && bleed >= 0 && bleed <= 720) { throw PageSetupError.invalidValue("bleed") }
         let list = PageList(state)

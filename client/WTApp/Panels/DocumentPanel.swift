@@ -167,9 +167,11 @@ struct DocumentPanelModel {
             return ["Add Pages…", "Duplicate", "Remove", "Move Page…", "New Master Page", "Convert to Master Page", "Release Child Page"]
                 .map { PanelMenuItem(title: $0, isEnabled: false) {} }
         }
+        // A single-page document never gets a second page (FONT-003).
+        let addsPages = DocumentKind(document.state) != .singlePage
         return [
-            PanelMenuItem(title: "Add Pages…") { window.presentAddPagesSheet() },
-            PanelMenuItem(title: "Duplicate") { window.objectEditing.perform(DuplicatePage(page.id)) },
+            PanelMenuItem(title: "Add Pages…", isEnabled: addsPages) { window.presentAddPagesSheet() },
+            PanelMenuItem(title: "Duplicate", isEnabled: addsPages) { window.objectEditing.perform(DuplicatePage(page.id)) },
             PanelMenuItem(title: "Remove", isEnabled: pageCount > 1) { window.removeSelectedPages() },
             PanelMenuItem(title: "Move Page…", isEnabled: pageCount > 1) { window.presentMovePageSheet() },
             PanelMenuItem(title: "New Master Page") { window.objectEditing.perform(NewMasterPage(from: page.id)) },

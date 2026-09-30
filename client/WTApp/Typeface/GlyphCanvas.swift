@@ -129,11 +129,15 @@ enum GlyphCanvas {
     }
 
     /// The canvas background of `glyph`: a white ground over the scroll area, then the metric
-    /// lines, side bearings and em box; nothing once the glyph is gone.
+    /// lines, side bearings and em box, then the glyph's components (FONT-012: tinted outlines,
+    /// hatched placeholders) under its own artwork; nothing once the glyph is gone.
     static func background(of glyph: OpID, in state: EngineState) -> [DisplayItem] {
         guard let frame = frame(for: glyph, in: state) else { return [] }
         let ground = DisplayItem.fill(FillItem(path: DisplayPath(rect: scrollBounds(frame)), paint: .solid(Color(white: 1))))
-        return [.group(GroupItem(children: [ground] + GlyphCanvasRendering.items(frame)))]
+        let components = GlyphOutlines.placedComponents(of: glyph, in: state).map {
+            GlyphCanvasRendering.Component(outline: $0.outline, bounds: $0.bounds, isPlaceholder: $0.isPlaceholder)
+        }
+        return [.group(GroupItem(children: [ground] + GlyphCanvasRendering.items(frame) + GlyphCanvasRendering.componentItems(components)))]
     }
 
     /// A handle drawing live `glyph`'s canvas over `document`'s model (open, since the glyph was

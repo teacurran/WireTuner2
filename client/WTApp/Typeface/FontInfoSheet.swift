@@ -32,6 +32,15 @@ final class FontInfoModel {
     var shows: [SetMetricGuides.Line: Bool]
     var extraLineName = ""
     var extraLineY = ""
+    /// The font's extra metric lines as the Guides pane edits them (FONT-006): name, height (font
+    /// units, y up) and whether btn:[−] removed it.
+    struct LineRow: Identifiable, Hashable {
+        let id: OpID
+        var name: String
+        var y: String
+        var removed = false
+    }
+    var lines: [LineRow]
     var generateKern: Bool
     var generateMark: Bool
     var generateLiga: Bool
@@ -52,6 +61,7 @@ final class FontInfoModel {
         italic = info.os2.italic
         embedding = info.os2.embedding
         shows = Dictionary(uniqueKeysWithValues: SetMetricGuides.Line.allCases.map { ($0, Self.isShown($0, in: info.guides)) })
+        lines = info.guides.extraLines.map { LineRow(id: $0.id, name: $0.name, y: FontUnits.format($0.y)) }
         generateKern = !info.omitGeneratedKern
         generateMark = !info.omitGeneratedMark
         generateLiga = !info.omitGeneratedLiga
@@ -162,9 +172,9 @@ final class FontInfoModel {
     func commands() -> [any WTModel.Command]? {
         problem = nil
         var result: [any WTModel.Command] = []
-        guard let namesCommand = namesCommand(), let metricsCommand = metricsCommand(), let os2Command = os2Command() else { return nil }
-        result += [namesCommand, metricsCommand, os2Command].compactMap { $0 }
-        if let guides = guidesCommand() { result.append(guides) }
+        guard let namesCommand = namesCommand(), let metricsCommand = metricsCommand(), let os2Command = os2Command(),
+              let guidesCommand = guidesCommand() else { return nil }
+        result += [namesCommand, metricsCommand, os2Command, guidesCommand].compactMap { $0 }
         guard let guidesLine = extraLineCommand() else { return nil }
         result += guidesLine.map { [$0] } ?? []
         if let features = featuresCommand() { result.append(features) }
@@ -224,12 +234,39 @@ final class FontInfoModel {
         return .some(unchanged ? nil : command)
     }
 
-    private func guidesCommand() -> (any WTModel.Command)? {
-        let edits = SetMetricGuides.Line.allCases.compactMap { line -> SetMetricGuides.Edit? in
+    private func guidesCommand() -> (any WTModel.Command)?? {
+        var edits = SetMetricGuides.Line.allCases.compactMap { line -> SetMetricGuides.Edit? in
             let shown = shows[line, default: true]
             return shown == Self.isShown(line, in: original.guides) ? nil : .show(line, shown)
         }
-        return edits.isEmpty ? nil : SetMetricGuides(edits)
+        let stored = Dictionary(uniqueKeysWithValues: original.guides.extraLines.map { ($0.id, $0) })
+        for row in lines {
+            guard let line = stored[row.id] else { continue }
+            if row.removed {
+                edits.append(.removeLine(row.id))
+                continue
+            }
+            let name = row.name.trimmingCharacters(in: .whitespaces)
+            guard !name.isEmpty, let y = FontUnits.parse(row.y), abs(y) <= 32_767 else { return fail("Each extra line needs a name and a height") }
+            if name != line.name || y != line.y { edits.append(.editLine(row.id, name: name == line.name ? nil : name, y: y == line.y ? nil : y)) }
+        }
+        return .some(edits.isEmpty ? nil : SetMetricGuides(edits))
+    }
+
+    /// btn:[−] on an extra line (and again to keep it).
+    func toggleRemoved(_ id: OpID) {
+        guard let at = lines.firstIndex(where: { $0.id == id }) else { return }
+        lines[at].removed.toggle()
+    }
+
+    /// btn:[Use SIL Open Font License] (font-info.adoc, "License"): the License and License URL
+    /// fields filled with the OFL 1.1 notice, the copyright line of the Names pane first.
+    func useOpenFontLicense() {
+        let copyright = names[.copyright, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+        let preset = SetFontNames.openFontLicense(copyright: copyright).values
+        let notice = preset[.license] ?? ""
+        names[.license] = copyright.isEmpty ? notice : "\(copyright)\n\n\(notice)"
+        names[.licenseURL] = preset[.licenseURL] ?? ""
     }
 
     private func extraLineCommand() -> (any WTModel.Command)?? {
@@ -307,6 +344,7 @@ struct FontInfoSheet: View {
             ForEach(FontNameField.allCases, id: \.self) { field in
                 TextField(FontInfoModel.title(of: field), text: binding(field))
             }
+            Button("Use SIL Open Font License", action: model.useOpenFontLicense).accessibilityIdentifier("fontInfo.ofl")
         case .metrics:
             TextField("Units per em", text: $model.upmText).accessibilityIdentifier("fontInfo.upm")
             Toggle("Scale glyphs to the new em", isOn: $model.scaleGlyphs)
@@ -325,6 +363,13 @@ struct FontInfoSheet: View {
         case .guides:
             ForEach(SetMetricGuides.Line.allCases, id: \.self) { line in
                 Toggle(FontInfoModel.title(of: line), isOn: binding(line))
+            }
+            ForEach($model.lines) { $line in
+                HStack {
+                    TextField("Name", text: $line.name).disabled(line.removed)
+                    TextField("Height", text: $line.y).frame(width: 70).disabled(line.removed)
+                    Button(line.removed ? "Keep" : "−") { model.toggleRemoved(line.id) }.help(line.removed ? "Keep this line" : "Remove this line")
+                }
             }
             TextField("New line name", text: $model.extraLineName)
             TextField("New line height", text: $model.extraLineY)

@@ -192,4 +192,29 @@ import WTGeometry
         frame.showSideBearings = false
         #expect(GlyphCanvasRendering.items(frame).count == 1 && GlyphCanvasRendering.snapGuides(frame).count == 1)
     }
+
+    @Test func componentsDrawTintedAndPlaceholdersHatched() {
+        let box = FilledPath(contours: [Contour(polygon: [Point(x: 0, y: 0), Point(x: 100, y: 0), Point(x: 100, y: -50)])])
+        let items = GlyphCanvasRendering.componentItems([
+            GlyphCanvasRendering.Component(outline: box, bounds: box.bounds, isPlaceholder: false),
+            GlyphCanvasRendering.Component(outline: box, bounds: box.bounds, isPlaceholder: true),
+            GlyphCanvasRendering.Component(outline: .empty, bounds: Rect(x: 0, y: -100, width: 100, height: 100), isPlaceholder: true),
+        ])
+        // Tint and outline; dashed box, hatching and dashed outline; dashed box and hatching.
+        #expect(items.count == 2 + 3 + 2)
+        if case .fill(let tint) = items[0], case .solid(let color) = tint.paint {
+            #expect(color.alpha == 0.25 * GlyphCanvasRendering.componentColor.alpha)
+        } else {
+            Issue.record("no tint")
+        }
+        let hatch = GlyphCanvasRendering.hatching(Rect(x: 0, y: -100, width: 100, height: 100))
+        // Nineteen lines, each from the left or bottom edge to the top or right edge at 45 degrees.
+        #expect(hatch.elements.count == 38)
+        if case .move(let start) = hatch.elements[0], case .line(let end) = hatch.elements[1] {
+            #expect(start == Point(x: 0, y: -10) && end == Point(x: 10, y: 0))
+        }
+        if case .move(let start) = hatch.elements[36], case .line(let end) = hatch.elements[37] {
+            #expect(start == Point(x: 90, y: -100) && end == Point(x: 100, y: -90))
+        }
+    }
 }

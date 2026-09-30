@@ -447,6 +447,13 @@ with *Rescale mine*, and *Rescale* beside the choices of an object already liste
 (`WTApp/Review/ReviewSheetModel.swift`); with more than one row the footer adds *Rescale all*
 (`FontRescaleReview.rescaleAll`, one change).
 
+NOTE: As built by FONT-006's rest (`WTApp/Typeface/FontInfoSheet.swift`).  The Names pane has btn:[Use SIL Open Font
+License], which fills *License* with the Names pane's copyright line and the OFL 1.1 notice (`SetFontNames.openFontLicense`)
+and *License URL* with its address, written with the pane on btn:[OK]; the Guides pane lists the extra metric lines with their
+name and height editable and btn:[−] to remove one (btn:[Keep] takes it back), written as `SetMetricGuides` edits in the
+pane's one change; a line left without a name or height is refused.  Still not built: the remote-change dots, the progress
+sheet for large rescales, the canvas notice for a remote metric change, the colour wells and PANOSE.
+
 === Build tasks
 
 [[FONT-005]]

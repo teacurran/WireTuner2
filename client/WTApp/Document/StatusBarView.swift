@@ -53,6 +53,26 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     private(set) var pageNames: [String] = []
     /// The units pop-up's items: the built-in units, then the document's custom units.
     private(set) var unitChoices: [LengthUnit] = LengthUnit.standard
+    /// A unit the canvas cannot change (a glyph canvas's *Font units*, FONT-003): the pop-up
+    /// shows only it, disabled.
+    var fixedUnits: String? {
+        didSet {
+            guard fixedUnits != oldValue else { return }
+            if let fixedUnits {
+                units.removeAllItems()
+                units.addItem(withTitle: fixedUnits)
+            } else {
+                unitChoices = []
+            }
+            units.isEnabled = fixedUnits == nil
+        }
+    }
+    /// Hides Add Page and the page selector (a single-page document, a glyph canvas; FONT-003).
+    var hidesPageControls = false {
+        didSet {
+            for control in [addPage, previousPage, pageField, nextPage] as [NSView] { control.isHidden = hidesPageControls }
+        }
+    }
 
     /// Typed text or a chosen preset, as entered.
     var onMagnification: (@MainActor (String) -> Void)?
@@ -183,6 +203,7 @@ final class StatusBarView: NSView, NSComboBoxDelegate {
     /// The document's unit among the built-in and custom units (named as `converter` names
     /// them); never takes focus from a field being edited.
     func show(units value: LengthUnit, converter: Units = Units()) {
+        guard fixedUnits == nil else { return }
         let choices = LengthUnit.standard + converter.customUnits.map { LengthUnit.custom($0.id) }
         if choices != unitChoices || units.numberOfItems != choices.count || units.itemTitles != choices.map(converter.name(of:)) {
             unitChoices = choices

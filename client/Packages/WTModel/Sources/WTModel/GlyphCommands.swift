@@ -533,6 +533,8 @@ public struct SetGlyphBearings: Command {
         case right(Double)
         /// Equal side bearings in the current width.
         case center
+        /// *Thirds in Width*: the right side bearing twice the left, in the current width.
+        case thirds
     }
 
     public var glyphs: [OpID]
@@ -550,6 +552,7 @@ public struct SetGlyphBearings: Command {
         case .left: GlyphEditing.label("Set left side bearing", count: glyphs.count)
         case .right: GlyphEditing.label("Set right side bearing", count: glyphs.count)
         case .center: GlyphEditing.label("Center in width", count: glyphs.count)
+        case .thirds: GlyphEditing.label("Thirds in width", count: glyphs.count)
         }
     }
 
@@ -572,6 +575,8 @@ public struct SetGlyphBearings: Command {
                 width = glyph.advanceWidth - metrics.rightSideBearing + value
             case .center:
                 dx = ((metrics.leftSideBearing + metrics.rightSideBearing) / 2 - metrics.leftSideBearing)
+            case .thirds:
+                dx = ((metrics.leftSideBearing + metrics.rightSideBearing) / 3 - metrics.leftSideBearing)
             }
             try GlyphEditing.validate(width: width)
             if dx != 0 { GlyphEditing.transformArtwork(of: glyph, by: .translation(x: dx, y: 0), state: state, builder: &builder) }
@@ -743,7 +748,7 @@ public struct RemoveComponents: Command {
 }
 
 /// *Decompose* (and *Decompose All* with `components` nil): each component's element deleted
-/// and one closed path per contour of its flattened outline created on the glyph's canvas, on
+/// and one path holding its flattened outline's contours created on the glyph's canvas, on
 /// the glyph's topmost layer, in one change.  Nested components flatten fully; a placeholder
 /// decomposes from its cached outline.  "Decompose".
 public struct DecomposeComponents: Command {
@@ -773,12 +778,13 @@ public struct DecomposeComponents: Command {
             case .dangling: placement = GlyphComponentPlacement(source: .placeholder(GlyphOutlines.decode(component.cached)), transform: component.transform)
             case .loop: continue
             }
-            let outline = GlyphFlattener.outline(of: GlyphSource(components: [placement]), sources: sources).path
-            for contour in outline.contours where !contour.isEmpty {
-                let key = try PathEditing.keys(between: previous, and: nil, count: 1)[0]
-                previous = key
-                try GlyphPaths.create([contour], parent: layer, position: key, canvas: glyph, builder: &builder)
-            }
+            // One path per component holding every contour: the union winds counters the other
+            // way, so the hole of an `o` stays a hole (a path per contour would fill it).
+            let contours = GlyphFlattener.outline(of: GlyphSource(components: [placement]), sources: sources).path.contours.filter { !$0.isEmpty }
+            guard !contours.isEmpty else { continue }
+            let key = try PathEditing.keys(between: previous, and: nil, count: 1)[0]
+            previous = key
+            try GlyphPaths.create(contours, parent: layer, position: key, canvas: glyph, builder: &builder)
         }
     }
 }
