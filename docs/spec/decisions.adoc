@@ -1132,6 +1132,43 @@ Rejected: matching the private data's objects to the PDF's by geometry (fragile 
 object draws as several PDF objects, and unnecessary given the marks); reading layers from the
 private data for multi-layer files without marks (no way to tell which drawing is on which layer).
 
+*Addendum (2026-09-30): artboard names, PDFs from Illustrator, hidden DXF and FreeHand layers.*
+
+* *Artboard names.*  Illustrator CS4 and later keep the artboards in the private data's document
+  data (`%AI9_BeginDocumentData`, in Illustrator's dictionary serialisation) as `ArtboardArray`,
+  one dictionary per artboard with its `Name`, in the order the PDF's pages are written.  Opening
+  a file names each page after its artboard when there is exactly one name per page (none of the
+  owner's files has artboards -- all are from Illustrator 9 to CS3 -- so this rests on synthetic
+  fixtures and the Illustrator 2026 presets below; no other place in the PDF was found to hold the
+  names).  Illustrator 2020
+  and later compress the private data with Zstandard, which the system Compression library does not
+  decode, so those files' pages stay unnamed -- checked against the document data of the
+  Zstandard-compressed presets that ship with Illustrator 2026 (decompressed outside the app),
+  whose `ArtboardArray` reads correctly.  Reading them needs a vendored Zstandard decoder: a
+  follow-up if the owner wants it.
+* *PDFs from Illustrator.*  A `.pdf` saved from Illustrator carries the same `/Layer` marks and
+  `/AltAI8` hidden-layer copies, and with *Preserve Illustrator Editing Capabilities* the private data
+  as `/AIPDFPrivateData1…N`.  So the `/Layer` marks are now read in every PDF (no other producer
+  writes them), and a PDF with Illustrator's piece info or with those marks opens and imports
+  exactly as an `.ai` does -- the certainty checks, the private data's single layer, artboard
+  names -- except that unreadable shadings keep the PDF's 10% black.  A PDF with neither reads as
+  before.  This replaces the clause above that the marks "are read only in Illustrator files".
+* *Hidden DXF and FreeHand layers.*  Opened as a document, a DXF layer that is off or frozen and a
+  FreeHand layer that is hidden now come in as hidden layers with their artwork, as a hidden PDF or
+  Illustrator layer does; menu:File[Import…] still leaves them out with a note.  A DXF drawing's page
+  takes in its hidden layers' extents.  An entity inside a block that is on a different hidden layer
+  than the block's reference is still left out (a group cannot span layers).  FreeHand's printing
+  flag is not read (a background layer opens as an ordinary one).
+
+Corpus for the addendum (198 files now, the FreeHand files added; read in place, report in the
+scratchpad): all 198 open.  Of the 36 `.pdf` files, 30 are Illustrator's and now open through the
+Illustrator reading -- 28 from their layer marks, 2 falling back with the note (artwork outside the
+layers, as the plain reading has it); 2 gain layers (1 to 3 with a hidden layer and its 13 objects,
+1 to 2); the other 6 read as before.  Page 1 against Quartz is unchanged within 0.005 for all 108
+compared files.  1 of the 13 FreeHand files has a hidden layer, which now opens hidden with its
+artwork.  No file of the corpus is newer than Illustrator CS3, so none has artboard names, and there
+are no DXF files in it.
+
 == Open questions
 
 [[Q-001]]

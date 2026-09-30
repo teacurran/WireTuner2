@@ -1,7 +1,8 @@
 // The PDF importer (import-formats.adoc, "PDF" and "Client"; IMG-009): each selected page's
 // content becomes native paths, text, images and clipping groups; optional content becomes layer
 // groups; notes and links go to the *Notes* and *URLs* layers; several pages are grouped per page
-// and set in a row with the *Keep both offset* between them.
+// and set in a row with the *Keep both offset* between them.  A PDF Illustrator wrote (its piece
+// info, or Illustrator's layer marks) opens and imports as an Illustrator file does (D-085).
 
 import CoreGraphics
 import Foundation
@@ -12,10 +13,12 @@ public struct PDFImporter: Importer {
     /// The grey level shadings the importer cannot represent are filled with: 10% black for
     /// PDF, 50% for Illustrator's gradient meshes.
     public var meshBlack: Double
-    /// Illustrator's own layer marks are read as layers (D-085): on for Illustrator files.
+    /// Illustrator's own layer marks and hidden-layer artwork are read as layers, and a PDF
+    /// Illustrator wrote gets an Illustrator file's layer checks and artboard names (D-085).  Off
+    /// only for an Illustrator file whose layers cannot be matched to its drawing.
     public var illustratorLayers: Bool
 
-    public init(meshBlack: Double = 0.1, illustratorLayers: Bool = false) {
+    public init(meshBlack: Double = 0.1, illustratorLayers: Bool = true) {
         self.meshBlack = meshBlack
         self.illustratorLayers = illustratorLayers
     }
@@ -95,6 +98,9 @@ public struct PDFImporter: Importer {
     public func convert(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedScene {
         let typed = try PDFImportOptions(options, name: name)
         let document = try PDFImporter.document(data, name: name)
+        if illustratorLayers, IllustratorPrivateData.isIllustrator(document) {
+            return try IllustratorImporter.scene(document, name: name, options: typed, context: context, importer: self)
+        }
         return try convert(document, name: name, options: typed, context: context)
     }
 
@@ -130,9 +136,13 @@ public struct PDFImporter: Importer {
 
     /// `document` opened as a document (IO-040): one page per selected page at its crop box's
     /// size, its content in page space with optional content as layer groups, its notes and links
-    /// on the *Notes* and *URLs* layers.
+    /// on the *Notes* and *URLs* layers; a PDF with Illustrator's piece info or layer marks as an
+    /// Illustrator file opens (D-085).
     func document(_ document: CGPDFDocument, name: String, format: ImportFormat, options: PDFImportOptions) throws -> ImportedDocument {
-        try pages(document, name: name, format: format, options: options).document
+        if illustratorLayers {
+            return try IllustratorImporter.document(document, name: name, format: format, options: options, importer: self)
+        }
+        return try pages(document, name: name, format: format, options: options).document
     }
 
     /// `document` opened as a document, with each page's layer runs and loose objects and the
@@ -145,7 +155,9 @@ public struct PDFImporter: Importer {
         }
         let session = session(document, name: name, options: options)
         let converted = numbers.map { number in
-            convertPage(document.page(at: number)!, session: session, options: options, placement: .identity)
+            var page = convertPage(document.page(at: number)!, session: session, options: options, placement: .identity)
+            page.number = number
+            return page
         }
         let pages = converted.map { page in
             ImportedPage(size: Size(width: page.size.width, height: page.size.height), nodes: page.content,
@@ -215,7 +227,8 @@ public struct PDFImporter: Importer {
     }
 
     /// One converted page: its crop box, content, notes and links, the layers of its top-level
-    /// layer groups in order and how many top-level objects are outside every layer.
+    /// layer groups in order, how many top-level objects are outside every layer, and its page
+    /// number.
     struct PDFConvertedPage {
         var size: Rect
         var content: [ImportedNode]
@@ -223,6 +236,7 @@ public struct PDFImporter: Importer {
         var links: [ImportedNode]
         var layerRuns: [PDFImportLayer]
         var looseCount: Int
+        var number = 1
     }
 
     /// The *Notes* and *URLs* layers, each when it has something.

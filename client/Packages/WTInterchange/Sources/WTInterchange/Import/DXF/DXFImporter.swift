@@ -4,7 +4,8 @@
 // space and mapped through one transform -- the drawing's units to points with y flipped, any
 // block insertion, and the object coordinate system's mirror for entities extruded along −Z --
 // so arcs and curves stay exact Béziers.  The scene's natural size is the drawing's extents,
-// with their top-left corner at the origin.
+// with their top-left corner at the origin.  Layers that are off or frozen are left out of an
+// import with a note; a DXF opened as a document keeps them as hidden layers.
 
 import CoreText
 import Foundation
@@ -31,12 +32,21 @@ public struct DXFImporter: Importer {
         return try convert(data, name: name, options: DXFImportOptions(options))
     }
 
-    /// `data` converted with typed options.
-    public func convert(_ data: Data, name: String, options: DXFImportOptions) throws -> ImportedScene {
+    /// The drawing opened as a document (IO-040): one page the size of its extents, every layer
+    /// a document layer, and the layers that are off or frozen hidden layers with their artwork
+    /// rather than left out (D-085).
+    public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
+        try context.checkSize(data.count, name: name)
+        return ImportedDocument(scene: try convert(data, name: name, options: DXFImportOptions(options), keepHidden: true), format: format)
+    }
+
+    /// `data` converted with typed options; `keepHidden` keeps the layers that are off or frozen
+    /// as hidden layer groups.
+    public func convert(_ data: Data, name: String, options: DXFImportOptions, keepHidden: Bool = false) throws -> ImportedScene {
         guard let drawing = DXFImportDrawing(data) else {
             throw ImportError.unreadable(name: name, reason: "it is not a DXF file or it is cut short.")
         }
-        return try DXFImportConverter(drawing: drawing, options: options, name: name).scene()
+        return try DXFImportConverter(drawing: drawing, options: options, name: name, keepHidden: keepHidden).scene()
     }
 }
 
@@ -45,6 +55,8 @@ final class DXFImportConverter {
     let drawing: DXFImportDrawing
     let options: DXFImportOptions
     let name: String
+    /// Layers that are off or frozen become hidden layer groups instead of being left out.
+    let keepHidden: Bool
     let layers: [String: DXFImportLayer]
     /// Points per drawing unit.
     let unit: Double
@@ -64,10 +76,11 @@ final class DXFImportConverter {
         var blocks: [String] = []
     }
 
-    init(drawing: DXFImportDrawing, options: DXFImportOptions, name: String) {
+    init(drawing: DXFImportDrawing, options: DXFImportOptions, name: String, keepHidden: Bool = false) {
         self.drawing = drawing
         self.options = options
         self.name = name
+        self.keepHidden = keepHidden
         layers = Dictionary(drawing.layers.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
         let code = drawing.header["$INSUNITS"]?.first { $0.code == 70 }?.int ?? 0
         unit = DXFImportConverter.pointsPerUnit(code) ?? options.units.points
@@ -109,7 +122,7 @@ final class DXFImportConverter {
         var hiddenLayers = Set<String>()
         for entity in drawing.entities {
             let layer = entity.layer
-            if layers[layer]?.hidden == true {
+            if layers[layer]?.hidden == true, !keepHidden {
                 hiddenLayers.insert(layer)
                 continue
             }
@@ -135,7 +148,10 @@ final class DXFImportConverter {
         }
         let extents = rects.reduce(first) { $0.union($1) }
         let shift = AffineTransform.translation(x: -extents.minX, y: -extents.minY)
-        let groups = ordered.map { ImportedNode.group(ImportedGroup(children: layerNodes[$0]!, transform: shift, name: $0, role: .layer)) }
+        let groups = ordered.map { layer in
+            ImportedNode.group(ImportedGroup(children: layerNodes[layer]!, transform: shift, name: layer, role: .layer,
+                                             layerState: ImportedLayerState(visible: layers[layer]?.hidden != true)))
+        }
         return ImportedScene(kind: .vector, name: name, bounds: Rect(x: 0, y: 0, width: extents.width, height: extents.height), nodes: groups, notes: notes)
     }
 

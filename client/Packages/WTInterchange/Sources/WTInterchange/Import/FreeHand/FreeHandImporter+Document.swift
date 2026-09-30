@@ -1,7 +1,8 @@
 // Opening a FreeHand file as a document (IO-040's `Importer.document`, D-082; IO-041, D-083).
 // FreeHand's objects belong to the pasteboard, not to a page: each top-level object of every
 // layer goes to the page its bounds' centre lies on (the nearest page when it lies on none), in
-// that page's space, and the layers stay `.layer` groups so they become document layers.
+// that page's space, and the layers stay `.layer` groups so they become document layers -- hidden
+// layers too, with their artwork, which an import leaves out (D-085).
 //
 // The symbols of `ImportedScene.symbols` have no place on `ImportedDocument` yet, so an opened
 // file's symbol instances open as their expanded groups (import-formats.adoc, "FreeHand").
@@ -12,7 +13,7 @@ import WTRender
 
 extension FreeHandImporter {
     public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
-        let (pages, scene) = try self.pages(data, name: name, context: context)
+        let (pages, scene) = try self.pages(data, name: name, context: context, keepHidden: true)
         guard !scene.nodes.isEmpty else { throw ImportError.empty(name: name) }
         var perPage: [[ImportedNode]] = Array(repeating: [], count: pages.count)
         for layer in scene.nodes {

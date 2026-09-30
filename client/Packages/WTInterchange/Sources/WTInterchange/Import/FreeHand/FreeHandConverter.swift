@@ -32,6 +32,9 @@ struct FreeHandConverter {
     let records: FreeHandRecords
     let name: String
     let context: ImportContext
+    /// Hidden layers become hidden layer groups (a file opened as a document) instead of being
+    /// left out with a note (an import).
+    var keepHidden = false
     var notes = FreeHandNotes()
     /// Converted symbols by class id, in first-use order.
     private var symbols: [Int: ImportedSymbol] = [:]
@@ -88,11 +91,12 @@ struct FreeHandConverter {
             if layer.visibility & 8 != 0 || layerName == "Guides" { continue }
             let children = elements.flatMap { node($0, scene) }
             guard !children.isEmpty else { continue }
-            if layer.visibility & 1 == 0 {
+            let visible = layer.visibility & 1 != 0
+            if !visible && !keepHidden {
                 notes.hiddenLayers.append(layerName.isEmpty ? "Unnamed" : layerName)
                 continue
             }
-            layers.append(.group(ImportedGroup(children: children, name: layerName.isEmpty ? "Layer" : layerName, role: .layer)))
+            layers.append(.group(ImportedGroup(children: children, name: layerName.isEmpty ? "Layer" : layerName, role: .layer, layerState: ImportedLayerState(visible: visible))))
         }
         notes.noteRecords(records)
         return FreeHandConversion(bounds: bounds, pages: pageRects, layers: layers, symbols: symbolOrder.compactMap { symbols[$0] }, notes: notes.messages)

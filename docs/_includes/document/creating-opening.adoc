@@ -95,14 +95,16 @@ opens its own packages.  To open one, do any of the following:
 Each file becomes a new document in the Library, named after the file (`Poster.ai` opens as
 *Poster*), with the file's structure:
 
-Pages:: One page for each page of a PDF and for each artboard of an Illustrator file, at the size
-it has in the file, set side by side on the pasteboard, and for each page of a FreeHand document,
+Pages:: One page for each page of a PDF and for each artboard of an Illustrator file (named after
+the artboard), at the size it has in the file, set side by side on the pasteboard, and for each page of a FreeHand document,
 with the objects that lie on it.  An SVG, EPS or DXF file opens as one page the size of its drawing.
 Layers:: The file's layers become {product} layers, in the same order, with the same names: a
 PDF's layers, a DXF file's layers, a FreeHand document's layers, and an Illustrator file's layers
 with each object on its own layer.  An Illustrator layer that is hidden opens hidden with its
 artwork, a locked one opens locked, one set not to print becomes a background layer and one shown
-as outlines draws as keylines; a PDF layer that is off opens hidden.  When an Illustrator file's
+as outlines draws as keylines; a PDF layer that is off, a FreeHand layer that is hidden and a DXF
+layer that is off or frozen open hidden with their artwork.  A PDF saved from Illustrator opens
+the way an Illustrator file does.  When an Illustrator file's
 layers cannot be matched to its artwork with certainty, it opens the way its PDF reads, usually on
 one layer, and the alert says so.  A file with no layers opens on one layer.  Artwork that is on no
 layer in the file goes on a layer called *Foreground*.  A PDF's comments and
@@ -372,8 +374,8 @@ CMYK JPEGs came in as negatives); an EPS whose embedded PDF converts to nothing 
 importer's per-pixel colour conversion is memoised per sample tuple and whole bytes are read directly (a separation image
 took over a minute); and a display list build reads the stacking order for text wrap once (`TextWrapping.Pass`, a task-local
 cache over the build's state) instead of once per text block, which had made a PDF of thousands of text runs take minutes to
-draw.  Known gaps, not fixed here: artboard names (they live in Illustrator's private data); PostScript-only
-EPS files (the owner's older EPS work) open placed.
+draw.  Known gaps, not fixed here: PostScript-only EPS files (the owner's older EPS work) open placed (artboard names,
+once a gap, came with D-085's addendum).
 
 NOTE: As built by D-085 (xref:decisions.adoc#D-085[D-085]): PDF-compatible Illustrator files open with their layers.  The PDF
 drawing stays the source of the artwork; `IllustratorImporter.document` takes the layers from Illustrator's `/Layer` marked
@@ -383,6 +385,14 @@ single top-level layer of its private data, and falls back to the plain PDF read
 outline) becomes the layer's `visible`, `locked`, `printing` and `keyline` in `DocumentImport.execute` (`layerContents` carries it,
 from the first group naming the layer); `ImportedDocument.layerSource` says which source was used and the corpus report counts
 files and layers per source.  Tests: `WTInterchangeTests/IllustratorLayerTests`, `WTModelTests/DocumentImportTests.layerSettingsComeFromTheFile`.
+
+NOTE: As built by D-085's addendum (xref:decisions.adoc#D-085[D-085]): an Illustrator file's pages take their artboards' names
+from the private data's `ArtboardArray` (CS4 to 2019; `ImportedPage.name`, written as the page's name by `DocumentImport`); a
+`.pdf` with Illustrator's piece info or `/Layer` marks opens through `IllustratorImporter.document` like an `.ai`; and
+`DXFImporter.document` and `FreeHandImporter.document` keep hidden layers as hidden layers with their artwork (an import still
+leaves them out with a note).  `ExternalCorpusOpenTests` now also opens `.dxf` and FreeHand files and reports hidden layers and
+named pages.  Tests: `WTInterchangeTests/IllustratorArtboardTests`, `DXFImportTests.openedAsADocumentHiddenAndFrozenLayersComeInHidden`,
+`FreeHandDocumentTests.hiddenLayers`.
 
 === Build tasks
 

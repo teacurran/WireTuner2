@@ -101,9 +101,11 @@ import WTGeometry
         #expect(scene.notes == ["The hidden layer “Hidden” was left out; open the file to keep it."])
     }
 
-    @Test func aPlainPDFIgnoresIllustratorMarks() throws {
+    @Test func aPDFImportReadsIllustratorMarksUnlessTurnedOff() throws {
         let scene = try F.importPDF(Self.marked())
-        #expect(Self.layers(scene.nodes).isEmpty && F.paths(scene.nodes).count == 3)
+        #expect(Self.layers(scene.nodes).map(\.name) == ["Back", "Front"])
+        let plain = try PDFImporter(illustratorLayers: false).convert(Self.marked(), name: "fixture.pdf", format: .pdf, options: ImportOptionValues(), context: ImportContext())
+        #expect(Self.layers(plain.nodes).isEmpty && F.paths(plain.nodes).count == 3)
     }
 
     @Test func keepPageClipClipsInsideEachLayer() throws {
@@ -304,6 +306,6 @@ import WTGeometry
         let pdf = f.document([F.Page("", extra: "/MediaBox [0 0 10 10] /PieceInfo << /Illustrator << /Private << /AIPrivateData1 (x) >> >> >>")])
         let document = try PDFImporter.document(pdf, name: "x.ai")
         #expect(IllustratorPrivateData.data(page: PDFImportDict(ref: document.page(at: 1)!.dictionary!)) == nil)
-        #expect(IllustratorImporter.nativeLayers(try PDFImporter.document(F.page(""), name: "y.ai")).isEmpty)
+        #expect(IllustratorImporter.nativeLayers(IllustratorImporter.nativeData(try PDFImporter.document(F.page(""), name: "y.ai"))).isEmpty)
     }
 }

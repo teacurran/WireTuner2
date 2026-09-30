@@ -42,7 +42,9 @@ cannot represent (meshes, free-form shadings) become a 10% black fill so the sha
 uses the fonts installed on your Mac; a font the PDF embeds but you do not have is offered for
 substitution (xref:font-substitution.adoc[Font substitution]).  Comments (notes) in the PDF are
 placed on a layer named *Notes* and link rectangles on a layer named *URLs*, each with its
-target set as the object's URL (xref:urls.adoc[Attaching URLs]).
+target set as the object's URL (xref:urls.adoc[Attaching URLs]).  A PDF saved from Illustrator
+comes in the way an Illustrator file does, with its Illustrator layers (<<adobe-illustrator,Adobe
+Illustrator>>).
 
 To import a PDF:
 
@@ -81,6 +83,7 @@ everything the page contains is imported unclipped.
 TIP: If a page arrives as a single object, it is a clipping group made by *Keep page clip*.
 Select it and choose menu:Edit[Cut Contents] to release the objects.
 
+[[adobe-illustrator]]
 == Adobe Illustrator
 
 Illustrator files saved with the *Create PDF Compatible File* option (the default since
@@ -89,14 +92,17 @@ blends become groups of the blended shapes; gradient meshes become paths with a 
 Illustrator layers become groups named after the layers; hidden layers are left out of an import
 (the import says so) and layers with nothing on them are skipped.
 
-Opened as a document rather than imported, an Illustrator file keeps its artboards as pages and its
-layers as layers, bottom to top in the same order, with the same names and each object on its own
+Opened as a document rather than imported, an Illustrator file keeps its artboards as pages, each
+named after its artboard, and its layers as layers, bottom to top in the same order, with the same names and each object on its own
 layer.  A layer that is hidden in Illustrator opens hidden with its artwork, a locked one opens
 locked, one set not to print becomes a background layer and one shown as outlines draws as
 keylines.  Two layers with the same name are told apart by a number after the second name
 (*Art*, *Art 2*).  When {product} cannot match the layers to the artwork with certainty, the file
 opens the way its PDF reads -- usually with all the artwork on one layer -- and the open report says
-so; no artwork is left out either way.
+so; no artwork is left out either way.  A PDF saved from Illustrator is treated the same way when
+you open or import it: its Illustrator layers, hidden layers and artboard names come with it.
+Artboard names are read from files saved by Illustrator CS4 to 2019; files saved by Illustrator
+2020 or later open with their artboards as unnamed pages.
 
 Older Illustrator files (versions 1.1 through 8) and Illustrator EPS files are PostScript-based.
 {product} reads their drawing operators directly -- paths, fills, strokes, text and placed
@@ -111,7 +117,8 @@ artwork, and most of what FreeHand could do comes in as the same live feature he
 {product} follows FreeHand's model:
 
 * *Layers* become layers when you open the file, and groups named after them when you import it
-  into a document.  Hidden layers are left out of an import; the Guides layer is never artwork.
+  into a document.  A hidden layer opens hidden with its artwork; it is left out of an import (the
+  import says so).  The Guides layer is never artwork.
 * *Pages*: every page of a multi-page document comes in; opening the file gives you its pages,
   importing places the whole pasteboard spread at its natural size.
 * *Paths, rectangles, ellipses, compound paths and groups* keep their shapes and fill rules.
@@ -163,7 +170,9 @@ DXF is the exchange format of CAD applications.  {product} reads ASCII and binar
 imports the two-dimensional entities: lines, polylines, arcs, circles, ellipses, splines,
 hatches as filled paths, text and multiline text in the default font, and block references
 expanded in place.  Three-dimensional entities are flattened to the drawing's top view;
-anything without a two-dimensional appearance is ignored.
+anything without a two-dimensional appearance is ignored.  Each layer becomes a group named after
+it when you import the file, and a layer when you open it.  A layer that is off or frozen opens
+as a hidden layer with its artwork; it is left out of an import (the import says so).
 
 [cols="1,3"]
 |===
@@ -702,12 +711,33 @@ content that is off.  `ImportedGroup.layerState` carries the settings and
 each top-level layer group (and around each run of other objects) rather than around the whole
 page, so layers survive it.  Corpus (76 owner files, WT_EXTERNAL_CORPUS): see the D-085 record.
 
+NOTE: D-085's addendum (xref:decisions.adoc#D-085[D-085]).  *Artboard names*: the private data's
+document data (`%AI9_BeginDocumentData` … `%AI9_EndDocumentData`, each line behind `%_`) is read
+with Illustrator's dictionary serialisation (`value /Type (key) ,`, containers `/Type : … ; (key) ,`,
+`IllustratorPrivateData.dictionary`), and each dictionary of the first `ArtboardArray` gives its
+`Name` (`/UnicodeString`: UTF-16 with a byte-order mark, else UTF-8, else Latin-1).  When there is
+one name per PDF page, page _n_ is named after artboard _n_ (`ImportedPage.name`, so the document
+page's name); otherwise, or for an empty name, the page keeps none.  Files before CS4 have no
+`ArtboardArray`; Illustrator 2020 and later write `%AI24_ZStandard_Data`, which is not read (the
+system Compression library has no Zstandard), so their pages stay unnamed.  *PDFs Illustrator
+wrote*: `PDFImporter` reads the `/Layer` and `/AltAI8` marks in every PDF (`illustratorLayers` is on
+by default; only the Illustrator importer's fallback turns it off), and a `.pdf` with
+`/PieceInfo /Illustrator` on a page or with `/Layer` marks goes through
+`IllustratorImporter.document` (the certainty checks, the private data's layer, artboard names;
+`layerSource` set) when opened and `IllustratorImporter.scene` when imported, at the PDF's 10%
+mesh black.  The private data of such a `.pdf` is in `/AIPDFPrivateData1…N` rather than
+`/AIPrivateData1…N`; both are read.  A PDF without either opens and imports as before.
+
 NOTE: As built by IMG-013 (`WTInterchange/Import/DXF/`).  Natural size is the drawing's exact
 extents with their top-left moved to the origin; `$EXTMIN`/`$EXTMAX` are not read.
 `$INSUNITS` 1–16 and 21 are honoured; 0, absent (all of R12) or another code uses the *Units*
 option, the last with a note.  Each layer with content becomes a `.layer` group in layer-table
 order (then unlisted layers in first-use order); layers that are off or frozen are skipped with
-a note; entities on layer 0 inside a block take the INSERT's layer.  ACI 7 reads black on paper
+a note by an import, and opened as a document (`DXFImporter.document`, `convert(…, keepHidden:)`)
+are hidden `.layer` groups (`layerState.visible` false) that count toward the page's extents, with
+no note (D-085's addendum); an entity inside a block that is on another layer that is off or
+frozen is still left out, since it cannot sit on its own layer inside the block's group; entities
+on layer 0 inside a block take the INSERT's layer.  ACI 7 reads black on paper
 and BYBLOCK at top level black; the white options convert index 255 and any colour ≥ 0.98 in
 every channel.  Lineweight 370 with BYLAYER/BYBLOCK resolved; default 0.25 mm (AutoCAD's
 LWDEFAULT), 0 a hairline; a constant polyline width (43/40) overrides it.  Entities are stroked
@@ -741,7 +771,9 @@ Letter; `ImportDescriptor.pageCount` is their count.  `convert` returns one `.ve
 whole spread; `pages(_:name:context:)` returns the page rectangles with it for opening as a document
 (IO-040; `FreeHandImporter+Document.swift` assigns each layer's top-level objects to the page their
 centre lies on).  The walk: the block's layer list; a layer with bit 3 of its visibility (or named
-"Guides") is skipped, one without bit 0 is left out with a note, the others are `.layer` groups
+"Guides") is skipped, one without bit 0 is left out of an import with a note and opened as a
+document (`pages(…, keepHidden: true)`, `FreeHandConverter.keepHidden`) is a hidden `.layer` group
+with its artwork (D-085's addendum; bit 1, printing, is not read), the others are `.layer` groups
 named after their name record ("Layer" when unnamed; patch 0002 keeps the name); groups compose
 their transform; a clip group's first element (a path or composite path) is the clip, kept with its
 appearance (`clipAppearance`); a path or composite path whose style holds "contents" clips those

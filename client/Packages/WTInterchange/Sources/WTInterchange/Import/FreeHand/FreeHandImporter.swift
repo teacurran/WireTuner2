@@ -33,9 +33,10 @@ public struct FreeHandImporter: Importer {
 
     /// The file's pages for opening it as a document: each page's rectangle in the scene's
     /// space, and the layers holding every page's artwork (FreeHand's objects belong to the
-    /// pasteboard, not to a page, so a page takes what lies on it).
-    public func pages(_ data: Data, name: String, context: ImportContext = ImportContext()) throws -> (pages: [Rect], scene: ImportedScene) {
-        let conversion = try FreeHandImporter.conversion(data, name: name, context: context)
+    /// pasteboard, not to a page, so a page takes what lies on it); `keepHidden` keeps hidden
+    /// layers as hidden layer groups rather than leaving them out.
+    public func pages(_ data: Data, name: String, context: ImportContext = ImportContext(), keepHidden: Bool = false) throws -> (pages: [Rect], scene: ImportedScene) {
+        let conversion = try FreeHandImporter.conversion(data, name: name, context: context, keepHidden: keepHidden)
         let scene = ImportedScene(kind: .vector, name: name, bounds: conversion.bounds, nodes: conversion.layers, notes: conversion.notes, symbols: conversion.symbols)
         return (conversion.pages, scene)
     }
@@ -56,9 +57,10 @@ public struct FreeHandImporter: Importer {
         return records
     }
 
-    static func conversion(_ data: Data, name: String, context: ImportContext) throws -> FreeHandConversion {
+    static func conversion(_ data: Data, name: String, context: ImportContext, keepHidden: Bool = false) throws -> FreeHandConversion {
         try context.checkSize(data.count, name: name)
         var converter = FreeHandConverter(records: try records(data, name: name), name: name, context: context)
+        converter.keepHidden = keepHidden
         return converter.convert()
     }
 }

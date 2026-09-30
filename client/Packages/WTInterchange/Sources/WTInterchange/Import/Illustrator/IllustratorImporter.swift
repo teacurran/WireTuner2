@@ -3,7 +3,7 @@
 // layers from the `/Layer` marks Illustrator writes around each layer's drawing (or, with *Create
 // Acrobat Layers*, its optional content), hidden layers from the copies Illustrator keeps beside
 // them, and for a file with neither its private data's layer table when that has one layer
-// (D-085); live blends as the groups of blended shapes Illustrator writes, gradient meshes as 50%
+// (D-085), its artboards as pages named after them; live blends as the groups of blended shapes Illustrator writes, gradient meshes as 50%
 // black -- and PostScript-based files (versions 1.1 through 8, Illustrator EPS) through the
 // legacy operator reader, which places a file it cannot read as EPS rather than refusing it.
 
@@ -20,10 +20,7 @@ public struct IllustratorImporter: Importer {
 
     /// The PDF importer for PDF-compatible files: gradient meshes at 50% black, Illustrator's
     /// layer marks read.
-    static let pdf = PDFImporter(meshBlack: 0.5, illustratorLayers: true)
-    /// The same without Illustrator's layer marks: what a file whose layers cannot be matched to
-    /// its drawing opens with (its optional content, if any, else one layer).
-    static let plainPDF = PDFImporter(meshBlack: 0.5)
+    static let pdf = PDFImporter(meshBlack: 0.5)
 
     /// Whether `data` carries a PDF (the PDF-compatible format) rather than only PostScript.
     static func isPDFCompatible(_ data: Data) -> Bool {
@@ -41,14 +38,20 @@ public struct IllustratorImporter: Importer {
     public func convert(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedScene {
         let typed = try PDFImportOptions(options, name: name)
         if IllustratorImporter.isPDFCompatible(data) {
-            let document = try PDFImporter.document(data, name: name)
-            var scene = try IllustratorImporter.pdf.convert(document, name: name, options: typed, context: context)
-            if !scene.nodes.contains(where: \.isLayer), document.numberOfPages == 1, let layer = IllustratorImporter.onlyLayer(document), layer.state.visible, !scene.nodes.isEmpty {
-                scene.nodes = [.group(ImportedGroup(children: scene.nodes, name: layer.name, role: .layer, layerState: layer.state))]
-            }
-            return scene
+            return try IllustratorImporter.scene(try PDFImporter.document(data, name: name), name: name, options: typed, context: context, importer: IllustratorImporter.pdf)
         }
         return try legacy(data, name: name, text: typed.text)
+    }
+
+    /// An Illustrator PDF (an `.ai`, or a `.pdf` Illustrator wrote) converted for an import by
+    /// `importer`: its layers as layer groups, and a one-page file without layer marks on its
+    /// private data's only layer when that is shown.
+    static func scene(_ pdf: CGPDFDocument, name: String, options: PDFImportOptions, context: ImportContext, importer: PDFImporter) throws -> ImportedScene {
+        var scene = try importer.convert(pdf, name: name, options: options, context: context)
+        if !scene.nodes.contains(where: \.isLayer), pdf.numberOfPages == 1, !scene.nodes.isEmpty, let layer = onlyLayer(nativeData(pdf)), layer.state.visible {
+            scene.nodes = [.group(ImportedGroup(children: scene.nodes, name: layer.name, role: .layer, layerState: layer.state))]
+        }
+        return scene
     }
 
     /// A PDF-compatible file opened with one page per artboard (Illustrator writes each artboard
@@ -63,15 +66,34 @@ public struct IllustratorImporter: Importer {
         return document
     }
 
-    /// The layers of a PDF-compatible file (D-085): Illustrator's layer marks or optional content
+    /// A PDF-compatible file -- or a `.pdf` Illustrator wrote, or any PDF with Illustrator's
+    /// layer marks -- opened by `importer` (D-085): its layers as `layers(…)` finds them and each
+    /// page named after its artboard.  Any other PDF opens as `importer` reads it.
+    static func document(_ pdf: CGPDFDocument, name: String, format: ImportFormat, options: PDFImportOptions, importer: PDFImporter = IllustratorImporter.pdf) throws -> ImportedDocument {
+        let (document, pages, sources) = try importer.pages(pdf, name: name, format: format, options: options)
+        guard format == .illustrator || sources.contains(.illustrator) || IllustratorPrivateData.isIllustrator(pdf) else {
+            return document
+        }
+        let native = nativeData(pdf)
+        var result = try layers(pdf, document: document, pages: pages, sources: sources, native: native, options: options, importer: importer)
+        let names = native.map(IllustratorPrivateData.artboardNames) ?? []
+        if names.count == pdf.numberOfPages {
+            for (index, page) in pages.enumerated() where !names[page.number - 1].isEmpty {
+                result.pages[index].name = names[page.number - 1]
+            }
+        }
+        return result
+    }
+
+    /// The layers of an Illustrator PDF (D-085): Illustrator's layer marks or optional content
     /// when every page's drawing is inside them, each layer once per page and in one order on all
     /// pages; for a file without either, the private data's layer when it has exactly one; else
     /// the file as a plain PDF reads, with a note.
-    static func document(_ pdf: CGPDFDocument, name: String, format: ImportFormat, options: PDFImportOptions) throws -> ImportedDocument {
-        let (document, pages, sources) = try IllustratorImporter.pdf.pages(pdf, name: name, format: format, options: options)
+    static func layers(_ pdf: CGPDFDocument, document: ImportedDocument, pages: [PDFImporter.PDFConvertedPage], sources: Set<PDFImportLayer.Source>,
+                       native: Data?, options: PDFImportOptions, importer: PDFImporter) throws -> ImportedDocument {
         if sources.isEmpty {
             var result = document
-            if let layer = onlyLayer(pdf) {
+            if let layer = onlyLayer(native) {
                 for index in result.pages.indices {
                     result.pages[index].nodes = [.group(ImportedGroup(children: result.pages[index].nodes, name: layer.name, role: .layer, layerState: layer.state))]
                 }
@@ -82,7 +104,9 @@ public struct IllustratorImporter: Importer {
             return result
         }
         if let problem = uncertainty(pages, sources: sources) {
-            var fallback = try plainPDF.document(pdf, name: name, format: format, options: options)
+            var plain = importer
+            plain.illustratorLayers = false
+            var fallback = try plain.document(pdf, name: document.name, format: document.format, options: options)
             fallback.notes.append("Its layers could not be matched to its artwork with certainty (\(problem)), so it opens as its PDF reads.")
             fallback.layerSource = fallback.pages.contains { $0.nodes.contains(where: \.isLayer) } ? .optionalContent : ImportedLayerSource.none
             return fallback
@@ -90,7 +114,7 @@ public struct IllustratorImporter: Importer {
         var result = document
         let keys = pages.map(documentKeys)
         let names = uniqueNames(keys.flatMap { $0 })
-        let native = sources == [.optionalContent] ? nativeLayers(pdf).filter { $0.depth == 0 } : []
+        let records = sources == [.optionalContent] ? nativeLayers(native).filter { $0.depth == 0 } : []
         for (index, page) in pages.enumerated() {
             var run = 0
             result.pages[index].nodes = result.pages[index].nodes.map { node in
@@ -99,7 +123,7 @@ public struct IllustratorImporter: Importer {
                 let layer = page.layerRuns[run]
                 run += 1
                 group.name = names[key] ?? layer.name
-                if let match = native.filter({ $0.name == layer.name }).onlyElement, Set(keys.flatMap { $0 }.filter { $0.name == layer.name }).count == 1 {
+                if let match = records.filter({ $0.name == layer.name }).onlyElement, Set(keys.flatMap { $0 }.filter { $0.name == layer.name }).count == 1 {
                     // Acrobat layers carry no lock, print or outline setting: the private data's do.
                     group.layerState = ImportedLayerState(visible: group.layerState.visible, locked: match.state.locked, printing: match.state.printing, outline: match.state.outline)
                 }
@@ -192,17 +216,19 @@ public struct IllustratorImporter: Importer {
         return names
     }
 
-    /// The layer records of the file's private data (page 1's), or none.
-    static func nativeLayers(_ pdf: CGPDFDocument) -> [IllustratorNativeLayer] {
-        guard let page = pdf.page(at: 1)?.dictionary, let data = IllustratorPrivateData.data(page: PDFImportDict(ref: page)) else {
-            return []
-        }
-        return IllustratorPrivateData.layers(data)
+    /// The file's private data (page 1's, which holds the whole document), or nil.
+    static func nativeData(_ pdf: CGPDFDocument) -> Data? {
+        pdf.page(at: 1)?.dictionary.flatMap { IllustratorPrivateData.data(page: PDFImportDict(ref: $0)) }
+    }
+
+    /// The layer records of the file's private data, or none.
+    static func nativeLayers(_ native: Data?) -> [IllustratorNativeLayer] {
+        native.map(IllustratorPrivateData.layers) ?? []
     }
 
     /// The file's only top-level layer, when its private data has exactly one.
-    static func onlyLayer(_ pdf: CGPDFDocument) -> IllustratorNativeLayer? {
-        nativeLayers(pdf).filter { $0.depth == 0 }.onlyElement
+    static func onlyLayer(_ native: Data?) -> IllustratorNativeLayer? {
+        nativeLayers(native).filter { $0.depth == 0 }.onlyElement
     }
 
     /// A PostScript Illustrator file through the legacy reader; anything else is refused.

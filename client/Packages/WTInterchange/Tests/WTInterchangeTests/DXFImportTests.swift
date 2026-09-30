@@ -623,6 +623,32 @@ private func dxfImportColor(_ scene: ImportedScene, _ index: Int = 0) -> Color? 
         #expect(scene.notes.contains("Entities without a two-dimensional appearance were left out: 3DFACE."))
     }
 
+    @Test func openedAsADocumentHiddenAndFrozenLayersComeInHidden() throws {
+        let layers = [F.layer("Off", color: -1), F.layer("Frozen", flags: 1), F.layer("On")]
+        let entities = [
+            F.entity("LINE", [(8, "Off"), (10, 0), (20, 0), (11, 4), (21, 0)]),
+            F.entity("LINE", [(8, "Frozen"), (10, 0), (20, 0), (11, 1), (21, 3)]),
+            F.entity("LINE", [(8, "On"), (10, 0), (20, 0), (11, 1), (21, 0)]),
+        ]
+        let data = F.drawing(units: 1, layers: layers, entities: entities).ascii
+        let document = try DXFImporter().document(data, name: "plan.dxf", format: .dxf, options: DXFImportOptions().values, context: ImportContext())
+        let groups = document.pages[0].nodes.compactMap { node -> ImportedGroup? in
+            if case .group(let group) = node, group.role == .layer { return group }
+            return nil
+        }
+        #expect(groups.map(\.name) == ["Off", "Frozen", "On"])
+        #expect(groups.map(\.layerState.visible) == [false, false, true])
+        #expect(groups.allSatisfy { $0.children.count == 1 })
+        // The page takes in the hidden artwork; nothing was left out, so there is no note.
+        #expect(document.pages[0].size == Size(width: 288, height: 216))
+        #expect(!document.notes.contains { $0.contains("off or frozen") })
+        // Through the registry, and too large for the context: refused before it is read.
+        #expect(try ImportRegistry.standard.document(data, name: "plan.dxf").pages[0].nodes.count == 3)
+        #expect(throws: ImportError.self) {
+            try DXFImporter().document(data, name: "plan.dxf", format: .dxf, options: ImportOptionValues(), context: ImportContext(maximumFileSize: 10))
+        }
+    }
+
     // MARK: Framework
 
     @Test func probeSchemaAndRegistry() throws {
