@@ -37,6 +37,8 @@ final class TypefaceWindowMode {
     private(set) var glyphBar: GlyphBarModel?
     /// A glyph tab's bearing, anchor and component handles.
     private(set) var glyphHandles: GlyphCanvasHandles?
+    /// A glyph tab's shortcut view.
+    private(set) var glyphKeys: GlyphTabKeyView?
     let switcher = NSSegmentedControl(labels: ["Glyphs", "Sketches"], trackingMode: .selectOne, target: nil, action: nil)
     private var switcherAccessory: NSTitlebarAccessoryViewController?
     private var tokens: [DocumentHandle.ObservationToken] = []
@@ -135,6 +137,19 @@ final class TypefaceWindowMode {
         grid.onOpen = { [weak self] glyph in self?.open(glyph) }
         grid.onAdd = { [weak self] in self?.features?.presentAddGlyph() }
         grid.onRemove = { [weak self] in self?.features?.removeSelectedGlyphs() }
+        grid.gridView.onCreate = { [weak self] codepoint in
+            guard let self else { return }
+            features?.createPlaceholderGlyph(codepoint, in: self)
+        }
+        grid.gridView.onReorder = { [weak self] glyphs, order in
+            guard let self else { return }
+            controller.documentHandle.perform(ReorderGlyphs(glyphs, to: order))
+        }
+        grid.gridView.onCopy = { [weak self] in self?.features?.copyGlyphs() }
+        grid.gridView.onPaste = { [weak self] in self?.features?.pasteGlyphs() }
+        grid.gridView.canPaste = { [weak self] in self?.features?.glyphClipboard() != nil }
+        grid.model.encodings = features?.encodings ?? []
+        grid.didChange = { [weak self] in self?.features?.glyphPanelState.touch() }
         let view = grid.view
         view.translatesAutoresizingMaskIntoConstraints = false
         controller.window?.contentView?.addSubview(view)
@@ -173,6 +188,15 @@ final class TypefaceWindowMode {
         let handles = GlyphCanvasHandles(glyph: controller.documentHandle.canvasNode!)
         handles.openGlyph = { [weak self] glyph in self?.open(glyph) }
         handles.showsMarkAttachment = { [weak features] in features?.showsMarkAttachment ?? false }
+        handles.onPick = { [weak features] in features?.glyphPanelState.touch() }
+        // Cmd+Shift+R and Cmd+Shift+A reach Add Component… and Add Anchor… before the menu bar on a glyph tab.
+        let keys = GlyphTabKeyView(frame: .zero)
+        keys.handle = { [weak self] characters, modifiers in
+            guard let self, let features else { return false }
+            return features.glyphTabKey(characters, modifiers: modifiers, in: controller)
+        }
+        controller.window?.contentView?.addSubview(keys)
+        glyphKeys = keys
         controller.toolManager?.handleLayers.insert(handles, at: 0)
         glyphHandles = handles
         fitGlyph()

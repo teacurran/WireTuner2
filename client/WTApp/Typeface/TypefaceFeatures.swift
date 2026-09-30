@@ -67,6 +67,14 @@ final class TypefaceFeatures {
     private(set) var installed: [String: [URL]] = [:]
     /// menu:View[Show Mark Attachment] (FONT-013): on for every glyph tab.
     var showsMarkAttachment = false
+    /// Where menu:Edit[Copy] in the grid puts glyphs, and Paste reads them (replaced in tests).
+    var glyphPasteboard: NSPasteboard = .general
+    /// menu:View[Encoding] (FONT-010): the character sets every grid shows the empty slots of.
+    var encodings: Set<GlyphEncoding> = [] {
+        didSet { applyEncodings() }
+    }
+    /// What the Object panel's glyph sections follow besides the document.
+    let glyphPanelState = GlyphPanelState()
     /// Every window's typeface layout.
     private(set) var modes: [ObjectIdentifier: TypefaceWindowMode] = [:]
     /// Each document's glyph cell images.
@@ -108,7 +116,8 @@ final class TypefaceFeatures {
     func install(commands: CommandRegistry, documents: DocumentController?, window: @escaping @MainActor () -> DocumentWindowController?) {
         self.window = window
         self.documents = documents
-        for command in self.commands() + glyphMenuCommands() { commands.replace(command) }
+        for command in self.commands() + glyphMenuCommands() + glyphClipboardCommands() + glyphPanelCommands() { commands.replace(command) }
+        registerGlyphPanel()
     }
 
     // MARK: Windows
@@ -442,6 +451,7 @@ final class TypefaceFeatures {
     func presentFontInfo() -> NSWindow? {
         guard let controller = window() else { return nil }
         let model = FontInfoModel(document: gridDocument(of: controller))
+        model.showProgress = { [weak self, weak controller] text in self?.presentProgress(text, on: controller?.window) ?? {} }
         return present("sheet.fontInfo", on: controller.window) { close in FontInfoSheet(model: model, close: close) }
     }
 

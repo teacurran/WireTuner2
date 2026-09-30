@@ -427,7 +427,25 @@ context menu item, the Component and Anchor sections of the Object panel, kbd:[D
 anchor, component selection as an object (and its scale and flip with the transform tools), the shortcuts
 kbd:[Cmd+Shift+R] / kbd:[Cmd+Shift+A] / kbd:[Cmd+Shift+D] (menu:Glyph[Components and Anchors…] adds both, *Decompose
 Components* has no shortcut), labels drawn in screen space at the visible edge, and the 100 ms debounce (the preview is
-recomputed with each overlay draw, its outlines cached per document change).
+recomputed with each overlay draw, its outlines cached per document change).  (*Add Anchor Here*, the Component and Anchor
+sections and the three shortcuts came with the note below.)
+
+NOTE: As built by FONT-012's and FONT-013's panel rests (`WTApp/Typeface/GlyphInspector.swift`, a new file;
+`GlyphCanvasHandles.picked`; `DocumentWindowController.contextPoint`).  The anchor or component last pressed on a glyph
+canvas is *picked* (a ring round the anchor, the component's outline in the accent colour; a press anywhere else clears
+it), and with no object selected the Object panel adds its section under the Glyph section: *Component* -- the source
+(a link that opens it; *removed* or *loop* otherwise), X and Y (font units, y up), *Scale %* and *Rotation* (uniform,
+degrees), btn:[Decompose] -- or *Anchor* -- X, Y, Name, Role (Base / Mark), btn:[Remove Anchor]; each field one
+change.  menu:Glyph[Add Component…] opens a sheet taking a glyph's name or character (it shows the glyph found and its
+codepoint; itself is refused) and adds it with `AddComponent` (anchor arithmetic when a pair matches);
+menu:Glyph[Add Anchor…] a sheet with Name, *Role* (*From name*, Base, Mark) and X and Y.  kbd:[Control]-clicking the empty
+glyph canvas offers *Add Anchor Here*, the same sheet at the clicked point in whole units.  menu:Glyph[Decompose
+Components] has kbd:[Cmd+Shift+D] and decomposes the picked component alone on a glyph tab.  Deviation: kbd:[Cmd+Shift+R]
+and kbd:[Cmd+Shift+A] are *Export…* and *Select > All in Document* in the default shortcut set, so a glyph tab takes them
+for *Add Component…* and *Add Anchor…* before the menu bar (a key view in the tab's window, `TypefaceFeatures.glyphTabKey`)
+and the two menu items show no shortcut; elsewhere the keys keep their commands.  Still not built: kbd:[Delete] and
+arrow-key nudges for a picked anchor, component selection as an object (its scale and flip with the transform tools),
+labels drawn in screen space at the visible edge, and the 100 ms debounce.
 
 === Build tasks
 

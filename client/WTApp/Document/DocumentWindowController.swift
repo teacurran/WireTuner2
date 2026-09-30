@@ -176,6 +176,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     private(set) var namedViewSheet: NSWindow?
     /// The target the context menu was opened on, for commands that act on it.
     private(set) var contextTarget: ContextMenuTarget?
+    /// Where the canvas's context menu was opened, pasteboard space (a glyph canvas's *Add Anchor Here*).
+    private(set) var contextPoint: Point?
     /// Resolves guides and presence markers under the pointer (their epics fill it in).
     var contextResolver = ContextMenuResolver()
     /// Keeps the context menus' items' target alive.
@@ -806,6 +808,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// The canvas's context menu at `viewPoint`, after the select-before-menu rule.
     func contextMenu(at viewPoint: Point) -> NSMenu {
+        contextPoint = viewport.toPasteboard(viewPoint)
         let target = contextResolver.target(at: viewPoint, viewport: viewport, document: documentHandle, selection: selection)
         return contextMenu(for: target)
     }

@@ -3,6 +3,7 @@ import SwiftUI
 import WTCRDT
 import WTGeometry
 import WTModel
+import WTRender
 
 /// menu:Font[Font Info…] (font-info.adoc; FONT-006): the Names, Metrics, OS/2, Guides and
 /// Features panes.  The fields start from the document as it is when the sheet opens; btn:[OK]
@@ -41,6 +42,14 @@ final class FontInfoModel {
         var removed = false
     }
     var lines: [LineRow]
+    /// The OS/2 pane's ten PANOSE digits (FONT-006).
+    var panose: [UInt8]
+    /// The Guides pane's colour wells (FONT-006): each line colour as shown, the default palette's when unset.
+    var wellColors: [SetMetricGuides.ColorWell: CGColor]
+    /// btn:[Use Default Colors]: the three wells cleared back to the default palette on btn:[OK].
+    var useDefaultColors = false
+    /// Shows the progress sheet of a large rescale and returns what closes it (FONT-006; set by the features).
+    @ObservationIgnored var showProgress: @MainActor (String) -> @MainActor () -> Void = { _ in {} }
     var generateKern: Bool
     var generateMark: Bool
     var generateLiga: Bool
@@ -60,6 +69,8 @@ final class FontInfoModel {
         bold = info.os2.bold
         italic = info.os2.italic
         embedding = info.os2.embedding
+        panose = info.os2.panose
+        wellColors = Dictionary(uniqueKeysWithValues: SetMetricGuides.ColorWell.allCases.map { ($0, Self.color(of: $0, in: info.guides).cgColor) })
         shows = Dictionary(uniqueKeysWithValues: SetMetricGuides.Line.allCases.map { ($0, Self.isShown($0, in: info.guides)) })
         lines = info.guides.extraLines.map { LineRow(id: $0.id, name: $0.name, y: FontUnits.format($0.y)) }
         generateKern = !info.omitGeneratedKern
@@ -114,6 +125,44 @@ final class FontInfoModel {
         case .emBox: guides.showEmBox
         case .labels: guides.showLabels
         }
+    }
+
+    /// A well's colour: the font's, else the default palette's.
+    static func color(of well: SetMetricGuides.ColorWell, in guides: WTModel.FontInfo.Guides) -> RenderColor {
+        let defaults = GlyphCanvasFrame(advanceWidth: 0)
+        switch well {
+        case .baseline: return guides.baselineColor ?? defaults.baselineColor
+        case .metric: return guides.metricColor ?? defaults.metricColor
+        case .bearing: return guides.bearingColor ?? defaults.bearingColor
+        }
+    }
+
+    /// `color` as stored: sRGB components (nil for a colour that cannot be converted).
+    static func stored(_ color: CGColor) -> RenderColor? {
+        guard let srgb = CGColorSpace(name: CGColorSpace.sRGB), let converted = color.converted(to: srgb, intent: .defaultIntent, options: nil),
+              let parts = converted.components, parts.count >= 3 else { return nil }
+        return RenderColor(red: Double(parts[0]), green: Double(parts[1]), blue: Double(parts[2]))
+    }
+
+    static func title(of well: SetMetricGuides.ColorWell) -> String {
+        switch well {
+        case .baseline: "Baseline color"
+        case .metric: "Metric line color"
+        case .bearing: "Side bearing color"
+        }
+    }
+
+    /// The well of `well` in the Guides pane.
+    func binding(_ well: SetMetricGuides.ColorWell) -> Binding<CGColor> {
+        Binding(get: { self.wellColors[well] ?? CGColor(gray: 0, alpha: 1) }, set: {
+            self.wellColors[well] = $0
+            self.useDefaultColors = false
+        })
+    }
+
+    /// The pop-up of PANOSE digit `digit`.
+    func binding(panose digit: Int) -> Binding<UInt8> {
+        Binding(get: { self.panose[digit] }, set: { self.panose[digit] = $0 })
     }
 
     static func title(of field: FontNameField) -> String {
@@ -227,10 +276,10 @@ final class FontInfoModel {
         let command = SetFontOS2(
             weightClass: weight == os2.weightClass ? nil : weight, widthClass: width == os2.widthClass ? nil : width,
             vendorID: vendor == os2.vendorID ? nil : vendor, bold: bold == os2.bold ? nil : bold, italic: italic == os2.italic ? nil : italic,
-            embedding: embedding == os2.embedding ? nil : embedding
+            embedding: embedding == os2.embedding ? nil : embedding, panose: panose == os2.panose ? nil : panose
         )
         let unchanged = command.weightClass == nil && command.widthClass == nil && command.vendorID == nil && command.bold == nil
-            && command.italic == nil && command.embedding == nil
+            && command.italic == nil && command.embedding == nil && command.panose == nil
         return .some(unchanged ? nil : command)
     }
 
@@ -238,6 +287,14 @@ final class FontInfoModel {
         var edits = SetMetricGuides.Line.allCases.compactMap { line -> SetMetricGuides.Edit? in
             let shown = shows[line, default: true]
             return shown == Self.isShown(line, in: original.guides) ? nil : .show(line, shown)
+        }
+        for well in SetMetricGuides.ColorWell.allCases {
+            let current = Self.color(of: well, in: original.guides)
+            if useDefaultColors {
+                if Self.isSet(well, in: original.guides) { edits.append(.color(well, nil)) }
+            } else if let chosen = wellColors[well].flatMap({ Self.stored($0) }), !Self.same(chosen, current) {
+                edits.append(.color(well, chosen))
+            }
         }
         let stored = Dictionary(uniqueKeysWithValues: original.guides.extraLines.map { ($0.id, $0) })
         for row in lines {
@@ -251,6 +308,27 @@ final class FontInfoModel {
             if name != line.name || y != line.y { edits.append(.editLine(row.id, name: name == line.name ? nil : name, y: y == line.y ? nil : y)) }
         }
         return .some(edits.isEmpty ? nil : SetMetricGuides(edits))
+    }
+
+    /// Whether the font stores a colour for `well`.
+    static func isSet(_ well: SetMetricGuides.ColorWell, in guides: WTModel.FontInfo.Guides) -> Bool {
+        switch well {
+        case .baseline: guides.baselineColor != nil
+        case .metric: guides.metricColor != nil
+        case .bearing: guides.bearingColor != nil
+        }
+    }
+
+    /// Colours equal to well within what a colour well round-trips.
+    static func same(_ a: RenderColor, _ b: RenderColor) -> Bool {
+        abs(a.red - b.red) < 0.002 && abs(a.green - b.green) < 0.002 && abs(a.blue - b.blue) < 0.002
+    }
+
+    /// btn:[Use Default Colors].
+    func useDefaultPalette() {
+        let defaults = WTModel.FontInfo(EngineState()).guides
+        for well in SetMetricGuides.ColorWell.allCases { wellColors[well] = Self.color(of: well, in: defaults).cgColor }
+        useDefaultColors = true
     }
 
     /// btn:[−] on an extra line (and again to keep it).
@@ -295,15 +373,29 @@ final class FontInfoModel {
         }
         guard let commands = commands() else { return nil }
         let document = document
-        var upmCommands: [any WTModel.Command] = []
-        if upm != original.metrics.upm {
-            let command = SetUnitsPerEm(upm, scale: scaleGlyphs)
-            upmCommands = (try? command.changes(in: document.state)) ?? [command]
+        guard upm != original.metrics.upm else {
+            return Task {
+                for command in commands { _ = await document.perform(command).value }
+            }
         }
+        let command = SetUnitsPerEm(upm, scale: scaleGlyphs)
+        let glyphs = GlyphIndex(document.state).count
+        // A big rescale is built off the main thread behind a progress sheet (FONT-006).
+        let progress = scaleGlyphs && glyphs > Self.progressThreshold ? showProgress(Self.progressText(glyphs: glyphs, upm: upm)) : nil
         return Task {
             for command in commands { _ = await document.perform(command).value }
-            if !upmCommands.isEmpty { _ = await document.performGroup(upmCommands).value }
+            let state = document.state
+            let upmCommands: [any WTModel.Command] = await Task.detached { (try? command.changes(in: state)) ?? [command] }.value
+            _ = await document.performGroup(upmCommands).value
+            progress?()
         }
+    }
+
+    /// Above this many glyphs a rescale shows the progress sheet.
+    static let progressThreshold = 500
+
+    static func progressText(glyphs: Int, upm: Int) -> String {
+        "Scaling \(glyphs.formatted()) glyphs to \(upm) units per em…"
     }
 
     /// The sheet's OK button: closes when the fields are valid.
@@ -360,10 +452,22 @@ struct FontInfoSheet: View {
             Picker("Embedding", selection: $model.embedding) {
                 ForEach(WTModel.FontInfo.Embedding.allCases, id: \.self) { Text(String(describing: $0).capitalized).tag($0) }
             }
+            Text("PANOSE").font(.subheadline)
+            ForEach(Array(FontPanose.digits.enumerated()), id: \.offset) { digit, entry in
+                Picker(entry.title, selection: model.binding(panose: digit)) {
+                    ForEach(FontPanose.choices(digit, value: model.panose[digit]), id: \.value) { Text($0.title).tag($0.value) }
+                }
+                .accessibilityIdentifier("fontInfo.panose.\(digit)")
+            }
         case .guides:
             ForEach(SetMetricGuides.Line.allCases, id: \.self) { line in
                 Toggle(FontInfoModel.title(of: line), isOn: binding(line))
             }
+            ForEach(SetMetricGuides.ColorWell.allCases, id: \.self) { well in
+                ColorPicker(FontInfoModel.title(of: well), selection: model.binding(well), supportsOpacity: false)
+                    .accessibilityIdentifier("fontInfo.color.\(well)")
+            }
+            Button("Use Default Colors", action: model.useDefaultPalette).accessibilityIdentifier("fontInfo.defaultColors")
             ForEach($model.lines) { $line in
                 HStack {
                     TextField("Name", text: $line.name).disabled(line.removed)
@@ -399,5 +503,63 @@ extension FontInfoModel {
     /// The checkbox of `line` in the Guides pane.
     func binding(_ line: SetMetricGuides.Line) -> Binding<Bool> {
         Binding(get: { self.shows[line, default: true] }, set: { self.shows[line] = $0 })
+    }
+}
+
+/// The PANOSE classification the OS/2 pane edits (font-info.adoc, "OS/2"): ten digits, each a pop-up of the
+/// Latin Text family's names (PANOSE 1.0); a stored value past the names shows as its number.
+enum FontPanose {
+    static let digits: [(title: String, names: [String])] = [
+        ("Family kind", ["Any", "No Fit", "Latin Text", "Latin Hand Written", "Latin Decorative", "Latin Symbol"]),
+        ("Serif style", ["Any", "No Fit", "Cove", "Obtuse Cove", "Square Cove", "Obtuse Square Cove", "Square", "Thin", "Oval", "Exaggerated",
+                         "Triangle", "Normal Sans", "Obtuse Sans", "Perpendicular Sans", "Flared", "Rounded"]),
+        ("Weight", ["Any", "No Fit", "Very Light", "Light", "Thin", "Book", "Medium", "Demi", "Bold", "Heavy", "Black", "Extra Black"]),
+        ("Proportion", ["Any", "No Fit", "Old Style", "Modern", "Even Width", "Extended", "Condensed", "Very Extended", "Very Condensed", "Monospaced"]),
+        ("Contrast", ["Any", "No Fit", "None", "Very Low", "Low", "Medium Low", "Medium", "Medium High", "High", "Very High"]),
+        ("Stroke variation", ["Any", "No Fit", "No Variation", "Gradual/Diagonal", "Gradual/Transitional", "Gradual/Vertical", "Gradual/Horizontal",
+                              "Rapid/Vertical", "Rapid/Horizontal", "Instant/Vertical", "Instant/Horizontal"]),
+        ("Arm style", ["Any", "No Fit", "Straight Arms/Horizontal", "Straight Arms/Wedge", "Straight Arms/Vertical", "Straight Arms/Single Serif",
+                       "Straight Arms/Double Serif", "Non-Straight/Horizontal", "Non-Straight/Wedge", "Non-Straight/Vertical",
+                       "Non-Straight/Single Serif", "Non-Straight/Double Serif"]),
+        ("Letterform", ["Any", "No Fit", "Normal/Contact", "Normal/Weighted", "Normal/Boxed", "Normal/Flattened", "Normal/Rounded",
+                        "Normal/Off Center", "Normal/Square", "Oblique/Contact", "Oblique/Weighted", "Oblique/Boxed", "Oblique/Flattened",
+                        "Oblique/Rounded", "Oblique/Off Center", "Oblique/Square"]),
+        ("Midline", ["Any", "No Fit", "Standard/Trimmed", "Standard/Pointed", "Standard/Serifed", "High/Trimmed", "High/Pointed", "High/Serifed",
+                     "Constant/Trimmed", "Constant/Pointed", "Constant/Serifed", "Low/Trimmed", "Low/Pointed", "Low/Serifed"]),
+        ("x-height", ["Any", "No Fit", "Constant/Small", "Constant/Standard", "Constant/Large", "Ducking/Small", "Ducking/Standard", "Ducking/Large"]),
+    ]
+
+    /// The pop-up's items for `digit`: its names, and `value` as a number when past them.
+    static func choices(_ digit: Int, value: UInt8) -> [(value: UInt8, title: String)] {
+        let names = digits[digit].names
+        var result = names.enumerated().map { (UInt8($0.offset), $0.element) }
+        if Int(value) >= names.count { result.append((value, "Value \(value)")) }
+        return result
+    }
+}
+
+extension TypefaceFeatures {
+    /// The progress sheet of a large rescale on `window`; returns what closes it.
+    func presentProgress(_ text: String, on window: NSWindow?) -> @MainActor () -> Void {
+        var close: (@MainActor () -> Void)?
+        _ = present("sheet.rescaleProgress", on: window) { dismiss in
+            close = dismiss
+            return RescaleProgressView(text: text)
+        }
+        return { close?() }
+    }
+}
+
+/// The progress sheet a rescale of a font over 500 glyphs shows while its change group is built and applied.
+struct RescaleProgressView: View {
+    let text: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView().controlSize(.small)
+            Text(text).accessibilityIdentifier("rescale.progress")
+        }
+        .padding(24)
+        .frame(width: 320)
     }
 }

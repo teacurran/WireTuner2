@@ -24,6 +24,8 @@ final class GlyphGridController: NSObject, NSSearchFieldDelegate {
     var onOpen: (@MainActor (OpID) -> Void)?
     var onAdd: (@MainActor () -> Void)?
     var onRemove: (@MainActor () -> Void)?
+    /// Called after the cells or the selection change (the Object panel follows the selection).
+    var didChange: (@MainActor () -> Void)?
 
     init(document: DocumentHandle, thumbnails: GlyphThumbnailSource) {
         self.document = document
@@ -97,9 +99,16 @@ final class GlyphGridController: NSObject, NSSearchFieldDelegate {
 
     private func modelDidChange() {
         let count = model.index.count
-        countLabel.stringValue = model.cells.count == count ? "\(count) glyphs" : "\(model.cells.count) of \(count) glyphs"
+        countLabel.stringValue = Self.countText(shown: model.cells.count, of: count, missing: model.items.count - model.cells.count)
         gridView.relayout(width: scrollView.contentView.bounds.width)
         gridView.needsDisplay = true
+        didChange?()
+    }
+
+    /// "12 glyphs", "3 of 12 glyphs", with "· 40 missing" while placeholders show.
+    static func countText(shown: Int, of count: Int, missing: Int) -> String {
+        let glyphs = shown == count ? "\(count) glyphs" : "\(shown) of \(count) glyphs"
+        return missing > 0 ? "\(glyphs) · \(missing) missing" : glyphs
     }
 
     @objc private func clipDidResize(_ note: Notification) {
@@ -134,17 +143,31 @@ final class GlyphGridController: NSObject, NSSearchFieldDelegate {
 
 /// The grid's cells, drawn in rows (flipped: row 0 at the top).
 @MainActor
-final class GlyphGridView: NSView {
+final class GlyphGridView: NSView, NSMenuItemValidation {
     let model: GlyphGridModel
     var image: (@MainActor (GlyphCell, Int) -> CGImage?)?
     var onOpen: (@MainActor (OpID) -> Void)?
     var onRemove: (@MainActor () -> Void)?
+    /// A double-click on an encoding placeholder: the glyph is made and opened.
+    var onCreate: (@MainActor (UInt32) -> Void)?
+    /// A drag of the selection in Custom order dropped at grid position `order` (1-based, without the selection).
+    var onReorder: (@MainActor ([OpID], Int) -> Void)?
+    /// menu:Edit[Copy] and menu:Edit[Paste] with the grid focused (FONT-008).
+    var onCopy: (@MainActor () -> Void)?
+    var onPaste: (@MainActor () -> Void)?
+    var canPaste: @MainActor () -> Bool = { false }
     /// Characters typed in quick succession jump together.
     private var typed = ""
     private var lastTyped = Date.distantPast
+    /// A press on a selected cell that may become a drag: where it started and the item pressed.
+    private var pressed: (point: NSPoint, item: Int)?
+    /// While dragging cells: the item the drop goes before (`items.count`: the end).
+    private(set) var dropItem: Int?
 
     static let labelHeight = 18.0
     static let spacing = 6.0
+    /// How far a press on a selected cell moves before it drags the selection.
+    static let dragThreshold = 4.0
     static let markColors: [NSColor] = [.systemRed, .systemOrange, .systemYellow, .systemGreen, .systemMint, .systemTeal,
                                         .systemCyan, .systemBlue, .systemIndigo, .systemPurple, .systemPink, .systemBrown]
 
@@ -168,7 +191,7 @@ final class GlyphGridView: NSView {
 
     var columns: Int { max(1, Int(bounds.width / cellSize.width)) }
 
-    var rows: Int { (model.cells.count + columns - 1) / columns }
+    var rows: Int { (model.items.count + columns - 1) / columns }
 
     /// Sizes the view to its rows at `width`.
     func relayout(width: Double) {
@@ -178,19 +201,26 @@ final class GlyphGridView: NSView {
         setAccessibilityValue("\(model.cells.count) glyphs")
     }
 
-    /// The rectangle of the cell at `position`.
+    /// The rectangle of the item at `position`.
     func rect(of position: Int) -> NSRect {
         let size = cellSize
         return NSRect(x: Double(position % columns) * size.width, y: Double(position / columns) * size.height, width: size.width, height: size.height)
     }
 
-    /// The cell position under view point `point`, nil past the cells.
+    /// The item position under view point `point`, nil past the items.
     func position(at point: NSPoint) -> Int? {
         let size = cellSize
         let column = Int(point.x / size.width), row = Int(point.y / size.height)
         guard point.x >= 0, point.y >= 0, column < columns else { return nil }
         let position = row * columns + column
-        return model.cells.indices.contains(position) ? position : nil
+        return model.items.indices.contains(position) ? position : nil
+    }
+
+    /// The item a drop at `point` goes before: the cell under it (its right half: the next one), the end past the
+    /// cells.
+    func dropPosition(at point: NSPoint) -> Int {
+        guard let position = position(at: point) else { return model.items.count }
+        return point.x > rect(of: position).midX ? position + 1 : position
     }
 
     override func draw(_ dirtyRect: NSRect) {
@@ -198,11 +228,15 @@ final class GlyphGridView: NSView {
         dirtyRect.fill()
         let context = NSGraphicsContext.current!.cgContext
         let scale = window?.backingScaleFactor ?? 2
-        for (position, cell) in model.cells.enumerated() {
+        for (position, item) in model.items.enumerated() {
             let frame = rect(of: position)
             guard frame.intersects(dirtyRect) else { continue }
-            draw(cell, in: frame, context: context, scale: scale)
+            switch item {
+            case .glyph(let cell): draw(cell, in: frame, context: context, scale: scale)
+            case .placeholder(let codepoint): drawPlaceholder(codepoint, in: frame)
+            }
         }
+        if let dropItem { drawDropMarker(before: dropItem) }
     }
 
     private func draw(_ cell: GlyphCell, in frame: NSRect, context: CGContext, scale: Double) {
@@ -240,6 +274,34 @@ final class GlyphGridView: NSView {
         }
     }
 
+    /// A placeholder: a dashed, faint cell with the character large and its codepoint as the label.
+    private func drawPlaceholder(_ codepoint: UInt32, in frame: NSRect) {
+        let inner = frame.insetBy(dx: Self.spacing / 2, dy: Self.spacing / 2)
+        let outline = NSBezierPath(roundedRect: inner, xRadius: 4, yRadius: 4)
+        outline.setLineDash([3, 3], count: 2, phase: 0)
+        NSColor.separatorColor.withAlphaComponent(0.6).setStroke()
+        outline.stroke()
+        let side = Double(model.cellSize.rawValue)
+        let (character, label) = GlyphGridItem.label(of: codepoint)
+        let glyph = NSAttributedString(string: character, attributes: [
+            .font: NSFont.systemFont(ofSize: side * 0.5), .foregroundColor: NSColor.tertiaryLabelColor, .paragraphStyle: Self.centred,
+        ])
+        let height = glyph.size().height
+        glyph.draw(with: NSRect(x: frame.minX, y: frame.minY + Self.spacing + (side - height) / 2, width: frame.width, height: height),
+                   options: [.usesLineFragmentOrigin])
+        NSAttributedString(string: label, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular), .foregroundColor: NSColor.tertiaryLabelColor, .paragraphStyle: Self.centred,
+        ]).draw(with: NSRect(x: frame.minX + 2, y: frame.minY + Self.spacing + side + 2, width: frame.width - 4, height: Self.labelHeight - 2),
+                options: [.usesLineFragmentOrigin])
+    }
+
+    /// The insertion line a drag of cells would drop at.
+    private func drawDropMarker(before item: Int) {
+        let frame = item < model.items.count ? rect(of: item) : model.items.isEmpty ? rect(of: 0) : rect(of: model.items.count - 1).offsetBy(dx: cellSize.width, dy: 0)
+        NSColor.controlAccentColor.setFill()
+        NSRect(x: frame.minX - 1, y: frame.minY + 2, width: 2, height: frame.height - 4).fill()
+    }
+
     static let centred: NSParagraphStyle = {
         let style = NSMutableParagraphStyle()
         style.alignment = .center
@@ -259,13 +321,68 @@ final class GlyphGridView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        let point = convert(event.locationInWindow, from: nil)
+        press(at: convert(event.locationInWindow, from: nil), clickCount: event.clickCount, modifiers: event.modifierFlags)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        dragged(to: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        released(at: convert(event.locationInWindow, from: nil))
+    }
+
+    /// A press at `point`: a double-click opens the glyph (or makes a placeholder's); a press on a selected cell
+    /// in Custom order may start a drag (it selects that cell alone on release when it does not); otherwise the
+    /// click selects.
+    func press(at point: NSPoint, clickCount: Int = 1, modifiers: NSEvent.ModifierFlags = []) {
+        pressed = nil
         let position = position(at: point)
-        if event.clickCount >= 2, let position {
-            onOpen?(model.cells[position].id)
+        let item = position.map { model.items[$0] }
+        if clickCount >= 2, let item {
+            switch item {
+            case .glyph(let cell): onOpen?(cell.id)
+            case .placeholder(let codepoint): onCreate?(codepoint)
+            }
             return
         }
-        model.click(at: position, extend: event.modifierFlags.contains(.shift), toggle: event.modifierFlags.contains(.command))
+        let extend = modifiers.contains(.shift), toggle = modifiers.contains(.command)
+        if let position, let cell = item?.glyph, model.isSelected(cell.id), !extend, !toggle, model.canReorder {
+            pressed = (point, position)
+            return
+        }
+        click(item: position, extend: extend, toggle: toggle)
+    }
+
+    /// A click on item `position`: a glyph cell selects (by the model's rules); a placeholder or no item clears.
+    private func click(item position: Int?, extend: Bool = false, toggle: Bool = false) {
+        guard let position, let cell = model.items[position].glyph else {
+            model.click(at: nil, extend: extend, toggle: toggle)
+            return
+        }
+        model.click(at: model.position(of: cell.id), extend: extend, toggle: toggle)
+    }
+
+    func dragged(to point: NSPoint) {
+        guard let pressed else { return }
+        guard dropItem != nil || hypot(point.x - pressed.point.x, point.y - pressed.point.y) >= Self.dragThreshold else { return }
+        dropItem = dropPosition(at: point)
+        needsDisplay = true
+    }
+
+    func released(at point: NSPoint) {
+        defer {
+            pressed = nil
+            dropItem = nil
+            needsDisplay = true
+        }
+        guard let pressed else { return }
+        guard dropItem != nil else {
+            click(item: pressed.item)
+            return
+        }
+        let order = model.dropOrder(before: dropPosition(at: point))
+        onReorder?(model.selection, order)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -295,7 +412,22 @@ final class GlyphGridView: NSView {
             lastTyped = now
             if !model.jump(to: typed) { model.jump(to: characters) }
         }
-        if let last = model.selection.last, let position = model.position(of: last) { scrollToVisible(rect(of: position)) }
+        if let last = model.selection.last, let position = model.itemPosition(of: last) { scrollToVisible(rect(of: position)) }
         return true
+    }
+
+    // MARK: Edit menu (responder chain)
+
+    @objc func copy(_ sender: Any?) { onCopy?() }
+    @objc func paste(_ sender: Any?) { onPaste?() }
+    @objc override func selectAll(_ sender: Any?) { model.selectAll() }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(copy(_:)): !model.selection.isEmpty
+        case #selector(paste(_:)): canPaste()
+        case #selector(selectAll(_:)): !model.cells.isEmpty
+        default: true
+        }
     }
 }

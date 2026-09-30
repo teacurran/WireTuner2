@@ -239,8 +239,15 @@ public struct SetMetricGuides: Command {
         case baseline = 1, xHeight, capHeight, ascender, descender, sideBearings, emBox, labels
     }
 
+    /// The three colour wells of the Guides pane (FONT-006): `MetricGuideSettings` fields 9 ... 11.
+    public enum ColorWell: UInt32, Hashable, Sendable, CaseIterable {
+        case baseline = 9, metric, bearing
+    }
+
     public enum Edit: Hashable, Sendable {
         case show(Line, Bool)
+        /// A colour well: `nil` clears it back to the default palette.
+        case color(ColorWell, Color?)
         case addLine(name: String, y: Double)
         case editLine(OpID, name: String?, y: Double?)
         case removeLine(OpID)
@@ -270,6 +277,17 @@ public struct SetMetricGuides: Command {
                 case .labels: props.settings.font.guides.hideLabels = !shown
                 }
                 builder.append(Ops.set(WellKnown.settings, [FontFields.guides(line.rawValue)], values: props))
+            case .color(let well, let color):
+                var props = FontFields.fontValues { _ in }
+                if let color {
+                    let stored = ColorValues.stored(color)
+                    switch well {
+                    case .baseline: props.settings.font.guides.baselineColor = stored
+                    case .metric: props.settings.font.guides.metricColor = stored
+                    case .bearing: props.settings.font.guides.bearingColor = stored
+                    }
+                }
+                builder.append(Ops.set(WellKnown.settings, [FontFields.guides(well.rawValue)], values: props))
             case .addLine(let name, let y):
                 guard y.isFinite, name.count <= 63 else { throw FontEditError.invalidValue("line") }
                 let last = current.extraLines.last.flatMap { state.position(WellKnown.settings, FontFields.extraLines, $0.id) }

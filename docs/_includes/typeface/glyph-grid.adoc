@@ -354,9 +354,42 @@ anchors win over its base component's), *Decompose Components*, *Remove Overlaps
 foreground paths that reach the font with *one* black path holding every resulting contour (a path per contour, as the
 Data model says, would fill the counter of an `o`), paths that contribute nothing (an open unstroked path) are left as drawn,
 and components are left alone; *Decompose* likewise writes one path per component (it wrote one per contour, which filled
-counters -- fixed).  Not built: copy, paste-replace, paste-new and Paste as Component, encoding placeholders, drag
-reordering, presence dots, the Glyph section of the Object panel, the collision notices, menu:View[Glyph Labels] and *Show
-Metrics in Cells*, and the Add Glyph sheet's *Kind* and btn:[Add and Open].
+counters -- fixed).  Not built: presence dots, the collision notices, menu:View[Glyph Labels] and *Show Metrics in Cells*,
+and the Add Glyph sheet's *Kind* and btn:[Add and Open] (copy and paste, Paste as Component, encoding placeholders, drag
+reordering and the Glyph section came with the note below).
+
+NOTE: As built by the rest of FONT-008's and FONT-010's clipboard, placeholders and panel (`WTModel/GlyphClipboard.swift`,
+`WTModel/GlyphEncodings.swift`, new files; `WTApp/Typeface/GlyphClipboardCommands.swift`, `GlyphInspector.swift`, new files;
+`GlyphGridView.swift`, `GlyphGridModel.swift`).  menu:Edit[Copy] with the grid focused puts a `GlyphClipboardPayload` on the
+pasteboard (`com.villagecompute.wiretuner.glyphs`: each glyph's `GlyphProps` -- name, codepoints, width, kind, components
+with their source's flattened outline, anchors, export, colour, note -- its artwork as a `ClipboardPayload`, and each
+component's source name), and the artwork of every copied glyph as ordinary objects too, so menu:Edit[Paste] on a page or
+a glyph canvas pastes the drawings.  menu:Edit[Paste] in the grid is `PasteGlyphs`, one change: into a selection of the
+same count (after a confirmation) it deletes each target's objects, components and anchors and writes the copy's, with
+its advance width, keeping the target's name, codepoints, kind and colour; otherwise it adds new glyphs after the
+selection with the copies' name, codepoints, kind, width, colour, export and note -- a name or codepoint already live
+gives `<name>.1` (`.2`, …) and no codepoints -- and selects them.  A component's source is the same glyph in its own
+document, else the glyph pasted with it, else the glyph of the same name; one that resolves to nothing, or would loop, is
+pasted as one black path of its outline (deviation: the Data model does not say, and dropping it would lose the shape).
+Pasted objects go to the layer of their copied layer's name when an unlocked ordinary layer has it, else to the drawing
+layer; named colours by the clash rule.  menu:Edit[Paste as Component] (`PasteAsComponents`) adds each copied glyph to
+each targeted glyph (the grid's selection, or a glyph tab's glyph) with an identity transform, resolved the same way,
+leaving out a self or loop.  menu:View[Encoding] has *None* and toggles for ASCII, Latin-1, Mac Roman and thirteen
+Unicode blocks (Latin Extended-A and -B, Greek, Cyrillic, Hebrew, Arabic, General Punctuation, Currency Symbols,
+Letterlike Symbols, Arrows, Mathematical Operators, Box Drawing, Geometric Shapes), for every grid; a placeholder is a
+dashed faint cell with the character and its codepoint for every printable character of the chosen sets that no glyph
+keeps after the collision rule, laid among the encoded glyphs by codepoint in Unicode order and after the glyphs in the
+other orders, found by the search field by character or codepoint, counted in the bar ("· 40 missing"); a double-click
+adds the glyph (`AddGlyphs`, after the selection) and opens it.  In Custom order with no search, a press on a selected
+cell that moves 4 points drags the selection: an insertion line shows where it lands, and the release writes
+`ReorderGlyphs` (the selection, in grid order, moved together; one change "Move N glyphs").  kbd:[Cmd+A] with the grid
+focused selects every cell.  The Object panel shows the *Glyph* section while a typeface window shows its grid (the
+grid's selection) and on a glyph tab with no object selected (the tab's glyph), in place of the object sections: Name
+(refused with the other glyph named when taken or invalid) and the Unicode list (btn:[−] per codepoint; btn:[+] takes
+a character, `U+00E9` / `00E9` or a Unicode character name, refused with the holder named) for one glyph; Kind, Width,
+LSB, RSB (disabled without an outline), Mark color, Export and Note for all of them, a value they do not share shown
+mixed; each control one change (`AdjustGlyphMetrics` for the metrics).  Not built besides the list above: the Glyph
+section beside the object sections when objects are selected on a glyph tab.
 
 === Build tasks
 

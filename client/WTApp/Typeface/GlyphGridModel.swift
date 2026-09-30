@@ -97,12 +97,36 @@ enum GlyphSort: Int, CaseIterable {
     }
 }
 
+/// What the grid lays out: a glyph's cell, or an encoding placeholder -- a faint cell for a character no glyph
+/// encodes yet (glyph-grid.adoc, "Ordering and encodings").
+enum GlyphGridItem: Hashable {
+    case glyph(GlyphCell)
+    case placeholder(UInt32)
+
+    var glyph: GlyphCell? {
+        if case .glyph(let cell) = self { return cell }
+        return nil
+    }
+
+    /// The character a placeholder stands for, and its codepoint.
+    static func label(of codepoint: UInt32) -> (character: String, codepoint: String) {
+        (Unicode.Scalar(codepoint).map { String(Character($0)) } ?? "", String(format: "U+%04X", codepoint))
+    }
+}
+
 /// The glyph grid's cells, order, filter and selection.
 @MainActor
 final class GlyphGridModel {
     private(set) var index = GlyphIndex(EngineState())
     /// The cells shown, in the chosen order and filtered by `search`.
     private(set) var cells: [GlyphCell] = []
+    /// The cells and the placeholders in layout order: in Unicode order each placeholder sits among the encoded
+    /// glyphs by its codepoint, in the other orders after every glyph.
+    private(set) var items: [GlyphGridItem] = []
+    /// menu:View[Encoding]: the character sets whose empty slots show as placeholders (none by default).
+    var encodings: Set<GlyphEncoding> = [] {
+        didSet { if encodings != oldValue { rebuild() } }
+    }
     /// The selected glyphs, in the order they were selected.
     private(set) var selection: [OpID] = []
     /// Where a Shift-click extends from.
@@ -125,6 +149,8 @@ final class GlyphGridModel {
 
     private func rebuild() {
         cells = sort.sorted(index.glyphs.map(GlyphCell.init)).filter { $0.matches(search) }
+        let placeholders = GlyphEncoding.placeholders(encodings, in: index).filter { Self.placeholder($0, matches: search) }
+        items = Self.layout(cells, placeholders: placeholders, sort: sort)
         let live = Set(index.glyphs.map(\.id))
         selection.removeAll { !live.contains($0) }
         if let anchor, !live.contains(anchor) { self.anchor = selection.last }
@@ -133,6 +159,53 @@ final class GlyphGridModel {
 
     func position(of glyph: OpID) -> Int? {
         cells.firstIndex { $0.id == glyph }
+    }
+
+    /// Where the cell of `glyph` is laid out (an index into `items`).
+    func itemPosition(of glyph: OpID) -> Int? {
+        items.firstIndex { $0.glyph?.id == glyph }
+    }
+
+    /// `cells` and `placeholders` in layout order.
+    static func layout(_ cells: [GlyphCell], placeholders: [UInt32], sort: GlyphSort) -> [GlyphGridItem] {
+        guard sort == .unicode, !placeholders.isEmpty else { return cells.map(GlyphGridItem.glyph) + placeholders.map(GlyphGridItem.placeholder) }
+        var result: [GlyphGridItem] = []
+        var pending = placeholders[...]
+        for cell in cells {
+            if let first = cell.codepoints.min() {
+                while let next = pending.first, next < first {
+                    result.append(.placeholder(next))
+                    pending = pending.dropFirst()
+                }
+            } else {
+                // The unencoded glyphs come last: every placeholder goes before them.
+                result += pending.map(GlyphGridItem.placeholder)
+                pending = []
+            }
+            result.append(.glyph(cell))
+        }
+        return result + pending.map(GlyphGridItem.placeholder)
+    }
+
+    /// Whether the search text finds a placeholder: its character or its codepoint.
+    static func placeholder(_ codepoint: UInt32, matches query: String) -> Bool {
+        let text = query.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return true }
+        if GlyphGridItem.label(of: codepoint).character == text { return true }
+        var hex = text.uppercased()
+        if hex.hasPrefix("U+") { hex.removeFirst(2) }
+        return UInt32(hex, radix: 16) == codepoint
+    }
+
+    /// Whether cells can be dragged to a new place: in Custom order, unfiltered.
+    var canReorder: Bool { sort == .custom && search.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// The grid position (1-based, counted without the selection) a drop before item `item` moves the selection
+    /// to; a drop past the end moves it to the end.
+    func dropOrder(before item: Int) -> Int {
+        let moving = Set(selection)
+        let before = items.prefix(max(0, min(item, items.count))).compactMap(\.glyph).filter { !moving.contains($0.id) }.count
+        return before + 1
     }
 
     func isSelected(_ glyph: OpID) -> Bool { selection.contains(glyph) }

@@ -62,6 +62,13 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
     /// Whether menu:View[Show Mark Attachment] is on.
     var showsMarkAttachment: @MainActor () -> Bool = { false }
     private(set) var drag: Drag?
+    /// The anchor or component last pressed (the Object panel's Anchor or Component section edits it); a press
+    /// anywhere else clears it.
+    var picked: Target? {
+        didSet { if picked != oldValue { onPick() } }
+    }
+    /// Called when `picked` changes.
+    var onPick: @MainActor () -> Void = {}
     private var edit: GestureEdit?
     private var cache: Snapshot?
     /// Flattened outlines for the mark attachment preview, as of `outlineCount`.
@@ -193,6 +200,7 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
             target = .anchor(anchor.id)
         } else if context.selection.pick(at: e.viewPoint, viewport: viewport, subselect: false) != nil {
             // Objects are drawn over the lines and components: they win.
+            picked = nil
             return false
         } else if let line = Self.bearingLine(at: e, snapshot: snapshot, viewport: viewport) {
             target = line
@@ -202,6 +210,10 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
                 return true
             }
             target = .component(component.id)
+        }
+        switch target {
+        case .anchor?, .component?: picked = target
+        default: picked = nil
         }
         guard let target else { return false }
         drag = Drag(target: target, start: e.pasteboardPoint, now: e.pasteboardPoint, modifiers: e.modifiers, glyph: snapshot.glyph, metrics: snapshot.metrics)
@@ -242,9 +254,23 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
         }
         if showsMarkAttachment() { drawAttachments(snapshot, anchors: anchors, state: context.document.state, count: context.document.changeCount, in: ctx, toView: toView) }
         ctx.saveGState()
-        for anchor in anchors { Self.drawAnchor(anchor, at: viewport.toView(anchor.position), in: ctx) }
+        for anchor in anchors {
+            Self.drawAnchor(anchor, at: viewport.toView(anchor.position), in: ctx)
+            if picked == .anchor(anchor.id) { Self.drawPickedRing(at: viewport.toView(anchor.position), in: ctx) }
+        }
         ctx.restoreGState()
-        guard let drag else { return }
+        guard let drag else {
+            if case .component(let id)? = picked, let component = snapshot.components.first(where: { $0.id == id }) {
+                let outline = component.outline.isEmpty ? DisplayPath(rect: component.bounds) : DisplayPath(contours: component.outline.contours)
+                ctx.saveGState()
+                ctx.addPath(MetricsModel.cgPath(outline, transform: toView))
+                ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+                ctx.setLineWidth(1.5)
+                ctx.strokePath()
+                ctx.restoreGState()
+            }
+            return
+        }
         switch drag.target {
         case .advance, .left:
             let delta = Self.delta(drag)
@@ -294,6 +320,14 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
         ctx.setLineWidth(1)
         ctx.strokePath()
         drawText(anchor.isDuplicate ? "\(anchor.name) (duplicate)" : anchor.name, at: point + Vector(dx: half + 3, dy: 4), color: color, in: ctx)
+    }
+
+    /// The ring around the picked anchor.
+    static func drawPickedRing(at point: Point, in ctx: CGContext) {
+        let radius = anchorSize
+        ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
+        ctx.setLineWidth(1.5)
+        ctx.strokeEllipse(in: CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2))
     }
 
     static func drawText(_ text: String, at origin: Point, color: NSColor, in ctx: CGContext) {

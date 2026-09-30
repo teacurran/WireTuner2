@@ -99,8 +99,9 @@ extension TypefaceFeatures {
                     validation: needsGlyphs, action: run { BuildAccentedGlyphs($0) }),
             Command(id: GlyphMenuID.snapComponents, title: "Snap Components to Anchors", menu: MenuPath(glyphMenu, section: 6), keywords: ["anchor", "component"],
                     validation: needsGlyphs, action: run { SnapComponentsToAnchors($0) }),
-            Command(id: GlyphMenuID.decompose, title: "Decompose Components", menu: MenuPath(glyphMenu, section: 6), keywords: ["component", "decompose"],
-                    validation: needsGlyphs, action: run { glyphs in CommandBatch("Decompose", glyphs.map { DecomposeComponents($0) }) }),
+            Command(id: GlyphMenuID.decompose, title: "Decompose Components", key: KeyEquivalent("d", [.command, .shift]), menu: MenuPath(glyphMenu, section: 6),
+                    keywords: ["component", "decompose"], validation: needsGlyphs,
+                    action: run { [unowned self] glyphs in decomposeCommand(glyphs) }),
         ]
         for operation in RewriteGlyphOutlines.Operation.allCases {
             commands.append(Command(id: GlyphMenuID.rewrite(operation), title: operation.title, menu: MenuPath(glyphMenu, section: 6), keywords: ["outline", "clean up"],
@@ -127,6 +128,16 @@ extension TypefaceFeatures {
         let glyphs = targetGlyphs(in: controller)
         guard !glyphs.isEmpty, let command = make(glyphs) else { return nil }
         return gridDocument(of: controller).perform(command)
+    }
+
+    /// menu:Glyph[Decompose Components] (kbd:[Cmd+Shift+D]): the component picked on a glyph tab's canvas, else
+    /// every component of every targeted glyph.
+    func decomposeCommand(_ glyphs: [OpID]) -> any WTModel.Command {
+        if let controller = window(), let glyph = controller.documentHandle.glyphCanvasNode, case .component(let id)? = mode(of: controller)?.glyphHandles?.picked,
+           GlyphIndex(controller.documentHandle.state)[glyph]?.components.contains(where: { $0.id == id }) == true {
+            return DecomposeComponents(glyph, components: [id])
+        }
+        return CommandBatch("Decompose", glyphs.map { DecomposeComponents($0) })
     }
 
     /// menu:Glyph[Export Glyph]: every targeted glyph exported when any is not, else none.

@@ -451,8 +451,18 @@ NOTE: As built by FONT-006's rest (`WTApp/Typeface/FontInfoSheet.swift`).  The N
 License], which fills *License* with the Names pane's copyright line and the OFL 1.1 notice (`SetFontNames.openFontLicense`)
 and *License URL* with its address, written with the pane on btn:[OK]; the Guides pane lists the extra metric lines with their
 name and height editable and btn:[−] to remove one (btn:[Keep] takes it back), written as `SetMetricGuides` edits in the
-pane's one change; a line left without a name or height is refused.  Still not built: the remote-change dots, the progress
-sheet for large rescales, the canvas notice for a remote metric change, the colour wells and PANOSE.
+pane's one change; a line left without a name or height is refused.  Still not built: the remote-change dots and the canvas
+notice for a remote metric change (the progress sheet, the colour wells and PANOSE came with the note below).
+
+NOTE: As built by the rest of FONT-006 (`WTApp/Typeface/FontInfoSheet.swift`; `SetMetricGuides.Edit.color`).  The Guides pane
+has three colour wells -- *Baseline color*, *Metric line color*, *Side bearing color* (`MetricGuideSettings` fields 9 ... 11),
+showing the default palette's colour while unset -- and btn:[Use Default Colors], which clears the stored ones; a changed
+well is written as sRGB with the pane's one change.  The OS/2 pane has the ten PANOSE pop-ups (family kind, serif style,
+weight, proportion, contrast, stroke variation, arm style, letterform, midline, x-height) with the Latin Text names of
+PANOSE 1.0, *Any* in all ten by default; a stored digit past the names shows as "Value N".  A units-per-em change with
+*Scale glyphs* in a font of more than 500 glyphs shows a progress sheet on the window ("Scaling 3,000 glyphs to 2048 units
+per em…", indeterminate) while `SetUnitsPerEm.changes(in:)` is built off the main thread and the group applied, then
+closes it.  Deviation: the progress is indeterminate (the group is applied as one undo step, not in reported slices).
 
 === Build tasks
 

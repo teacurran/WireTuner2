@@ -46,6 +46,7 @@
 		0CE3B9E6CA04A5DFB95AA2E5 /* SpecialCharacters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DECB272C7913A8E1C183505 /* SpecialCharacters.swift */; };
 		0CE6AB7FBA6E86E279D1981E /* EmbossTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8645733953E7DE2BB7053F /* EmbossTests.swift */; };
 		0CE915BED0C02370385741BF /* TransformPreviewPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC806B1C7E3E3FEAB20EE22 /* TransformPreviewPerformanceTests.swift */; };
+		0CF009042C24ECFEBDC65029 /* GlyphInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCFBD7B2AA5899F848E5784D /* GlyphInspector.swift */; };
 		0D1AD7AC2801804ACB39DA24 /* ShortcutSetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E184818234BCE46B93C3AF /* ShortcutSetStore.swift */; };
 		0D2D639A417AABA82664BA06 /* SessionServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB695ECC4D4126981CAFD93 /* SessionServices.swift */; };
 		0D90709157C8FC1CBD9F9F11 /* StrokePresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F222075220B44488C652F63 /* StrokePresets.swift */; };
@@ -610,6 +611,7 @@
 		AE6052A3AE230408C69F7845 /* PathToolPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8054240F06A1FA38C7D2D078 /* PathToolPreferences.swift */; };
 		AE6CDBD5E44DD1C7E8FD9A4C /* DataServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F0657138D5777CB0746DB1 /* DataServices.swift */; };
 		AEF76B8A16023E0FD1B63F8E /* DistortToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8084E7F610CEFE795A9ABE41 /* DistortToolTests.swift */; };
+		AF896F18CAAE1B2FDFC569F1 /* GlyphClipboardFeatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11E5C7FBAC9A24E62807344 /* GlyphClipboardFeatureTests.swift */; };
 		AF98DF703CDA800337ABBA2E /* TextStyleOperationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A6F0DED9806D29E6149FFE8 /* TextStyleOperationTests.swift */; };
 		B000AFA1054AA8113A8E2442 /* VersionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20B62A618746EF703E7F281C /* VersionClient.swift */; };
 		B093AD4A81605331DC514626 /* PreferenceKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88755C0FD8668FA5395E356E /* PreferenceKey.swift */; };
@@ -636,6 +638,7 @@
 		B78A75D456C1E4C525D09568 /* KnifeTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED8420286DE253D88C77174D /* KnifeTool.swift */; };
 		B7AF1A7EE09CF0FBCC24D94A /* ShareExtensionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78768A339D2FD2D531D3FA62 /* ShareExtensionTests.swift */; };
 		B7E90DF7D023E424A561B98F /* ScriptingInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2A31E9F3380820DA1D7640 /* ScriptingInstall.swift */; };
+		B7F5EEE5C1F07645D9F49AFE /* GlyphClipboardCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E84E97929795D12794CC053 /* GlyphClipboardCommands.swift */; };
 		B89C67C5D9FC7A31EF0CF0CB /* LocalHiding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2475A5945F7F6B41126016E3 /* LocalHiding.swift */; };
 		B8BA7BF70AAE8ED4A09165F9 /* VersionWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B598210BFA8C26D8E3F3127 /* VersionWindow.swift */; };
 		B8BDBD6C2CD7623910105D85 /* ImageLinkAccessibilityInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309407F46F8B6D3468EA6A33 /* ImageLinkAccessibilityInstall.swift */; };
@@ -1076,6 +1079,7 @@
 		1E4962FFE7931637377CE777 /* AccountCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountCommands.swift; sourceTree = "<group>"; };
 		1E6BE18B35916AB07645F8D3 /* PanelClusterDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelClusterDrag.swift; sourceTree = "<group>"; };
 		1E82FF5BF1D9D5CF82BBEC41 /* PathOperationSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathOperationSheets.swift; sourceTree = "<group>"; };
+		1E84E97929795D12794CC053 /* GlyphClipboardCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlyphClipboardCommands.swift; sourceTree = "<group>"; };
 		1E96DF31FED3C1428BA5781B /* WireTunerKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireTunerKit.swift; sourceTree = "<group>"; };
 		1EADC1DA0032FB67CB2976C3 /* DocumentPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPanelTests.swift; sourceTree = "<group>"; };
 		1F7E22756877A19FC942EEB4 /* ExportController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportController.swift; sourceTree = "<group>"; };
@@ -1628,6 +1632,7 @@
 		C069A8E69547CC5A62E76039 /* PanelTabControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelTabControlTests.swift; sourceTree = "<group>"; };
 		C09710D4FFC9F89E8F66D9F3 /* HistoryPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryPanel.swift; sourceTree = "<group>"; };
 		C0FB2BFAD0C27659AFF169E3 /* DistortPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DistortPreferences.swift; sourceTree = "<group>"; };
+		C11E5C7FBAC9A24E62807344 /* GlyphClipboardFeatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlyphClipboardFeatureTests.swift; sourceTree = "<group>"; };
 		C1515A46D8900A74B8E2C7F9 /* TransformPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransformPanel.swift; sourceTree = "<group>"; };
 		C19E939572674135474AE4A1 /* TypeAndDrawingInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypeAndDrawingInstall.swift; sourceTree = "<group>"; };
 		C1CC69566FDE59C3143D23EF /* BuiltInTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuiltInTools.swift; sourceTree = "<group>"; };
@@ -1714,6 +1719,7 @@
 		DC7F947927626CEFDBC841F3 /* RegisterNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterNames.swift; sourceTree = "<group>"; };
 		DCC8526C2D1B940C5A713DDA /* PrintSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintSession.swift; sourceTree = "<group>"; };
 		DCE286A963F87B74104023C9 /* HelpHover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpHover.swift; sourceTree = "<group>"; };
+		DCFBD7B2AA5899F848E5784D /* GlyphInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlyphInspector.swift; sourceTree = "<group>"; };
 		DD5026FC40E61D4ADA35DE62 /* StyleTransferSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleTransferSheets.swift; sourceTree = "<group>"; };
 		DD539A99543C6E841A2BB04A /* MenuTreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuTreeTests.swift; sourceTree = "<group>"; };
 		DD9066F76DB4E93870DBBF87 /* TypefaceFeaturesEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypefaceFeaturesEditorTests.swift; sourceTree = "<group>"; };
@@ -1915,8 +1921,10 @@
 				CEA65E4ECE4DDA84904ECC3D /* GlyphCanvas.swift */,
 				A2A858CDC87D674E57EB7CE7 /* GlyphCanvasHandles.swift */,
 				6A89B9D7EFA96CF957B34B78 /* GlyphCanvasUnits.swift */,
+				1E84E97929795D12794CC053 /* GlyphClipboardCommands.swift */,
 				9155B875404BE0B88CF391B0 /* GlyphGridModel.swift */,
 				05808F35226CD73B91DFE195 /* GlyphGridView.swift */,
+				DCFBD7B2AA5899F848E5784D /* GlyphInspector.swift */,
 				816E72E9925F3469DE05A6A5 /* GlyphMenu.swift */,
 				2950C1691818300ED4D2C06F /* KerningClassesSheet.swift */,
 				0E1F99BD53F6741DA6D361D9 /* MetricsWindow.swift */,
@@ -3184,6 +3192,7 @@
 				406C7299139F4349CEF4F355 /* ForeignFileOpeningTests.swift */,
 				FB7A39E9A016E1AE3D7655D1 /* FreeformToolTests.swift */,
 				C981BAC74EAC53B9F161B7BF /* GlyphCanvasHandlesTests.swift */,
+				C11E5C7FBAC9A24E62807344 /* GlyphClipboardFeatureTests.swift */,
 				B311AFCDB83E7801450137D3 /* GlyphMenuTests.swift */,
 				F71063A0B2E67E916CB0F74B /* GradientEditorTests.swift */,
 				536FA4DDD6D3FBD420437705 /* GradientSwatchPanelTests.swift */,
@@ -3988,8 +3997,10 @@
 				F348C84BE63260FC42548FCE /* GlyphCanvas.swift in Sources */,
 				F5659A68A5108995C96B57EA /* GlyphCanvasHandles.swift in Sources */,
 				C3A0F13898233FC68F34CD5D /* GlyphCanvasUnits.swift in Sources */,
+				B7F5EEE5C1F07645D9F49AFE /* GlyphClipboardCommands.swift in Sources */,
 				E27D7F6A9C6B545E9A94B812 /* GlyphGridModel.swift in Sources */,
 				338B6672D177A048D25C5AC9 /* GlyphGridView.swift in Sources */,
+				0CF009042C24ECFEBDC65029 /* GlyphInspector.swift in Sources */,
 				4E1FACE07FF766AEAA6CAB7C /* GlyphMenu.swift in Sources */,
 				B97773E20A9E7C004F495F91 /* GradientDrop.swift in Sources */,
 				A709C46B1964406B461E299C /* GradientEditor.swift in Sources */,
@@ -4486,6 +4497,7 @@
 				4852F36278FCFCF3BF9C691E /* ForeignFileOpeningTests.swift in Sources */,
 				582ED36651A50BAF24CDC253 /* FreeformToolTests.swift in Sources */,
 				84FDC687487B007534FC3B70 /* GlyphCanvasHandlesTests.swift in Sources */,
+				AF896F18CAAE1B2FDFC569F1 /* GlyphClipboardFeatureTests.swift in Sources */,
 				D7D5F27617A0FAF186524E17 /* GlyphMenuTests.swift in Sources */,
 				EC7D3662790EDEBD7A40A61C /* GradientEditorTests.swift in Sources */,
 				38F3A733599B793E1B0F860C /* GradientSwatchPanelTests.swift in Sources */,
@@ -4701,11 +4713,11 @@
 		};
 		0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_BFB1CBCD-44BF-492A-86A1-6B0EB3F0582D" /* WTInterchange */;
+			productRef = "TEMP_A5CAF5D4-B9BC-4EF4-927D-445D93D69F4B" /* WTInterchange */;
 		};
 		1389D84F7311322BA59FB06B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_3A9FC008-CC51-4B2A-B408-A20249EE1CD8" /* WTRender */;
+			productRef = "TEMP_3630BB0A-F22D-4275-8B0E-FB6556F0010B" /* WTRender */;
 		};
 		23AA14013E4A515EC9987F5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4719,11 +4731,11 @@
 		};
 		48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_5B5E5CFB-ED4C-40B1-B6FB-BAD370B26899" /* WTModel */;
+			productRef = "TEMP_9E41AF52-0098-485D-AB72-BD0CA97A18D0" /* WTModel */;
 		};
 		5345AFFAC55816C31DADAB2D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_AAB5837B-CDD9-40F3-87C9-811D01C35A2B" /* WTGeometry */;
+			productRef = "TEMP_3E7427F4-5A70-4350-86BC-3AC348D6DC48" /* WTGeometry */;
 		};
 		6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4732,15 +4744,15 @@
 		};
 		81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_4E77A9B4-3DCF-4EE7-8092-90E9CF809D5F" /* WTCRDT */;
+			productRef = "TEMP_4E885D0C-9CED-4200-958C-EC324EEA79B0" /* WTCRDT */;
 		};
 		85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_8AE10F43-0BAB-4C16-9285-475777F70502" /* WTSync */;
+			productRef = "TEMP_FA79C843-CB61-4267-AEED-125846DB7096" /* WTSync */;
 		};
 		8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_0719AEDC-695B-424B-A63D-E5DBB97B52E6" /* WTModel */;
+			productRef = "TEMP_EF919E81-8088-44E5-A4A8-FB9A0A9541B7" /* WTModel */;
 		};
 		920E4750ADBCB78008950CBB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4749,7 +4761,7 @@
 		};
 		B81CA2100C47093C70BAEEFB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_08733331-524E-4EA9-A6F2-1393355A8684" /* WTText */;
+			productRef = "TEMP_25789146-254D-4C8F-BCF8-99A4DBBBAE1A" /* WTText */;
 		};
 		C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4758,7 +4770,7 @@
 		};
 		D83546DB4F210659857E1489 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_D975BBE9-C3AB-42E3-9C65-BA82F135AC63" /* WTProto */;
+			productRef = "TEMP_365AE856-1E22-48FE-A390-91AF2318E370" /* WTProto */;
 		};
 		DDA1225ED9423A83ED60A11B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5396,41 +5408,41 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_0719AEDC-695B-424B-A63D-E5DBB97B52E6" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_08733331-524E-4EA9-A6F2-1393355A8684" /* WTText */ = {
+		"TEMP_25789146-254D-4C8F-BCF8-99A4DBBBAE1A" /* WTText */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTText;
 		};
-		"TEMP_3A9FC008-CC51-4B2A-B408-A20249EE1CD8" /* WTRender */ = {
+		"TEMP_3630BB0A-F22D-4275-8B0E-FB6556F0010B" /* WTRender */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_4E77A9B4-3DCF-4EE7-8092-90E9CF809D5F" /* WTCRDT */ = {
+		"TEMP_365AE856-1E22-48FE-A390-91AF2318E370" /* WTProto */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = WTCRDT;
+			productName = WTProto;
 		};
-		"TEMP_5B5E5CFB-ED4C-40B1-B6FB-BAD370B26899" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_8AE10F43-0BAB-4C16-9285-475777F70502" /* WTSync */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTSync;
-		};
-		"TEMP_AAB5837B-CDD9-40F3-87C9-811D01C35A2B" /* WTGeometry */ = {
+		"TEMP_3E7427F4-5A70-4350-86BC-3AC348D6DC48" /* WTGeometry */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTGeometry;
 		};
-		"TEMP_BFB1CBCD-44BF-492A-86A1-6B0EB3F0582D" /* WTInterchange */ = {
+		"TEMP_4E885D0C-9CED-4200-958C-EC324EEA79B0" /* WTCRDT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTCRDT;
+		};
+		"TEMP_9E41AF52-0098-485D-AB72-BD0CA97A18D0" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_A5CAF5D4-B9BC-4EF4-927D-445D93D69F4B" /* WTInterchange */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTInterchange;
 		};
-		"TEMP_D975BBE9-C3AB-42E3-9C65-BA82F135AC63" /* WTProto */ = {
+		"TEMP_EF919E81-8088-44E5-A4A8-FB9A0A9541B7" /* WTModel */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = WTProto;
+			productName = WTModel;
+		};
+		"TEMP_FA79C843-CB61-4267-AEED-125846DB7096" /* WTSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTSync;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
