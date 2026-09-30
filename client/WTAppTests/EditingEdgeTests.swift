@@ -238,44 +238,10 @@ import WTRender
         }
     }
 
-    @Test func outlineAndContourEdges() {
-        // A closed contour that does not end where it began gets its closing point.
-        let open = Contour(segments: [CubicBezier(line: Line(start: .zero, end: Point(x: 10, y: 0))), CubicBezier(line: Line(start: Point(x: 10, y: 0), end: Point(x: 10, y: 10)))], closed: true)
-        #expect(ContourPoints.points(open).count == 3)
-        let degenerate = Contour(segments: [CubicBezier(line: Line(start: .zero, end: .zero)), CubicBezier(line: Line(start: .zero, end: Point(x: 5, y: 0)))], closed: false)
-        #expect(ContourPoints.points(degenerate).count == 2, "a zero-length segment is dropped")
-        let samples = [VariableStrokeOutline.Sample(point: .zero, width: 4), VariableStrokeOutline.Sample(point: Point(x: 50, y: 0), width: 4)]
-        let point = VectorPoint(anchor: Point(x: 5, y: 5))
-        #expect(VariableStrokeOutline.outline(centerline: [point, point], samples: samples) == nil, "no length")
-        let kinked = [VectorPoint(anchor: .zero), VectorPoint(anchor: Point(x: 20, y: 0)), VectorPoint(anchor: Point(x: 20, y: 0)), VectorPoint(anchor: Point(x: 40, y: 0))]
-        #expect(VariableStrokeOutline.outline(centerline: kinked, samples: samples) != nil, "a zero-length segment inside is skipped")
-        let forward = VariableStrokeOutline.cap(center: .zero, from: Point(x: 0, y: 5), forward: Vector(dx: 1, dy: 0))
-        let backward = VariableStrokeOutline.cap(center: .zero, from: Point(x: 0, y: 5), forward: Vector(dx: -1, dy: 0))
-        #expect(forward.allSatisfy { $0.x >= -1e-9 } && backward.allSatisfy { $0.x <= 1e-9 })
-    }
-
-    @Test func cuttingEdges() {
-        let square = [Point(x: 0, y: 0), Point(x: 10, y: 0), Point(x: 10, y: 10), Point(x: 0, y: 10)].enumerated().map { index, point in
+    @Test func restoringDuplicatePoints() {
+        let square = [Point(x: 0, y: 0), Point(x: 10, y: 0)].enumerated().map { index, point in
             VectorPoint(id: OpID(counter: UInt64(index + 1), replica: 3), anchor: point)
         }
-        // A cutter short of the contour crosses nothing (its line would).
-        #expect(PathCutting.crossings(square, closed: true, cutter: [Point(x: 5, y: -20), Point(x: 5, y: -10)]).isEmpty)
-        // A cut at the start point: the piece starting there keeps it.
-        let atStart = PathCutting.split(square, closed: true, at: [.init(segment: 0, t: 0), .init(segment: 2, t: 0)])!
-        #expect(atStart.count == 2 && atStart[0].keepsStart && !atStart[1].keepsStart)
-        // An open contour cut at its own end is not cut.
-        #expect(PathCutting.split(square, closed: false, at: [.init(segment: 3, t: 0)]) == nil)
-        // Strip normals: a repeated point and a U-turn.
-        #expect(PathCutting.strip([.zero, .zero, Point(x: 10, y: 0)], width: 2).left.count == 3)
-        #expect(PathCutting.strip([.zero, Point(x: 10, y: 0), .zero], width: 2).left.count == 3)
-        // A strip over the start: the remaining first piece keeps it; closing two-point pieces of
-        // an open contour leaves them open.
-        let line = [Point(x: 0, y: 0), Point(x: 10, y: 0), Point(x: 20, y: 0), Point(x: 30, y: 0)].map { VectorPoint(anchor: $0) }
-        let pieces = PathCutting.knife(line, closed: false, cutter: [Point(x: 5, y: -10), Point(x: 5, y: 10)], width: 4, close: true)!
-        #expect(pieces.contains { $0.keepsStart })
-        #expect(pieces.allSatisfy { $0.points.count >= 3 || !$0.closed })
-        let twoSegments = PathCutting.knife(line, closed: false, cutter: [Point(x: 25, y: -10), Point(x: 25, y: 10)], width: 2, close: false)!
-        #expect(twoSegments.count == 2)
         let duplicates = PathSplitting.restored([square[0]], from: [square[0], square[0]])
         #expect(duplicates == [square[0]])
     }
@@ -337,7 +303,6 @@ import WTRender
     @Test func remainingToolEdges() async throws {
         #expect(Rotation3DSettings.place("nowhere") == .center && FreeformSettings.mode("x") == .pushPull && FreeformSettings.bend("x") == .length)
         #expect(MirrorSettings.axis("diagonal") == .vertical)
-        #expect(VariableStrokeOutline.direction(.zero, otherwise: Vector(dx: 0, dy: 1)) == Vector(dx: 0, dy: 1))
         let document = DocumentHandle.memory(title: "Remaining")
         let line = try await FreeformToolTests.line(document)
         let host = RecordingHost()
@@ -382,10 +347,6 @@ import WTRender
         pen.mouseDragged(TestEvents.point(40, 5))
         pen.drawOverlay(in: DrawingToolTests.bitmap(), viewport: context.viewport)
         pen.cancel()
-        // A strip over the start leaves the next piece as the one that keeps it.
-        let straight = [Point(x: 0, y: 0), Point(x: 10, y: 0), Point(x: 20, y: 0), Point(x: 30, y: 0)].map { VectorPoint(anchor: $0) }
-        let pieces = try #require(PathCutting.knife(straight, closed: false, cutter: [Point(x: 2, y: -10), Point(x: 2, y: 10)], width: 10, close: false))
-        #expect(pieces.count == 1 && pieces[0].keepsStart && pieces[0].points.first?.anchor.x ?? 0 > 6)
     }
 
     @Test func mirrorAndRotationEdges() async throws {

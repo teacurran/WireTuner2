@@ -5,62 +5,6 @@ import WTModel
 import WTProto
 import WTRender
 
-/// The Calligraphic Pen's outline (freeform.adoc, "Calligraphic Pen"; DRAW-019): each sample's
-/// width is `base · |sin(θ_stroke − θ_nib)|`, at least half a point, where `base` is the fixed
-/// width or the pressure- or bracket-set width; the fitted centreline is offset by half of it on
-/// each side and the ends are cut flat.
-enum CalligraphicOutline {
-    /// The narrowest a stroke gets, points.
-    static let minimumWidth = 0.5
-
-    /// The width of a stroke moving along `direction` with a nib at `nibAngle` (degrees) and full
-    /// width `base`.
-    static func width(base: Double, direction: Vector, nibAngle: Double) -> Double {
-        guard direction.lengthSquared > 0 else { return max(base, minimumWidth) }
-        // Pasteboard y runs down; the nib angle is measured counter-clockwise on the page.
-        let stroke = atan2(-direction.dy, direction.dx)
-        let nib = nibAngle * .pi / 180
-        return max(base * abs(sin(stroke - nib)), minimumWidth)
-    }
-
-    /// The samples with their widths from each one's direction of travel.
-    static func samples(_ points: [Point], bases: [Double], nibAngle: Double) -> [VariableStrokeOutline.Sample] {
-        points.indices.map { index in
-            let from = points[max(index - 1, 0)], to = points[min(index + 1, points.count - 1)]
-            return VariableStrokeOutline.Sample(point: points[index], width: width(base: bases[min(index, bases.count - 1)], direction: to - from, nibAngle: nibAngle))
-        }
-    }
-
-    /// The outline of `centerline` with the widths of `samples`, flat at both ends; nil for a
-    /// stroke too short to draw.
-    static func outline(centerline: [VectorPoint], samples: [VariableStrokeOutline.Sample]) -> Contour? {
-        let segments = ContourPoints.segments(centerline, closed: false)
-        guard !segments.isEmpty else { return nil }
-        let lengths = segments.map { $0.length(tolerance: 1e-4) }
-        let total = lengths.reduce(0, +)
-        guard total > 0 else { return nil }
-        var left: [Point] = [], right: [Point] = []
-        var travelled = 0.0
-        var last = Vector(dx: 1, dy: 0)
-        for (segment, length) in zip(segments, lengths) where length > 0 {
-            let steps = max(8, Int((length / 1.5).rounded(.up)))
-            for step in 0...steps where step > 0 || left.isEmpty {
-                let t = Double(step) / Double(steps)
-                let direction = VariableStrokeOutline.direction(segment.tangent(t), otherwise: last)
-                last = direction
-                let arc = travelled + segment.length(from: 0, to: t, tolerance: 1e-4)
-                let half = VariableStrokeOutline.width(at: arc / total, samples: samples) / 2
-                let point = segment.evaluate(t)
-                left.append(point + direction.perpendicular * half)
-                right.append(point - direction.perpendicular * half)
-            }
-            travelled += length
-        }
-        let ring = left + right.reversed()
-        return CurveFitter(maxError: VariableStrokeOutline.tolerance, cornerAngle: 1.2).fitContour(ring + [ring[0]], closed: true)
-    }
-}
-
 /// The pen's sheet (preferences on this Mac, never in the document).
 enum CalligraphicPreferences {
     static let precision = PreferenceKey<Int>("tools.calligraphic.precision", "Precision", category: .object, default: 5,
@@ -75,8 +19,7 @@ enum CalligraphicPreferences {
                                                   control: .stepper(range: 1...72, step: 1, unit: "pt"), help: "freeform")
     static let min = PreferenceKey<Double>("tools.calligraphic.min", "Min", category: .object, default: 2, control: .stepper(range: 1...72, step: 1, unit: "pt"), help: "freeform")
     static let max = PreferenceKey<Double>("tools.calligraphic.max", "Max", category: .object, default: 12, control: .stepper(range: 1...72, step: 1, unit: "pt"), help: "freeform")
-    static let angle = PreferenceKey<Double>("tools.calligraphic.angle", "Angle", category: .object, default: 45,
-                                             control: .stepper(range: 0...359, step: 1, unit: "°"), help: "freeform")
+    static let angle = PreferenceKey<Double>("tools.calligraphic.angle", "Angle", category: .object, default: 45, control: .angle, help: "freeform")
 
     static let sheet: [AnyPreferenceKey] = [precision.erased, dotted.erased, removeOverlap.erased, widthMode.erased, fixedWidth.erased, min.erased, max.erased,
                                             angle.erased, PathToolPreferences.pressureCurve.erased]

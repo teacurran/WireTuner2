@@ -377,7 +377,6 @@
 		671E96A65E3733B2C3A9E536 /* ObjectPanelSectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204BCC146EF7F33C50301480 /* ObjectPanelSectionTests.swift */; };
 		673D88F6815ED769397A1535 /* TextNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B96FFE9914938F7D7D03263 /* TextNavigation.swift */; };
 		6770C379286657D3CBE55218 /* LayerFrames.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2661B511E9EA7A5E3EC2C46 /* LayerFrames.swift */; };
-		67A524923C16CD3B8B2B2FDC /* PathCutting.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1B43A7E11DA729F8389CCE /* PathCutting.swift */; };
 		67ACE155CD02AA708764A47E /* AlignPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9D446C583CECBA445817E4F /* AlignPanel.swift */; };
 		6818586F288778D70DD4C21A /* TextBlockHandles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D246CA8475A6E57DC7D87D8 /* TextBlockHandles.swift */; };
 		684FC27E985DC8F8F14F5BE8 /* ToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76DA80BA96D5E89EC97D5EC7 /* ToolbarView.swift */; };
@@ -1755,7 +1754,6 @@
 		F9D446C583CECBA445817E4F /* AlignPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlignPanel.swift; sourceTree = "<group>"; };
 		F9D85FCEE8F044C4E1FD7345 /* DataObjectSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataObjectSections.swift; sourceTree = "<group>"; };
 		F9EAFDF8B5C32C2198373780 /* FindTextWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindTextWindow.swift; sourceTree = "<group>"; };
-		FA1B43A7E11DA729F8389CCE /* PathCutting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathCutting.swift; sourceTree = "<group>"; };
 		FA2909781EAF635ED21012DC /* SetupSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupSheets.swift; sourceTree = "<group>"; };
 		FA3320673F3BD614D15E9A50 /* CropTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropTool.swift; sourceTree = "<group>"; };
 		FA6A5E665BDEC1023A1DEF93 /* SyncConnector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConnector.swift; sourceTree = "<group>"; };
@@ -2150,7 +2148,6 @@
 				3F822F95DDB4554A0D68B42D /* MirrorTool.swift */,
 				A7890E698CFDC5B966391E95 /* PageTool.swift */,
 				6393985BF485C1CDEDC0AD00 /* PathClosing.swift */,
-				FA1B43A7E11DA729F8389CCE /* PathCutting.swift */,
 				6513CF7225FF4606114C1175 /* PathEditingFeatures.swift */,
 				8054240F06A1FA38C7D2D078 /* PathToolPreferences.swift */,
 				504ABC787F829D4A691E795C /* PencilTool.swift */,
@@ -3982,7 +3979,6 @@
 				40BE6CCB7240CF028B58EDC0 /* PasteboardMiniature.swift in Sources */,
 				22A54560A7FDD68A137C518F /* PathAlterFeatures.swift in Sources */,
 				78BA3B988B2ACE19A64DE96A /* PathClosing.swift in Sources */,
-				67A524923C16CD3B8B2B2FDC /* PathCutting.swift in Sources */,
 				D538E0CD6B4F6ABF05C7E0ED /* PathEditingFeatures.swift in Sources */,
 				A254F95B0D515B4A685A8329 /* PathOperationSheets.swift in Sources */,
 				AE6052A3AE230408C69F7845 /* PathToolPreferences.swift in Sources */,

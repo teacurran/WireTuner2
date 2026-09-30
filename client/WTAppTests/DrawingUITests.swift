@@ -16,10 +16,6 @@ import WTRender
     // MARK: Calligraphic Pen (DRAW-019)
 
     @Test func theNibAngleSetsTheWidth() throws {
-        // Along a 45° nib: the minimum; across it: the full width.
-        #expect(CalligraphicOutline.width(base: 10, direction: Vector(dx: 1, dy: -1), nibAngle: 45) == CalligraphicOutline.minimumWidth)
-        #expect(abs(CalligraphicOutline.width(base: 10, direction: Vector(dx: 1, dy: 1), nibAngle: 45) - 10) < 1e-9)
-        #expect(CalligraphicOutline.width(base: 10, direction: .zero, nibAngle: 45) == 10)
         // A straight stroke along the nib and one across it, within 0.1 pt.
         for (angle, expected) in [(0.0, CalligraphicOutline.minimumWidth), (90.0, 10.0)] {
             var settings = CalligraphicSettings()
@@ -34,8 +30,6 @@ import WTRender
             #expect(!widths.isEmpty && widths.allSatisfy { abs($0 - expected) < 0.1 }, "angle \(angle): \(widths.prefix(3))")
             f.tool.cancel()
         }
-        #expect(CalligraphicOutline.outline(centerline: [], samples: []) == nil)
-        #expect(CalligraphicOutline.outline(centerline: [VectorPoint(anchor: .zero), VectorPoint(anchor: .zero)], samples: []) == nil)
     }
 
     @Test func bracketsChangeAVariableNibAndNotAFixedOne() async throws {
@@ -114,15 +108,9 @@ import WTRender
         f.tool.mouseUp(PathEditingToolTests.tablet(100, 220, pressure: 1))
         await document.settle()
         #expect(document.undoTitle == "Undo Erase")
-        // Nothing crossed, nothing written; the strip's edges of a single sample are the point.
+        // Nothing crossed, nothing written.
         f.tool.mouseDown(TestEvents.point(500, 500))
         f.tool.mouseUp(TestEvents.point(510, 510))
-        #expect(EraserStrip.edges([VariableStrokeOutline.Sample(point: .zero, width: 2)]).left == [.zero])
-        #expect(EraserStrip.erase([VectorPoint(anchor: .zero), VectorPoint(anchor: Point(x: 1, y: 0))], closed: false, samples: []) == nil)
-        #expect(EraserStrip.halfWidth(near: .zero, samples: []) == 0)
-        let coincident = EraserStrip.edges([VariableStrokeOutline.Sample(point: .zero, width: 2), VariableStrokeOutline.Sample(point: .zero, width: 2),
-                                            VariableStrokeOutline.Sample(point: Point(x: 1, y: 0), width: 2)])
-        #expect(coincident.left.count == 3)
         f.tool.pointerMoved(TestEvents.point(0, 0))
         f.tool.flagsChanged(TestEvents.point(0, 0))
         f.tool.mouseDragged(TestEvents.point(0, 0))

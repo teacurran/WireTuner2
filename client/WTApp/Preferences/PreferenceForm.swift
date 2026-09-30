@@ -9,6 +9,7 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
         case toggle
         case number(range: ClosedRange<Double>, step: Double, unit: String, integer: Bool)
         case popup([PreferenceOption])
+        case angle
         case color
         case text(placeholder: String)
         case list
@@ -39,6 +40,7 @@ struct PreferenceFormRow: Identifiable, Hashable, Sendable {
                 kind = .number(range: range, step: step, unit: unit, integer: false)
             }
         case let .popup(options): kind = .popup(options)
+        case .angle: kind = .angle
         case .color: kind = .color
         case let .text(placeholder): kind = .text(placeholder: placeholder)
         case .list: kind = .list
@@ -59,6 +61,13 @@ enum PreferenceForm {
     /// The stored value for a number typed or stepped to `number`.
     static func numberValue(_ number: Double, integer: Bool) -> PreferenceValue {
         integer ? .int(Int(number.rounded())) : .double(number)
+    }
+
+    /// The stored value for an angle typed or dialled to `degrees`: whole degrees in 0..<360.
+    static func angleValue(_ degrees: Double) -> PreferenceValue {
+        guard degrees.isFinite else { return .double(0) }
+        let whole = degrees.rounded().truncatingRemainder(dividingBy: 360)
+        return .double(whole < 0 ? whole + 360 : whole + 0)
     }
 
     /// What a chooser shows: the chosen item's name, or the placeholder ("System default").
@@ -137,6 +146,14 @@ struct PreferenceBindings {
         )
     }
 
+    /// An angle row's value, written as whole degrees in 0..<360 (the field wraps 360° to 0°).
+    func angle(_ key: AnyPreferenceKey) -> Binding<Double> {
+        Binding(
+            get: { shown(key).number ?? 0 },
+            set: { commit(PreferenceForm.angleValue($0), for: key) }
+        )
+    }
+
     func option(_ key: AnyPreferenceKey) -> Binding<PreferenceValue> {
         Binding(get: { store.value(for: key) }, set: { commit($0, for: key) })
     }
@@ -208,6 +225,11 @@ struct PreferenceRowView: View {
     let row: PreferenceFormRow
     let bindings: PreferenceBindings
 
+    /// A dial's commit: the angle written through the row's binding.
+    static func setting(_ binding: Binding<Double>) -> (Double) -> Void {
+        { binding.wrappedValue = $0 }
+    }
+
     /// A substitution row's Remove button.
     static func removing(_ bindings: PreferenceBindings, _ key: AnyPreferenceKey, _ index: Int) -> () -> Void {
         { bindings.removeSubstitution(key, at: index) }
@@ -236,6 +258,19 @@ struct PreferenceRowView: View {
                     Stepper(row.title, value: bindings.number(row.key, integer: integer), in: range, step: step)
                         .labelsHidden()
                     Text(unit).foregroundStyle(.secondary)
+                }
+            }
+        case .angle:
+            let angle = bindings.angle(row.key)
+            LabeledContent(row.title) {
+                HStack(spacing: 4) {
+                    PointerDial(angle: angle.wrappedValue, identifier: "\(row.accessibilityIdentifier).dial", commit: Self.setting(angle))
+                        .frame(width: 36, height: 36)
+                    TextField(row.title, value: angle, format: .number)
+                        .labelsHidden()
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 56)
+                    Text("°").foregroundStyle(.secondary)
                 }
             }
         case let .popup(options):

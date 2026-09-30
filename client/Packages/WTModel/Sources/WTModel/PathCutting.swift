@@ -1,33 +1,43 @@
 import Foundation
 import WTCRDT
 import WTGeometry
-import WTModel
 
 /// Cutting contours apart (editing-paths.adoc, "Splitting paths"; DRAW-028): where a cutting
 /// line crosses a contour, the pieces between the crossings, which piece keeps the original
 /// (the one holding its first drawn point -- the `start` of an open contour), and the change that
 /// writes them.  Pure over path points in drawing order, so every rule is tested without a window.
-enum PathCutting {
+public enum PathCutting {
     /// A place on a contour: segment `segment` (from drawn point `segment` to the next) at `t`;
     /// `t == 0` is the point itself.
-    struct Location: Hashable, Comparable, Sendable {
-        var segment: Int
-        var t: Double
+    public struct Location: Hashable, Comparable, Sendable {
+        public var segment: Int
+        public var t: Double
 
-        static func < (lhs: Location, rhs: Location) -> Bool { (lhs.segment, lhs.t) < (rhs.segment, rhs.t) }
+        public init(segment: Int, t: Double) {
+            self.segment = segment
+            self.t = t
+        }
+
+        public static func < (lhs: Location, rhs: Location) -> Bool { (lhs.segment, lhs.t) < (rhs.segment, rhs.t) }
     }
 
     /// One piece of a cut contour.
-    struct Piece: Equatable, Sendable {
-        var points: [VectorPoint]
-        var closed: Bool
+    public struct Piece: Equatable, Sendable {
+        public var points: [VectorPoint]
+        public var closed: Bool
         /// Holds the contour's first drawn point (the piece that keeps the original node).
-        var keepsStart: Bool
+        public var keepsStart: Bool
+
+        public init(points: [VectorPoint], closed: Bool, keepsStart: Bool) {
+            self.points = points
+            self.closed = closed
+            self.keepsStart = keepsStart
+        }
     }
 
     /// Where the polyline `cutter` crosses the contour `points` (both in one space), in contour
     /// order; touches at a segment's far end are counted once, on the next segment.
-    static func crossings(_ points: [VectorPoint], closed: Bool, cutter: [Point]) -> [Location] {
+    public static func crossings(_ points: [VectorPoint], closed: Bool, cutter: [Point]) -> [Location] {
         let segments = ContourPoints.segments(points, closed: closed)
         var result: Set<Location> = []
         for (index, segment) in segments.enumerated() {
@@ -52,7 +62,7 @@ enum PathCutting {
     /// shape), a cut at a point shares it.  An open contour's first piece runs from its start, its
     /// last to its end; a closed contour's pieces run cut to cut around it (one cut opens it
     /// there).  No cuts: nil.
-    static func split(_ points: [VectorPoint], closed: Bool, at cuts: [Location]) -> [Piece]? {
+    public static func split(_ points: [VectorPoint], closed: Bool, at cuts: [Location]) -> [Piece]? {
         let count = points.count
         let segmentCount = closed ? count : count - 1
         let cuts = Array(Set(cuts.filter { $0.segment >= 0 && $0.segment < count && ($0.t == 0 || $0.segment < segmentCount) })).sorted()
@@ -118,7 +128,7 @@ enum PathCutting {
 
     /// The two edges of a cut `width` wide along `cutter` (offset by half the width each side,
     /// with averaged normals at the joints).
-    static func strip(_ cutter: [Point], width: Double) -> (left: [Point], right: [Point]) {
+    public static func strip(_ cutter: [Point], width: Double) -> (left: [Point], right: [Point]) {
         guard width > 0, cutter.count >= 2 else { return (cutter, cutter) }
         let half = width / 2
         var left: [Point] = [], right: [Point] = []
@@ -139,7 +149,7 @@ enum PathCutting {
     }
 
     /// The distance from `point` to the polyline `line`.
-    static func distance(_ point: Point, to line: [Point]) -> Double {
+    public static func distance(_ point: Point, to line: [Point]) -> Double {
         guard let first = line.first else { return .infinity }
         guard line.count > 1 else { return point.distance(to: first) }
         return zip(line, line.dropFirst()).map { a, b -> Double in
@@ -153,7 +163,7 @@ enum PathCutting {
     /// The Knife on one contour (pasteboard space): the pieces the cut leaves -- the strip between
     /// the two edges removed when `width` > 0, each piece closed with a straight segment when
     /// `close` -- or nil when the cut misses it.
-    static func knife(_ points: [VectorPoint], closed: Bool, cutter: [Point], width: Double, close: Bool) -> [Piece]? {
+    public static func knife(_ points: [VectorPoint], closed: Bool, cutter: [Point], width: Double, close: Bool) -> [Piece]? {
         let edges = strip(cutter, width: width)
         let cuts = width > 0 ? crossings(points, closed: closed, cutter: edges.left) + crossings(points, closed: closed, cutter: edges.right)
             : crossings(points, closed: closed, cutter: cutter)
@@ -174,7 +184,7 @@ enum PathCutting {
     /// in the path's own space): the piece keeping each contour's start stays in the contour
     /// (its surviving points keep their ids), the others become new paths above it.  Nil when no
     /// contour was cut.
-    static func command(node: OpID, cut: [(contour: OpID, pieces: [Piece])], label: String) -> RewritePath? {
+    public static func command(node: OpID, cut: [(contour: OpID, pieces: [Piece])], label: String) -> RewritePath? {
         var edits: [RewritePath.ContourEdit] = []
         var removed: [OpID] = []
         var others: [[NewContour]] = []

@@ -194,26 +194,4 @@ import WTRender
         #expect(merged.drawn.first { $0.id == before.drawn[0].id }?.anchor == Point(x: 0, y: 130), "outside the stretch: both kept")
         #expect(document.state.store.element(line.opID, PathFields.point(before.id, before.drawn[3].id))?.isDeleted == true, "inside: the point was replaced, the edit is on its tombstone")
     }
-
-    @Test func closedContoursRefitAroundAnUnmovedPoint() {
-        let square = [Point(x: 0, y: 0), Point(x: 100, y: 0), Point(x: 100, y: 100), Point(x: 0, y: 100)].enumerated().map { index, point in
-            VectorPoint(id: OpID(counter: UInt64(index + 1), replica: 7), anchor: point)
-        }
-        var contour = FreeformContour(node: .zero, contour: .zero, closed: true, points: square)
-        #expect(contour.result(tolerance: 1) == nil)
-        contour.pull(from: contour.nearest(Point(x: 50, y: 100))!.index, by: Vector(dx: 0, dy: 30), length: 60)
-        let result = try! #require(contour.result(tolerance: 0.5))
-        #expect(result.first { $0.id == square[0].id }?.anchor == Point(x: 0, y: 0))
-        #expect(result.contains { $0.anchor.y > 120 })
-        // Everything moved: the whole ring is refitted.
-        var all = FreeformContour(node: .zero, contour: .zero, closed: true, points: square)
-        all.reshape(at: Point(x: 50, y: 50), by: Vector(dx: 5, dy: 0), radius: 1000, strength: 1)
-        #expect(all.result(tolerance: 0.5)?.allSatisfy { $0.id == .zero } == true)
-        var shoved = FreeformContour(node: .zero, contour: .zero, closed: false, points: Array(square.prefix(2)))
-        shoved.push(at: Point(x: 50, y: 0), radius: 10)
-        #expect(shoved.hasMoved)
-        shoved.push(at: .zero, radius: 0)
-        shoved.reshape(at: .zero, by: .zero, radius: 0, strength: 1)
-        #expect(FreeformContour.fixKind(VectorPoint(anchor: .zero, inHandle: Vector(dx: 1, dy: 0), outHandle: Vector(dx: 0, dy: 1), kind: .curve)).kind == .corner)
-    }
 }

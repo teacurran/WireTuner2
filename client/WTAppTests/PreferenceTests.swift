@@ -448,6 +448,39 @@ final class RecordingBackend: SyncedPreferenceBackend {
             _ = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds).map { hosting.cacheDisplay(in: hosting.bounds, to: $0) }
         }
     }
+
+    /// DRAW-019: the Calligraphic Pen's nib angle is an angle row -- the shared rotation dial
+    /// (`PointerDial`) and a field -- storing whole degrees in 0..<360.
+    @Test func anAngleRowHasTheDialAndStoresWholeDegrees() throws {
+        let key = CalligraphicPreferences.angle.erased
+        #expect(PreferenceFormRow(key: key).kind == .angle)
+        #expect(key.accepts(.double(0)) && key.accepts(.double(359.5)) && !key.accepts(.double(360)) && !key.accepts(.double(-1)))
+        #expect(!key.accepts(.double(.nan)) && !key.accepts(.string("45")))
+        #expect(PreferenceForm.angleValue(44.6) == .double(45) && PreferenceForm.angleValue(359.7) == .double(0))
+        #expect(PreferenceForm.angleValue(-90) == .double(270) && PreferenceForm.angleValue(720) == .double(0))
+        #expect(PreferenceForm.angleValue(.infinity) == .double(0))
+        let suite = TestDefaults()
+        defer { suite.remove() }
+        let store = PreferenceStore(defaults: suite.defaults)
+        let bindings = PreferenceBindings(store: store, beep: {})
+        let angle = bindings.angle(key)
+        #expect(angle.wrappedValue == 45)
+        // The dial's commit writes through the binding; a typed 370° wraps.
+        PreferenceRowView.setting(angle)(120.4)
+        #expect(store[CalligraphicPreferences.angle] == 120)
+        angle.wrappedValue = 370
+        #expect(store[CalligraphicPreferences.angle] == 10 && CalligraphicSettings(preferences: store).angle == 10)
+        #expect(bindings.angle(PreferenceCatalog.General.smartGuides.erased).wrappedValue == 0)
+        let hosting = NSHostingView(rootView: Form { PreferenceRowView(row: PreferenceFormRow(key: key), bindings: bindings) })
+        hosting.frame = NSRect(x: 0, y: 0, width: 360, height: 80)
+        hosting.layoutSubtreeIfNeeded()
+        _ = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds).map { hosting.cacheDisplay(in: hosting.bounds, to: $0) }
+        #expect(Self.dials(in: hosting).count == 1)
+    }
+
+    static func dials(in view: NSView) -> [PointerDialControl] {
+        ((view as? PointerDialControl).map { [$0] } ?? []) + view.subviews.flatMap(dials)
+    }
 }
 
 @Suite @MainActor struct PreferencesWindowTests {

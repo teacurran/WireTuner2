@@ -220,8 +220,17 @@ NOTE: As built by DRAW-019 (`WTApp/Tools/CalligraphicPen.swift`).  Each sample's
 sample's neighbours; the centreline is fitted as the Variable Stroke Pen's and offset by half the
 width, ends cut flat, fitted within 0.03 pt with corners at the ends.  *Fixed* width ignores the
 bracket keys; *Variable* follows pen pressure (through the pressure curve) or the keys.  The sheet is
-the generic tool sheet over `tools.calligraphic.*` preferences; deviation: the angle is a stepper
-(0–359°), not a dial.  One change "Calligraphic Stroke" (the overlap cleanup in its undo group).
+the generic tool sheet over `tools.calligraphic.*` preferences; the *Angle* row is the preference
+form's angle control (`PreferenceControl.angle`: the shared rotation dial `PointerDial` -- the
+Halftones panel's and the effect dialogs' -- beside a field, whole degrees 0–359°, a typed 360° or
+more wrapping).  One change "Calligraphic Stroke" (the overlap cleanup in its undo group).
+
+NOTE: As built by the D-073 follow-up to DRAW-018 and DRAW-019.  The outline geometry is in WTModel
+(`StrokeOutlines.swift`: `ContourPoints`, `VariableStrokeOutline`, `CalligraphicOutline`), public
+and free of AppKit so the iPad app can reuse it; WTApp keeps the pens' event handling, sheets and
+overlays.  Its tests are `StrokeGeometryTests.swift` (WTModel).  Observed while moving it, not
+changed: the Calligraphic outline's fitted end cap can bulge up to about 1 pt past the stroke's last
+sample at full width (the start is flat within 0.1 pt).
 
 === Build tasks
 

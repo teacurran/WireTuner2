@@ -415,8 +415,8 @@ a selected path's segment inserts a point (`InsertPointOnSegment`, split by leng
 segment); menu:Extensions[Distort > Add Points] is `AddPoints` (no toolbar button yet).
 
 NOTE: As built by DRAW-027 and DRAW-028 (`WTApp/Tools/FreeformTool.swift`, `KnifeTool.swift`,
-`PathCutting.swift`, `PathEditingFeatures.swift`; `WTModel/PathRewrite.swift`).  *Freeform*: the
-selected paths' contours are sampled densely (a sample per point of length); a pull *By length*
+`PathEditingFeatures.swift`; `WTModel/PathCutting.swift`, `FreeformContour.swift`,
+`PathRewrite.swift`).  *Freeform*: the selected paths' contours are sampled densely (a sample per point of length); a pull *By length*
 moves the samples within *Length* (view pixels) of the grab point by the drag with a cosine
 falloff; *Between points* moves only the grabbed segment's two handles so the grabbed point follows
 the pointer (nothing else changes); a push shoves every sample inside the circle out to its edge
@@ -477,6 +477,13 @@ path").  The Variable Stroke and Calligraphic pens' *Auto remove overlap* keep t
 cleanup (freeform.adoc).  Tests: `PathAlterCommandTests.removeOverlap…`,
 `PathAlterMergeTests.removeOverlapVersusAConcurrentPointMoveDeletesTheMovedPoint`,
 `ModelGlueFeaturesTests.removeOverlapRunsFromTheMenuAndTheToolbar`.
+
+NOTE: As built by the D-073 follow-up to DRAW-027 to DRAW-029.  The UI-free geometry of the three
+tools is in WTModel, public, so the iPad app can reuse it: `PathCutting.swift` (crossings, splits,
+strips, the Knife and the change), `EraserStrip.swift` (the strip's edges and the erase of one
+contour) and `FreeformContour.swift` (the sampling, the deformations and the refit), tested in
+`StrokeGeometryTests.swift`.  WTApp keeps the tools, their sheets and the Eraser's change over the
+selection (`EraserStrip.command`).
 
 NOTE: As built by DRAW-029 (`WTApp/Tools/EraserTool.swift`).  The Eraser records each sample's width
 (pen pressure through the curve, else the bracket keys' width, which a pen in contact overrides); the

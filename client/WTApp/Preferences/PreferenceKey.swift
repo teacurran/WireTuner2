@@ -93,6 +93,9 @@ enum PreferenceControl: Hashable, Sendable {
     /// A numeric field with a stepper, limited to `range`, labelled with `unit`.
     case stepper(range: ClosedRange<Double>, step: Double, unit: String)
     case popup([PreferenceOption])
+    /// An angle in whole degrees, 0° to 359°: a field and the shared rotation dial
+    /// (`PointerDial`, the Halftones panel's and the effect dialogs').
+    case angle
     case color
     case text(placeholder: String)
     /// A list of strings edited as one space-separated field.
@@ -190,6 +193,9 @@ struct AnyPreferenceKey: Sendable, Identifiable, Hashable {
             return range.contains(number)
         case let .popup(options):
             return options.contains { $0.value == value }
+        case .angle:
+            guard let number = value.number, number.isFinite else { return false }
+            return number >= 0 && number < 360
         case .toggle, .color, .text, .list, .chooser, .substitutionTable, .templateChooser, .hidden:
             return true
         }

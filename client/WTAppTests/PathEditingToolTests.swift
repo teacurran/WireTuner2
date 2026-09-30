@@ -79,14 +79,7 @@ import WTRender
         #expect(f.tool.outline() == nil)
     }
 
-    @Test func widthsInterpolateAlongTheSamplesAndOptionDrawsStraight() async throws {
-        let samples = [VariableStrokeOutline.Sample(point: Point(x: 0, y: 0), width: 2), VariableStrokeOutline.Sample(point: Point(x: 10, y: 0), width: 12)]
-        #expect(VariableStrokeOutline.width(at: 0.5, samples: samples) == 7)
-        #expect(VariableStrokeOutline.width(at: 2, samples: samples) == 12 && VariableStrokeOutline.width(at: 0, samples: []) == 0)
-        #expect(VariableStrokeOutline.width(at: 0.3, samples: [samples[0]]) == 2)
-        #expect(VariableStrokeOutline.width(at: 0.3, samples: [samples[0], samples[0]]) == 2)
-        #expect(VariableStrokeOutline.outline(centerline: [], samples: samples) == nil)
-        #expect(VariableStrokeOutline.cap(center: .zero, from: .zero, forward: Vector(dx: 1, dy: 0)).isEmpty)
+    @Test func optionDrawsAStraightSpan() async throws {
         let f = Fixture(VariableStrokePen())
         f.tool.mouseDown(TestEvents.point(0, 50))
         f.tool.mouseDragged(TestEvents.point(40, 50))
@@ -94,7 +87,6 @@ import WTRender
         f.tool.mouseDragged(TestEvents.point(120, 60, .option))
         f.tool.mouseDragged(TestEvents.point(150, 60))
         #expect(f.tool.outline() != nil)
-        #expect(ContourPoints.points(Contour(segments: [], closed: true)).isEmpty && ContourPoints.segments([], closed: false).isEmpty)
     }
 
     @Test func aSelfCrossingStrokeWithOverlapRemovalIsOneCompositeAndOneUndoGroup() async throws {
@@ -236,27 +228,6 @@ import WTRender
         let kept = try #require(document.path(square)?.contours[0])
         #expect(kept.drawn.first { $0.id == contour.drawn[0].id }?.anchor == Point(x: -5, y: -5), "the edit of a retained point is kept")
         #expect(document.state.store.element(square.opID, PathFields.point(contour.id, contour.drawn[2].id))?.isDeleted == true, "a moved-away point's edit lands on its tombstone")
-    }
-
-    @Test func piecesAtCutsKeepTheShape() {
-        let curve = [VectorPoint(anchor: Point(x: 0, y: 0), outHandle: Vector(dx: 30, dy: 40)), VectorPoint(anchor: Point(x: 100, y: 0), inHandle: Vector(dx: -30, dy: 40))]
-        let pieces = try! #require(PathCutting.split(curve, closed: false, at: [PathCutting.Location(segment: 0, t: 0.25), PathCutting.Location(segment: 0, t: 0.75)]))
-        #expect(pieces.count == 3 && pieces[0].keepsStart && !pieces[1].keepsStart)
-        let original = CubicBezier(from: curve[0].anchor, outHandle: curve[0].outHandle, inHandle: curve[1].inHandle, to: curve[1].anchor)
-        let middle = ContourPoints.segments(pieces[1].points, closed: false)[0]
-        #expect(middle.evaluate(0).distance(to: original.evaluate(0.25)) < 1e-9 && middle.evaluate(1).distance(to: original.evaluate(0.75)) < 1e-9)
-        #expect(middle.evaluate(0.5).distance(to: original.evaluate(0.5)) < 1e-6)
-        #expect(PathCutting.split(curve, closed: false, at: []) == nil && PathCutting.split([curve[0]], closed: true, at: [.init(segment: 0, t: 0)]) == nil)
-        // A closed contour cut once opens there.
-        let square = [Point(x: 0, y: 0), Point(x: 10, y: 0), Point(x: 10, y: 10)].map { VectorPoint(anchor: $0) }
-        let opened = try! #require(PathCutting.split(square, closed: true, at: [.init(segment: 1, t: 0.5)]))
-        #expect(opened.count == 1 && opened[0].keepsStart && opened[0].points.count == 5)
-        #expect(PathCutting.distance(.zero, to: []) == .infinity && PathCutting.distance(Point(x: 3, y: 4), to: [.zero]) == 5)
-        #expect(PathCutting.distance(Point(x: 5, y: 5), to: [.zero, .zero, Point(x: 10, y: 0)]) == 5)
-        #expect(PathCutting.strip([.zero], width: 3).left == [.zero])
-        #expect(PathCutting.command(node: OpID(counter: 1, replica: 1), cut: [], label: "x") == nil)
-        let removed = PathCutting.command(node: OpID(counter: 1, replica: 1), cut: [(OpID(counter: 2, replica: 1), [PathCutting.Piece(points: square, closed: false, keepsStart: false)])], label: "x")
-        #expect(removed?.removed.count == 1 && removed?.pieces.count == 1)
     }
 
     // MARK: DRAW-005
