@@ -178,6 +178,37 @@ final class WebFeatures {
         panel.prompt = "Choose"
         return await ModalUI.urls(panel, on: window).first
     }
+    /// The folders chosen here, as security-scoped bookmarks, so the sandboxed app can still
+    /// write to a setting's *Location* after a relaunch (the document keeps only the path).
+    var folderBookmarks: UserDefaults { preferences.defaults }
+    static let folderBookmarkPrefix = "wt.bookmarks.html."
+
+    /// Remembers access to `url`, a folder the person chose.
+    func remember(_ url: URL) {
+        guard let data = PreferenceBookmarks.bookmark(for: url) else { return }
+        folderBookmarks.set(data, forKey: Self.folderBookmarkPrefix + url.path(percentEncoded: false))
+    }
+
+    /// `body` run with access to the chosen folder at `path` (or, for a path chosen inside it,
+    /// its nearest remembered ancestor).
+    func withAccess<T>(to path: String, _ body: () throws -> T) rethrows -> T {
+        var candidate = URL(filePath: path)
+        while candidate.path(percentEncoded: false) != "/" {
+            let key = Self.folderBookmarkPrefix + candidate.path(percentEncoded: false)
+            if let data = folderBookmarks.data(forKey: key) {
+                var stale = false
+                if let url = PreferenceBookmarks.resolve(data, stale: &stale) {
+                    if stale { remember(url) }
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    return try body()
+                }
+            }
+            candidate = candidate.deletingLastPathComponent()
+        }
+        return try body()
+    }
+
     /// Reveals files in the Finder.
     var reveal: @MainActor ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
     /// Opens a file (the published page).

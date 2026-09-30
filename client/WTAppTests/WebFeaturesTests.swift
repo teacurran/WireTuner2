@@ -391,8 +391,12 @@ struct WebWorld {
         #expect(PublishModel.pages("", count: 3) == [0, 1, 2] && PublishModel.pages("1-2, 3", count: 3) == [0, 1, 2])
         #expect(PublishModel.pages("4", count: 3) == nil && PublishModel.pages("2-1", count: 3) == nil && PublishModel.pages("x", count: 3) == nil)
         Render.view(PublishSheet(model: model))
-        // No folder yet: the sheet says so.
-        #expect(model.publish() == nil && model.phase == .failed("Choose a folder to publish to"))
+        // No folder yet: Publish asks for one, and says so when it is cancelled.
+        let chosen = world.features.chooseFolder
+        world.features.chooseFolder = { _ in nil }
+        await model.publish()?.value
+        #expect(model.phase == .failed("Choose a folder to publish to"))
+        world.features.chooseFolder = chosen
         await model.chooseFolder()
         await world.document.settle()
         #expect(model.folder?.lastPathComponent == "Setup")
@@ -426,6 +430,44 @@ struct WebWorld {
         PublishSheet.setup(model)()
         world.features.chooseFolder = { _ in nil }
         await model.chooseFolder()
+    }
+
+    @Test func publishingWithNoFolderAsksForOneAndPublishesIntoIt() async throws {
+        let world = WebWorld()
+        defer { world.close() }
+        let model = try #require(world.features.presentPublish())
+        #expect(model.folder == nil)
+        await model.publish()?.value
+        let folder = try #require(model.folder)
+        #expect(folder.deletingLastPathComponent().lastPathComponent == world.folder.lastPathComponent)
+        #expect(model.phase == .done(folder) && FileManager.default.fileExists(atPath: folder.appending(path: "index.html").path))
+    }
+
+    @Test func aChosenFolderIsRememberedForWritingInsideIt() throws {
+        let world = WebWorld()
+        defer { world.close() }
+        let key = WebFeatures.folderBookmarkPrefix + world.folder.path(percentEncoded: false)
+        defer { world.features.folderBookmarks.removeObject(forKey: key) }
+        try FileManager.default.createDirectory(at: world.folder, withIntermediateDirectories: true)
+        world.features.remember(world.folder)
+        #expect(world.features.folderBookmarks.data(forKey: key) != nil)
+        let inside = world.folder.appending(path: "Site").path(percentEncoded: false)
+        #expect(world.features.withAccess(to: inside) { 7 } == 7)
+        #expect(world.features.withAccess(to: "/nowhere/at/all") { 8 } == 8)
+    }
+
+    @Test func aPanelOverASheetGoesOnTheSheet() async throws {
+        let parent = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        parent.isReleasedWhenClosed = false
+        let sheet = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered, defer: false)
+        sheet.isReleasedWhenClosed = false
+        defer { parent.close() }
+        #expect(ModalUI.host(parent) === parent && ModalUI.host(nil) == nil)
+        parent.beginSheet(sheet, completionHandler: nil)
+        #expect(await eventually { parent.attachedSheet === sheet })
+        #expect(ModalUI.host(parent) === sheet)
+        parent.endSheet(sheet)
+        sheet.close()
     }
 
     @Test func theSetupSheetAddsRenamesEditsAndDeletesSettings() async throws {

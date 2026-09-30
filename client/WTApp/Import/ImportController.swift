@@ -54,8 +54,17 @@ struct BlobPlacement {
 enum ModalUI {
     /// `panel` run until it closes; whether the user confirmed it.
     static func run(_ panel: NSSavePanel, on window: NSWindow?) async -> Bool {
-        guard let window else { return panel.runModal() == .OK }
+        guard let window = host(window) else { return panel.runModal() == .OK }
         return await panel.beginSheetModal(for: window) == .OK
+    }
+
+    /// The window a sheet goes on: `window`'s front sheet when one is open (a *Choose…* button on
+    /// the Publish sheet), since a second sheet on the window itself waits, unseen, until the
+    /// first closes.
+    static func host(_ window: NSWindow?) -> NSWindow? {
+        var host = window
+        while let sheet = host?.attachedSheet { host = sheet }
+        return host
     }
 
     /// The files chosen in `panel`, none when it was cancelled.
@@ -73,7 +82,7 @@ enum ModalUI {
         let alert = NSAlert()
         alert.messageText = message
         alert.informativeText = detail
-        guard let window else {
+        guard let window = host(window) else {
             alert.runModal()
             return
         }

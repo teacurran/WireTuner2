@@ -81,6 +81,7 @@ final class PublishModel {
     /// btn:[Choose…]: the setting's folder on this Mac.
     func chooseFolder() async {
         guard let window, let url = await features.chooseFolder(window.window) else { return }
+        features.remember(url)
         _ = await window.objectEditing.perform(SetHTMLSettingLocation(setting.id, to: url.path(percentEncoded: false))).value
     }
 
@@ -91,8 +92,20 @@ final class PublishModel {
     @discardableResult
     func publish() -> Task<Void, Never>? {
         if destination == .webLink { return publishToWebLink() }
+        if folder == nil, window != nil, phase != .publishing {
+            // No folder yet: ask for one, then publish into it.
+            return Task { [weak self] in
+                guard let self else { return }
+                await self.chooseFolder()
+                guard self.folder != nil else {
+                    self.phase = .failed("Choose a folder to publish to")
+                    return
+                }
+                await self.publish()?.value
+            }
+        }
         guard let window, let pages, !pages.isEmpty, let folder, phase != .publishing else {
-            if folder == nil { phase = .failed("Choose a folder to publish to") } else if pages?.isEmpty != false { phase = .failed("Enter pages to publish, such as 1-3, 5") }
+            if pages?.isEmpty != false { phase = .failed("Enter pages to publish, such as 1-3, 5") }
             return nil
         }
         phase = .publishing
@@ -119,8 +132,10 @@ final class PublishModel {
     private func finish(_ result: Result<HTMLBundle, any Error>, folder: URL) {
         do {
             let bundle = try result.get()
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            _ = try bundle.write(to: folder)
+            try features.withAccess(to: setting.location) {
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                _ = try bundle.write(to: folder)
+            }
             warnings = bundle.warnings.sorted
             phase = .done(folder)
             features.reveal([folder])
@@ -398,6 +413,7 @@ final class HTMLSetupModel {
     /// btn:[Choose…] for *Location*.
     func chooseLocation() async {
         guard let window, let url = await features.chooseFolder(window.window) else { return }
+        features.remember(url)
         _ = await window.objectEditing.perform(SetHTMLSettingLocation(selected, to: url.path(percentEncoded: false))).value
     }
 }

@@ -67,8 +67,8 @@ To create or edit an HTML setting:
 |Option |Meaning
 
 |*Location*
-|The folder that receives the output when publishing to a folder.  Click btn:[Choose…].  Each
-document publishes into its own subfolder named after the document.  This is the only option that
+|The folder that receives the output when publishing to a folder.  Click btn:[Choose…]; if no
+folder is chosen yet, btn:[Publish] asks for one first.  Each document publishes into its own subfolder named after the document.  This is the only option that
 is yours alone; every other option in a setting is shared with collaborators.
 
 |*Layout*
@@ -501,6 +501,14 @@ and every option; btn:[Apply] writes the name (`RenameHTMLSetting`) and the opti
 sheet (`EditHTMLSetting` with just those), btn:[OK] applies and closes, and a remote change shows in
 the options not edited here.  Not built: publishing to a web link (WEB-013), the browser pop-up
 (the default browser opens), progress beyond the spinner, and the UI tests.
+
+NOTE: Found in use (2026-09-30): btn:[Choose…] on the Publish and HTML Setup sheets did nothing.
+The open panel went on the document window as a second sheet, which waits unseen behind the one
+open.  `ModalUI.host` now puts every panel and alert on the front sheet (which also fixes
+btn:[Choose…] in Document Setup and Data Merge), btn:[Publish] with no folder asks for one, and a
+chosen folder is kept as a security-scoped bookmark (`WebFeatures.remember`, `withAccess(to:)`,
+`wt.bookmarks.html.<path>` in this Mac's defaults) so the sandboxed app can still write there after
+a relaunch; the document keeps only the path.
 
 NOTE: As built by WEB-013, the `WTSync` half (`WTSync/PublishUploader.swift`).  `PublishUploader` runs
 a `Job` (the bundle's files, the seq, the setting name, the access and a UUIDv7 `publish_id`): each
