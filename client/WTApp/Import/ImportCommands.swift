@@ -1,7 +1,8 @@
 import AppKit
 
 /// The File menu's import and package commands: menu:File[Import…] (kbd:[Cmd+R], importing.adoc)
-/// replaces the standard placeholder in place; menu:File[Open Package…] sits under Open… and
+/// replaces the standard placeholder in place; menu:File[Open File…] (kbd:[Cmd+Shift+O], formerly
+/// *Open Package…*, D-082) sits under Open… and
 /// menu:File[Save a Copy As…] beside Duplicate (saving.adoc; D-079).  *Export a Package…*, its
 /// earlier name, stays as a command without a menu item (the palette, shortcut sets); the sync
 /// popover's *Save a Copy As…* runs `file.exportPackage`.
@@ -34,7 +35,8 @@ enum ImportCommands {
             Command(id: ID.importFile, title: "Import…", key: KeyEquivalent("r", .command), menu: MenuPath(file, section: 2),
                     keywords: ["place", "image", "pdf", "svg", "file"], validation: needsDocument,
                     action: .perform { if let target = window() { hooks.importFiles(target) } }),
-            Command(id: ID.openPackage, title: "Open Package…", menu: MenuPath(file), keywords: ["wiretuner", "package", "archive"],
+            Command(id: ID.openPackage, title: "Open File…", key: KeyEquivalent("o", [.command, .shift]), menu: MenuPath(file),
+                    keywords: ["open package", "wiretuner", "package", "archive", "illustrator", "ai", "pdf", "svg", "eps", "dxf", "file", "finder"],
                     action: .perform { hooks.openPackage() }),
             Command(id: ID.saveCopy, title: "Save a Copy As…", key: KeyEquivalent("s", [.command, .option, .shift]), menu: MenuPath(file, section: 1),
                     keywords: ["wiretuner", "package", "file", "export", "backup", "another mac"], validation: needsDocument,

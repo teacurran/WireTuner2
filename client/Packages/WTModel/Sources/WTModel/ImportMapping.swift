@@ -454,6 +454,9 @@ enum ImportMapping {
         props.path.common = common(name: path.name, transform: path.transform.concatenating(placement), url: path.url)
         props.path.contours = path.contours.map(contour)
         props.path.evenOdd = path.fillRule == .evenOdd
+        // PDF, PostScript and SVG fill an open subpath as if it were closed (IO-040's corpus: an
+        // Illustrator shirt drawn as one open outline came in unfilled).
+        if !path.fill.isNone, path.contours.contains(where: { !$0.closed }) { props.path.fillWhenOpen = true }
         if let fill = fill(path.fill, references: references) { props.path.appearance.fills = [fill] }
         if let stroke = path.stroke.flatMap({ stroke($0, references: references) }) { props.path.appearance.strokes = [stroke] }
         if let effect = transparency(path.opacity) { props.path.appearance.effects = [effect] }

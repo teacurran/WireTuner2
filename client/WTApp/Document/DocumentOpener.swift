@@ -1,5 +1,6 @@
 import Foundation
 import WTCRDT
+import WTInterchange
 import WTModel
 import WTSync
 
@@ -45,7 +46,38 @@ enum DocumentOpener {
     /// created on this Mac.  Not an undo step; nothing is written on a document that already has
     /// content.
     static func applyTemplate(to document: WTModel.Document, template: DocumentCreation.Template = .builtIn) async {
-        _ = try? await document.perform(CreateDocument(template))
+        guard case .imported(let source) = template else {
+            _ = try? await document.perform(CreateDocument(template))
+            return
+        }
+        // A file opened as a document (IO-040): its blobs, already in the cache, are queued for
+        // upload before the change that references them, and a file of more than the server's
+        // 10,000 ops per change is written as consecutive parts of one step (none is undoable).
+        await queueBlobs((source.poster.map { [$0.blob] } ?? []) + source.document.blobs, of: document)
+        do {
+            let parts = try ChangeSplitting.split(CreateDocument(template), in: document.state, replica: document.replica)
+            document.beginGroup()
+            defer { document.endGroup() }
+            for part in parts { try await document.perform(part) }
+        } catch {
+            DocumentHandle.logger.error("opening \(source.document.name, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Records `blobs` (in the cache already) as pending uploads of `document`'s local store; a
+    /// memory document has nothing to record.
+    static func queueBlobs(_ blobs: [ImportedBlob], of document: WTModel.Document) async {
+        guard let store = document.backend as? LocalStore, !blobs.isEmpty else { return }
+        do {
+            let cache = BlobCache(directory: try BlobCache.defaultDirectory())
+            for blob in blobs {
+                let hash = try cache.insert(blob.data)
+                try await store.addPendingBlob(LocalStore.PendingBlob(hash: hash, path: cache.url(for: hash).path, size: Int64(blob.data.count),
+                                                                       mediaType: blob.mediaType))
+            }
+        } catch {
+            DocumentHandle.logger.error("queueing an opened file's blobs failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// The opener that makes memory documents.

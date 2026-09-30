@@ -170,6 +170,9 @@ targets:
             NSSendTypes: [public.image, com.adobe.pdf, public.svg-image, public.rtf, public.utf8-plain-text]
         # A UFO font source (font-export.adoc, "UFO packages"; FONT-024): a folder
         # package no app on the Mac declares, imported here so the Open panel and the Finder know it.
+        # A DXF drawing (import-formats.adoc, "DXF"; IO-040): macOS declares no type for it, so the
+        # Import and Open File panels and the Finder would not know it without this.  Illustrator,
+        # PDF, EPS and SVG are the system's own types.
         UTImportedTypeDeclarations:
           - UTTypeIdentifier: org.unifiedfontobject.ufo
             UTTypeDescription: UFO Font Source
@@ -183,13 +186,21 @@ targets:
             UTTypeConformsTo: [public.data, public.content]
             UTTypeTagSpecification:
               public.filename-extension: [fh, fh3, fh4, fh5, fh7, fh8, fh9, fh10, fh11, ft7, ft8, ft9, ft10, ft11]
+          - UTTypeIdentifier: com.autodesk.dxf
+            UTTypeDescription: AutoCAD DXF Drawing
+            UTTypeConformsTo: [public.data, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [dxf]
+              public.mime-type: [image/vnd.dxf]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor
             LSHandlerRank: Owner
             LSItemContentTypes: [com.villagecompute.wiretuner.package]
           # A PDF or EPS exported with *Embed WireTuner document* opens as the original (IO-028);
-          # one without a package opens through the importer as a new document.
+          # one without a package -- and an Illustrator, SVG, DXF or FreeHand file -- opens as a new document
+          # (IO-040, D-082).  Viewer and Alternate: WireTuner never writes the file, and the app
+          # that owns the type stays the default.
           # A symbol library opens the Import Symbols sheet over the front document (LIB-013).
           - CFBundleTypeName: WireTuner Symbol Library
             CFBundleTypeRole: Viewer
@@ -204,6 +215,22 @@ targets:
             CFBundleTypeRole: Viewer
             LSHandlerRank: Alternate
             LSItemContentTypes: [com.adobe.pdf, com.adobe.encapsulated-postscript]
+          - CFBundleTypeName: Adobe Illustrator Artwork
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.adobe.illustrator.ai-image]
+          - CFBundleTypeName: SVG Image
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.svg-image]
+          - CFBundleTypeName: AutoCAD DXF Drawing
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.autodesk.dxf]
+          - CFBundleTypeName: FreeHand Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.macromedia.freehand]
           # A UFO opens as a typeface document (FONT-024); other font editors own the type.
           - CFBundleTypeName: UFO Font Source
             CFBundleTypeRole: Editor

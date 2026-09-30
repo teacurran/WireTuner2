@@ -155,7 +155,8 @@ be included and names it.
 
 To open a package:
 
-. Choose menu:File[Open Package…], or double-click the package in the Finder.
+. Choose menu:File[Open File…] (kbd:[Cmd+Shift+O]; it was *Open Package…*), or double-click the
+  package in the Finder.
 . Choose which team or folder the imported document should live in.
 
 Opening a package always creates a *new* document in the cloud; it never overwrites the
@@ -239,7 +240,7 @@ window (menu:{product}[Account…]) and in the popover of *Sign in to sync*.  Wi
   History panel work, on this Mac.
 * *Packages are how work moves between Macs.*  Choose menu:File[Save a Copy As…] to write the
   document as a `.wiretuner` file, move the file (AirDrop, a drive, mail), and double-click it on
-  the other Mac -- or choose menu:File[Open Package…] there.  It opens as a new document in that
+  the other Mac -- or choose menu:File[Open File…] there.  It opens as a new document in that
   Mac's library.  A package is also the way to keep a backup: nothing else holds a copy of a
   document made without an account.
 

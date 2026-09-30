@@ -81,12 +81,50 @@ else is editing simply joins them (xref:collaboration.adoc[Working together]).
 
 === Opening other file types
 
-menu:File[Open…] opens {product} documents from the library.  A {product} package -- the
-`.wiretuner` file menu:File[Save a Copy As…] writes -- opens with menu:File[Open Package…] or a
-double-click in the Finder, as a new document in the library.  To bring in Illustrator files,
-PDF, EPS and other formats, use menu:File[Import…] or drag the file onto the Library window,
-which creates a new document from it (xref:import-formats.adoc[Import formats]).  The original
-file is never modified.
+{product} opens Illustrator, PDF, SVG, EPS, DXF and FreeHand files as documents of their own, the way it
+opens its own packages.  To open one, do any of the following:
+
+* Choose menu:File[Open File…] (kbd:[Cmd+Shift+O]) and choose one or more files.  The same panel
+  opens {product} packages -- the `.wiretuner` files menu:File[Save a Copy As…] writes.
+* Click btn:[Open File…] in the Library window's toolbar, or drag the files onto the Library
+  window.
+* Double-click the file in the Finder, choose *Open With > {product}*, or drop it on the
+  {product} icon in the Dock.  The Finder keeps opening the file with the app that made it; {product}
+  is offered as the alternative.
+
+Each file becomes a new document in the Library, named after the file (`Poster.ai` opens as
+*Poster*), with the file's structure:
+
+Pages:: One page for each page of a PDF and for each artboard of an Illustrator file, at the size
+it has in the file, set side by side on the pasteboard, and for each page of a FreeHand document,
+with the objects that lie on it.  An SVG, EPS or DXF file opens as one page the size of its drawing.
+Layers:: The file's layers become {product} layers, in the same order, with the same names: a
+PDF's layers, a DXF file's layers, a FreeHand document's layers, and the layers of an Illustrator
+file from version 8 or earlier.
+Later Illustrator files keep their layers where only Illustrator reads them, so their artwork opens
+on one layer; so does a file with no layers.  Artwork that is on no layer in the file goes on a
+layer called *Foreground*.  A PDF's comments and
+links go on the *Notes* and *URLs* layers.
+Artwork:: Paths, text, images and groups, converted exactly as menu:File[Import…] converts them
+(xref:import-formats.adoc[Import file formats]).  Text keeps its fonts; fonts this Mac does not
+have bring up the Missing Fonts sheet (xref:font-substitution.adoc[Missing fonts]).  An EPS opens as
+editable artwork when it carries a PDF or is an Illustrator EPS; one that is only PostScript opens
+as a placed EPS, shown through its preview and printed as it is.
+
+If {product} had to approximate something -- a gradient mesh, a blend mode it does not have -- an
+alert lists what changed when the document opens.
+
+The original file is never modified.  The new document is a {product} document like any other: it
+is saved as you work, it is in the Library and in menu:File[Open Recent], and without an account it
+stays on this Mac (xref:saving.adoc#using-wiretuner-without-an-account[Using {product} without an
+account]).  To give someone a file again, choose menu:File[Save a Copy As…] for a {product} package,
+or menu:File[Export…] to write Illustrator, PDF, EPS or SVG (xref:exporting.adoc[Exporting]).
+Opening the same file again makes another document.
+
+menu:File[Open…] (kbd:[Cmd+O]) is for {product} documents: it brings up the Library.  To add a
+file's artwork to the document you are working in rather than open it on its own, use
+menu:File[Import…] (xref:importing.adoc[Importing artwork]).  Bitmap images (photographs, scans,
+PNG files) are always imported into a document; they do not open as documents.
 
 == Working in several documents
 
@@ -290,6 +328,51 @@ then uploads the pending documents (a trashed one is trashed after its `Create`)
 `LibraryCacheFile.trashedDocuments`) in place of *Shared with Me* and the server's *Archived* and *Trash*; *Join Team…*, *Keep
 Available Offline*, *Remove Local Copy…* and the refresh button are not shown; *Use as Team Library* is disabled with *Needs a
 WireTuner account*.  Tests: `LocalLibraryTests`, `LocalModeTests.theLaunchDocumentIsInTheLibrary`.
+
+NOTE: As built by IO-040 (xref:decisions.adoc#D-082[D-082]; *Opening other file types*).  `WTInterchange`: `Importer` gains
+`opensAsDocument(_:)` (default: every non-bitmap format) and `document(_:name:format:options:context:) -> ImportedDocument`
+(default: `convert`'s scene on one page its bounds' size, `ImportedDocument(scene:format:)`); `ImportRegistry.documentFormats`,
+`documentUTIs`, `documentExtensions`, `opensAsDocument(named:)` and `document(_:name:)` / `document(contentsOf:)` are what the app
+consults, so a format registers for Open by registering its importer (the FreeHand importer's `document` -- `FreeHandImporter+Document.swift` -- puts each layer's top-level objects on the page
+their bounds' centre lies on, in that page's space).  `ImportedDocument` (`Import/ImportedDocument.swift`) holds the pages
+in file order, each an `ImportedPage` with its size, its artwork in page space (top-level `ImportedGroup.Role.layer` groups are the
+file's layers) and its named layers (*Notes*, *URLs*), plus the notes.  `PDFImporter` converts page by page (`convertPage`, shared
+with `convert`) into one `ImportedPage` each; `IllustratorImporter` does the same for PDF-compatible files -- Illustrator writes each
+artboard as a PDF page, so artboards arrive as pages -- and puts a PostScript file on one page; `EPSImporter` opens editable
+artwork when `EPSImporter.editable` can read the file and otherwise the placed EPS with a note.  `WTModel`: `DocumentImport`
+(`DocumentImport.swift`) and `DocumentCreation.Template.imported`; `CreateDocument(.imported(_))` ("Created from <file>", not an
+undo step) writes the template, the pages (`pageRects`: rows an inch apart that wrap at the pasteboard's edge, the block centred,
+each side clamped to 222 in; a standard size named, `geometry(width:height:)`), then the layers (`layerContents`: the file's
+layers by name in first-appearance order with a layer group's transform composed onto its children, loose artwork on
+*Foreground*, the named layers last) with their artwork through the import writer; the file's link record is kept only for a
+document that is one placed file or image.  `ChangePart` now carries its command's `recordsUndo`.  `WTApp`:
+`ForeignFileOpener` (`Import/ForeignFileOpening.swift`) reads and converts off the main actor with the format's remembered
+options and *Pages* forced to All, stores the blobs in the cache, asks the *Embedded image profiles* question when set to *Ask*,
+creates the document through `LibraryModel.createDocument(name:template:)` (so it is in the Library and Open Recent, titled after
+the file) and shows the notes, each once and at most twelve, in one alert on the new window; a file that does not open is named
+in an alert, and a format that only imports says to use menu:File[Import…].  `DocumentOpener.applyTemplate` writes an imported
+template with `ChangeSplitting.split` in one group and records its blobs as the store's pending uploads first.
+`PackageController.openFile` sends everything that is not a package (or a PDF or EPS carrying one) to `importAsDocument`, the
+opener; `PackageController.opens` and `openableTypes` include the registry's document formats, so `application(_:open:)` (the
+Finder, *Open With*, the Dock) routes them; the command `file.openPackage` is titled *Open File…* with kbd:[Cmd+Shift+O] and opens
+several files; the Library toolbar's btn:[Open File…] runs it and a file URL dropped on the Library grid opens through
+`openFile` (`LibraryModel.openFile`, `openFiles`).  `project.yml` adds `CFBundleDocumentTypes` for Illustrator, SVG and DXF
+(Viewer, Alternate) beside PDF and EPS and imports `com.autodesk.dxf` (macOS declares no DXF type; the import panel could not
+offer DXF before).  FreeHand's imported `com.macromedia.freehand` (IO-041) has a `CFBundleDocumentTypes` entry the same way, Viewer and
+Alternate.  `ExportCommands.importAsDocument` (a new Letter document
+with the file placed in it) is gone.  Tests: `WTInterchangeTests/ImportedDocumentTests`, `WTModelTests/DocumentImportTests`,
+`WTAppTests/ForeignFileOpeningTests`; `WTModelTests/ExternalCorpusOpenTests` opens every `.ai`, `.eps` and `.pdf` under
+`WT_EXTERNAL_CORPUS` (skipped when unset) and writes its report to `WT_CORPUS_REPORT` (never the repository; the owner's files are
+client work), with `WT_CORPUS_DUMP` saving page 1 as Quartz and as WireTuner draw it.  Fixes the owner's corpus (185 files)
+exposed: an imported filled path with an open contour sets `fill_when_open` (PDF and PostScript fill open subpaths; a shirt
+drawn as one open outline came in unfilled); a JPEG drawn through an inverting `/Decode` is re-read through it (Photoshop's
+CMYK JPEGs came in as negatives); an EPS whose embedded PDF converts to nothing is placed rather than opened blank; the PDF
+importer's per-pixel colour conversion is memoised per sample tuple and whole bytes are read directly (a separation image
+took over a minute); and a display list build reads the stacking order for text wrap once (`TextWrapping.Pass`, a task-local
+cache over the build's state) instead of once per text block, which had made a PDF of thousands of text runs take minutes to
+draw.  Known gaps, not fixed here: an Illustrator file's layers live in its private data, not its PDF (Illustrator writes no
+optional content unless *Create Acrobat Layers* is chosen), so they open on *Foreground*; artboard names likewise; PostScript-only
+EPS files (the owner's older EPS work) open placed.
 
 === Build tasks
 

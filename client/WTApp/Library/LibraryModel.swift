@@ -100,6 +100,12 @@ final class LibraryModel {
     var selection: Set<String> = []
     /// Shows the template gallery (menu:File[New from Template…], btn:[New from Template…]).
     @ObservationIgnored var showGallery: @MainActor () -> Void = {}
+    /// btn:[Open File…]: menu:File[Open File…]'s panel -- a package or a foreign file opened as
+    /// a new document (IO-040).
+    @ObservationIgnored var openFile: @MainActor () -> Void = {}
+    /// Files dropped on the Library window: each package or foreign file opens as a new document;
+    /// whether any did.
+    @ObservationIgnored var openFiles: @MainActor ([URL]) -> Bool = { _ in false }
     /// btn:[New]: a document from the default template (`TemplateFeatures`); nil creates from
     /// the built-in template.
     @ObservationIgnored var makeNewDocument: (@MainActor () -> Void)?

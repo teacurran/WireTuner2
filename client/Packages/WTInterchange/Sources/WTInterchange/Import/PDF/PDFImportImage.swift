@@ -179,8 +179,55 @@ enum PDFImportImage {
     // MARK: Pixels
 
     /// The image's pixel source, nil when it cannot be read.  `fill` paints image masks.
+    /// A JPEG that Quartz draws inverted from what ImageIO decodes (IO-040's corpus opened
+    /// Photoshop CMYK JPEGs as negatives): an Adobe CMYK JPEG (an APP14 "Adobe" marker, whose
+    /// samples PDF readers take as inverted) or a `/Decode` that inverts every component
+    /// (`[1 0 1 0 …]`) -- both together cancel.  The decoded samples are re-read inverted; nil
+    /// when no inversion applies.
+    static func invertedDecode(_ spec: PDFImportImageSpec) -> ImageImporter.Decoded? {
+        guard spec.alpha == nil, let source = CGImageSourceCreateWithData(spec.data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil), let space = image.colorSpace, let provider = image.dataProvider
+        else { return nil }
+        let components = space.numberOfComponents
+        let decodeInverts = spec.decode.map { decode in
+            decode.count == 2 * components && stride(from: 0, to: decode.count, by: 2).allSatisfy { decode[$0] == 1 && decode[$0 + 1] == 0 }
+        } ?? false
+        let adobe = components == 4 && isAdobeJPEG(spec.data)
+        guard decodeInverts != adobe else { return nil }
+        // Inverted relative to ImageIO's reading, which may carry a decode of its own (it reads an
+        // Adobe JPEG through `[1 0 …]` already).
+        let current = image.decode.map { Array(UnsafeBufferPointer(start: $0, count: 2 * components)) } ?? (0..<components).flatMap { _ -> [CGFloat] in [0, 1] }
+        let decode: [CGFloat] = stride(from: 0, to: current.count, by: 2).flatMap { [current[$0 + 1], current[$0]] }
+        guard let flipped = CGImage(width: image.width, height: image.height, bitsPerComponent: image.bitsPerComponent, bitsPerPixel: image.bitsPerPixel,
+                                    bytesPerRow: image.bytesPerRow, space: space, bitmapInfo: image.bitmapInfo, provider: provider,
+                                    decode: decode, shouldInterpolate: true, intent: .defaultIntent),
+              // Drawn into a bitmap of the same space so the decode is applied to the samples
+              // (an encoder writes the samples as stored and drops the decode).
+              let canvas = CGContext(data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                                     bitmapInfo: components == 4 ? CGImageAlphaInfo.none.rawValue : CGImageAlphaInfo.noneSkipLast.rawValue)
+        else { return nil }
+        canvas.draw(flipped, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard let applied = canvas.makeImage(), let data = ImageEncoding.encode(applied, type: .tiff) else { return nil }
+        return try? ImageImporter().decode(data, name: "", context: ImportContext(downsampleLimit: nil))
+    }
+
+    /// Whether a JPEG carries Adobe's APP14 marker before its first scan.
+    static func isAdobeJPEG(_ data: Data) -> Bool {
+        let bytes = [UInt8](data.prefix(1 << 16))
+        var index = 2
+        while index + 4 <= bytes.count, bytes[index] == 0xFF {
+            let marker = bytes[index + 1]
+            if marker == 0xDA { return false }
+            let length = Int(bytes[index + 2]) << 8 | Int(bytes[index + 3])
+            if marker == 0xEE, index + 9 <= bytes.count, Array(bytes[(index + 4)..<(index + 9)]) == Array("Adobe".utf8) { return true }
+            index += 2 + length
+        }
+        return false
+    }
+
     static func pixels(_ spec: PDFImportImageSpec, fill: Color, session: PDFImportSession) -> ImageImporter.Decoded? {
         if spec.encoded {
+            if let inverted = invertedDecode(spec) { return inverted }
             guard spec.alpha != nil else {
                 return try? ImageImporter().decode(spec.data, name: session.name)
             }
@@ -223,6 +270,11 @@ enum PDFImportImage {
         let rowBits = width * components * bits
         let rowBytes = (rowBits + 7) / 8
         func raw(_ x: Int, _ y: Int, _ component: Int) -> Double {
+            if bits == 8 {
+                // Whole bytes: read directly rather than bit by bit.
+                let index = y * rowBytes + x * components + component
+                return index < samples.count ? Double(samples[index]) : 0
+            }
             let bitIndex = y * rowBytes * 8 + (x * components + component) * bits
             return PDFImportBits.read(samples, index: bitIndex / bits, bits: bits)
         }
@@ -241,20 +293,33 @@ enum PDFImportImage {
         var colors: [(UInt8, UInt8, UInt8)] = []
         colors.reserveCapacity(width * height)
         var keyed: [Bool] = []
+        // Each distinct sample tuple is converted once (IO-040's corpus: a separation image of
+        // millions of pixels evaluated its tint function per pixel, over a minute to open).
+        var converted: [UInt64: (UInt8, UInt8, UInt8)] = [:]
+        let memoised = bits <= 8 && components <= 8
+        var pixel = [Double](repeating: 0, count: components)
         for y in 0..<height {
             for x in 0..<width {
-                var values: [Double] = []
                 var inKey = spec.colorKey != nil
+                var key: UInt64 = 0
                 for component in 0..<components {
                     let sample = raw(x, y, component)
-                    if let key = spec.colorKey, 2 * component + 1 < key.count, sample < key[2 * component] || sample > key[2 * component + 1] {
+                    if let colorKey = spec.colorKey, 2 * component + 1 < colorKey.count, sample < colorKey[2 * component] || sample > colorKey[2 * component + 1] {
                         inKey = false
                     }
-                    values.append(PDFImportFunction.interpolate(sample, 0, maximum, decode[2 * component], decode[2 * component + 1]))
+                    pixel[component] = sample
+                    if memoised { key = key << UInt64(bits) | UInt64(sample) }
                 }
                 keyed.append(inKey)
+                if memoised, let known = converted[key] {
+                    colors.append(known)
+                    continue
+                }
+                let values = (0..<components).map { PDFImportFunction.interpolate(pixel[$0], 0, maximum, decode[2 * $0], decode[2 * $0 + 1]) }
                 let srgb = (space.color(values) ?? .black).srgb
-                colors.append((UInt8((min(max(srgb.x, 0), 1) * 255).rounded()), UInt8((min(max(srgb.y, 0), 1) * 255).rounded()), UInt8((min(max(srgb.z, 0), 1) * 255).rounded())))
+                let color = (UInt8((min(max(srgb.x, 0), 1) * 255).rounded()), UInt8((min(max(srgb.y, 0), 1) * 255).rounded()), UInt8((min(max(srgb.z, 0), 1) * 255).rounded()))
+                if memoised, converted.count < 1 << 16 { converted[key] = color }
+                colors.append(color)
             }
         }
         if gray {

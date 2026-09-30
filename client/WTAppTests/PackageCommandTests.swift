@@ -10,7 +10,7 @@ import WTProto
 import WTSync
 @testable import WireTuner
 
-/// menu:File[Export a Package…], menu:File[Open Package…] and a package opened from the Finder
+/// menu:File[Export a Package…], menu:File[Open File…] and a package opened from the Finder
 /// (IO-005, IO-006), and the app's wiring of the import and package commands.
 @Suite(.serialized) @MainActor struct PackageCommandTests {
     /// A package controller over `world`'s blob cache, its alerts recorded.

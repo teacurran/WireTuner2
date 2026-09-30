@@ -109,9 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var imports = ImportController(preferences: preferences)
     /// The document setup features: Page tool, Document panel, grid, guides, units, links (DOC).
     private(set) lazy var documentSetup = DocumentSetupFeatures(preferences: preferences, device: DeviceIdentity.current(defaults: preferences.defaults))
-    /// menu:File[Export a Package…], menu:File[Open Package…] and packages opened from the Finder
-    /// (IO-005, IO-006).
+    /// menu:File[Save a Copy As…], menu:File[Open File…] and packages opened from the Finder
+    /// (IO-005, IO-006, D-082).
     private(set) lazy var packages = PackageController()
+    /// Foreign files (Illustrator, PDF, SVG, EPS, DXF) opened as new documents (IO-040).
+    private(set) lazy var foreignFiles = ForeignFileOpener(imports: imports)
     /// menu:File[Export…] and menu:File[Export Again] (IO-014).
     private(set) lazy var exports = ExportController(defaults: preferences.defaults)
     /// The Missing Fonts sheet, the substitutions and each document's embedded fonts (DOC-024).
@@ -612,7 +614,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// `wiretuner://invite/<token>` (and an invitation's web link handed to the app): the
     /// library comes forward with the Join Team sheet.  A deep link (`wiretuner://doc/…`, COLLAB-038)
-    /// opens its document there.
+    /// opens its document there.  A file double-clicked in the Finder or dropped on the Dock icon
+    /// -- a package, or an Illustrator, PDF, SVG, EPS or DXF file (IO-040) -- opens as a new
+    /// document (`PackageController.openFile`).
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { open(url) }
     }
@@ -639,10 +643,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let documents = documents!
         let library = library
         let account = account
+        let packages = packages
+        let foreignFiles = foreignFiles
         imports.blobs.queue = { documents.windowControllers[$0.id]?.session?.client?.blobs }
         packages.blobs.queue = imports.blobs.queue
         packages.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
         packages.createDocument = { title in documents.document(id: library.createDocument(name: title).id) }
+        foreignFiles.createDocument = { title, template in documents.document(id: library.createDocument(name: title, template: template).id) }
+        foreignFiles.window = { documents.windowControllers[$0.id]?.window }
+        packages.importAsDocument = { url in await foreignFiles.open(url) }
+        library.openFile = { Task { await packages.openPackage() } }
+        library.openFiles = { urls in
+            let opening = urls.filter { PackageController.opens($0) }
+            for url in opening { Task { await packages.openFile(url) } }
+            return !opening.isEmpty
+        }
         fonts.closeDocument = { documents.close($0.documentHandle.id) }
         if !localMode.isLocalBuild, let client = launchEnvironment.makeFontLibraryClient(account: account, infoDictionary: Bundle.main.infoDictionary, defaults: preferences.defaults) {
             fonts.team = TeamFontLibraryConnection(client: client, library: library, account: account)

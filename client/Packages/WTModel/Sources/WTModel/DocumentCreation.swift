@@ -20,6 +20,9 @@ public enum DocumentCreation {
         case document(EngineState, name: String)
         /// A built-in starting point with the gallery's options (DOC-029, `StartingPoints`).
         case startingPoint(StartingPoints.Options)
+        /// A foreign file opened as a document (IO-040, `DocumentImport`): its pages, layers and
+        /// artwork with the built-in template's swatches and styles.
+        case imported(DocumentImport)
     }
 
     /// The pasteboard's side, 222 in (workspace.adoc, "The pasteboard").
@@ -54,7 +57,7 @@ public enum DocumentCreation {
 }
 
 /// The initial change of a new document (`DocumentCreation`): "Created" or "Created from
-/// <template>".  On a document that already has content it appends nothing.
+/// <template>" (or "<file>", a file opened as a document).  On a document that already has content it appends nothing.
 public struct CreateDocument: Command {
     public var template: DocumentCreation.Template
 
@@ -67,12 +70,21 @@ public struct CreateDocument: Command {
         case .builtIn: "Created"
         case .document(_, let name): name.isEmpty ? "Created" : "Created from \(name)"
         case .startingPoint(let options): StartingPoints.label(for: options)
+        case .imported(let source): "Created from \(source.document.name)"
         }
     }
 
     public var recordsUndo: Bool { false }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        if case .imported(let source) = template {
+            // A file opened as a document may land on a document that has only the template (a
+            // memory document starts with its page and swatches): any page it has is replaced.
+            guard [WellKnown.masters, WellKnown.layers, WellKnown.symbols].allSatisfy({ state.liveChildren($0).isEmpty }) else { return }
+            for page in state.liveChildren(WellKnown.pages) { builder.append(Ops.setDeleted(page)) }
+            try source.execute(&builder, state: state)
+            return
+        }
         guard [WellKnown.pages, WellKnown.masters, WellKnown.layers, WellKnown.swatches, WellKnown.symbols].allSatisfy({ state.store.children($0).isEmpty })
         else { return }
         switch template {
@@ -88,6 +100,8 @@ public struct CreateDocument: Command {
                                           $0.geometry = PageGeometry.letter.stored
                                       }))
             try DocumentTemplate().execute(&builder, state: state)
+        case .imported:
+            break
         case .document(let source, _):
             let plan = try PackageReissue(source)
             while !plan.isFinished {

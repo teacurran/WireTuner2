@@ -10,11 +10,16 @@ extension ImportController {
     /// What the embedded profiles of `scene` do: the preference, or -- for *Ask* -- the answer
     /// already given in this import (`answered`) or the sheet's.
     func embeddedProfilePolicy(for scene: ImportedScene, window: NSWindow?, answered: inout EmbeddedProfilePolicy?) async -> EmbeddedProfilePolicy {
+        await embeddedProfilePolicy(for: scene.nodes + scene.layers.flatMap(\.nodes), window: window, answered: &answered)
+    }
+
+    /// What the embedded profiles of the images among `nodes` do (a file opened as a document).
+    func embeddedProfilePolicy(for nodes: [ImportedNode], window: NSWindow?, answered: inout EmbeddedProfilePolicy?) async -> EmbeddedProfilePolicy {
         switch preferences[PreferenceCatalog.Import.embeddedProfiles] {
         case "ignore":
             return .ignore
         case "ask":
-            guard let name = Self.embeddedProfileName(in: scene) else { return .useEmbedded }
+            guard let name = Self.embeddedProfileName(in: nodes) else { return .useEmbedded }
             if let answered { return answered }
             let answer = await askEmbeddedProfile(name, window)
             answered = answer
@@ -26,6 +31,11 @@ extension ImportController {
 
     /// The name of the first embedded profile among `scene`'s images, nil when none carries one.
     static func embeddedProfileName(in scene: ImportedScene) -> String? {
+        embeddedProfileName(in: scene.nodes + scene.layers.flatMap(\.nodes))
+    }
+
+    /// The name of the first embedded profile among the images of `nodes`.
+    static func embeddedProfileName(in nodes: [ImportedNode]) -> String? {
         func find(_ nodes: [ImportedNode]) -> String? {
             for node in nodes {
                 switch node {
@@ -36,7 +46,7 @@ extension ImportController {
             }
             return nil
         }
-        return find(scene.nodes + scene.layers.flatMap(\.nodes))
+        return find(nodes)
     }
 }
 

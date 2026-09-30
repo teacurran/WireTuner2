@@ -931,6 +931,55 @@ Merge: the definition is an element insert of a new grid, so it merges as Define
 does; two offline definitions keep both and the page register is LWW (perspective.adoc, "Reshaping
 the built-in grid").  No new op, register or conformance vector.
 
+[[D-082]]
+=== D-082 Foreign files open as documents; File > Import… still places
+Found in use (2026-09-29): "I can currently import [.ai files] and it places them in the current
+document, but I'd like to be able to open my ai files natively."  FreeHand MX opened Illustrator,
+PDF and EPS files with menu:File[Open] as new untitled documents, one page per page; Illustrator
+opens a PDF, EPS or SVG as a document of its own too.  WireTuner does the same, updated for a
+library that has no files of its own (xref:creating-opening.adoc#opening-other-file-types[Opening
+other file types]; IO-040):
+
+* *What opens.*  Illustrator (`.ai`), PDF, SVG (`.svg`, `.svgz`), EPS and DXF files -- every format
+  whose importer says it opens as a document (`Importer.opensAsDocument`, the registry's
+  `documentFormats`), so the FreeHand importer (`.fh*`, D-083) opens the same way.
+  Bitmaps do not: a photo is placed into a document with menu:File[Import…].
+* *Where from.*  menu:File[Open File…] (kbd:[Cmd+Shift+O]; the command that was *Open Package…*,
+  which opens packages too, several files at once) and the Library window's btn:[Open File…]; a
+  double-click in the Finder, *Open With*, and a file dropped on the Dock icon or on the Library
+  window.  The app declares the formats as a *Viewer* at rank *Alternate* (`CFBundleDocumentTypes`),
+  so it is offered and the owning app stays the default; DXF, which macOS does not declare, is an
+  imported type.  menu:File[Open…] (kbd:[Cmd+O]) stays the Library window: WireTuner documents live
+  in the library, and a panel of files there would show only foreign files.  The document made from
+  a file is in the Library, so menu:File[Open Recent] lists it like any other.
+* *What it makes.*  A new document in the Library named after the file without its extension (the
+  window title), never a change to the file.  Its first change, "Created from <file>", writes the
+  document: one page per page of the file at its own size -- a PDF's pages, an Illustrator file's
+  artboards (Illustrator writes each artboard as a page of the PDF it embeds) -- in rows on the
+  pasteboard; the file's layers (a PDF's optional content, a DXF file's layers, a PostScript
+  Illustrator file's layers; a PDF-based Illustrator file keeps its layers in private data that is
+  not read, so it opens on one layer) as document
+  layers in the file's order, bottom to top, with artwork outside any layer on *Foreground*, and the
+  *Notes* and *URLs* layers the PDF importer makes; the built-in template's swatches and styles.  It
+  is not an undo step, as a template is not.  Fonts resolve exactly as on import, and fonts not on
+  this Mac bring up the Missing Fonts sheet when the window opens.  An EPS opens as editable artwork
+  when it can be read so (its PDF-compatible stream, a PostScript Illustrator file); plain PostScript
+  opens as the placed EPS on a page its size, with a note.  What the converter approximated is listed
+  in one alert on the new window.
+* *Afterwards.*  The result is a WireTuner document: in Local mode it is in the Library on this Mac,
+  menu:File[Save a Copy As…] writes a `.wiretuner` package, and menu:File[Export…] writes Illustrator,
+  PDF or EPS again through the exporters.  There is no Save back into the original file; saving over
+  a client's `.ai` with a WireTuner rendition of it would lose what WireTuner does not model.
+* *Import is unchanged.*  menu:File[Import…] (kbd:[Cmd+R]) still places a file into the current
+  document as one group; opening and importing share the importers and their remembered options,
+  except that Open reads every page whatever *Pages* the last import used.
+
+A file already opened opens again as another document: the library does not track where a
+document came from, and a second copy is what a person who reopens a client's file expects.
+Rejected: File > Open… as a file panel (the library is where documents are); opening into an
+existing document (that is Import); a document per page (FreeHand and Illustrator keep pages
+together).
+
 [[D-083]]
 === D-083 FreeHand import: libfreehand's parser built from source, its records converted by WireTuner
 WireTuner is FreeHand-shaped and its users bring FreeHand files, so Q-003's "revisit by user

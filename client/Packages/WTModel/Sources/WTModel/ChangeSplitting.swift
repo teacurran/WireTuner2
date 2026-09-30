@@ -51,6 +51,8 @@ struct ChangePart: Command {
     let label: String
 
     var coalescing: UndoCoalescing { .none }
+    /// A part records undo as the whole command would (a document's first change does not).
+    var recordsUndo: Bool { command.recordsUndo }
 
     func execute(_ builder: inout ChangeBuilder, state _: EngineState) throws {
         if let planned, planned.replica == builder.replica, planned.start &+ offset == builder.startCounter {

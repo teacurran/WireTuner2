@@ -90,31 +90,65 @@ public struct PDFImporter: Importer {
         var x = 0.0
         var height = 0.0
         for number in pages {
-            let page = document.page(at: number)!
-            let (size, base) = PDFImporter.pageSpace(page)
             let offset = AffineTransform.translation(x: x, y: 0)
-            let tree = PDFImportTree()
-            var outer: [PDFImportScope] = []
-            if options.keepPageClip {
-                var builder = ImportPathBuilder()
-                builder.rect(size)
-                outer.append(session.scope(.clip(ImportedPath(contours: builder.build()))))
-            }
-            let dict = PDFImportDict(ref: page.dictionary!)
-            let interpreter = PDFImportInterpreter(session: session, tree: tree, resources: dict.dict("Resources"), ctm: base, pageBox: size, outerScopes: outer)
-            interpreter.run(PDFImporter.contents(dict))
-            let content = tree.finish()
+            let page = convertPage(document.page(at: number)!, session: session, options: options, placement: offset)
             if pages.count > 1 {
-                nodes.append(.group(ImportedGroup(children: content, transform: offset, name: "Page \(number)")))
+                nodes.append(.group(ImportedGroup(children: page.content, transform: offset, name: "Page \(number)")))
             } else {
-                nodes += content
+                nodes += page.content
             }
-            let annotations = PDFImporter.annotations(dict, base: base.concatenating(offset), options: options)
-            notes += annotations.notes
-            links += annotations.links
-            x += size.width + context.keepBothOffset
-            height = max(height, size.height)
+            notes += page.notes
+            links += page.links
+            x += page.size.width + context.keepBothOffset
+            height = max(height, page.size.height)
         }
+        let bounds = Rect(x: 0, y: 0, width: x - context.keepBothOffset, height: height)
+        return ImportedScene(kind: .vector, name: name, bounds: bounds, nodes: nodes, layers: PDFImporter.layers(notes: notes, links: links), notes: session.notes)
+    }
+
+    /// `document` opened as a document (IO-040): one page per selected page at its crop box's
+    /// size, its content in page space with optional content as layer groups, its notes and links
+    /// on the *Notes* and *URLs* layers.
+    func document(_ document: CGPDFDocument, name: String, format: ImportFormat, options: PDFImportOptions) throws -> ImportedDocument {
+        let numbers = try options.pages.resolve(pageCount: document.numberOfPages, name: name)
+        guard !numbers.isEmpty else {
+            throw ImportError.empty(name: name)
+        }
+        let session = PDFImportSession(name: name, text: options.text, meshBlack: meshBlack)
+        let pages = numbers.map { number in
+            let page = document.page(at: number)!
+            let converted = convertPage(page, session: session, options: options, placement: .identity)
+            return ImportedPage(size: Size(width: converted.size.width, height: converted.size.height), nodes: converted.content,
+                                layers: PDFImporter.layers(notes: converted.notes, links: converted.links))
+        }
+        return ImportedDocument(format: format, name: name, pages: pages, notes: session.notes)
+    }
+
+    public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
+        try document(try PDFImporter.document(data, name: name), name: name, format: format, options: try PDFImportOptions(options, name: name))
+    }
+
+    /// One page's content in its y-down page space, and its annotations with `placement` (the
+    /// page's offset in a scene of several pages) applied.
+    func convertPage(_ page: CGPDFPage, session: PDFImportSession, options: PDFImportOptions, placement: AffineTransform)
+        -> (size: Rect, content: [ImportedNode], notes: [ImportedNode], links: [ImportedNode]) {
+        let (size, base) = PDFImporter.pageSpace(page)
+        let tree = PDFImportTree()
+        var outer: [PDFImportScope] = []
+        if options.keepPageClip {
+            var builder = ImportPathBuilder()
+            builder.rect(size)
+            outer.append(session.scope(.clip(ImportedPath(contours: builder.build()))))
+        }
+        let dict = PDFImportDict(ref: page.dictionary!)
+        let interpreter = PDFImportInterpreter(session: session, tree: tree, resources: dict.dict("Resources"), ctm: base, pageBox: size, outerScopes: outer)
+        interpreter.run(PDFImporter.contents(dict))
+        let annotations = PDFImporter.annotations(dict, base: base.concatenating(placement), options: options)
+        return (size, tree.finish(), annotations.notes, annotations.links)
+    }
+
+    /// The *Notes* and *URLs* layers, each when it has something.
+    static func layers(notes: [ImportedNode], links: [ImportedNode]) -> [ImportedLayer] {
         var layers: [ImportedLayer] = []
         if !notes.isEmpty {
             layers.append(ImportedLayer(name: "Notes", nodes: notes))
@@ -122,8 +156,7 @@ public struct PDFImporter: Importer {
         if !links.isEmpty {
             layers.append(ImportedLayer(name: "URLs", nodes: links))
         }
-        let bounds = Rect(x: 0, y: 0, width: x - context.keepBothOffset, height: height)
-        return ImportedScene(kind: .vector, name: name, bounds: bounds, nodes: nodes, layers: layers, notes: session.notes)
+        return layers
     }
 
     /// The page's content streams, concatenated.

@@ -7,8 +7,8 @@ import WTInterchange
 import WTModel
 import WTSync
 
-/// menu:File[Save a Copy As…] (and its alias *Export a Package…*) and menu:File[Open Package…]
-/// (saving.adoc, "Packages: a document as a file"; IO-005, IO-006, D-079), and a package
+/// menu:File[Save a Copy As…] (and its alias *Export a Package…*) and menu:File[Open File…]
+/// (saving.adoc, "Packages: a document as a file"; IO-005, IO-006, D-079, D-082), and a package
 /// double-clicked in the Finder.  Exporting writes the
 /// merged state as this Mac has it -- unsynced changes included and counted -- with every
 /// referenced blob in the cache; the ones that are not are named in a warning.  Opening validates
@@ -33,8 +33,8 @@ final class PackageController {
     /// Makes the new document an opened package becomes, named `title` (the library's pending
     /// creation, opened in a window).
     var createDocument: @MainActor (String) -> DocumentHandle? = { _ in nil }
-    /// Opens a PDF or EPS file that carries no package as a new document through the importer
-    /// (IO-028: the file falls through to the PDF or EPS importer).
+    /// Opens a foreign file -- a PDF or EPS file that carries no package, an Illustrator, SVG or
+    /// DXF file -- as a new document (IO-028, IO-040: the app's `ForeignFileOpener`).
     var importAsDocument: @MainActor (URL) async -> DocumentHandle? = { _ in nil }
     var runSavePanel: @MainActor (NSSavePanel, NSWindow?) async -> URL? = ModalUI.url
     var runOpenPanel: @MainActor (NSOpenPanel, NSWindow?) async -> [URL] = ModalUI.urls
@@ -92,16 +92,22 @@ final class PackageController {
 
     // MARK: Open
 
-    /// menu:File[Open Package…].
+    /// menu:File[Open File…] (formerly *Open Package…*; D-082): packages and every foreign file
+    /// that opens as a document, several at once, each as a new document.  Returns the first.
     @discardableResult
     func openPackage() async -> DocumentHandle? {
         let panel = NSOpenPanel()
-        panel.title = "Open Package"
+        panel.title = "Open File"
         panel.prompt = "Open"
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
         panel.allowedContentTypes = Self.openableTypes
-        guard let url = await runOpenPanel(panel, nil).first else { return nil }
-        return await openFile(url)
+        var first: DocumentHandle?
+        for url in await runOpenPanel(panel, nil) {
+            let opened = await openFile(url)
+            first = first ?? opened
+        }
+        return first
     }
 
     /// Opens the package at `url` as a new document; nil (after an alert) when it is refused.

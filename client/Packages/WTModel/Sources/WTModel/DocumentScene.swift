@@ -397,7 +397,7 @@ public struct DocumentDisplayListBuilder: Sendable {
             end()
             locallyHidden = hidden
         }
-        return ColorResolver.$current.withValue(ColorResolver(state)) {
+        return TextWrapping.withPass { ColorResolver.$current.withValue(ColorResolver(state)) {
             var scratch: [NodeID: SceneObject] = [:]
             let order = LayerOrder(state)
             let context = sceneContext(state)
@@ -406,7 +406,7 @@ public struct DocumentDisplayListBuilder: Sendable {
                 layerContents(state, order: order, includeHidden: includeHidden, output: true, objects: &scratch).contents
             }
             return LayerScene.build(canvas: canvas, layers: contents, purpose: .output(includeHidden: includeHidden), background: [])
-        }
+        } }
     }
 
     // MARK: Building
@@ -415,7 +415,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         prepareMasters(state, touched: masterTouched)
         begin(state)
         defer { end() }
-        return ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) }
+        return TextWrapping.withPass { ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) } }
     }
 
     private mutating func prepareMasters(_ state: EngineState, touched: Set<OpID>? = nil) {

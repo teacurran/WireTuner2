@@ -38,6 +38,24 @@ public struct EPSImporter: Importer {
         return EPSImporter.place(data, file: file, name: name)
     }
 
+    /// An EPS opened as a document (IO-040): one page the size of its bounding box holding its
+    /// artwork as editable objects when it can be read so (`editable`: the PDF-compatible stream
+    /// or a PostScript Illustrator file), else the file placed on the page with its preview, as
+    /// menu:File[Import…] places it, and a note saying so.
+    public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
+        let file = try EPSFile(data, name: name)
+        // An embedded PDF that converts to nothing (IO-040's corpus: an Illustrator EPS whose PDF
+        // page is empty) is not artwork: the file is placed, as its preview shows it.
+        if let scene = try? EPSImporter.editable(data, name: name, context: context), !scene.nodes.isEmpty {
+            // The embedded PDF's page is the artwork's box; the bounding box sizes the page when
+            // they differ (Illustrator writes the artboard as the PDF page).
+            return ImportedDocument(scene: scene, format: format)
+        }
+        let placed = EPSImporter.place(data, file: file, name: name,
+                                       notes: ["“\(name)” holds only PostScript, so it opened as a placed EPS: it prints as it is and shows its preview."])
+        return ImportedDocument(scene: placed, format: format)
+    }
+
     /// A PostScript Illustrator EPS read as vector artwork, or nil when the file is not one or
     /// the reader falls back to placement (the file is then placed here, with its preview).
     static func illustrator(_ file: EPSFile, name: String) -> ImportedScene? {

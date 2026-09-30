@@ -41,6 +41,16 @@ public struct IllustratorImporter: Importer {
         return try legacy(data, name: name, text: typed.text)
     }
 
+    /// A PDF-compatible file opened with one page per artboard (Illustrator writes each artboard
+    /// as a page of its PDF) and its layers as layer groups; a PostScript file as one page.
+    public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
+        let typed = try PDFImportOptions(options, name: name)
+        if IllustratorImporter.isPDFCompatible(data) {
+            return try IllustratorImporter.pdf.document(try PDFImporter.document(data, name: name), name: name, format: format, options: typed)
+        }
+        return ImportedDocument(scene: try legacy(data, name: name, text: typed.text), format: format)
+    }
+
     /// A PostScript Illustrator file through the legacy reader; anything else is refused.
     func legacy(_ data: Data, name: String, text: ImportTextHandling) throws -> ImportedScene {
         guard String(decoding: data.prefix(64), as: UTF8.self).hasPrefix("%!PS-Adobe") else {

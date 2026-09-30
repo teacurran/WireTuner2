@@ -293,11 +293,27 @@ public protocol Importer: Sendable {
     func probe(_ data: Data, name: String, format: ImportFormat) throws -> ImportDescriptor
     /// The file converted with `options`.
     func convert(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedScene
+    /// Whether a file of `format` opens as a document rather than only importing into one.
+    func opensAsDocument(_ format: ImportFormat) -> Bool
+    /// The file opened as a document with `options` (IO-040).
+    func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument
 }
 
 extension Importer {
     /// The formats' default options.
     public func optionsSchema(for format: ImportFormat) -> ImportOptionsSchema { ImportOptionsSchema(fields: []) }
+
+    /// Whether a file of `format` opens as a document (IO-040, D-082): the vector formats do;
+    /// bitmaps are placed into one with menu:File[Import…].  An importer that also reads a bitmap
+    /// family can say otherwise per format.
+    public func opensAsDocument(_ format: ImportFormat) -> Bool { !format.isBitmap }
+
+    /// The file opened as a document: by default one page the size of what `convert` returns,
+    /// holding it (`ImportedDocument(scene:format:)`).  Formats with pages or artboards (PDF,
+    /// Illustrator) return one page each.
+    public func document(_ data: Data, name: String, format: ImportFormat, options: ImportOptionValues, context: ImportContext) throws -> ImportedDocument {
+        ImportedDocument(scene: try convert(data, name: name, format: format, options: options, context: context), format: format)
+    }
 }
 
 /// Every importable format with its importer.
@@ -361,6 +377,46 @@ public struct ImportRegistry: Sendable {
             return .eps
         }
         return sniffed
+    }
+
+    // MARK: Opening as a document (IO-040, D-082)
+
+    /// The formats a file of which opens as a document -- what menu:File[Open File…], the Finder
+    /// and the Dock accept besides packages -- in the summary table's order.
+    public var documentFormats: [ImportFormat] {
+        availableFormats.filter { importers[$0]!.opensAsDocument($0) }
+    }
+
+    /// The UTIs of `documentFormats`.
+    public var documentUTIs: [String] {
+        documentFormats.flatMap(\.utis)
+    }
+
+    /// The file extensions of `documentFormats`, lower case.
+    public var documentExtensions: Set<String> {
+        Set(documentFormats.flatMap(\.fileExtensions))
+    }
+
+    /// Whether a file called `name` is one that opens as a document (by its extension; the bytes
+    /// decide when it is read).
+    public func opensAsDocument(named name: String) -> Bool {
+        documentExtensions.contains((name as NSString).pathExtension.lowercased())
+    }
+
+    /// `data` opened as a document with the format's options (defaults when nil).  A file whose
+    /// format does not open as a document is refused as unsupported.
+    public func document(_ data: Data, name: String, options: ImportOptionValues? = nil, context: ImportContext = ImportContext()) throws -> ImportedDocument {
+        try context.checkSize(data.count, name: name)
+        let (format, importer) = try resolve(data, name: name)
+        guard importer.opensAsDocument(format) else { throw ImportError.unsupportedFormat(name: name) }
+        let values = options ?? importer.optionsSchema(for: format).defaults
+        return try importer.document(data, name: name, format: format, options: values, context: context)
+    }
+
+    /// The file at `url` opened as a document; the size is checked before it is read.
+    public func document(contentsOf url: URL, options: ImportOptionValues? = nil, context: ImportContext = ImportContext()) throws -> ImportedDocument {
+        let data = try ImportRegistry.read(url, context: context)
+        return try document(data, name: url.lastPathComponent, options: options, context: context)
     }
 
     /// The descriptor of `data`.

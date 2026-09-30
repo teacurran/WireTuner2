@@ -7,6 +7,11 @@ trace.  This page covers the ways to bring a file in and what happens to it once
 xref:import-formats.adoc[Import file formats] lists every format and its options, and
 xref:bitmaps.adoc[Working with bitmap images] covers what you can do with an image afterwards.
 
+TIP: Importing adds a file's artwork to the document you have open.  To work on an Illustrator,
+PDF, SVG, EPS or DXF file as a document of its own -- with its pages and layers -- open it instead
+with menu:File[Open File…] (xref:creating-opening.adoc#opening-other-file-types[Opening other file
+types]).
+
 == What happens to imported artwork
 
 {product} treats an imported file in one of three ways, chosen by its format:
@@ -95,8 +100,10 @@ that {product} cannot import are refused with an explanation; the ones it can ar
 Dropping several files places them stacked at the drop point with the *Keep both offset*
 between them.
 
-Dragging a file onto the {product} icon in the Dock, or double-clicking a file {product} owns,
-opens it as a new document instead (xref:creating-opening.adoc[Creating and opening documents]).
+Dragging an Illustrator, PDF, SVG, EPS or DXF file onto the {product} icon in the Dock or onto the
+Library window, or double-clicking it in the Finder, opens it as a new document instead, with its
+own pages and layers (xref:creating-opening.adoc#opening-other-file-types[Opening other file
+types]).
 
 {product} documents show previews in Quick Look, and any file can be dragged in from a Finder
 window.

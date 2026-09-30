@@ -65,6 +65,8 @@ struct LibraryView: View {
                                 .accessibilityIdentifier("library.loadMore")
                         }
                     }
+                    // Files dragged from the Finder open as new documents (IO-040).
+                    .dropDestination(for: URL.self) { urls, _ in model.openFiles(urls) }
                 }
             }
         }
@@ -205,6 +207,9 @@ struct LibraryToolbar: View {
             Button("Open") { model.openSelection() }
                 .disabled(model.selection.isEmpty)
                 .accessibilityIdentifier("library.open")
+            Button("Open File…") { model.openFile() }
+                .help("Open an Illustrator, PDF, SVG, EPS or DXF file, or a WireTuner package, as a new document")
+                .accessibilityIdentifier("library.openFile")
             if model.section == .trash {
                 Button("Empty Trash") { Task { await model.emptyTrash() } }
                     .disabled(model.documents.isEmpty)

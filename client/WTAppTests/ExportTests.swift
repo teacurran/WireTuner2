@@ -615,7 +615,7 @@ final class ExportWorld {
         }
         #expect((try? String(contentsOf: text.files[0], encoding: .utf8))?.contains("Spring") == true)
 
-        // A PDF with the document embedded reopens as the original through Open Package….
+        // A PDF with the document embedded reopens as the original through Open File….
         var pdf = ExportSettings(format: .pdf, what: .allPages)
         pdf.options.pdf.embedPackage = true
         guard case .exported(let exported) = await world.controller.perform(pdf, to: world.output.appending(path: "Round.pdf"), from: world.window) else {
@@ -707,19 +707,15 @@ final class ExportWorld {
         _ = try PackageWriter().write(contents, to: url)
         #expect(await packages.controller.openFile(url)?.title == "Doc")
 
-        // The app's fallback imports the file into a new document named after it.
-        var created: [DocumentHandle] = []
-        packages.controller.createDocument = { title in
-            let handle = DocumentHandle.memory(title: title)
-            created.append(handle)
-            return handle
+        // The app's fallback opens the file as a new document named after it (IO-040).
+        let opener = ForeignFileOpener(imports: world.world.imports)
+        opener.createDocument = { title, template in
+            world.world.documents.open(world.world.documents.environment.makeDocument(title: title, isNew: true, template: template), show: false).documentHandle
         }
-        let document = try #require(await ExportCommands.importAsDocument(plain, packages: packages.controller, imports: world.world.imports,
-                                                                           documents: world.world.documents, show: false))
-        #expect(document.title == "Plain" && created.count == 1 && world.world.documents.windowControllers[document.id] != nil)
+        let document = try #require(await opener.open(plain))
+        #expect(document.title == "Plain" && world.world.documents.windowControllers[document.id] != nil)
+        #expect(PageList(document.state).pages.count == 1)
         world.world.documents.close(document.id)
-        packages.controller.createDocument = { _ in nil }
-        #expect(await ExportCommands.importAsDocument(plain, packages: packages.controller, imports: world.world.imports, documents: world.world.documents) == nil)
     }
 
     @Test func theAppWiresTheExportCommandsAndOpensPDFsFromTheFinder() async throws {

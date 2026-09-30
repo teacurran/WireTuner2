@@ -2,6 +2,10 @@
 format the Import sheet accepts, what each one turns into once it is in the document, and the
 options the btn:[Options…] button offers for it.  The mechanics of placing a file -- the Import
 command, dragging from the Finder, pasting -- are on xref:importing.adoc[Importing artwork].
+The vector formats -- PDF, Illustrator, SVG, DXF and EPS -- also open as documents of their own with
+menu:File[Open File…] or from the Finder, converted the same way, with a page per PDF page or
+Illustrator artboard and the file's layers as layers
+(xref:creating-opening.adoc#opening-other-file-types[Opening other file types]).
 
 == Format summary
 
@@ -82,7 +86,9 @@ Select it and choose menu:Edit[Cut Contents] to release the objects.
 Illustrator files saved with the *Create PDF Compatible File* option (the default since
 Illustrator 9) contain a PDF, and {product} imports that PDF with the PDF options above.  Live
 blends become groups of the blended shapes; gradient meshes become paths with a 50% black fill.
-Illustrator layers become groups named after the layers.
+Illustrator layers become groups named after the layers.  Opened as a document rather than
+imported, an Illustrator file keeps its artboards as pages (and a PostScript-based one its layers as
+layers).
 
 Older Illustrator files (versions 1.1 through 8) and Illustrator EPS files are PostScript-based.
 {product} reads their drawing operators directly -- paths, fills, strokes, text and placed
@@ -363,6 +369,13 @@ xref:svg-animation.adoc[SVG animations]: automatic, place or convert) and `DXFIm
 (the three filters and *Units*).  IMG-008's `WTApp`/`WTModel` half -- the sheet, per-format
 persistence, the "Import _file_" change and the merge test -- is described after the mapping
 table below.
+
+NOTE: IO-040 (xref:decisions.adoc#D-082[D-082]) adds opening a file as a document to the protocol:
+`Importer.opensAsDocument(_:)` (the vector formats; bitmaps say no) and `Importer.document(...) ->
+ImportedDocument` -- one `ImportedPage` per PDF page or Illustrator artboard, layers kept as layer groups
+-- with `ImportRegistry.documentFormats` and `document(contentsOf:)` for the app.  A new importer is
+opened by the app as soon as it is registered; the default `document` is its converted scene on one
+page.  The mapping to pages and layers is on xref:creating-opening.adoc[Creating and opening documents].
 
 ==== Imported scene to document
 

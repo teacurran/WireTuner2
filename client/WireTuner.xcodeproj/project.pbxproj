@@ -29,6 +29,7 @@
 		081361B7DD48751518657032 /* ServicesBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F26028579D58F3EB5896921 /* ServicesBridge.swift */; };
 		089929CF96B075FD07178CF8 /* CanvasEventTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3F49D2493A6ADF0FD89AA6C /* CanvasEventTranslator.swift */; };
 		0918F812592F9C6900A3EE88 /* InspectorRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99AB6466930C94CE01933ED1 /* InspectorRegistry.swift */; };
+		093452DB0CB15BC640256609 /* ForeignFileOpening.swift in Sources */ = {isa = PBXBuildFile; fileRef = E77B79152A2E16AF0432CC9E /* ForeignFileOpening.swift */; };
 		096C8EB0D14FAC13F28A82D5 /* SyncActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7651BAA836159A4C0F3E7A0 /* SyncActivity.swift */; };
 		09AD7CE4760F433ED98088E4 /* HeadlessUploads.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC0954264C81E6912E0F5214 /* HeadlessUploads.swift */; };
 		0A4E254D7EC80D780D24F2F3 /* ToolCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CC9C9F86DF0C0A93AA6404 /* ToolCatalogTests.swift */; };
@@ -246,6 +247,7 @@
 		47DE63EE474AAA1B474D7A83 /* PanelContextMenus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EDAFFAFEB4FEAB6C696F718 /* PanelContextMenus.swift */; };
 		47E817D914B3EB53100E6A32 /* TeamLibraries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BF799945E325CE48CA34EF /* TeamLibraries.swift */; };
 		47F4B2CCC184D2950C29E1B9 /* ColorSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1CE03F9D04B883054219AC7 /* ColorSettingsSheet.swift */; };
+		4852F36278FCFCF3BF9C691E /* ForeignFileOpeningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 406C7299139F4349CEF4F355 /* ForeignFileOpeningTests.swift */; };
 		485FFEAD5183EDB50DD7E9A6 /* HelpPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4B25C2948B4C37AC63870F0 /* HelpPanelTests.swift */; };
 		487FDC777D00BCC6736156FD /* ContinuityOpener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42063C3D61A0C41D86C6F63E /* ContinuityOpener.swift */; };
 		489234DFD8CCD80A402CB8DC /* BlendUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD697E6CFC68E1A09C12008D /* BlendUITests.swift */; };
@@ -1140,6 +1142,7 @@
 		3FE2E6CD3D6FF459CF1B0BD5 /* WorkspaceUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceUITests.swift; sourceTree = "<group>"; };
 		3FE404AEA9FD4CB6262C9D3B /* SwatchesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwatchesPanel.swift; sourceTree = "<group>"; };
 		403C6A5730D7969A694B03B1 /* EffectUIEdgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectUIEdgeTests.swift; sourceTree = "<group>"; };
+		406C7299139F4349CEF4F355 /* ForeignFileOpeningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForeignFileOpeningTests.swift; sourceTree = "<group>"; };
 		407EF017708070DC13F1BC27 /* TextEditCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEditCommands.swift; sourceTree = "<group>"; };
 		4142E4942D7F2E6F1912B858 /* DataPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataPanelTests.swift; sourceTree = "<group>"; };
 		415839129526474422D126D7 /* ExternalEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalEditing.swift; sourceTree = "<group>"; };
@@ -1682,6 +1685,7 @@
 		E7174C964CD096BDB59258E1 /* ColorFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorFeatures.swift; sourceTree = "<group>"; };
 		E7306458B57616E3B61092CD /* ObjectEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectEditing.swift; sourceTree = "<group>"; };
 		E75E4FA554C827D25E354ACF /* WTProto */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTProto; path = Packages/WTProto; sourceTree = SOURCE_ROOT; };
+		E77B79152A2E16AF0432CC9E /* ForeignFileOpening.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForeignFileOpening.swift; sourceTree = "<group>"; };
 		E7DEC5B628A477325DB08F14 /* QuickExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickExport.swift; sourceTree = "<group>"; };
 		E85E210B1F98FED5BED3B81B /* WebFeaturesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFeaturesTests.swift; sourceTree = "<group>"; };
 		E8BEE3775CDA8A12DADDFAC4 /* FakeCollaborationServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeCollaborationServer.swift; sourceTree = "<group>"; };
@@ -2579,6 +2583,7 @@
 			children = (
 				2A063F9FD1BAF920C2BCBE8A /* ConvertToEditable.swift */,
 				640F1D67D9521A263CBE7272 /* EmbeddedProfileChoice.swift */,
+				E77B79152A2E16AF0432CC9E /* ForeignFileOpening.swift */,
 				71D1090BE27DA8C2D08543CE /* ImportCommands.swift */,
 				227BED2A8D35D49A765BE3AE /* ImportController.swift */,
 				C8DB294857C98F05FA60B107 /* ImportOptionsSheet.swift */,
@@ -3086,6 +3091,7 @@
 				91F111D20D62D813837DC466 /* FisheyeLensTests.swift */,
 				1A44931821C2885FF6B5CDB1 /* FontControlTests.swift */,
 				E99EA0F80B6618BCF1626CD2 /* FontFamilyPickerTests.swift */,
+				406C7299139F4349CEF4F355 /* ForeignFileOpeningTests.swift */,
 				FB7A39E9A016E1AE3D7655D1 /* FreeformToolTests.swift */,
 				F71063A0B2E67E916CB0F74B /* GradientEditorTests.swift */,
 				536FA4DDD6D3FBD420437705 /* GradientSwatchPanelTests.swift */,
@@ -3832,6 +3838,7 @@
 				B78041809E8D3295CE544FFD /* FontSheets.swift in Sources */,
 				9438FADC63616E9997ED9EB4 /* FontSubstitutionRows.swift in Sources */,
 				36C750730784F85818629EF5 /* FontToolbarControls.swift in Sources */,
+				093452DB0CB15BC640256609 /* ForeignFileOpening.swift in Sources */,
 				81F5CA493E47C16A7ED2570A /* FreeformTool.swift in Sources */,
 				FE31B43406C98FE9EFC6A15D /* FuzzyMatcher.swift in Sources */,
 				BFC1DA993F263738151D92B3 /* GRPCLibraryClient.swift in Sources */,
@@ -4330,6 +4337,7 @@
 				14488512503266FB0637A265 /* FontControlTests.swift in Sources */,
 				C3CDB4C44BA1C17750C242F7 /* FontFamilyPickerTests.swift in Sources */,
 				557E5DEEA22276E10CBDE9BE /* FontFixture.swift in Sources */,
+				4852F36278FCFCF3BF9C691E /* ForeignFileOpeningTests.swift in Sources */,
 				582ED36651A50BAF24CDC253 /* FreeformToolTests.swift in Sources */,
 				EC7D3662790EDEBD7A40A61C /* GradientEditorTests.swift in Sources */,
 				38F3A733599B793E1B0F860C /* GradientSwatchPanelTests.swift in Sources */,

@@ -1,3 +1,4 @@
+import Foundation
 import WTCRDT
 import WTGeometry
 import WTProto
@@ -75,9 +76,43 @@ public enum TextWrapping {
     }
 
     static func wraps(for text: OpID, in state: EngineState) -> [(node: OpID, wrap: Wiretuner_Doc_V1_TextWrap)] {
+        if let pass { return pass.wraps(for: text, in: state) }
         let order = AttributeQuery.candidates(.document, in: state)
         guard let index = order.firstIndex(of: text) else { return [] }
         return order[(index + 1)...].compactMap { node in wrap(of: node, in: state).map { (node, $0) } }
+    }
+
+    /// One pass of the display list builder over one state (IO-040: an opened PDF of thousands of
+    /// text runs laid every block out against a fresh walk of the whole document, minutes of
+    /// sorting): the stacking order and the wrapping objects are read once, on the first block
+    /// that asks, and every block of the pass answers from them.  Only valid while the state does
+    /// not change, which a build guarantees.
+    @TaskLocal static var pass: Pass?
+
+    /// The pass's cached order (`Pass`), shared by the blocks of one build.
+    final class Pass: @unchecked Sendable {
+        private let lock = NSLock()
+        private var index: [OpID: Int]?
+        private var wrapping: [(position: Int, node: OpID, wrap: Wiretuner_Doc_V1_TextWrap)] = []
+
+        func wraps(for text: OpID, in state: EngineState) -> [(node: OpID, wrap: Wiretuner_Doc_V1_TextWrap)] {
+            lock.lock()
+            defer { lock.unlock() }
+            if index == nil {
+                let order = AttributeQuery.candidates(.document, in: state)
+                var positions: [OpID: Int] = [:]
+                for (position, node) in order.enumerated() where positions[node] == nil { positions[node] = position }
+                index = positions
+                wrapping = order.enumerated().compactMap { position, node in TextWrapping.wrap(of: node, in: state).map { (position, node, $0) } }
+            }
+            guard let position = index?[text] else { return [] }
+            return wrapping.filter { $0.position > position }.map { ($0.node, $0.wrap) }
+        }
+    }
+
+    /// `body` with one wrap pass over its state.
+    static func withPass<T>(_ body: () throws -> T) rethrows -> T {
+        try $pass.withValue(Pass(), operation: body)
     }
 
     /// The exclusions of text node `text`: each wrapping object's outline in its own space (a

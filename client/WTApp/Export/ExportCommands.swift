@@ -50,31 +50,15 @@ enum ExportCommands {
 
 extension AppDelegate {
     /// The export commands and the glue between the export, package and import controllers:
-    /// the blob cache, the account, and a PDF or EPS without a package opening through the
-    /// importer as a new document.
+    /// the blob cache and the account.
     func installExports() {
         let documents = documents!
         let imports = imports
-        let packages = packages
         let account = account
         exports.blobs = imports.blobs
         exports.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
         // Exports lay text out with the document's own engine, as the canvas does.
         exports.configureBuilder = { builder, document in builder.textLayout = TextSceneLayout(engine: document.textEngine) }
-        packages.importAsDocument = { url in await ExportCommands.importAsDocument(url, packages: packages, imports: imports, documents: documents) }
         ExportCommands.install(into: commands, hooks: ExportCommands.hooks(exports: exports) { documents.activeWindowController })
-    }
-}
-
-extension ExportCommands {
-    /// A file with no embedded package opened as a new document named after it, the file
-    /// imported into it at the centre of its view; nil when no document could be made.
-    @MainActor
-    static func importAsDocument(_ url: URL, packages: PackageController, imports: ImportController, documents: DocumentController,
-                                 show: Bool = true) async -> DocumentHandle? {
-        guard let document = packages.createDocument(url.deletingPathExtension().lastPathComponent) else { return nil }
-        let window = documents.open(document, show: show)
-        _ = await imports.place([url], on: window, at: nil)
-        return document
     }
 }

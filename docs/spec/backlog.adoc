@@ -844,6 +844,18 @@ Done when::
 * Signing in afterwards creates the documents in the personal space and uploads their changes (fake server).
 
 
+[[IO-040]]
+==== IO-040 Open foreign files as documents
+[horizontal]
+Track:: import-export
+Depends on:: IMG-008, IMG-009, IMG-010, IMG-011, IO-028, DOC-019, APP-012
+Size:: M
+Delivers:: xref:decisions.adoc#D-082[D-082]: menu:File[Open File…] (formerly *Open Package…*), the Library's btn:[Open File…] and file drop, the Finder, *Open With* and the Dock open `.ai`, `.pdf`, `.svg`/`.svgz`, `.eps` and `.dxf` files -- and `.fh*` once the FreeHand importer registers -- as new Library documents named after the file, the original never touched; the importer registration interface (`Importer.opensAsDocument`, `Importer.document`, `ImportRegistry.documentFormats`) and `ImportedDocument` (pages, layers, notes); `CreateDocument(.imported(DocumentImport))` writing pages at the file's sizes (PDF pages, Illustrator artboards), the file's layers as document layers, the template, as a first change that is not an undo step, split at 10,000 ops; `CFBundleDocumentTypes` (Viewer, Alternate) and the DXF imported type; the open report alert; menu:File[Import…] unchanged (xref:creating-opening.adoc#opening-other-file-types[creating-opening.adoc], xref:import-formats.adoc[], xref:importing.adoc[]).
+Done when::
+* Opening an Illustrator, PDF, SVG, EPS and DXF fixture through the app's open path makes one new document each, in the Library and Open Recent, titled after the file, with the file's pages and layers; the file's bytes and modification date are unchanged.
+* A Finder open of each extension routes to the opener; a PNG does not open and says to use Import….
+* With `WT_EXTERNAL_CORPUS` set, every `.ai`, `.eps` and `.pdf` under it opens, and the run writes a report (outside the repository) of successes, failures by cause, times, page, layer and object counts, notes and a page-1 pixel difference against Quartz; unset, the test is skipped.
+
 Agents work in waves; a wave's tasks depend only on earlier waves.
 
 [cols="1,4"]
@@ -875,7 +887,7 @@ Agents work in waves; a wave's tasks depend only on earlier waves.
 |The reachability follow-ups: DRAW-060, DRAW-061, OBJ-060, IMG-060, COLLAB-060, TYPE-060, PRINT-060
 
 |8
-|Found in use: DRAW-062, APP-012
+|Found in use: DRAW-062, APP-012, IO-040
 |===
 
 Feature epics list their own tasks on their pages; the xref:index.adoc[table of contents] is
