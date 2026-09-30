@@ -37,7 +37,9 @@ public enum EmbeddedPackage {
             return package
         }
         var data = Data()
-        let writer = ZipWriter { data.append($0) }
+        // The package's own stamp, not the clock's: the same package always embeds as the same bytes.
+        let stamp = zip.entries.first.flatMap { zip.stamp(of: $0) } ?? ZipWriter.dosTimestamp(Date())
+        let writer = ZipWriter(stamp: stamp) { data.append($0) }
         do {
             for entry in zip.entries where entry.name != PackageEntry.thumbnail && entry.name != PackageEntry.preview {
                 try writer.add(entry.name, data: zip.contents(of: entry), method: entry.method == ZipMethod.stored.rawValue ? .stored : .deflate)

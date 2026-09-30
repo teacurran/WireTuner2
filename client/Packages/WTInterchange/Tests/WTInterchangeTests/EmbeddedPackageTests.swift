@@ -101,6 +101,21 @@ import WTRender
         #expect(EmbeddedPackage.slimmed(Data("not a zip".utf8)) == Data("not a zip".utf8))
     }
 
+    @Test func slimmingKeepsThePackagesStampSoTheBytesDoNotDependOnTheClock() throws {
+        // A package stamped in 1999: slimmed now, its entries still carry 1999.
+        var data = Data()
+        let old = ZipWriter(date: Date(timeIntervalSince1970: 915_148_800)) { data.append($0) }
+        try old.add("manifest.json", data: Data("{}".utf8))
+        try old.add(PackageEntry.thumbnail, data: Data([1, 2, 3]))
+        try old.finish()
+        let slimmed = EmbeddedPackage.slimmed(data)
+        let zip = try ZipReader(data: slimmed)
+        #expect(zip.names == ["manifest.json"])
+        let original = try ZipReader(data: data)
+        #expect(zip.stamp(of: zip.entries[0])! == original.stamp(of: original.entries[0])!)
+        #expect(EmbeddedPackage.slimmed(data) == slimmed)
+    }
+
     // MARK: EPS
 
     @Test func epsCarriesThePackageAsCommentsAndReopensIt() throws {

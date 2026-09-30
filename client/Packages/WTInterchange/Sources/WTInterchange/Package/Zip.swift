@@ -64,11 +64,16 @@ public final class ZipWriter {
 
     /// A writer that hands each written chunk to `sink` (a file handle's `write`, or an append
     /// to a buffer).  `date` stamps every entry.
-    public init(date: Date = Date(), sink: @escaping (Data) throws -> Void) {
+    public convenience init(date: Date = Date(), sink: @escaping (Data) throws -> Void) {
+        self.init(stamp: ZipWriter.dosTimestamp(date), sink: sink)
+    }
+
+    /// A writer that stamps every entry with an MS-DOS `stamp` as read from another archive, so a
+    /// rewritten archive keeps the original's bytes where its entries do.
+    init(stamp: (time: UInt16, date: UInt16), sink: @escaping (Data) throws -> Void) {
         self.sink = sink
-        let stamp = ZipWriter.dosTimestamp(date)
         time = stamp.time
-        self.date = stamp.date
+        date = stamp.date
     }
 
     /// Adds an entry.  Deflate is used only when it makes the entry smaller.
@@ -193,6 +198,13 @@ public struct ZipReader: Sendable {
 
     /// The names of every entry.
     public var names: [String] { entries.map(\.name) }
+
+    /// The MS-DOS modification time and date in `entry`'s local header.
+    func stamp(of entry: Entry) -> (time: UInt16, date: UInt16)? {
+        let header = entry.headerOffset
+        guard header + 30 <= data.count, read32(data, header) == 0x0403_4B50 else { return nil }
+        return (read16(data, header + 10), read16(data, header + 12))
+    }
 
     /// The uncompressed bytes of `name`, CRC-checked.
     public func contents(of name: String) throws -> Data {
