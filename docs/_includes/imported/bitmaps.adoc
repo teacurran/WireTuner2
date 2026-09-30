@@ -346,6 +346,18 @@ The memory cache is a byte-budgeted LRU (512 MiB default) keyed by hash, level a
 twenty-50 MP and 200 MP budgets are not measured (a 16 MP JPEG pyramid takes 1.2 s in a debug
 build); the reference renders cover a representative subset of mode × alpha × transparent × tint
 rather than every combination.
++
+NOTE: As built by IMG-004's export half (`WTInterchange/Flatten/Flattener.swift`, `flattenImage`).  The
+PDF, SVG, EPS and DXF exporters draw an image as the canvas does: the pixels go through the item's
+`ImageItem.treatment` (now public) with the standard colour management -- ramp, tint and
+*Transparent* on bilevel and grayscale images, alpha dropped when not shown -- and a cropped image
+is its whole natural frame inside a clipping group of `visibleRect`, so a placed JPEG keeps its own
+bytes while untreated (a treated one is written as pixels); a missing image's placeholder covers
+the visible frame.  Before this the exports ignored the crop and every treatment
+(`FlattenerTests.imagesKeepTheirCropAndTreatment`, `PDFTests.aCroppedTintedImageExportsAsTheCanvasDrawsIt`).
+Not built: the 100 MP pan budget test (the pyramid and tile-level choice are tested, not timed on
+an M1), and the effective source profile is not attached to exported image pixels (the canvas
+tags untreated pixels with it).
 * Undo: each Object panel edit is one change; kbd:[Option]-drag resizing is one change per
   drag with the coalescing rule from APP-011.
 * `Image Info…` is an `NSPopover` with a SwiftUI form; history attribution comes from the

@@ -1,0 +1,126 @@
+# crdt-conformance/vectors/document/every-page-removed.textproto (DOC-002; schema: crdt-conformance/schema/vector.proto; recorded by WTModel's DocumentSetupVectorTests)
+name: "document/every-page-removed"
+description: "Of two pages, replica 1 removes the first and replica 2 the second.  No live page is left under the pages root; the document reads as one synthesized Letter page at the origin (PageList) and writes nothing until a command touches it."
+setup {
+  change {
+    replica: 7
+    seq: 1
+    start_counter: 1
+    wall_time_ms: 1000000000
+    label: "Change bleed"
+    ops {
+      create {
+        parent {
+          counter: 2
+        }
+        position: "\200\350\321"
+        props {
+          page {
+            origin {
+            }
+            geometry {
+              preset: "Letter"
+              width: 612.0
+              height: 792.0
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+    ops {
+      set {
+        node {
+          counter: 1
+          replica: 7
+        }
+        paths {
+          segments {
+            field: 3
+          }
+          segments {
+            field: 4
+          }
+        }
+        values {
+          page {
+          }
+        }
+      }
+    }
+  }
+  change {
+    replica: 7
+    seq: 2
+    start_counter: 3
+    wall_time_ms: 1000000000
+    label: "Add page"
+    ops {
+      create {
+        parent {
+          counter: 2
+        }
+        position: "\2018\270"
+        props {
+          page {
+            origin {
+              x: 684.0
+            }
+            geometry {
+              preset: "Letter"
+              width: 612.0
+              height: 792.0
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1
+    seq: 1
+    start_counter: 4
+    base_server_seq: 1
+    wall_time_ms: 1000000000
+    label: "Remove page"
+    ops {
+      set_deleted {
+        node {
+          counter: 1
+          replica: 7
+        }
+        deleted: true
+      }
+    }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2
+    seq: 1
+    start_counter: 4
+    base_server_seq: 1
+    wall_time_ms: 1000000000
+    label: "Remove page"
+    ops {
+      set_deleted {
+        node {
+          counter: 3
+          replica: 7
+        }
+        deleted: true
+      }
+    }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "dc8018c57808db1540a91c1db4f91d5c9e9102b388cbb333e9efdeb3cbe609d2"
+  snapshot_hash: "fd2a641fc6c87c4c7bf2b70be06724025811d6705c28b6dccb69460eff89e08a"
+}

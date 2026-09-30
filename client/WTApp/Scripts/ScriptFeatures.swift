@@ -209,12 +209,38 @@ final class WindowScriptHost: ScriptHost, @unchecked Sendable {
 
     func ui(_ call: String, _ arguments: [Any]) throws -> Any? {
         let arguments = ScriptArguments(arguments)
-        let box = Mutex<Result<ScriptArguments, ScriptCallUnavailable>?>(nil)
-        let done = DispatchSemaphore(value: 0)
         let presenter = presenter
+        return try blocking {
+            guard let answer = await presenter.handle(call, arguments.values) else { throw ScriptCallUnavailable(call: "wt.ui.\(call)") }
+            return answer
+        }
+    }
+
+    /// `wt.document.export(options)`: the window's export (ScriptUI.export).
+    func export(_ options: [String: Any]) throws -> Any? {
+        let options = ScriptArguments([options])
+        let presenter = presenter
+        return try blocking { try await presenter.export(options.values[0] as? [String: Any] ?? [:]) }
+    }
+
+    /// `wt.document.print(preset)`: the window's print (ScriptUI.print).
+    func print(_ preset: String?) throws -> Any? {
+        let presenter = presenter
+        return try blocking { try presenter.print(preset) }
+    }
+
+    /// Blocks the script's thread while `work` runs on the main actor; its answer (`NSNull` is
+    /// JavaScript's null) or its error, which the script sees thrown.
+    private func blocking(_ work: @escaping @MainActor () async throws -> Any) throws -> Any? {
+        let box = Mutex<Result<ScriptArguments, any Error>?>(nil)
+        let done = DispatchSemaphore(value: 0)
         Task { @MainActor in
-            let answer = await presenter.handle(call, arguments.values)
-            box.withLock { $0 = answer.map { .success(ScriptArguments([$0])) } ?? .failure(ScriptCallUnavailable(call: "wt.ui.\(call)")) }
+            do {
+                let answer = try await work()
+                box.withLock { $0 = .success(ScriptArguments([answer])) }
+            } catch {
+                box.withLock { $0 = .failure(error) }
+            }
             done.signal()
         }
         done.wait()
@@ -239,4 +265,11 @@ struct ScriptArguments: @unchecked Sendable {
 struct ScriptCallUnavailable: Error, Hashable, CustomStringConvertible {
     let call: String
     var description: String { "\(call) is not available" }
+}
+
+/// A window call that could not be carried out; the script sees `message` thrown.
+struct ScriptCallFailed: Error, Hashable, CustomStringConvertible {
+    let message: String
+    init(_ message: String) { self.message = message }
+    var description: String { message }
 }

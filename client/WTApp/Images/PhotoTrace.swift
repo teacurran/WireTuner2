@@ -18,6 +18,12 @@ enum PhotoTrace {
     /// The class model, when the build carries one (none is bundled yet).
     static var mapper: (any Trace.ClassMapping)? = CoreMLClassMapper.bundled()
 
+    /// What the options sheet says under *Tracer* when *Photo* is chosen and the build carries no
+    /// class model (tracing.adoc: "the options sheet says so"); nil with a model.
+    static var fallbackNote: String? {
+        mapper == nil ? "This copy of WireTuner has no scene model, so Photo divides the picture into the subject and the background." : nil
+    }
+
     static func title(_ tracer: Trace.Tracer) -> String {
         switch tracer {
         case .classic: "Classic"

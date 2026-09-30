@@ -173,6 +173,21 @@ before it, and keeps its slice).  The export side still writes
 plain runs (`ExportSnapshot.story`, IO-030); pointing it at `TextAttributeMapping.story` makes
 export use the table too.  The import cursor, the Finder drop and paste are client-ui work
 (TYPE-009).
+
+NOTE: As built by TYPE-008's app half (`WTApp/Import/TextFileImport.swift`, hooks in `ImportController`).
+menu:File[Import…] offers `.rtf`, `.rtfd`, `.txt` and `.md`; the chosen text files wait under the
+import pointer with the other files, and a click places an auto-expanding block at that point, a drag
+a fixed-size block of that frame (`ImportController.textFrame`); a Finder drop is a click at the drop
+point (several files step by the *Keep both offset*), and files placed without a point start at the
+centre of the view.  The file is read off the main actor, an RTFD's pictures are stored as blobs
+before the change, and `ImportText` places the block ("Import text"), selected; the import summary is
+the block's note and is shown in the status bar, and a file that cannot be read is named in the
+import alert.  The Import panel's accessory names the selected text format and, for plain text and
+Markdown, has the *Encoding* pop-up (*Automatic*, UTF-8, UTF-16, Mac Roman, Windows-1252, ISO Latin
+1, Shift JIS), remembered in this Mac's defaults (`import.text.encoding`) -- an app-hosted test
+(`TextFileImportTests`) covers it, not a UI test.  Plain text takes the document's default text
+attributes (the text tool's pending format is not consulted).  Not built: the notes for approximated
+custom tab leaders, underline geometry and outline text (the reader maps them silently).
 NOTE: As built by TYPE-009 (`WTModel/TextPaste.swift`, `WTApp/Text/TextPasting.swift`, the Text tool's
 session).  `TextClip` is text as the Text tool pastes it: a WireTuner copy (`TextClip(copying:of:in:)`,
 the selected characters with every winning mark, each newline's paragraph properties and the inline

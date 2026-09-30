@@ -165,7 +165,7 @@ final class ImportController {
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = registry.acceptedTypes + [StyleTransferModel.libraryType, SymbolTransferFeatures.libraryType]
+        panel.allowedContentTypes = registry.acceptedTypes + [StyleTransferModel.libraryType, SymbolTransferFeatures.libraryType] + Self.textFileTypes
         let accessory = ImportPanelAccessoryModel(importer: self)
         accessory.window = { [weak panel] in panel }
         panel.delegate = accessory
@@ -225,7 +225,9 @@ final class ImportController {
     func drop(_ urls: [URL], on window: DocumentWindowController, at point: Point) -> Bool {
         let libraries = urls.filter { Self.libraryExtensions.contains($0.pathExtension.lowercased()) }
         let rest = routingLibraryFiles(urls)
-        guard rest.contains(where: { ImportFormat(fileExtension: $0.pathExtension) != nil }) else { return !libraries.isEmpty && rest.count < urls.count }
+        guard rest.contains(where: { ImportFormat(fileExtension: $0.pathExtension) != nil || Self.isTextFile($0) }) else {
+            return !libraries.isEmpty && rest.count < urls.count
+        }
         Task { await place(rest, on: window, at: point) }
         return true
     }
@@ -238,27 +240,38 @@ final class ImportController {
     @discardableResult
     func place(_ urls: [URL], on window: DocumentWindowController, at point: Point?) async -> ImportOutcome {
         let step = context.keepBothOffset
-        return await place(urls, on: window) { index, scene in
+        return await place(urls, on: window, placement: { index, scene in
             let offset = Double(index) * step
             return .at(point.map { Point(x: $0.x + offset, y: $0.y + offset) }
                 ?? Self.centred(scene.bounds, in: window.objectEditing.visibleCenter() ?? Point(x: 0, y: 0), offset: offset))
-        }
+        }, text: { index in
+            // A text file has no size until it is laid out: its block starts at the point.
+            let offset = Double(index) * step
+            let origin = point ?? window.objectEditing.visibleCenter() ?? Point(x: 0, y: 0)
+            return .point(Point(x: origin.x + offset, y: origin.y + offset))
+        })
     }
 
     /// Imports `url` into `window`'s document at `placement` (the import pointer's click or
     /// marquee).
     @discardableResult
     func place(_ url: URL, on window: DocumentWindowController, placement: ImportPlacement) async -> ImportOutcome {
-        await place([url], on: window) { _, _ in placement }
+        await place([url], on: window, placement: { _, _ in placement }, text: { _ in Self.textFrame(placement) })
     }
 
-    /// Imports `urls` in order, each where `placement` says for its index and scene.
-    private func place(_ urls: [URL], on window: DocumentWindowController, placement: (Int, ImportedScene) -> ImportPlacement) async -> ImportOutcome {
+    /// Imports `urls` in order, each where `placement` says for its index and scene (a text file,
+    /// as a block where `text` says for its index).
+    private func place(_ urls: [URL], on window: DocumentWindowController, placement: (Int, ImportedScene) -> ImportPlacement,
+                       text: (Int) -> CreateTextBlock.Frame) async -> ImportOutcome {
         var outcome = ImportOutcome()
         let context = context
         // One answer to *Ask* covers every image of the import.
         var profiles: EmbeddedProfilePolicy?
         for (index, url) in urls.enumerated() {
+            if Self.isTextFile(url) {
+                await placeText(url, on: window, frame: text(index), into: &outcome)
+                continue
+            }
             do {
                 let scene = try await convert(url, context: context)
                 let policy = await embeddedProfilePolicy(for: scene, window: window.window, answered: &profiles)
@@ -414,6 +427,8 @@ final class ImportPanelAccessoryModel: NSObject, NSOpenSavePanelDelegate {
     /// The panel the options sheet goes on.
     @ObservationIgnored var window: @MainActor () -> NSWindow? = { nil }
     private(set) var format: ImportFormat?
+    /// The selected file's text format (TYPE-008): the *Encoding* pop-up shows for plain text.
+    private(set) var textFormat: TextFileFormat?
     private(set) var hasOptions = false
     private(set) var sheet: NSWindow?
 
@@ -424,6 +439,7 @@ final class ImportPanelAccessoryModel: NSObject, NSOpenSavePanelDelegate {
     /// The panel's selection changed to `url`.
     func select(_ url: URL?) {
         format = url.flatMap { ImportFormat(fileExtension: $0.pathExtension) }
+        textFormat = url.flatMap { TextFileFormat(pathExtension: $0.pathExtension) }
         hasOptions = format.flatMap { importer?.optionsModel(for: $0) } != nil
     }
 
@@ -437,7 +453,13 @@ final class ImportPanelAccessoryModel: NSObject, NSOpenSavePanelDelegate {
         sheet = ImportOptionsSheet.present(model, on: window) { [weak self] _ in self?.sheet = nil }
     }
 
-    var summary: String { format.map { $0.displayName } ?? "No file selected" }
+    var summary: String { format.map { $0.displayName } ?? textFormat?.displayName ?? "No file selected" }
+
+    /// The *Encoding* pop-up's choice (an index into `ImportController.textEncodings`).
+    var textEncoding: Int {
+        get { importer?.textEncodingChoice ?? 0 }
+        set { importer?.textEncodingChoice = newValue }
+    }
 }
 
 /// The accessory's view.
@@ -448,6 +470,13 @@ struct ImportPanelAccessory: View {
         HStack {
             Text(model.summary).accessibilityIdentifier("import.format")
             Spacer()
+            if model.textFormat?.isPlain == true {
+                Picker("Encoding", selection: Binding(get: { model.textEncoding }, set: { model.textEncoding = $0 })) {
+                    ForEach(ImportController.textEncodings.indices, id: \.self) { Text(ImportController.textEncodings[$0].name).tag($0) }
+                }
+                .fixedSize()
+                .accessibilityIdentifier("import.encoding")
+            }
             Button("Options…", action: model.showOptions)
                 .disabled(!model.hasOptions)
                 .accessibilityIdentifier("import.options")

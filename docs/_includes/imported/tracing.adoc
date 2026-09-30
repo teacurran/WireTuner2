@@ -311,7 +311,12 @@ NOTE: As built by IMG-029's app half (`WTApp/Images/PhotoTrace.swift`, `TraceToo
 *Tracer* (*Classic*, *Photo*), kept with the other trace options (`TraceSettings.tracerName`; settings saved before it read as
 *Classic*).  *Photo* runs `Trace.tracePhoto` over the sampled pixels with `VisionSubjectSegmenter` and `CoreMLClassMapper.bundled()`
 and places one group ("Trace of …") holding one sub-group per region that traced to something, named after the region, largest
-first; a single region's paths go straight into the group.  The tracer is not yet a Preferences row.
+first; a single region's paths go straight into the group.  The tracer is not yet a Preferences row (it is kept
+in the `trace.options` preferences entry, as the data model says).  With *Photo* chosen and no class model in the
+build (`PhotoTrace.fallbackNote`, as now: none is bundled) the sheet says under *Tracer* that *Photo* divides the
+picture into the subject and the background.  Not built: a sandbox audit test of "no network calls" (the trace
+code has no networking, but the app holds the network client entitlement for sync, so the sandbox alone does not
+prove it).
 
 === Build tasks
 

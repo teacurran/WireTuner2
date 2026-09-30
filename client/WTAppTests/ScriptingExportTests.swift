@@ -67,5 +67,61 @@ extension ScriptingSurfaces {
             }
             #expect(await ScriptingHost.exporting(through: world.controller) { _ in nil }(handle, .svg, folder.appending(path: "x.svg")) == "The document has no window")
         }
+
+        /// DATA-011: `wt.document.export` writes the menu export's bytes (a save panel's file, or
+        /// a `wt.ui.saveFile` writer's) and `print` goes to the print path; failures throw in the
+        /// script.
+        @Test func aScriptsExportWritesTheMenuExportsBytesAndPrintGoesToThePrintPath() async throws {
+            let world = ExportWorld()
+            defer { world.close() }
+            world.controller.registry = ExportRegistry.standard
+            _ = await world.threePages()
+            let window = world.window
+            var settings = ExportSettings()
+            settings.format = .svg
+            world.saveName = "menu.svg"
+            guard case .exported? = await world.controller.present(settings, for: window) else {
+                Issue.record("menu export")
+                return
+            }
+            let menu = try Data(contentsOf: world.output.appending(path: "menu.svg"))
+            let ui = ScriptUI(window: window, data: nil)
+            ui.exportDocument = ScriptingHost.exporting(through: world.controller) { _ in window }
+            var saves: [String] = []
+            var answers = [world.output.appending(path: "panel.svg"), world.output.appending(path: "writer.svg")]
+            ui.chooseSave = { panel, _ in
+                saves.append(panel.nameFieldStringValue)
+                return answers.isEmpty ? nil : answers.removeFirst()
+            }
+            var printed: [(String?, String)] = []
+            ui.printDocument = { _, preset, label in
+                printed.append((preset, label))
+                return preset == "Missing" ? "There is no print preset “Missing”" : nil
+            }
+            let host = WindowScriptHost(ui: ui)
+            let target = DocumentScriptTarget(try #require(world.document.model), name: world.document.title)
+            let result = await ScriptRunner().runDetached("""
+            console.log(wt.document.export({ format: "svg" }));
+            const writer = wt.ui.saveFile({ suggestedName: "chosen.svg" });
+            console.log(wt.document.export({ format: "SVG", to: writer }));
+            console.log(wt.document.export({ format: "pdf", fileName: "Proof.pdf" }));
+            console.log(wt.document.print("Proof"), wt.document.print());
+            for (const bad of [{ format: "bogus" }, { to: { write: function () {} } }]) {
+              try { wt.document.export(bad); } catch (error) { console.log(String(error.message || error)); }
+            }
+            try { wt.document.print("Missing"); } catch (error) { console.log(String(error.message || error)); }
+            """, name: "Export", target: target, host: host)
+            #expect(result.error == nil, "\(String(describing: result.error))")
+            #expect(result.console.map(\.text) == ["true", "true", "false", "true true", "Unknown export format “bogus”",
+                                                  "wt.document.export: “to” must be a writer from wt.ui.saveFile", "There is no print preset “Missing”"])
+            #expect(saves == ["\(world.document.title).svg", "chosen.svg", "Proof.pdf"], "the save panel names the file; the last is cancelled")
+            #expect(try Data(contentsOf: world.output.appending(path: "panel.svg")) == menu, "the menu export's bytes")
+            #expect(try Data(contentsOf: world.output.appending(path: "writer.svg")) == menu)
+            #expect(printed.map(\.0) == ["Proof", nil, "Missing"] && printed.allSatisfy { $0.1 == "Script: apply print preset" })
+            // Without the window both refuse.
+            let orphan = ScriptUI(window: nil, data: nil)
+            await #expect(throws: ScriptCallFailed("wt.document.export needs the document's window")) { _ = try await orphan.export([:]) }
+            #expect(throws: ScriptCallFailed("wt.document.print needs the document's window")) { _ = try orphan.print(nil) }
+        }
     }
 }

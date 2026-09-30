@@ -53,7 +53,10 @@ import WTRender
             default: return nil
             }
         }
-        func export(_ options: [String: Any]) throws -> Any? { calls.append("export:\(options["format"] ?? "")"); return "done" }
+        func export(_ options: [String: Any]) throws -> Any? {
+            calls.append("export:\(options["format"] ?? "")" + (options["to"].map { ">\($0)" } ?? ""))
+            return "done"
+        }
         func print(_ preset: String?) throws -> Any? { calls.append("print:\(preset ?? "-")"); return nil }
         func progress(_ fraction: Double, _ text: String) -> Bool {
             updates += 1
@@ -212,6 +215,27 @@ import WTRender
         let before = TextNode(target.current.state.liveChildren(LayerOrder(target.current.state).layers[0].id).first { TextNode($0, in: target.current.state) != nil }!, in: target.current.state)!
         #expect(before.string == "Replaced text")
         #expect(target.selection.count == 2)
+    }
+
+    @Test func eachSetIsOneUndoStep() throws {
+        // DATA-011: outside a transaction every property set is its own change and undo step.
+        let target = try Self.target()
+        let (result, _) = try Self.run("""
+        const box = wt.document.createRectangle({ x: 0 });
+        box.name = "first";
+        box.name = "second";
+        box.notes = "noted";
+        """, target: target)
+        #expect(result.error == nil, "\(String(describing: result.error))")
+        func box() -> Wiretuner_Doc_V1_CommonProps {
+            let state = target.current.state
+            return state.props(state.liveChildren(LayerOrder(state).layers[0].id).last!).rect.common
+        }
+        #expect(box().name == "second" && box().note == "noted")
+        target.undo()
+        #expect(box().name == "second" && box().note.isEmpty, "the notes set alone")
+        target.undo()
+        #expect(box().name == "first")
     }
 
     @Test func transactionsBatchIntoChangesOfTenThousandOpsAndOneUndoStep() throws {
@@ -392,18 +416,24 @@ import WTRender
         console.log(JSON.stringify(wt.records.all()), JSON.stringify(wt.records.current()), wt.records.fields.length);
         console.log(wt.ui.confirm("?"), wt.ui.prompt("?", "d"), wt.ui.choose("?", ["A", "B"]), wt.ui.openFile({ types: ["txt"] }));
         wt.ui.alert("hi");
-        wt.ui.saveFile({ suggestedName: "a.txt" }).write("data");
+        const writer = wt.ui.saveFile({ suggestedName: "a.txt" });
+        writer.write("data");
         const p = wt.ui.progress("Working");
         p.update(0.5, "half");
         p.update(1);
         p.done();
         console.log(wt.document.export({ format: "pdf" }), wt.document.print("Proof"), wt.document.print(), wt.records.merge({ to: "pdf" }));
+        // A writer from saveFile reaches the host as its token, anything else as "".
+        wt.document.export({ format: "svg", to: writer });
+        wt.document.export({ to: { write: function () {} } });
+        wt.document.export();
         console.log(JSON.stringify(wt.document.dataSources.map(function (s) { return s.name + ":" + s.kind + ":" + s.connected; })));
         """, name: "UI", target: target, host: host, records: records, current: 1)
         #expect(result.error == nil, "\(String(describing: result.error))")
         #expect(result.console[0].text == #"[{"name":"Ada"},{"name":"Bo"}] {"name":"Bo"} 1"#)
         #expect(result.console[1].text == "true typed B file contents")
-        #expect(host.calls == ["confirm", "prompt", "choose", "openFile", "alert", "saveFile", "write", "progress", "progressDone", "export:pdf", "print:Proof", "print:-", "merge"])
+        #expect(host.calls == ["confirm", "prompt", "choose", "openFile", "alert", "saveFile", "write", "progress", "progressDone", "export:pdf", "print:Proof", "print:-", "merge",
+                              "export:svg>token-1", "export:>", "export:"])
         #expect(result.console.last?.text == #"["People:pasted:true"]"# && host.updates == 2)
         let empty = ScriptRunner(limits: Self.quick).run("console.log(JSON.stringify(wt.records.all()), wt.records.current()); wt.ui.saveFile()", name: "E", target: target, host: HeadlessDenied())
         #expect(empty.console.first?.text == "[] null")

@@ -1,0 +1,176 @@
+# crdt-conformance/vectors/document/master-delete-vs-apply.textproto (DOC-010; schema: crdt-conformance/schema/vector.proto; recorded by WTModel's DocumentSetupVectorTests)
+name: "document/master-delete-vs-apply"
+description: "Replica 1 deletes the A5 master page while replica 2 applies it to the page.  The page's master register keeps the reference to the tombstone, so the page reads as an ordinary Letter page (PageList); restoring the master makes it a child again."
+setup {
+  change {
+    replica: 7
+    seq: 1
+    start_counter: 1
+    wall_time_ms: 1000000000
+    label: "Change bleed"
+    ops {
+      create {
+        parent {
+          counter: 2
+        }
+        position: "\200U\211"
+        props {
+          page {
+            origin {
+            }
+            geometry {
+              preset: "Letter"
+              width: 612.0
+              height: 792.0
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+    ops {
+      set {
+        node {
+          counter: 1
+          replica: 7
+        }
+        paths {
+          segments {
+            field: 3
+          }
+          segments {
+            field: 4
+          }
+        }
+        values {
+          page {
+          }
+        }
+      }
+    }
+  }
+  change {
+    replica: 7
+    seq: 2
+    start_counter: 3
+    wall_time_ms: 1000000000
+    label: "New master page"
+    ops {
+      create {
+        parent {
+          counter: 3
+        }
+        position: "\200\354\230"
+        props {
+          master_page {
+            common {
+              name: "Master 1"
+            }
+            geometry {
+              preset: "Letter"
+              width: 612.0
+              height: 792.0
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+  }
+  change {
+    replica: 7
+    seq: 3
+    start_counter: 4
+    wall_time_ms: 1000000000
+    label: "Change page size"
+    ops {
+      set {
+        node {
+          counter: 3
+          replica: 7
+        }
+        paths {
+          segments {
+            field: 4
+          }
+          segments {
+            field: 2
+          }
+        }
+        values {
+          master_page {
+            geometry {
+              preset: "A5"
+              width: 419.52755905511816
+              height: 595.2755905511812
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1
+    seq: 1
+    start_counter: 5
+    base_server_seq: 1
+    wall_time_ms: 1000000000
+    label: "Delete master page"
+    ops {
+      set_deleted {
+        node {
+          counter: 3
+          replica: 7
+        }
+        deleted: true
+      }
+    }
+  }
+}
+replica {
+  id: 2
+  change {
+    replica: 2
+    seq: 1
+    start_counter: 5
+    base_server_seq: 1
+    wall_time_ms: 1000000000
+    label: "Apply master page"
+    ops {
+      set {
+        node {
+          counter: 1
+          replica: 7
+        }
+        paths {
+          segments {
+            field: 3
+          }
+          segments {
+            field: 5
+          }
+        }
+        values {
+          page {
+            master {
+              id {
+                counter: 3
+                replica: 7
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+deliveries { order: [1, 2] }
+deliveries { order: [2, 1] }
+expect {
+  state_hash: "6932d8e98ba51178e127b81a9c28d1c6c049c748b5e4af3e3452e2d4569435c9"
+  snapshot_hash: "539d0e5e423dc6a0adeefcc0ae493b02ffecb291c21d0561bbe4d4a6068d8134"
+}

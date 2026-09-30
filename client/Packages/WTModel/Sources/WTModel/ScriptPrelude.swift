@@ -91,6 +91,9 @@ enum ScriptPrelude {
       "use strict";
       const host = globalThis.__wt;
       const cache = new Map();
+      // Each wt.ui.saveFile writer's token: wt.document.export({ to: writer }) passes it on, and
+      // the script never sees it (or a path).
+      const writers = new WeakMap();
       const methods = {
         duplicate: function (id) { return function () { return wrap(host.call(id, "duplicate", null)); }; },
         remove: function (id) { return function () { host.call(id, "remove", null); }; },
@@ -164,7 +167,11 @@ enum ScriptPrelude {
         createText: function (options) { return wrap(host.create("text", options || {})); },
         createBarcode: function (options) { return wrap(host.create("barcode", options || {})); },
         placeImage: function () { return wrap(host.create("image", {})); },
-        export: function (options) { return host.exportDocument(options || {}); },
+        export: function (options) {
+          const settings = Object.assign({}, options || {});
+          if (settings.to !== undefined && settings.to !== null) settings.to = writers.get(settings.to) || "";
+          return host.exportDocument(settings);
+        },
         print: function (preset) { return host.printDocument(preset === undefined ? null : String(preset)); }
       };
       const Response = function (raw) {
@@ -198,7 +205,9 @@ enum ScriptPrelude {
         saveFile: function (options) {
           const token = host.ui("saveFile", [options || {}]);
           if (token === null || token === undefined) return null;
-          return { write: function (text) { host.ui("write", [token, String(text)]); } };
+          const writer = { write: function (text) { host.ui("write", [token, String(text)]); } };
+          writers.set(writer, token);
+          return writer;
         },
         progress: progress
       };

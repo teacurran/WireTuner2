@@ -2,6 +2,7 @@ import AppKit
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
+import WTInterchange
 import WTModel
 
 /// The progress sheet of `wt.ui.progress` (title, fraction, text and btn:[Cancel]).
@@ -45,6 +46,11 @@ final class ScriptUI {
     var chooseSave: @MainActor (NSSavePanel, NSWindow?) async -> URL? = { await ModalUI.url($0, on: $1) }
     /// Configures a script's merge before it runs (tests replace its panels and printing).
     var prepareMerge: @MainActor (MergeSheetModel) -> Void = { _ in }
+    /// menu:File[Export…]'s pipeline for `wt.document.export` (ScriptingHost's, replaceable in tests):
+    /// nil when written, else why not.
+    var exportDocument: @MainActor (DocumentHandle, ExportFormat, URL) async -> String? = { await ScriptingHost.shared.export($0, $1, $2) }
+    /// The print path for `wt.document.print` (ScriptingHost's): nil when printed, else why not.
+    var printDocument: @MainActor (DocumentHandle, _ preset: String?, _ label: String) -> String? = { ScriptingHost.shared.print($0, $1, $2) }
     let progress = ScriptProgressModel()
     private(set) var progressSheet: NSWindow?
     private var writers: [String: URL] = [:]
@@ -131,6 +137,39 @@ final class ScriptUI {
         for button in buttons { alert.addButton(withTitle: button) }
         alert.accessoryView = accessory
         return (await runAlert(alert, window?.window), alert)
+    }
+
+    /// `wt.document.export({ format, to, fileName })` (scripting.adoc, "The `wt` API"): the
+    /// document in `format` (a format's name or extension, PDF by default) through menu:File[Export…]'s
+    /// pipeline with the format's default options, to the writer `to` from `wt.ui.saveFile`, else to
+    /// the file chosen in a save panel named `fileName` (the document's name).  True when written,
+    /// false when the panel is cancelled; a failure throws in the script.  No path is returned.
+    func export(_ options: [String: Any]) async throws -> Any {
+        guard let window else { throw ScriptCallFailed("wt.document.export needs the document's window") }
+        let name = options["format"].map { "\($0)" } ?? "pdf"
+        guard let format = WTScriptExportCommand.format(name) else { throw ScriptCallFailed("Unknown export format “\(name)”") }
+        let url: URL
+        if let token = options["to"] {
+            guard let writer = writers["\(token)"] else { throw ScriptCallFailed("wt.document.export: “to” must be a writer from wt.ui.saveFile") }
+            url = writer
+        } else {
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = options["fileName"].map { "\($0)" } ?? "\(window.documentHandle.title).\(format.fileExtension)"
+            if let type = UTType(filenameExtension: format.fileExtension) { panel.allowedContentTypes = [type] }
+            guard let chosen = await chooseSave(panel, window.window) else { return false }
+            url = chosen
+        }
+        if let message = await exportDocument(window.documentHandle, format, url) { throw ScriptCallFailed(message) }
+        return true
+    }
+
+    /// `wt.document.print(preset)`: prints as `print` does in AppleScript -- the named print
+    /// preset's settings written as one change "Script: apply print preset", then the print
+    /// panel.  True when printed; a failure throws in the script.
+    func print(_ preset: String?) throws -> Any {
+        guard let window else { throw ScriptCallFailed("wt.document.print needs the document's window") }
+        if let message = printDocument(window.documentHandle, preset, "Script: apply print preset") { throw ScriptCallFailed(message) }
+        return true
     }
 
     /// `wt.records.merge({ to, records, ... })`: the merge sheet's merge, run from a script.

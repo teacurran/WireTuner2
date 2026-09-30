@@ -433,18 +433,33 @@ final class FlattenRun {
 
     // MARK: Images and text
 
+    /// An image as the renderer draws it (IMG-004): the pixels with the item's treatment (ramp,
+    /// tint and *Transparent* on bilevel and grayscale images, alpha dropped when not shown) --
+    /// a placed JPEG's own bytes only while untreated -- over the natural frame, clipped to the
+    /// crop's visible frame.
     func flattenImage(_ image: ImageItem) -> [FlatNode] {
+        let visible = image.visibleRect
         if let asset = scene.assets[image.assetID] {
-            return [.image(FlatImage(image: asset.image, rect: image.rect, transform: image.transform, jpegData: asset.jpegData))]
+            var pixels = asset.image
+            var jpegData = asset.jpegData
+            let treatment = image.treatment(.standard)
+            if !treatment.isIdentity, let treated = treatment.apply(to: asset.image) {
+                pixels = treated
+                jpegData = nil
+            }
+            let flat = FlatNode.image(FlatImage(image: pixels, rect: image.rect, transform: image.transform, jpegData: jpegData))
+            guard image.effectiveCrop != nil else { return [flat] }
+            return [.group(FlatGroup(children: [flat], clip: FlatClip(path: DisplayPath(rect: visible), transform: image.transform)))]
         }
-        // The placeholder WTRender draws: a light grey block with dark grey diagonals.
+        // The placeholder WTRender draws over the visible frame: a light grey block with dark
+        // grey diagonals.
         var diagonals = DisplayPath()
-        diagonals.move(to: Point(x: image.rect.minX, y: image.rect.minY))
-        diagonals.addLine(to: Point(x: image.rect.maxX, y: image.rect.maxY))
-        diagonals.move(to: Point(x: image.rect.maxX, y: image.rect.minY))
-        diagonals.addLine(to: Point(x: image.rect.minX, y: image.rect.maxY))
+        diagonals.move(to: Point(x: visible.minX, y: visible.minY))
+        diagonals.addLine(to: Point(x: visible.maxX, y: visible.maxY))
+        diagonals.move(to: Point(x: visible.maxX, y: visible.minY))
+        diagonals.addLine(to: Point(x: visible.minX, y: visible.maxY))
         return [
-            .path(FlatPath(path: DisplayPath(rect: image.rect), transform: image.transform, paint: .color(Color(white: 0.75)))),
+            .path(FlatPath(path: DisplayPath(rect: visible), transform: image.transform, paint: .color(Color(white: 0.75)))),
             .path(FlatPath(path: diagonals, transform: image.transform, paint: .color(Color(white: 0.45)), style: .stroke(StrokeStyle(width: 1)))),
         ]
     }

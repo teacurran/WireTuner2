@@ -1,0 +1,87 @@
+# crdt-conformance/vectors/document/printer-resolution-zero.textproto (DOC-002; schema: crdt-conformance/schema/vector.proto; recorded by WTModel's DocumentSetupVectorTests)
+name: "document/printer-resolution-zero"
+description: "Replica 1 writes printer_resolution 0 to the settings node (no command does; an older or foreign client might).  The register holds 0, which reads as 300 dpi (DocumentSettings)."
+setup {
+  change {
+    replica: 7
+    seq: 1
+    start_counter: 1
+    wall_time_ms: 1000000000
+    label: "Change bleed"
+    ops {
+      create {
+        parent {
+          counter: 2
+        }
+        position: "\200\037\264"
+        props {
+          page {
+            origin {
+            }
+            geometry {
+              preset: "Letter"
+              width: 612.0
+              height: 792.0
+              orientation: ORIENTATION_PORTRAIT
+            }
+          }
+        }
+      }
+    }
+    ops {
+      set {
+        node {
+          counter: 1
+          replica: 7
+        }
+        paths {
+          segments {
+            field: 3
+          }
+          segments {
+            field: 4
+          }
+        }
+        values {
+          page {
+          }
+        }
+      }
+    }
+  }
+}
+replica {
+  id: 1
+  change {
+    replica: 1
+    seq: 1
+    start_counter: 3
+    base_server_seq: 1
+    wall_time_ms: 1000000000
+    label: "Printer resolution"
+    ops {
+      set {
+        node {
+          counter: 1
+        }
+        paths {
+          segments {
+            field: 2
+          }
+          segments {
+            field: 3
+          }
+        }
+        values {
+          settings {
+          }
+        }
+      }
+    }
+  }
+}
+deliveries { order: [1] }
+expect {
+  state_hash: "cb4ab9408e90e6b0dca9161b9012195a6d4f6e3599ac3fb6734195233dc103f4"
+  snapshot_hash: "fe83c0e1a93711d8489bf023485e4c3ae36bd768d999dc6fc679c2109f614b33"
+}

@@ -793,7 +793,9 @@ payload's `assets` field is not used; the package travels as a second pasteboard
 `.wtsymbols` file -- the bytes `WTSYMBOLS1\n` followed by the same encoding, asset bytes included
 (`SymbolPackage.fileData`).  `SymbolSources` reads a cached document from its local store (offline) or
 a cloud one at head (newest snapshot and the changes after it), builds a package with the cached asset
-bytes, and stores a file's asset bytes in the blob cache.
+bytes, and stores a file's asset bytes in the blob cache.  The merge test's "no conflict rows" is played as
+a reconnect in `WTSync` (`ImportAndScriptReviewTests.twoPeopleImportingTheSameSymbolListNoConflictRows`: two
+symbols, and the review lists nothing).
 
 NOTE: As built by LIB-013's app half (`WTApp/Library/Symbols/SymbolTransferSheets.swift`).  The Library
 panel's options menu has *Import…* and *Export…*.  *Import…* lists the library's documents and

@@ -300,3 +300,19 @@ import WTRender
         #expect(cmap.contains("100 beginbfchar") && cmap.contains("49 beginbfchar"))
     }
 }
+
+extension PDFTests {
+    @Test func aCroppedTintedImageExportsAsTheCanvasDrawsIt() throws {
+        // IMG-004: the PDF shows the crop only, in the tint, like the canvas.
+        let asset = ExportAsset(image: FlattenerTests.blackGray())
+        let item = ImageItem(assetID: "g", rect: Rect(x: 0, y: 0, width: 80, height: 80), transform: .translation(x: 20, y: 20),
+                             crop: Rect(x: 0.5, y: 0, width: 0.5, height: 1), mode: .grayscale, tint: Corpus.red)
+        let (data, _, _) = try Self.export([Corpus.page([.image(item)])], assets: ["g": asset])
+        let page = Self.rasterize(data, scale: 1)
+        let pixels = Corpus.pixels(page)
+        func pixel(_ x: Int, _ y: Int) -> [UInt8] { Array(pixels.bytes[(y * pixels.width + x) * 4..<(y * pixels.width + x) * 4 + 3]) }
+        #expect(pixel(40, 60) == [255, 255, 255], "the cropped-away half is not drawn: \(pixel(40, 60))")
+        let shown = pixel(80, 60)
+        #expect(shown[0] > 200 && shown[1] < 40 && shown[2] < 40, "the visible half is tinted: \(shown)")
+    }
+}

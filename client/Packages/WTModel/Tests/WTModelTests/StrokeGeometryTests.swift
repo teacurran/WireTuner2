@@ -156,6 +156,14 @@ enum StrokeGeometry {
             let xs = outline.segments.flatMap { s in stride(from: 0.0, through: 1.0, by: 0.05).map { s.evaluate($0).x } }
             #expect(xs.min()! > -0.1, "angle \(angle)")
         }
+        // Both ends flat at their samples with the nib across (the end used to bulge about 1 pt).
+        let across = try #require(CalligraphicOutline.outline(centerline: centerline, samples: CalligraphicOutline.samples(points, bases: [10], nibAngle: 90)))
+        #expect(abs(across.bounds.maxX - 200) < 0.05 && abs(across.bounds.minX) < 0.05, "\(across.bounds)")
+        #expect(abs(across.bounds.minY - 45) < 0.05 && abs(across.bounds.maxY - 55) < 0.05, "\(across.bounds)")
+        // A repeated sample at a cap corner still leaves that corner sharp.
+        let box = CalligraphicOutline.flatEnded(left: [Point(x: 0, y: 45), Point(x: 100, y: 45), Point(x: 100, y: 45)],
+                                                right: [Point(x: 0, y: 55), Point(x: 50, y: 55), Point(x: 100, y: 55)]).bounds
+        #expect(box.minX == 0 && box.maxX == 100 && box.minY == 45 && box.maxY == 55, "\(box)")
         let kinked = StrokeGeometry.line([0, 20, 20, 40], y: 50)
         #expect(CalligraphicOutline.outline(centerline: kinked, samples: CalligraphicOutline.samples(points, bases: [10], nibAngle: 90)) != nil)
         #expect(CalligraphicOutline.outline(centerline: [], samples: []) == nil)

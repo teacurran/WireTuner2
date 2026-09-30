@@ -585,6 +585,10 @@ struct TraceOptionsSheet: View {
                 ForEach(Trace.Tracer.allCases, id: \.self) { Text(PhotoTrace.title($0)).tag($0) }
             }
             .accessibilityIdentifier("trace.tracer")
+            if features.settings.tracer == .photo, let note = PhotoTrace.fallbackNote {
+                Text(note).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("trace.photoNote")
+            }
             Stepper("Colors \(features.settings.colors)", value: $features.settings.colors, in: 2...256)
             Toggle("Grays", isOn: $features.settings.grays)
             Stepper("Noise tolerance \(features.settings.noise)", value: $features.settings.noise, in: 0...20)

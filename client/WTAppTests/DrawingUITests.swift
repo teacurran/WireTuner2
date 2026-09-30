@@ -32,6 +32,23 @@ import WTRender
         }
     }
 
+    @Test func bothEndsAreCutFlatAtTheirSamplesWithTheNibAcross() throws {
+        // The nib across the stroke (full width): the end used to bulge about 1 pt past the last
+        // sample while the start was flat.
+        var settings = CalligraphicSettings()
+        settings.fixedWidth = 10
+        settings.angle = 90
+        let captured = settings
+        let f = Fixture(CalligraphicPen { captured })
+        f.tool.mouseDown(TestEvents.point(0, 50))
+        for x in stride(from: 5.0, through: 200, by: 5) { f.tool.mouseDragged(TestEvents.point(x, 50)) }
+        let bounds = try #require(f.tool.outline()).bounds
+        #expect(abs(bounds.maxX - 200) < 0.05, "end: \(bounds.maxX)")
+        #expect(abs(bounds.minX) < 0.05, "start: \(bounds.minX)")
+        #expect(abs(bounds.minY - 45) < 0.05 && abs(bounds.maxY - 55) < 0.05, "\(bounds)")
+        f.tool.cancel()
+    }
+
     @Test func bracketsChangeAVariableNibAndNotAFixedOne() async throws {
         var variable = CalligraphicSettings()
         variable.variable = true

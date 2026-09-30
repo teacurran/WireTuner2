@@ -428,6 +428,16 @@ than a built-in match; `p6` alone is six points), `format` (picas as `NpM`), `ro
 DOC-005, DOC-014) are the NOTE below; the app reads `PageList(model.state)`, drawing
 `frames()` and exporting `exportPages`.
 
+NOTE: As built later (the conformance half of DOC-002's *Done when*, `crdt-conformance/vectors/document/`, recorded by
+`WTModel` `DocumentSetupVectorTests`).  The deviation above no longer stands: four vectors pin the stored state behind
+each normalization, the changes being exactly what the commands write (a setup by replica 7, then two concurrent
+replicas): `custom-size-remove-vs-use` (a page set to the custom size Card while Card is removed keeps the preset name),
+`custom-unit-remove-vs-choose` (the custom unit choice survives its element's delete), `printer-resolution-zero` (a
+raw write of 0) and `every-page-removed` (two pages removed one each, no live page left).  The read rules themselves
+are asserted on the merged states by `theReadRulesHoldOnTheMergedStates`; `theCommittedVectorsHoldTheseChanges` fails
+when a command's ops change (positions aside, which the commands draw at random) until the vectors are re-recorded
+with `WT_RECORD_VECTORS=1`.  Both runners replay them (`make -C crdt-conformance swift java`).
+
 NOTE: As built by DOC-004 and DOC-005 (`WTApp/Panels/DocumentPanel.swift`, `PasteboardMiniature.swift`,
 `Document/PageSheets.swift`, `Inspector/InspectorField.swift`, `PropertyEditor.swift`).  The
 Document panel replaces the catalog's placeholder: a SwiftUI body over the front window

@@ -228,9 +228,12 @@ more wrapping).  One change "Calligraphic Stroke" (the overlap cleanup in its un
 NOTE: As built by the D-073 follow-up to DRAW-018 and DRAW-019.  The outline geometry is in WTModel
 (`StrokeOutlines.swift`: `ContourPoints`, `VariableStrokeOutline`, `CalligraphicOutline`), public
 and free of AppKit so the iPad app can reuse it; WTApp keeps the pens' event handling, sheets and
-overlays.  Its tests are `StrokeGeometryTests.swift` (WTModel).  Observed while moving it, not
-changed: the Calligraphic outline's fitted end cap can bulge up to about 1 pt past the stroke's last
-sample at full width (the start is flat within 0.1 pt).
+overlays.  Its tests are `StrokeGeometryTests.swift` (WTModel).  The Calligraphic outline's end cap
+used to bulge about 1 pt past the stroke's last sample at full width while the start was flat: the
+fitter's corner test merges adjacent corners into one, so it kept only one corner of the end cap.
+The four cap corners are now passed to the fitter (`CalligraphicOutline.flatEnded`), and both ends
+are flat at their samples within 0.05 pt (`CalligraphicOutlineTests.aStraightStrokeAlongAndAcrossTheNib`,
+`DrawingUITests.bothEndsAreCutFlatAtTheirSamplesWithTheNibAcross`).
 
 === Build tasks
 

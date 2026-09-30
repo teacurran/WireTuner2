@@ -238,6 +238,11 @@ dangling-master read-outs: a `WTModel` read rule, tested in `MasterCommandTests`
 built: master content rendering on children (DOC-011, which changes `DocumentDisplayListBuilder`)
 and the reconcile overlaps (DOC-013).
 
+NOTE: As built later: the dangling-master read-outs have conformance vectors after all
+(`crdt-conformance/vectors/document/master-delete-vs-apply` -- the master deleted while applied, the page keeping a
+reference to the tombstone and reading ordinary -- and `master-names-a-page` -- a raw master reference to an ordinary
+page, which reads unset), recorded from the commands by `WTModel` `DocumentSetupVectorTests` as DOC-002's are.
+
 NOTE: As built by DOC-012, the Document panel controls (`WTApp/Panels/DocumentPanel.swift`, `Tools/PageTool.swift`):
 the *Master Page* pop-up (a master applies to the selected pages, *None* detaches them), the
 Options menu's *New Master Page*, *Convert to Master Page* and *Release Child Page*, the *Add

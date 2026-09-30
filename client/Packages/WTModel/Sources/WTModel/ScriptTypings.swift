@@ -89,8 +89,12 @@ public enum ScriptTypings {
         createBarcode(options?: { x?: number; y?: number; value?: string; kind?: "qr" | "code128"; layer?: string }): WTObject;
         /** Not available in version 1. */
         placeImage(data: unknown, options?: object): WTObject;
-        export(options: object): unknown;
-        print(preset?: string): unknown;
+        /** Exports the document through File > Export's pipeline with the format's default options:
+         *  to `to` (a writer from `wt.ui.saveFile`), else to the file chosen in a save panel.
+         *  True when written, false when the panel is cancelled. */
+        export(options?: { format?: string; to?: { write(text: string): void }; fileName?: string }): boolean;
+        /** Prints with the named print preset (the Print dialog's own), else the document's settings. */
+        print(preset?: string): boolean;
       }
 
       interface Response {

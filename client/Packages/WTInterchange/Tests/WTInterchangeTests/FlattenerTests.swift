@@ -186,6 +186,44 @@ import struct WTRender.StrokeStyle
         if case .image(let image) = flat.nodes[0] { #expect(image.jpegData == Data([1, 2]) && !image.rasterized) } else { Issue.record("expected the asset") }
     }
 
+    /// A 16 × 16 black grayscale image.
+    static func blackGray() -> CGImage {
+        let context = CGContext(data: nil, width: 16, height: 16, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.linearGray)!, bitmapInfo: CGImageAlphaInfo.none.rawValue)!
+        context.setFillColor(gray: 0, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: 16, height: 16))
+        return context.makeImage()!
+    }
+
+    @Test func imagesKeepTheirCropAndTreatment() throws {
+        // IMG-004: what the canvas draws -- the crop clips, a gray image takes its tint -- and a
+        // placed JPEG keeps its bytes only while untreated.
+        let asset = ExportAsset(image: Self.blackGray(), jpegData: Data([1, 2]))
+        let crop = Rect(x: 0.25, y: 0.25, width: 0.5, height: 0.5)
+        let items: [DisplayItem] = [
+            .image(ImageItem(assetID: "a", rect: Rect(x: 0, y: 0, width: 40, height: 40), crop: crop, mode: .grayscale)),
+            .image(ImageItem(assetID: "a", rect: Rect(x: 50, y: 0, width: 40, height: 40), mode: .grayscale, tint: Corpus.red)),
+            .image(ImageItem(assetID: "missing", rect: Rect(x: 100, y: 0, width: 40, height: 40), crop: crop)),
+        ]
+        let page = Corpus.page(items)
+        let flat = Flattener(target: .svg).flatten(page, scene: Corpus.scene([page], assets: ["a": asset])).page
+        guard case .group(let cropped) = flat.nodes[0], let clip = cropped.clip, case .image(let whole) = try #require(cropped.children.first) else {
+            Issue.record("expected a clipped image: \(flat.nodes[0])")
+            return
+        }
+        #expect(clip.path.controlBounds == Rect(x: 10, y: 10, width: 20, height: 20))
+        #expect(whole.rect == Rect(x: 0, y: 0, width: 40, height: 40) && whole.jpegData == Data([1, 2]), "untreated: the JPEG's own bytes")
+        guard case .image(let tinted) = flat.nodes[1] else {
+            Issue.record("expected the tinted image")
+            return
+        }
+        #expect(tinted.jpegData == nil)
+        let pixel = Corpus.pixels(tinted.image).bytes
+        #expect(pixel[0] > 200 && pixel[1] < 40 && pixel[2] < 40, "black takes the tint: \(pixel.prefix(4))")
+        // The missing image's placeholder covers only what the crop shows.
+        let placeholder = flat.nodes.dropFirst(2).compactMap { node -> Rect? in if case .path(let path) = node { return path.path.controlBounds } else { return nil } }
+        #expect(placeholder.first == Rect(x: 110, y: 10, width: 20, height: 20))
+    }
+
     @Test func nodesTagWhatTheyBecome() {
         let a = Corpus.node(1), b = Corpus.node(2), c = Corpus.node(3)
         let items: [DisplayItem] = [

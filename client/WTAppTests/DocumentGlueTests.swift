@@ -307,5 +307,11 @@ import WTRender
         #expect(setup.document.undoTitle == "Undo Trace")
         let options = try #require(registry.descriptor(for: TraceTool.id)?.options?() as? NSHostingController<TraceOptionsSheet>)
         Render.view(options.rootView)
+        // Without the class model the sheet says what *Photo* does instead.
+        #expect(PhotoTrace.fallbackNote == nil)
+        PhotoTrace.mapper = nil
+        let note = try #require(PhotoTrace.fallbackNote)
+        #expect(note.contains("subject and the background"))
+        Render.view(options.rootView)
     }
 }

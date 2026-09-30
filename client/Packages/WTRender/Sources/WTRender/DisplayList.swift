@@ -258,8 +258,9 @@ public struct ImageItem: Hashable, Sendable {
     }
 
     /// How the decoded pixels are treated (ramp, tint and *Transparent* on bilevel and
-    /// grayscale images, alpha shown or not), the tint through `colorManagement`.
-    func treatment(_ colorManagement: ColorManagement) -> ImageTreatment {
+    /// grayscale images, alpha shown or not), the tint through `colorManagement`.  Public for
+    /// the exporters' flattener, which applies the same treatment to the pixels it writes.
+    public func treatment(_ colorManagement: ColorManagement) -> ImageTreatment {
         ImageTreatment(
             mode: mode,
             ramp: ramp,

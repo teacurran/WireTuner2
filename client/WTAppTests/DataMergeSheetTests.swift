@@ -124,6 +124,27 @@ import WTRender
         await model.merge()
     }
 
+    @Test func aScriptsMergeToPDFWritesTheSheetsFile() async throws {
+        // DATA-012: wt.records.merge({ to: "pdf" }) is the merge sheet's merge -- the same file
+        // but the PDF writer's timestamps.
+        let world = DataWorld()
+        defer { world.close() }
+        _ = try await Self.labels(world)
+        let sheetFolder = TestEnvironment.temporaryDirectory(), scriptFolder = TestEnvironment.temporaryDirectory()
+        for folder in [sheetFolder, scriptFolder] { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) }
+        let sheet = MergeSheetModel(window: world.window, session: world.session)
+        sheet.target = .pdf
+        sheet.chooseDirectory = { sheetFolder }
+        await sheet.merge()
+        let ui = ScriptUI(window: world.window, data: world.features)
+        ui.prepareMerge = { $0.chooseDirectory = { scriptFolder } }
+        #expect(await ui.handle("merge", [["to": "pdf"]]) as? String == "Wrote 1 file.")
+        let written = try FileManager.default.contentsOfDirectory(at: scriptFolder, includingPropertiesForKeys: nil)
+        #expect(written.map(\.lastPathComponent) == sheet.written.map(\.lastPathComponent))
+        let fromSheet = try Data(contentsOf: try #require(sheet.written.first)), fromScript = try Data(contentsOf: try #require(written.first))
+        #expect(ScriptingSurfaces.ScriptingExportTests.masked(fromSheet) == ScriptingSurfaces.ScriptingExportTests.masked(fromScript))
+    }
+
     @Test func printMergeHandsThePrintDialogTheMergedPages() async throws {
         let world = DataWorld()
         defer { world.close() }

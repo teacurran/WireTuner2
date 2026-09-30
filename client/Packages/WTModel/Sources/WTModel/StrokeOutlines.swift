@@ -186,7 +186,28 @@ public enum CalligraphicOutline {
             }
             travelled += length
         }
-        let ring = left + right.reversed()
-        return CurveFitter(maxError: VariableStrokeOutline.tolerance, cornerAngle: 1.2).fitContour(ring + [ring[0]], closed: true)
+        return flatEnded(left: left, right: right)
+    }
+
+    /// The closed contour through `left` then `right` reversed, fitted with a corner at each of
+    /// the four cap corners.  The fitter's own corner test merges adjacent corners into one, so
+    /// on its own it would keep only the left corner of the end cap and round the right one
+    /// outwards (about a point past the last sample with the nib across the stroke).
+    public static func flatEnded(left: [Point], right: [Point]) -> Contour {
+        let ring = left + right.reversed() + [left[0]]
+        var points: [Point] = [], capCorner: [Bool] = []
+        for (index, point) in ring.enumerated() {
+            let corner = index == left.count - 1 || index == left.count || index == ring.count - 2
+            if let previous = points.last, previous == point {
+                capCorner[capCorner.count - 1] = capCorner[capCorner.count - 1] || corner
+            } else {
+                points.append(point)
+                capCorner.append(corner)
+            }
+        }
+        let fitter = CurveFitter(maxError: VariableStrokeOutline.tolerance, cornerAngle: 1.2)
+        let detected = CurveFitter.corners(in: points, angle: fitter.cornerAngle, window: fitter.cornerWindow)
+        let corners = Set(detected + capCorner.indices.filter { capCorner[$0] }).sorted()
+        return fitter.fitContour(points, corners: corners, closed: true)
     }
 }
