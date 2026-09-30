@@ -275,6 +275,15 @@ final class CanvasView: NSView, CanvasHost {
         furnitureLayer.setNeedsDisplay()
     }
 
+    /// Only the parts of the furniture layer under `rects` (view points, y down, as the drawers
+    /// draw) redraw: a link change repaints its object's area of the Show Links overlay (WEB-004).
+    func setNeedsFurnitureDisplay(in rects: [CGRect]) {
+        let height = furnitureLayer.bounds.height
+        for rect in rects where !rect.isNull && !rect.isEmpty {
+            furnitureLayer.setNeedsDisplay(CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height))
+        }
+    }
+
     /// Draws the canvas in `mode` (REND-005); the display list is not rebuilt.
     func setViewMode(_ mode: ViewMode) {
         tiles.setViewMode(mode)

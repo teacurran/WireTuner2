@@ -265,6 +265,48 @@ struct BlobHarness {
         try await store.close()
     }
 
+    /// IO-009's acceptance (saving.adoc, "Storage"): the quota is hit after one image went up; the
+    /// next image parks, the client says *Storage full — 1 image waiting*, and changes made meanwhile
+    /// still reach the server.  Freeing space resumes the upload with the retry the app's
+    /// `StorageMonitor` performs when its poll sees room -- nobody clicks anything.
+    @Test func aFullStoreParksImagesWhileChangesKeepSyncing() async throws {
+        let server = FakeSyncServer()
+        let blobServer = FakeBlobServer()
+        let scratch = Scratch()
+        let store = try await LocalStore.open(documentID: server.documentID, at: scratch.url(), options: options())
+        let queue = BlobQueue(store: store, cache: BlobCache(directory: scratch.directory.appending(path: "Blobs")),
+                              transport: FakeBlobTransport(server: blobServer), tokens: FakeTokens(), options: fastBlobOptions())
+        let events = Collector(queue.events())
+        let client = SyncClient(store: store, transport: FakeTransport(server: server), tokens: FakeTokens(), blobs: queue,
+                                options: fastOptions())
+        await client.start()
+        let first = try await queue.add(Data(repeating: 1, count: 10), mediaType: "image/png")
+        try await eventually("first image") { events.all.contains(.uploaded(hash: first)) }
+        // The space fills up: the next image is refused and parks.
+        await blobServer.update { $0.failures = [SyncCallError(code: SyncCallError.resourceExhausted, reason: .storageQuota, message: "full")] }
+        let second = try await queue.add(Data(repeating: 2, count: 10), mediaType: "image/png")
+        try await eventually("storage full") { await client.state == .storageFull(1) }
+        #expect((await client.state).description == "Storage full — 1 image waiting")
+        // Edits made while it waits reach the server.
+        let before = await server.head
+        for index in 0..<3 {
+            _ = try await store.perform(createLayer("Q\(index)"), recording: Fixture.recording())
+        }
+        await client.localChangesAvailable()
+        try await eventually("changes synced") {
+            let outbox = try await store.outboxCount()
+            let head = await server.head
+            return outbox == 0 && head == before + 3
+        }
+        #expect(await queue.isStorageFull && !events.all.contains(.uploaded(hash: second)))
+        // Space freed: the monitor's retry uploads the waiting image and the state clears.
+        await queue.retry()
+        try await eventually("second image") { events.all.contains(.uploaded(hash: second)) }
+        try await eventually("saved") { await client.state == .saved }
+        await client.stop()
+        try await store.close()
+    }
+
     @Test func downloadsAreLazyAndAnnounced() async throws {
         let harness = try await BlobHarness()
         let data = Data((0..<50).map { UInt8($0) })

@@ -26,6 +26,64 @@ import WTGeometry
         #expect(CTFontManagerCreateFontDescriptorFromData(woff2 as CFData) != nil)
     }
 
+    /// FONT-027's first done-when against the reference decoder: `woff2_decompress` (Google's
+    /// woff2, `brew install woff2`) turns each WOFF2 back into the compiled font, byte for byte.
+    /// Where the tool is not installed only the harness page is written.  With
+    /// `WT_WOFF2_HARNESS=<folder>` the WOFF2 files and `woff2-harness.html` -- a page that loads
+    /// both through `document.fonts` and prints what loaded -- go there for the browser check.
+    @Test func theReferenceDecoderGivesBackTheCompiledFont() throws {
+        let folder = ProcessInfo.processInfo.environment["WT_WOFF2_HARNESS"].map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.temporaryDirectory.appendingPathComponent("wt-woff2-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var faces: [(family: String, woff2: Data)] = []
+        for format in FontCompiler.Format.allCases {
+            let font = try FontCompiler.compile(FontFixture.source(), options: .init(format: format)).data
+            let woff2 = try WOFF2Writer.woff2(font)
+            let url = folder.appendingPathComponent("Marlowe-\(format.fileExtension).woff2")
+            try woff2.write(to: url)
+            faces.append(("Marlowe \(format.fileExtension.uppercased())", woff2))
+            let tool = "/opt/homebrew/bin/woff2_decompress"
+            guard FileManager.default.isExecutableFile(atPath: tool) else { continue }
+            let decoded = url.deletingPathExtension().appendingPathExtension("ttf")
+            try? FileManager.default.removeItem(at: decoded)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: tool)
+            process.arguments = [url.path]
+            let pipe = Pipe()
+            process.standardOutput = pipe
+            process.standardError = pipe
+            try process.run()
+            let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            process.waitUntilExit()
+            #expect(process.terminationStatus == 0, "\(output)")
+            let back = try Data(contentsOf: decoded)
+            #expect(try WOFF2Writer.tables(of: back).tables.map(\.tag) == WOFF2Writer.tables(of: font).tables.map(\.tag).sorted())
+            #expect(back == font, "\(format): the decoded font is the compiled one")
+        }
+        let page = Self.harnessPage(faces)
+        try Data(page.utf8).write(to: folder.appendingPathComponent("woff2-harness.html"))
+        #expect(page.contains("format(\"woff2\")") && faces.count == 2)
+    }
+
+    /// A page that loads each face from a `data:` URL (no file-origin rules) and writes
+    /// `loaded: <family> <family>` -- or `failed: ...` -- into `#result`.
+    static func harnessPage(_ faces: [(family: String, woff2: Data)]) -> String {
+        let rules = faces.map { "@font-face { font-family: \"\($0.family)\"; src: url(data:font/woff2;base64,\($0.woff2.base64EncodedString())) format(\"woff2\"); }" }
+        let families = faces.map { "\"\($0.family)\"" }.joined(separator: ", ")
+        return """
+            <!doctype html>
+            <html><head><meta charset="utf-8"><title>WOFF2 harness</title>
+            <style>\(rules.joined(separator: "\n"))</style></head>
+            <body><p id="result">pending</p>
+            <script>
+            const families = [\(families)];
+            Promise.all(families.map(f => document.fonts.load(`48px "${f}"`, "ABC").then(list => list.length ? f : Promise.reject(f + " did not load"))))
+              .then(ok => { document.getElementById("result").textContent = "loaded: " + ok.join(" "); },
+                    error => { document.getElementById("result").textContent = "failed: " + error; });
+            </script></body></html>
+            """
+    }
+
     @Test func unknownTagsAndBase128() throws {
         #expect(WOFF2Writer.base128(0) == [0] && WOFF2Writer.base128(127) == [127] && WOFF2Writer.base128(128) == [0x81, 0])
         #expect(WOFF2Writer.base128(0x3FFF) == [0xFF, 0x7F])

@@ -869,6 +869,13 @@ usage hands the notes by space to the library (`StorageMonitor.onUsage`), which 
 used* above the documents while the space it shows (the current team's, else the personal space) is at 90% or more; the
 usage is read again each time the Library window is shown.  Tests: `WindowGlueTests.theLibraryWindowShowsStorageAlmostFull`.
 
+NOTE: As built by IO-009's acceptance test (WTSync `BlobTests.aFullStoreParksImagesWhileChangesKeepSyncing`).  One
+`SyncClient` with its `BlobQueue` over the fake sync and blob servers: an image uploads, the quota is then hit, the next
+image parks and the client shows *Storage full — 1 image waiting*; three changes made meanwhile reach the server; the
+retry that `StorageMonitor` performs once its poll sees room uploads the image and the state returns to *Saved to cloud*.
+Deviation: the test runs on WTSync's fakes rather than TEST-001's simulator, which models no blob service; the
+"without user action" half is the app's `StorageMonitor` test (`WindowGlueTests.storageAlmostFullShowsAndAFullWindowRetriesWhenSpaceFrees`).
+
 NOTE: As built by APP-012 (Local mode, xref:decisions.adoc#D-079[D-079]; `WTApp/Account/LocalMode.swift`,
 `LocalModeFeatures.swift`).  `LocalMode.isActive` is true in a Local mode build (`WTLocalMode` in the
 Info.plist, from the build setting `WT_LOCAL_MODE`, or a missing, empty or unexpanded `WTAPIURL` or

@@ -76,13 +76,34 @@ final class LinkOverlayFeatures {
         return overlay
     }
 
-    /// The document changed: the marks are read again, and the layer repaints when they moved.
-    func refresh(_ window: DocumentWindowController) {
-        guard let entry = links(window) else { return }
+    /// The document changed: the marks are read again, and the layer repaints where they changed
+    /// -- the areas of the objects whose links changed (`LinkOverlay.dirtyRects`), in view points
+    /// -- or all of it when there was nothing to compare with.  Returns the areas repainted, nil
+    /// for the whole layer.
+    @discardableResult
+    func refresh(_ window: DocumentWindowController) -> [CGRect]? {
+        guard let entry = links(window) else { return [] }
         let old = entry.overlay
         entry.overlay = nil
         let new = overlay(window)
-        if old != new { window.canvas.setNeedsFurnitureDisplay() }
+        guard let old else {
+            window.canvas.setNeedsFurnitureDisplay()
+            return nil
+        }
+        let viewport = window.canvas.viewport
+        let rects = LinkOverlay.dirtyRects(from: old, to: new).map { Self.viewRect($0, viewport: viewport) }
+        window.canvas.setNeedsFurnitureDisplay(in: rects)
+        return rects
+    }
+
+    /// `rect` (pasteboard) in view points, grown by the underline's width and the tint's
+    /// anti-aliasing, whatever the view's rotation.
+    static func viewRect(_ rect: Rect, viewport: Viewport) -> CGRect {
+        let corners = [Point(x: rect.minX, y: rect.minY), Point(x: rect.maxX, y: rect.minY),
+                       Point(x: rect.minX, y: rect.maxY), Point(x: rect.maxX, y: rect.maxY)].map { viewport.toView($0) }
+        let xs = corners.map(\.x), ys = corners.map(\.y)
+        let outset = LinkOverlay.Style.standard.underlineWidth + 1
+        return CGRect(x: xs.min()!, y: ys.min()!, width: xs.max()! - xs.min()!, height: ys.max()! - ys.min()!).insetBy(dx: -outset, dy: -outset)
     }
 
     /// menu:View[Show Links].

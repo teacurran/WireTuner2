@@ -89,6 +89,50 @@ import WTSync
         other.refresh(window)
     }
 
+    /// WEB-004's done-when: toggling Show Links rebuilds no display list and repaints no tile; a
+    /// link change repaints only the linked object's tiles and only its area of the overlay.
+    @Test func showLinksRepaintsOnlyTheChangedObject() async throws {
+        let world = GlueWorld()
+        defer { world.close() }
+        let features = LinkOverlayFeatures(window: { [weak window = world.window] in window })
+        features.install(commands: world.commands)
+        let window = world.window
+        let ids = await world.document.addRectangles([Rect(x: 40, y: 40, width: 60, height: 40), Rect(x: 300, y: 200, width: 50, height: 50)])
+        let (near, far) = (try #require(ids.first).opID, try #require(ids.last).opID)
+        _ = await world.document.perform(SetLink([near], url: "https://near.example")).value
+        _ = await world.document.perform(SetLink([far], url: "https://far.example")).value
+        world.document.invalidation.flush()
+        let list = world.document.displayList
+        let flushes = world.document.invalidation.flushCount
+        features.toggle(window)
+        #expect(features.isShown(window) && features.overlay(window).marks.count == 2)
+        features.toggle(window)
+        features.toggle(window)
+        #expect(world.document.invalidation.flushCount == flushes && world.document.displayList == list, "no rebuild, no tile repainted")
+        // A link change: the tiles under that object only, and its area of the overlay.
+        let before = features.overlay(window)
+        var regions: [DirtyRegion] = []
+        world.document.invalidation.onFlush = { _, region in regions.append(region) }
+        defer { world.document.invalidation.onFlush = nil }
+        _ = await world.document.perform(SetLink([near], url: "https://other.example")).value
+        world.document.invalidation.flush()
+        let nearBounds = try #require(world.document.scene.object(near)?.bounds)
+        let farBounds = try #require(world.document.scene.object(far)?.bounds)
+        let dirty = regions.flatMap { region in region.canvases.flatMap { region.rects(for: $0) } }
+        #expect(!dirty.isEmpty && dirty.allSatisfy { $0.intersects(nearBounds) && !$0.intersects(farBounds) })
+        #expect(features.overlay(window).marks.contains { $0.url == "https://other.example" })
+        features.links(window)?.overlay = before
+        let repainted = try #require(features.refresh(window))
+        let viewport = window.canvas.viewport
+        #expect(repainted.count == 2 && repainted.allSatisfy { $0.contains(LinkOverlayFeatures.viewRect(nearBounds, viewport: viewport).insetBy(dx: 4, dy: 4)) })
+        #expect(repainted.allSatisfy { !$0.intersects(LinkOverlayFeatures.viewRect(farBounds, viewport: viewport)) })
+        #expect(features.refresh(window) == [], "nothing changed: nothing repaints")
+        features.links(window)?.overlay = nil
+        #expect(features.refresh(window) == nil, "nothing to compare with: the whole layer")
+        #expect(LinkOverlayFeatures(window: { nil }).refresh(window) == [])
+        window.canvas.setNeedsFurnitureDisplay(in: [.null, CGRect(x: 1, y: 1, width: 4, height: 4)])
+    }
+
     // MARK: Path clean-ups
 
     @Test func simplifyPreviewsWithApplyAndWritesOnOK() async throws {

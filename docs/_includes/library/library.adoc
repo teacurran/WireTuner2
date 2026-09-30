@@ -675,6 +675,13 @@ The 16 ms budget is held by the instance machinery: 1,000 instances of one symbo
 the list in 5.8 ms after the first build (release); drawing them is the tile renderers' budget (the
 reference renderer's whole 880 × 550 pt view of them took 24 ms on a heavily loaded machine).
 
+NOTE: As built by LIB-026's budget test (`SymbolRenderingTests.aHundredOverriddenInstancesCostAHundredSubListBuilds`).
+Of 1,000 instances, 100 carry fill overrides that all differ: after the symbol's own sub-list is warm the list builds
+with exactly 100 further sub-list builds, within the 16 ms budget plus the time 100 overridden instances take alone
+(2.6 ms against 16.6 ms in release on a loaded machine), and a second build reuses them all within 16 ms.  The
+override-kind reference renders are the `symbolOverrides` and `symbolTextOverrides` goldens (a hidden subtree inside
+the star's group among them).
+
 NOTE: As built by LIB-010 and LIB-026 (model half) with the parts of LIB-009 and LIB-025 they need
 (`WTModel/Symbols.swift`, `SymbolCommands.swift`, `DocumentScene.swift`).  Every build reads the
 symbols (children of `symbols` and of folders, a deleted folder's symbols included) into a

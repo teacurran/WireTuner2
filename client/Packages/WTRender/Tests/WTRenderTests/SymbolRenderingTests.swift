@@ -233,6 +233,48 @@ import WTGeometry
         #expect(renderer.buildCount == 1)
         PerfBudget.expect(.seconds(built.timeIntervalSince(start)), within: .milliseconds(16), "build")
     }
+
+    /// LIB-026's budget: of 1,000 instances, 100 carry overrides of their own (a fill each, all
+    /// different).  The 900 plain ones share the symbol's sub-list; each overridden one builds its
+    /// own once, so the list costs the plain budget plus 100 sub-list builds -- measured here as
+    /// 100 overridden instances built alone by a fresh renderer -- and, once built, the plain
+    /// budget again.
+    @Test func aHundredOverriddenInstancesCostAHundredSubListBuilds() throws {
+        let plain = SymbolArtwork(symbol: F.id(130), name: "Plain", version: 1, origin: Point(x: 10, y: 10), nodes: [
+            SymbolNode(id: F.id(131), content: .item(ReferenceCorpus.path(F.starPath(center: Point(x: 10, y: 10), radius: 10), [ReferenceCorpus.fill(F.orange), ReferenceCorpus.stroke(.black, width: 1)]))),
+        ])
+        let library = SymbolLibrary([plain])
+        func overrides(_ index: Int) -> [InstanceOverride] {
+            index % 10 == 0 ? [.fill(F.id(131), Color(red: Double(index) / 1000, green: 0.5, blue: 0.5))] : []
+        }
+        func build(_ renderer: SymbolRenderer, _ indices: some Sequence<Int>) -> DisplayList {
+            DisplayList(canvas: "s", items: indices.map { index in
+                renderer.item(for: Self.instance(F.id(130), x: Double(index % 40) * 22 + 11, y: Double(index / 40) * 22 + 11,
+                                                 overrides: overrides(index)), in: library)
+            })
+        }
+        // The 100 sub-list builds on their own.
+        let alone = SymbolRenderer(typesetter: F.labels)
+        let aloneStart = Date()
+        _ = build(alone, stride(from: 0, to: 1000, by: 10))
+        let hundredBuilds = Date().timeIntervalSince(aloneStart)
+        #expect(alone.buildCount == 100)
+        // The symbol's own sub-list is warm, as after the first frame.
+        let renderer = SymbolRenderer(typesetter: F.labels)
+        _ = build(renderer, (0..<1000).filter { $0 % 10 != 0 })
+        #expect(renderer.buildCount == 1)
+        let start = Date()
+        let list = build(renderer, 0..<1000)
+        let mixed = Date().timeIntervalSince(start)
+        #expect(list.items.count == 1000 && renderer.buildCount == 101, "one sub-list per overridden instance, the rest shared")
+        let againStart = Date()
+        _ = build(renderer, 0..<1000)
+        let again = Date().timeIntervalSince(againStart)
+        #expect(renderer.buildCount == 101, "built once")
+        print("PERF overrides: 1,000 instances with 100 overridden built in \(String(format: "%.1f", mixed * 1000)) ms (100 sub-lists alone \(String(format: "%.1f", hundredBuilds * 1000)) ms), again in \(String(format: "%.1f", again * 1000)) ms")
+        PerfBudget.expect(.seconds(mixed), within: .milliseconds(16) + .seconds(hundredBuilds), "first build")
+        PerfBudget.expect(.seconds(again), within: .milliseconds(16), "built")
+    }
 }
 
 extension DisplayItem {

@@ -17,6 +17,8 @@ final class GenerateFontsModel {
     var otf = true
     var ttf = false
     var woff2 = false
+    /// What the WOFF2 wraps: the OTF (CFF outlines, the default) or the TTF (quadratic `glyf`).
+    var woff2Outlines: FontCompiler.Format = .otf
     var addStandardGlyphs = true {
         didSet { validate() }
     }
@@ -53,7 +55,7 @@ final class GenerateFontsModel {
     var isBlocked: Bool { FontValidation.blocksGeneration(problems) }
 
     var formats: [FontCompiler.Format] {
-        (otf || woff2 ? [.otf] : []) + (ttf ? [.ttf] : [])
+        (otf || (woff2 && woff2Outlines == .otf) ? [.otf] : []) + (ttf || (woff2 && woff2Outlines == .ttf) ? [.ttf] : [])
     }
 
     /// The file name the fonts go by: the PostScript name.
@@ -79,8 +81,8 @@ final class GenerateFontsModel {
         }
     }
 
-    /// Writes the chosen formats into `folder`: OTF, TTF and a WOFF2 of the OTF.  A failure is
-    /// shown in the sheet and writes nothing more.
+    /// Writes the chosen formats into `folder`: OTF, TTF and a WOFF2 of the OTF or the TTF, as
+    /// chosen.  A failure is shown in the sheet and writes nothing more.
     @discardableResult
     func generate(into folder: URL) -> Task<[URL], Never> {
         validate()
@@ -89,7 +91,7 @@ final class GenerateFontsModel {
             return Task { [] }
         }
         let state = document.state, options = options, formats = formats, base = baseName
-        let wantsOTF = otf, wantsWOFF2 = woff2
+        let wanted: [FontCompiler.Format: Bool] = [.otf: otf, .ttf: ttf], wantsWOFF2 = woff2, wrapped = woff2Outlines
         isWorking = true
         message = nil
         return Task { [weak self] in
@@ -97,12 +99,12 @@ final class GenerateFontsModel {
             do {
                 for format in formats {
                     let result = try await FontGeneration.generate(state, format: format, options: options)
-                    if format == .ttf || wantsOTF {
+                    if wanted[format] == true {
                         let url = folder.appending(path: "\(base).\(format.fileExtension)")
                         try result.data.write(to: url, options: .atomic)
                         urls.append(url)
                     }
-                    if format == .otf, wantsWOFF2 {
+                    if format == wrapped, wantsWOFF2 {
                         let url = folder.appending(path: "\(base).woff2")
                         try WOFF2Writer.woff2(result.data).write(to: url, options: .atomic)
                         urls.append(url)
@@ -186,6 +188,13 @@ struct GenerateFontsSheet: View {
                 Toggle("OTF", isOn: $model.otf)
                 Toggle("TTF", isOn: $model.ttf)
                 Toggle("WOFF2", isOn: $model.woff2)
+                Picker("of", selection: $model.woff2Outlines) {
+                    Text("OTF").tag(FontCompiler.Format.otf)
+                    Text("TTF").tag(FontCompiler.Format.ttf)
+                }
+                .fixedSize()
+                .disabled(!model.woff2)
+                .accessibilityIdentifier("generate.woff2Outlines")
             }
             Toggle("Add .notdef and space when missing", isOn: $model.addStandardGlyphs)
             Toggle("Keep overlaps", isOn: $model.keepOverlaps)

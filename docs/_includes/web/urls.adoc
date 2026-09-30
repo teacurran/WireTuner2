@@ -337,6 +337,13 @@ the window's furniture layer draws `LinkOverlay` read from its scene, the web fe
 the layer and no tile.  While it is on, the canvas's tooltip is the URL under the pointer (`LinkOverlay.url(at:)`, a
 tolerance of 3 view points).  Tests: `ModelGlueFeaturesTests`.
 
+NOTE: As built by WEB-004's repaint rule (`LinkOverlayFeatures.refresh`, `CanvasView.setNeedsFurnitureDisplay(in:)`).
+After a change the overlay repaints only `LinkOverlay.dirtyRects` -- the areas of the objects whose marks changed, in
+view points grown by the underline's width -- rather than the whole furniture layer (all of it only when there was no
+previous overlay to compare with).  `ModelGlueFeaturesTests.showLinksRepaintsOnlyTheChangedObject` checks that toggling
+flushes no invalidation and leaves the display list as it was, that a link change dirties only the linked object's
+tiles (not a second linked object's), and that the overlay's repainted areas cover that object only.
+
 NOTE: As built by WEB-003's remainder (`WTApp/Web/LinkUseSearch.swift`).  menu:Edit[Find and Replace > Graphics]'s Select
 tab has the *Link* criterion: a link typed or picked from the ones the document uses finds every object and text block using
 it within *Search in* (the page scope by bounds, as the other criteria).

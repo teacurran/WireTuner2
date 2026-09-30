@@ -338,7 +338,7 @@ import into an existing document.  UFO import came later with FONT-024
 
 NOTE: Deviations recorded by FONT-026 (UI half), FONT-025's menu item and FONT-027's option.  The
 Generate Fonts sheet lists `FontGeneration.snapshot`'s problems (errors block Generate; btn:[Show]
-opens the glyph), offers OTF, TTF and WOFF2 (a `WOFF2Writer` wrap of the OTF), *Add .notdef and
+opens the glyph), offers OTF, TTF and WOFF2 (a `WOFF2Writer` wrap of the OTF, or of the TTF: see below), *Add .notdef and
 space when missing* and *Keep overlaps*, and writes `<PostScript name>.<extension>` into a chosen
 folder.  btn:[Install for Testing] (also menu:File[Install for Testing]) registers an OTF with the
 *Test* suffix through `TestFontInstaller`; btn:[Remove Test Fonts] unregisters this session's
@@ -346,6 +346,15 @@ installs.  menu:File[Open Font…] reads an OTF, TTF or WOFF2 (`WOFF2Reader`) wi
 and writes `FontImport.plan`'s commands in one undo group, into the front typeface or a new
 typeface document, and shows the plan's report.  Not built: Fix All Warnings, background progress,
 the sync-state reminder, and the fontbakery checks.
+
+NOTE: As built by FONT-027's rest.  The Generate Fonts sheet's WOFF2 wraps the OTF or the TTF, chosen beside the
+toggle (`GenerateFontsModel.woff2Outlines`; OTF by default); the wrapped format is compiled whether or not its own
+file is written.  `WOFF2Tests.theReferenceDecoderGivesBackTheCompiledFont` runs Google's `woff2_decompress`
+(`brew install woff2`; skipped where it is not installed) on the WOFF2 of each flavour and gets back the compiled font
+byte for byte.  With `WT_WOFF2_HARNESS=<folder>` the same test writes `woff2-harness.html`, which loads both WOFF2
+files through `document.fonts` from `data:` URLs and prints what loaded; checked on this Mac with headless Chrome
+(`--headless=new --dump-dom`) and WebKit, Safari's engine (a `WKWebView` probe, WebKit 21623), both "loaded: Marlowe
+OTF Marlowe TTF", with a corrupted copy of the page failing in both as a control.
 
 NOTE: As built by FONT-024 (`WTInterchange/Fonts/UFOReader.swift`, `WTModel/UFOImport.swift`).
 `UFOReader.read(at:)` reads UFO 2 and 3: `metainfo.plist`, `fontinfo.plist` (names, version from

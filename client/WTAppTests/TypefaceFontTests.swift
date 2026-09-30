@@ -54,6 +54,19 @@ import WTRender
         model.ttf = false
         #expect(await model.generate(into: folder).value.map(\.lastPathComponent) == ["Marlowe-Regular.woff2"])
         #expect(model.message == "Generated Marlowe-Regular.woff2")
+        // A WOFF2 of the TTF: quadratic outlines inside, and the TTF written only when asked.
+        model.woff2Outlines = .ttf
+        #expect(model.formats == [.ttf])
+        let wrapped = await model.generate(into: folder).value
+        #expect(wrapped.map(\.lastPathComponent) == ["Marlowe-Regular.woff2"])
+        let sfnt = try WOFF2Reader.sfnt(Data(contentsOf: wrapped[0]))
+        #expect(Array(sfnt.prefix(4)) == [0, 1, 0, 0], "a TrueType sfnt, not OTTO")
+        model.otf = true
+        model.ttf = true
+        #expect(await model.generate(into: folder).value.map(\.lastPathComponent) == ["Marlowe-Regular.otf", "Marlowe-Regular.ttf", "Marlowe-Regular.woff2"])
+        model.otf = false
+        model.ttf = false
+        model.woff2Outlines = .otf
         // Cancelling the folder writes nothing; a folder that is not there fails.
         model.chooseFolder = { nil }
         #expect(await model.generateAsking().value.isEmpty)

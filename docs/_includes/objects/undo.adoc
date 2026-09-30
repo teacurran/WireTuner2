@@ -117,6 +117,11 @@ and the rules per op kind -- creation (a remote edit stays on the tombstone), de
 characters).  Deviation: the multi-client merge test (A moves, B moves, A undoes; redo only onto an untouched value) runs on
 WTModel's two-replica pair rather than TEST-001's simulator.
 
+NOTE: The multi-client merge test now also runs through TEST-001's simulator
+(`WTTestSupportTests/Simulation/UndoScenarioTests.swift`, both push modes): Ana and Ben move one rectangle over the
+in-process server; Ana's undo writes nothing and leaves Ben's matrix, her redo restores her value while nobody wrote it
+since and writes nothing once Ben has, and every step ends converged on both clients and the server.
+
 === Build tasks
 
 [[OBJ-036]]
