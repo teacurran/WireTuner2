@@ -412,10 +412,24 @@ with the toast, merged and offered read-only after a day away, held per object),
 overlap opening the whole-document review, and *Save my version as a copy…* (*Keep the merged
 result* throughout; *Keep my changes on a branch* is `CollaborationScenarioTests`).  As built, a
 transform both sides wrote is *Same attribute* (*Transform*), not *Both moved*: *Both moved*
-(`move vs move`) is a change of place in the tree.  *Not built*: the UI-test half and the
-screenshots of the review sheet and the presence overlay for `docs/images` (WTApp, TEST-002), and
-the per-paragraph choices of a *Same text* row in the simulator (they are WTApp's
-`ParagraphChoices`, covered by its tests).
+(`move vs move`) is a change of place in the tree.  The per-paragraph choices of a *Same text* row
+are not in the simulator (they are WTApp's `ParagraphChoices`, covered by its tests).
+
+NOTE: As built by COLLAB-003's UI half (`WTAppTests/CollaborationScenarioUITests.swift`): app-hosted
+tests rather than XCUITest, which the build machine does not run.  Each guide case is my offline
+work against Priya's (`ReviewWorld`), measured by WTSync's divergence rules and held for review in a
+document window through its session, as a reconnect holds it; the test reads the sheet's rows
+(`ReviewSheetModel.rows`: the kind and the attribute names the sheet titles them with), makes one
+choice through the sheet's model, and replays the base, Priya's work, my upload and my choice on
+Priya's replica to the same state hash: *Same attribute* [Name] with *Use mine*, *Same attribute*
+[Transform] with *Keep both copies*, a move to another layer against a delete as *Edited and
+deleted* [Deleted] with *Restore* (back on the layer it was moved to), a lock against an offline
+edit as *Both edited* [Locked, Transform] with *Use theirs* (nothing written), *Both moved*
+[Position] with *Use mine*, and *Same attribute* [Size] settled with btn:[Done].  The held,
+merged-with-toast and read-only outcomes in a window and the whole-document choices are
+`ReviewSheetTests`.  *Not built*: the screenshots of the review sheet and the presence overlay for
+`docs/images` -- captured in the test host the sheet comes out without its text (COLLAB-034's note),
+so they need a real screen session.
 
 === Build tasks
 

@@ -22,6 +22,7 @@ import com.villagecompute.wiretuner.api.ServiceTestSupport;
 import com.villagecompute.wiretuner.api.TestUsers;
 import com.villagecompute.wiretuner.api.auth.DocumentRoles;
 import com.villagecompute.wiretuner.api.grpc.ErrorReasons;
+import com.villagecompute.wiretuner.api.grpc.StatusExceptions;
 import com.villagecompute.wiretuner.docs.v1.AccessRequest;
 import com.villagecompute.wiretuner.docs.v1.AccessSource;
 import com.villagecompute.wiretuner.docs.v1.CreateLinkRequest;
@@ -372,8 +373,15 @@ class ShareServiceTest extends ServiceTestSupport {
                 Status.Code.NOT_FOUND, ErrorReasons.DOCUMENT_NOT_FOUND);
         assertFails(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder().setToken(created.getToken()).build()),
                 Status.Code.NOT_FOUND, ErrorReasons.LINK_INVALID);
+        // A revoked link names its document for the request page; one never issued names none.
+        assertThat(StatusExceptions.errorInfo(failure(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder()
+                .setToken(created.getToken()).build()))).orElseThrow().getMetadataMap())
+                .containsEntry("document_id", doc.toString()).containsEntry("can_request_access", "true")
+                .containsKey("document_name");
         assertFails(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder().setToken("never-issued-token-x").build()),
                 Status.Code.NOT_FOUND, ErrorReasons.LINK_INVALID);
+        assertThat(StatusExceptions.errorInfo(failure(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder()
+                .setToken("never-issued-token-x").build()))).orElseThrow().getMetadataMap()).isEmpty();
         assertThat(by(ALICE).listLinks(ListLinksRequest.newBuilder().setDocumentId(doc.toString()).build())
                 .getLinksList()).isEmpty();
         assertThat(by(ALICE).listLinks(ListLinksRequest.newBuilder().setDocumentId(doc.toString()).setIncludeRevoked(true)
@@ -383,6 +391,11 @@ class ShareServiceTest extends ServiceTestSupport {
                 .setRole(VIEWER).setExpiresAt(Timestamp.newBuilder().setSeconds(Instant.now().getEpochSecond() - 5)).build());
         assertFails(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder().setToken(expired.getToken()).build()),
                 Status.Code.NOT_FOUND, ErrorReasons.LINK_INVALID);
+        // A trashed document's dead link cannot be requested through.
+        exec("UPDATE document SET trashed_at = now() WHERE id = ?", doc);
+        assertThat(StatusExceptions.errorInfo(failure(() -> by(DAVE).openLink(OpenLinkRequest.newBuilder()
+                .setToken(expired.getToken()).build()))).orElseThrow().getMetadataMap())
+                .containsEntry("can_request_access", "false").containsEntry("document_name", "");
     }
 
     @Test
@@ -394,6 +407,10 @@ class ShareServiceTest extends ServiceTestSupport {
                 .setDocumentId(doc.toString()).setRole(EDITOR).setTeamMembersOnly(true).build());
         assertFails(() -> by(CAROL).openLink(OpenLinkRequest.newBuilder().setToken(membersOnly.getToken()).build()),
                 Status.Code.PERMISSION_DENIED, ErrorReasons.ROLE_INSUFFICIENT);
+        assertThat(StatusExceptions.errorInfo(failure(() -> by(CAROL).openLink(OpenLinkRequest.newBuilder()
+                .setToken(membersOnly.getToken()).build()))).orElseThrow().getMetadataMap())
+                .containsEntry("document_id", doc.toString()).containsEntry("can_request_access", "true")
+                .containsEntry("required", "member").containsEntry("actual", "none");
         assertThat(by(BOB).openLink(OpenLinkRequest.newBuilder().setToken(membersOnly.getToken()).build())
                 .getEffectiveRole()).isEqualTo(EDITOR);
 

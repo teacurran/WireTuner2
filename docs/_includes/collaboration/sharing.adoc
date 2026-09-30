@@ -35,8 +35,9 @@ document belongs to exactly one space:
   automatically, according to the team's default (<<team-access,Access for the whole team>>),
   and you can still invite individuals and make links.
 
-To move a document from one space to another, choose menu:File[Move to…] in the library
-window, or drag the document onto a space in the sidebar.  You must be the document's owner,
+To move a document from one space to another, Control-click it in the library window and
+choose *Move to*, drag it onto a space in the sidebar, or choose menu:Actions[Move to] in the
+Share sheet.  You must be the document's owner,
 and moving into a team makes the team the owner; the team's default access then applies.
 Moving a document out of a team needs a team admin.
 
@@ -184,12 +185,12 @@ from there.  The requester is told either way.
 
 The owner of a personal document can hand it to another person:
 
-. Open the Share sheet and choose menu:Actions[Transfer Ownership…].
+. Open the Share sheet and choose menu:Actions[Transfer Ownership].
 . Pick the new owner from the people who already have access.
 . Confirm.  You keep the document with the editor role; the new owner may remove you.
 
-Team documents are owned by the team, so there is nothing to transfer; use menu:File[Move
-to…] to move the document to a different space.
+Team documents are owned by the team, so there is nothing to transfer; use *Move to* to move
+the document to a different space.
 
 [[mid-session]]
 == When your access changes mid-session
@@ -609,7 +610,26 @@ requests, transfer, link passwords, `team_members_only` and `revoke_on_expiry` a
 
 === Client
 
-NOTE: As built (COLLAB-013): offline, Share opens the sheet with a notice instead of a popover; Copy Link works only for links made on this Mac since launch (the token is returned once); destructive actions are confirmed inline.  Not built yet: the access-request page after a failed link open, team-member suggestions in Invite, Move to…, editing an existing link, and the request badge on the Share button.
+NOTE: As built (COLLAB-013; `WTApp/Sharing`): Copy Link works only for links made on this Mac since launch (the token is returned once); destructive actions are confirmed inline.
+
+NOTE: As built by COLLAB-013's rest (`WTApp/Sharing/ShareLinkOpener.swift`, `ShareRequestBadges.swift`, `ShareSheetModel.swift`,
+`ShareCommands.swift`; `WTApp/Library/LibraryModel.swift`; server `ShareGrpcService.openLink`).  *Opening a link:* an
+`https://<host>/l/<token>` or `wiretuner://link/<token>` URL handed to the app runs `OpenLink`; when it opens, the library refreshes and
+the document's window opens.  A password-protected link shows a small page asking for the password, and says so when it is wrong.  A
+link that no longer opens (expired, revoked, or restricted to a team the person is not in) shows the request page with the document's
+name: the server's refusal names the document in its `ErrorInfo` metadata (`document_id`, `document_name`, `can_request_access`; not
+for a trashed document, and never for a token it never issued, which says in the library that the link does not work).  *Invite* takes
+an address or a name: the field suggests the people of the caller's teams (`TeamService.ListMembers` per team, leaving out people with
+a named role and the caller), and a picked or exactly-typed name invites by `account_id`.  *Links:* btn:[Edit…] on a link row opens its
+options (role, expiry, revoke on expiry, a new password or *Remove password*, the team restriction) and btn:[Save] sends only what
+changed (`UpdateLink`).  *Actions* (beside btn:[Refresh]) holds *Transfer Ownership* (the people who can become owner) and *Move to*
+(the owner's other spaces), each confirmed inline; *Move to* is also the document's context menu in the library window and a drop on a
+space in the sidebar (`MoveToFolder` with the space).  *Badge:* btn:[Share] shows the number of pending requests for a document the
+caller owns, counted when its window opens online, on every `MembersChanged` of its session, and whenever the sheet lists or resolves
+requests.  *Offline:* the toolbar's btn:[Share] opens a popover explaining that sharing needs a connection; without the button in the
+toolbar, menu:File[Share…] still opens the sheet with the same notice and everything disabled.  *Deviation:* removing someone is the
+row's btn:[Remove] button rather than the bottom item of the role popup.  The UI tests are app-hosted (`WTAppTests/ShareTests.swift`, `ShareLinkTests.swift`) rather than
+XCUITest, which the build machine does not run.
 
 NOTE: As built by COLLAB-014 (`WTSync/AccessController.swift`, `WTSync/CopyTransport.swift`).
 `AccessController` follows `SyncClient.states()`: any `readOnly` state (a viewer or commenter

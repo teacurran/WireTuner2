@@ -690,6 +690,33 @@ final class LibraryModel {
         store(await perform { try await services.documents.move(documentID: id, spaceID: spaceID, folderID: folderID, accessToken: $0) })
     }
 
+    /// *Move to* (sharing.adoc, "Spaces: Personal and teams"): the document to the top level of
+    /// another space -- the library's context menu, a drop on a space in the sidebar, and the Share
+    /// sheet's Actions menu.  The owner only: moving into a team makes the team the owner, moving
+    /// out of one needs a team admin, and the server refuses anything else.  True when it moved.
+    @discardableResult
+    func move(_ id: String, toSpace spaceID: String) async -> Bool {
+        guard !isLocal(), let document = cache.documents[id], document.spaceID != spaceID else { return false }
+        guard let moved = await perform({ try await services.documents.move(documentID: id, spaceID: spaceID, folderID: nil, accessToken: $0) }) else { return false }
+        store(moved)
+        return true
+    }
+
+    /// Documents dropped on a space in the sidebar move there, those the caller owns; true when
+    /// any does.
+    @discardableResult
+    func drop(_ ids: [String], onSpace space: LibrarySpace) -> Bool {
+        let moving = ids.filter { id in cache.documents[id].map { moveTargets(for: $0).contains(space) } ?? false }
+        for id in moving { Task { await move(id, toSpace: space.id) } }
+        return !moving.isEmpty
+    }
+
+    /// The spaces a document may be moved to from its menu: the others, for its owner.
+    func moveTargets(for document: LibraryDocument) -> [LibrarySpace] {
+        guard !isLocal(), document.role == .owner, !document.isPendingUpload else { return [] }
+        return spaces.filter { $0.id != document.spaceID }
+    }
+
     @discardableResult
     func createFolder(named name: String) async -> LibraryFolder? {
         let target = creationTarget

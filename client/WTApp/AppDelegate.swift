@@ -68,6 +68,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let collaboration: CollaborationServices
     /// The Share sheet (menu:File[Share…], the toolbar's Share).
     let sharePresenter: SharePresenter
+    /// btn:[Share]'s badge: pending access requests (COLLAB-013).
+    let shareRequests: ShareRequestBadges
+    /// Share links handed to the app (`OpenLink`, the password and request pages; COLLAB-013).
+    let shareLinks: ShareLinkOpener
     /// The UI tests' socket audit, running only when the launch asked for it (DEBUG builds).
     let socketMonitor: SocketMonitor?
     /// menu:View[Preview in Browser]'s exports (BASIC-017); the exporter arrives with WEB-029.
@@ -204,6 +208,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             accountID: { libraryModel.cache.personalSpaceID ?? account.profile?.accountID },
             isOnline: { libraryModel.isOnline && account.isSignedIn }
         )
+        shareRequests = ShareRequestBadges(
+            services: collaboration, isOwner: { libraryModel.cache.documents[$0]?.role == .owner },
+            isOnline: { !libraryModel.isLocal() && libraryModel.isOnline && account.isSignedIn }
+        )
+        shareLinks = ShareLinkOpener(services: collaboration)
         socketMonitor = launchEnvironment.auditsSockets ? SocketMonitor() : nil
         shortcuts = ShortcutSet.builtInDefault(commands: [])
         toolbars = ToolbarFeatures(commands: commands, layout: layout, tools: tools, defaults: defaults, store: toolbarStore)
@@ -263,6 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.documentSetup.documentDidOpen(window)
             self?.versions.documentDidOpen(window)
             self?.comments.attach(window)
+            self?.shareRequests.attach(window)
             self?.collaborationUI.attach(window)
             self?.web.attach(window)
             self?.images.attach(window)
@@ -607,7 +617,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let handle = controller.documentHandle
         let entry = library.cache.documents[handle.id]
         let document = ShareDocument(
-            id: handle.id, name: entry?.name ?? handle.title, isUploaded: entry.map { !$0.isPendingUpload } ?? false, libraryRole: entry?.role
+            id: handle.id, name: entry?.name ?? handle.title, isUploaded: entry.map { !$0.isPendingUpload } ?? false, libraryRole: entry?.role,
+            spaceID: entry?.spaceID
         )
         return sharePresenter.present(document, on: window)
     }
@@ -627,6 +638,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if SymbolTransferFeatures.opens(url) { return true }
         if StyleTransferModel.opens(url) { return true }
         if typeface.opens(url) { return true }
+        if shareLinks.opens(url) != nil { return true }
         if deepLinks.opens(url) != nil { return true }
         if PackageController.opens(url) {
             Task { await packages.openFile(url) }

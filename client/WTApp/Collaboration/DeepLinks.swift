@@ -227,8 +227,8 @@ final class DeepLinkFeatures {
     }
 }
 
-/// The request page (sharing.adoc, "Requesting access"): the document, a message and
-/// btn:[Request Access].
+/// The request page (sharing.adoc, "Requesting access"): the document (its name when a failed
+/// share link named it, else its id), a message and btn:[Request Access].
 @MainActor
 @Observable
 final class RequestAccessModel {
@@ -243,12 +243,14 @@ final class RequestAccessModel {
     static let sentText = "Your request was sent. You'll be told when the owner answers."
 
     let documentID: String
+    let documentName: String
     var message = ""
     private(set) var phase = Phase.asking
     @ObservationIgnored private let send: (@MainActor (String, String) async throws -> Void)?
 
-    init(documentID: String, send: (@MainActor (String, String) async throws -> Void)?) {
+    init(documentID: String, documentName: String = "", send: (@MainActor (String, String) async throws -> Void)?) {
         self.documentID = documentID
+        self.documentName = documentName
         self.send = send
     }
 
@@ -275,6 +277,7 @@ struct RequestAccessView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("You don't have access to this document").font(.headline)
+            if !model.documentName.isEmpty { Text("“\(model.documentName)”").accessibilityIdentifier("request-access.name") }
             Text(model.documentID).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             TextField("Message to the owner (optional)", text: $model.message, axis: .vertical)
                 .lineLimit(3...6)
@@ -327,5 +330,30 @@ extension AppDelegate {
             _ = try await requests.requestAccess(documentID: id, message: message, accessToken: try await collaboration.accessToken())
         }
         deepLinks.install(commands: commands) { documents.activeWindowController }
+        installShareLinks()
+    }
+
+    /// Share links (`OpenLink`), and what the Share sheet needs from the library: the caller's
+    /// teams for Invite's suggestions, the spaces for *Move to*, and btn:[Share]'s request badge
+    /// (COLLAB-013).
+    func installShareLinks() {
+        let documents = documents!
+        let library = library
+        let shareRequests = shareRequests
+        shareLinks.isOnline = { library.isOnline }
+        shareLinks.refreshLibrary = { await library.refresh() }
+        shareLinks.open = { id, name in documents.open(documents.environment.makeDocument(id: id, title: name)) }
+        shareLinks.showLibrary = { [weak self] message in
+            self?.showLibrary()
+            library.show(message: message)
+        }
+        shareLinks.requestAccess = deepLinks.requestAccess
+        sharePresenter.configure = { model in
+            model.teams = library.cache.teams
+            model.spaces = library.spaces
+            let id = model.document.id
+            model.moveToSpace = { space in await library.move(id, toSpace: space) }
+            model.requestsDidChange = { shareRequests.set($0, count: $1) }
+        }
     }
 }

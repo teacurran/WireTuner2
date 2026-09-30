@@ -31,6 +31,10 @@ final class FakeCollaborationServer: TeamClient, ShareClient, DeviceClient, @unc
     var teamUnavailable = false
     /// How long `accessToken` takes, so a test can look at a sheet while it loads.
     var tokenDelay: Duration = .zero
+    /// Share links by token: what `OpenLink` answers, and the password each needs ("" none).
+    private var _openable: [String: (opened: OpenedShareLink, password: String)] = [:]
+    /// Tokens `OpenLink` refuses, and how.
+    private var _refused: [String: ShareLinkFailure] = [:]
 
     init() {}
 
@@ -80,6 +84,12 @@ final class FakeCollaborationServer: TeamClient, ShareClient, DeviceClient, @unc
     }
 
     func failNext(with error: any Error) { locked { _failure = error } }
+
+    /// A link `OpenLink` opens, needing `password` when it is not empty.
+    func addLink(token: String, opens document: OpenedShareLink, password: String = "") { locked { _openable[token] = (document, password) } }
+
+    /// A link `OpenLink` refuses with `failure`.
+    func refuseLink(token: String, _ failure: ShareLinkFailure) { locked { _refused[token] = failure } }
 
     func services(signedIn: Bool = true, tokens: ShareLinkTokens = ShareLinkTokens()) -> CollaborationServices {
         let delay = tokenDelay
@@ -227,6 +237,14 @@ final class FakeCollaborationServer: TeamClient, ShareClient, DeviceClient, @unc
         return member
     }
 
+    func invite(documentID: String, accountID: String, role: DocumentRole, message: String, accessToken: String) async throws -> ShareMember {
+        try enter("inviteAccount:\(accountID):\(role.rawValue):\(message)")
+        let name = members.first { $0.accountID == accountID }?.displayName ?? ""
+        let member = ShareMember(accountID: accountID, displayName: name, role: role, sources: [.named], effectiveRole: role)
+        locked { _roster.members.append(member) }
+        return member
+    }
+
     func setRole(documentID: String, accountID: String, role: DocumentRole, accessToken: String) async throws -> ShareMember {
         try enter("setRole:\(accountID):\(role.rawValue)")
         return try locked {
@@ -274,6 +292,30 @@ final class FakeCollaborationServer: TeamClient, ShareClient, DeviceClient, @unc
         )
         locked { _links.insert(link, at: 0) }
         return CreatedShareLink(link: link, token: "tok\(link.id)")
+    }
+
+    func updateLink(linkID: String, changes: ShareLinkChanges, accessToken: String) async throws -> ShareLinkInfo {
+        let expiry = changes.expiresAt.map { $0 == nil ? "never" : "date" } ?? "same"
+        try enter("updateLink:\(linkID):\(changes.role?.rawValue ?? "same"):expires=\(expiry):revoke=\(changes.revokeOnExpiry.map(String.init) ?? "same"):password=\(changes.password.map { $0.isEmpty ? "clear" : "set" } ?? "same"):team=\(changes.teamMembersOnly.map(String.init) ?? "same")")
+        return try locked {
+            guard let index = _links.firstIndex(where: { $0.id == linkID }) else { throw RPCError(code: .notFound, message: "LINK_NOT_FOUND") }
+            if let role = changes.role { _links[index].role = role }
+            if let expiresAt = changes.expiresAt { _links[index].expiresAt = expiresAt }
+            if let revoke = changes.revokeOnExpiry { _links[index].revokeOnExpiry = revoke }
+            if let password = changes.password { _links[index].hasPassword = !password.isEmpty }
+            if let teamOnly = changes.teamMembersOnly { _links[index].teamMembersOnly = teamOnly }
+            return _links[index]
+        }
+    }
+
+    func openLink(token: String, password: String, accessToken: String) async throws -> OpenedShareLink {
+        try enter("openLink:\(token):\(password)")
+        return try locked {
+            if let failure = _refused[token] { throw failure }
+            guard let link = _openable[token] else { throw ShareLinkFailure.invalid(nil) }
+            guard link.password.isEmpty || link.password == password else { throw ShareLinkFailure.passwordRequired }
+            return link.opened
+        }
     }
 
     func revokeLink(linkID: String, accessToken: String) async throws {

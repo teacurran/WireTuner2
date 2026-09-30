@@ -489,6 +489,9 @@ extension ShareMember {
         server.roster = ShareRoster(members: [ShareSheetModelTests.owner], teamAccess: nil)
         let delegate = AppDelegate(layoutStore: nil, defaults: suite.defaults, library: library, collaboration: server.services())
         #expect(delegate.showShare() == nil, "no window yet")
+        // Signed out reads as offline: without btn:[Share] in the toolbar the sheet opens with the notice
+        // (the popover from the button is `ShareBadgeAndPopoverTests`).
+        delegate.sharePresenter.shareItem = { _ in nil }
         delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(delegate.commands.validate(ShareCommands.id) == .enabled)
         #expect(delegate.menuTarget?.perform(ShareCommands.id) == true)
@@ -499,7 +502,7 @@ extension ShareMember {
 
         library.open([LibraryDocument(id: "lib-1", spaceID: "s", name: "From library", role: .owner)])
         let shared = delegate.showShare()
-        #expect(shared?.document == ShareDocument(id: "lib-1", name: "From library", isUploaded: true, libraryRole: .owner))
+        #expect(shared?.document == ShareDocument(id: "lib-1", name: "From library", isUploaded: true, libraryRole: .owner, spaceID: "s"))
         delegate.sharePresenter.dismiss()
         for id in delegate.documents.documents.map(\.id) { delegate.documents.close(id) }
         suite.remove()

@@ -145,6 +145,7 @@ struct LibrarySidebar: View {
                             .fontWeight(selected ? .semibold : .regular)
                     }
                     .buttonStyle(.plain)
+                    .dropDestination(for: String.self) { ids, _ in model.drop(ids, onSpace: space) }
                     .accessibilityIdentifier("library.space.\(space.id)")
                 }
                 if model.collaboration != nil, !model.isLocal() {
@@ -355,6 +356,15 @@ struct LibraryDocumentTile: View {
             if let use = model.useAsTeamLibrary {
                 let refusal: String? = local ? LocalMode.needsAccount : model.teamLibraryRefusal?(document)
                 Button("Use as Team Library") { use(document) }.disabled(refusal != nil).help(refusal ?? "Offer this document's symbols, styles and master pages to the team")
+            }
+            let targets = model.moveTargets(for: document)
+            if !targets.isEmpty {
+                Menu("Move to") {
+                    ForEach(targets) { space in
+                        Button(space.name) { Task { await model.move(document.id, toSpace: space.id) } }
+                    }
+                }
+                .disabled(!model.isOnline)
             }
             Divider()
             Button("Move to Trash") { Task { await model.trash(document.id) } }

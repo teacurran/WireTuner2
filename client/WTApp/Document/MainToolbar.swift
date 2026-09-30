@@ -49,6 +49,8 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
     let toolbar: NSToolbar
     /// The number an item's badge shows (the Comments button's unread count); nil or zero shows none.
     var badgeCount: @MainActor (CommandID) -> Int? = { _ in nil }
+    /// Further badges by command (btn:[Share]'s pending access requests), asked before `badgeCount`.
+    var badgeProviders: [CommandID: @MainActor () -> Int?] = [:]
 
     init(environment: DocumentEnvironment, window: NSWindow?, identifier: NSToolbar.Identifier = MainToolbarController.identifier) {
         self.environment = environment
@@ -112,7 +114,7 @@ final class MainToolbarController: NSObject, NSToolbarDelegate, NSToolbarItemVal
     /// The item's badge from `badgeCount` (before macOS 26, the count in its label).
     func applyBadge(to item: NSToolbarItem) {
         guard let id = Self.commandID(of: item.itemIdentifier) else { return }
-        let count = badgeCount(id) ?? 0
+        let count = badgeProviders[id]?() ?? badgeCount(id) ?? 0
         if #available(macOS 26.0, *) {
             item.badge = count > 0 ? .count(count) : nil
         } else {

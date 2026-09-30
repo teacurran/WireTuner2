@@ -550,8 +550,13 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
         String hash = DocumentRoles.tokenHash(request.getToken());
         Instant now = Instant.now();
         return tx(() -> guard.authenticated().flatMap(principal -> links.findByTokenHash(hash).flatMap(link -> {
-            if (link == null || !DocumentRoles.opens(link, now)) {
+            if (link == null) {
                 return Uni.createFrom().failure(StatusExceptions.linkInvalid());
+            }
+            if (!DocumentRoles.opens(link, now)) {
+                // Expired or revoked: name the document so the request page can ask its owner.
+                return documents.findById(link.documentId).flatMap(doc -> Uni.createFrom().<Outcome<OpenLinkResponse>>failure(
+                        doc == null ? StatusExceptions.linkInvalid() : StatusExceptions.linkInvalid(requestable(doc))));
             }
             ShareLinkUseId useId = new ShareLinkUseId(link.id, principal.accountId());
             return documents.findById(link.documentId).flatMap(doc -> linkUses.findById(useId).flatMap(used -> {
@@ -594,8 +599,19 @@ public class ShareGrpcService extends MutinyShareServiceGrpc.ShareServiceImplBas
             return (doc.teamId == null ? Uni.createFrom().nullItem()
                     : teamMembers.findById(new TeamMemberId(doc.teamId, accountId)))
                     .chain(member -> member != null ? Uni.createFrom().voidItem()
-                            : Uni.createFrom().failure(StatusExceptions.roleInsufficient(TeamRoles.MEMBER, "none")));
+                            : Uni.createFrom().failure(StatusExceptions.linkTeamOnly(requestable(doc))));
         });
+    }
+
+    /**
+     * What a refused link tells the client about its document, for the request page (sharing.adoc,
+     * "Requesting access"): its id and name, and whether access can be requested -- not for a trashed
+     * document.  The person held the link, so the name is theirs to see.
+     */
+    static Map<String, String> requestable(Document doc) {
+        boolean can = doc.trashedAt == null;
+        return Map.of("document_id", doc.id.toString(), "document_name", can ? doc.name : "",
+                "can_request_access", Boolean.toString(can));
     }
 
     private Uni<Outcome<OpenLinkResponse>> opened(Principal principal, Document doc) {

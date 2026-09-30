@@ -20,12 +20,12 @@ struct ShareSheetView: View {
                     SharePeopleSection(model: model)
                     if model.mayInvite { ShareInviteSection(model: model) }
                     if model.isOwner { ShareLinksSection(model: model) }
-                    if !model.transferCandidates.isEmpty { ShareTransferSection(model: model) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack {
                 Button("Refresh", action: model.handler(.reload)).disabled(!model.document.isUploaded).accessibilityIdentifier("share.refresh")
+                if model.hasActions { ShareActionsMenu(model: model) }
                 Spacer()
                 Button("Done", action: model.handler(.done)).keyboardShortcut(.defaultAction).accessibilityIdentifier("share.done")
             }
@@ -167,7 +167,7 @@ struct ShareInviteSection: View {
     var body: some View {
         Text("Invite").font(.headline)
         HStack {
-            TextField("Email address", text: $model.inviteEmail).onSubmit(model.handler(.invite)).accessibilityIdentifier("share.invite.email")
+            TextField("Email address or name", text: $model.inviteEmail).onSubmit(model.handler(.invite)).accessibilityIdentifier("share.invite.email")
             Picker("Role", selection: $model.inviteRole) {
                 ForEach(model.inviteRoles, id: \.self) { Text($0.title).tag($0) }
             }
@@ -175,6 +175,19 @@ struct ShareInviteSection: View {
             .fixedSize()
             .accessibilityIdentifier("share.invite.role")
             Button("Invite", action: model.handler(.invite)).disabled(!model.canInvite).accessibilityIdentifier("share.invite.send")
+        }
+        ForEach(model.suggestions) { suggestion in
+            Button(action: model.handler(.pick(suggestion))) {
+                HStack {
+                    Text(suggestion.name)
+                    if !suggestion.email.isEmpty, suggestion.email != suggestion.name { Text(suggestion.email).foregroundStyle(.secondary) }
+                    Spacer()
+                    Text(suggestion.teamName).font(.caption).foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("share.invite.suggestion.\(suggestion.accountID)")
         }
         TextField("Message (optional)", text: $model.inviteMessage).accessibilityIdentifier("share.invite.message")
     }
@@ -193,10 +206,12 @@ struct ShareLinksSection: View {
                     .disabled(model.linkURL(link) == nil)
                     .help(model.linkURL(link) == nil ? ShareSheetModel.noTokenHelp : "Copy the link")
                     .accessibilityIdentifier("share.link.\(link.id).copy")
+                Button("Edit…", action: model.handler(.editLink(link))).accessibilityIdentifier("share.link.\(link.id).edit")
                 Button("Revoke", action: model.handler(.confirm(.revokeLink(link)))).accessibilityIdentifier("share.link.\(link.id).revoke")
             }
             .disabled(!model.canCreateLink)
             .accessibilityIdentifier("share.link.\(link.id)")
+            if model.editingLink?.id == link.id { ShareLinkEditor(model: model) }
         }
         Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
             GridRow {
@@ -234,20 +249,106 @@ struct ShareLinksSection: View {
     }
 }
 
-struct ShareTransferSection: View {
+/// An existing link's options (sharing.adoc, "Share links"): role, expiry, a new password or
+/// none, and the team restriction; btn:[Save] sends only what changed (`UpdateLink`).
+struct ShareLinkEditor: View {
     @Bindable var model: ShareSheetModel
 
     var body: some View {
-        Text("Ownership").font(.headline)
-        HStack {
-            Picker("New owner", selection: $model.transferTargetID) {
-                Text("Choose a person").tag(String?.none)
-                ForEach(model.transferCandidates) { Text($0.name).tag(String?.some($0.accountID)) }
+        Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
+            GridRow {
+                Text("Role")
+                Picker("Role", selection: $model.editRole) {
+                    ForEach(DocumentRole.grantable, id: \.self) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+                .accessibilityIdentifier("share.editLink.role")
             }
+            GridRow {
+                Toggle("Expires", isOn: $model.editExpires).accessibilityIdentifier("share.editLink.expires")
+                HStack {
+                    DatePicker("Expiry", selection: $model.editExpiry, displayedComponents: .date).labelsHidden().disabled(!model.editExpires)
+                    Toggle("Revoke access from this link on expiry", isOn: $model.editRevokeOnExpiry).disabled(!model.editExpires)
+                        .accessibilityIdentifier("share.editLink.revokeOnExpiry")
+                }
+            }
+            GridRow {
+                Text("Password")
+                HStack {
+                    SecureField(model.editingLink?.hasPassword == true ? "Unchanged" : "None", text: $model.editPassword)
+                        .accessibilityIdentifier("share.editLink.password")
+                    if model.editingLink?.hasPassword == true {
+                        Toggle("Remove password", isOn: $model.editClearPassword).disabled(!model.editPassword.isEmpty)
+                            .accessibilityIdentifier("share.editLink.clearPassword")
+                    }
+                }
+            }
+            if model.isTeamDocument {
+                GridRow {
+                    Text("")
+                    Toggle("Restrict to team members", isOn: $model.editTeamMembersOnly).disabled(model.isRestricted)
+                        .accessibilityIdentifier("share.editLink.teamOnly")
+                }
+            }
+            GridRow {
+                Text("")
+                HStack {
+                    Button("Cancel", action: model.handler(.cancelEdit)).accessibilityIdentifier("share.editLink.cancel")
+                    Button("Save", action: model.handler(.saveLink)).disabled(!model.canSaveLink).accessibilityIdentifier("share.editLink.save")
+                }
+            }
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.08)))
+    }
+}
+
+/// The sheet's Actions menu: menu:Actions[Transfer Ownership] (a personal document's owner, to
+/// someone who already has access) and menu:Actions[Move to] (the owner's other spaces).  Both
+/// confirm first.
+struct ShareActionsMenu: View {
+    let model: ShareSheetModel
+
+    var body: some View {
+        Menu("Actions") { ShareActionItems(model: model) }
             .fixedSize()
-            .accessibilityIdentifier("share.transfer.target")
-            Button("Transfer Ownership…", action: model.handler(.confirmTransfer)).disabled(!model.canTransfer)
-                .accessibilityIdentifier("share.transfer")
+            .accessibilityIdentifier("share.actions")
+    }
+}
+
+/// The Actions menu's items.
+struct ShareActionItems: View {
+    let model: ShareSheetModel
+
+    var body: some View {
+        if !model.transferCandidates.isEmpty {
+            Menu("Transfer Ownership") { ShareTransferItems(model: model) }.disabled(!model.isAvailable)
+        }
+        if !model.moveTargets.isEmpty {
+            Menu("Move to") { ShareMoveItems(model: model) }.disabled(!model.canMove)
+        }
+    }
+}
+
+/// menu:Actions[Transfer Ownership]: the people who can become owner.
+struct ShareTransferItems: View {
+    let model: ShareSheetModel
+
+    var body: some View {
+        ForEach(model.transferCandidates) { member in
+            Button(member.name, action: model.handler(.confirm(.transfer(member))))
+        }
+    }
+}
+
+/// menu:Actions[Move to]: the owner's other spaces.
+struct ShareMoveItems: View {
+    let model: ShareSheetModel
+
+    var body: some View {
+        ForEach(model.moveTargets) { space in
+            Button(space.name, action: model.handler(.confirm(.move(space))))
         }
     }
 }

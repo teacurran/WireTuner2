@@ -129,3 +129,96 @@ extension AccessRequestInfo {
         )
     }
 }
+
+/// What `UpdateLink` changes on an existing link (sharing.adoc, "Share links"): only the fields
+/// set.  `expiresAt` `.some(nil)` makes the link never expire; `password` `""` clears it.
+struct ShareLinkChanges: Equatable, Sendable {
+    var role: DocumentRole?
+    var expiresAt: Date??
+    var revokeOnExpiry: Bool?
+    var password: String?
+    var teamMembersOnly: Bool?
+
+    var isEmpty: Bool { self == ShareLinkChanges() }
+}
+
+/// Who an invitation is for: an address, or a person picked from the suggestions (the people
+/// of the caller's teams, by account id).
+enum ShareInvitee: Equatable, Sendable {
+    case email(String)
+    case account(id: String, name: String)
+
+    var title: String {
+        switch self {
+        case let .email(email): email
+        case let .account(_, name): name
+        }
+    }
+}
+
+/// A person the Invite field suggests: a member of one of the caller's teams.
+struct InviteSuggestion: Equatable, Sendable, Identifiable {
+    var accountID: String
+    var displayName: String
+    var email: String
+    /// The team the person was found in.
+    var teamName: String
+
+    var id: String { accountID }
+    var name: String { displayName.isEmpty ? email : displayName }
+
+    /// Whether `query` (case and diacritics ignored) starts the name, a word of it, or the address.
+    func matches(_ query: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespaces).folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        guard !query.isEmpty else { return false }
+        let fold = { (text: String) in text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil) }
+        let words = fold(displayName).split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        return fold(displayName).hasPrefix(query) || words.contains { $0.hasPrefix(query) } || fold(email).hasPrefix(query)
+    }
+}
+
+/// `OpenLink`'s answer: the document the link opened and the caller's role in it.
+struct OpenedShareLink: Equatable, Sendable {
+    var documentID: String
+    var documentName: String
+    var role: DocumentRole?
+}
+
+/// Why a share link did not open (sharing.adoc, "Requesting access"), from the error's
+/// `ErrorInfo`: the reason and, when the server knows the link's document, its id and name
+/// (`document_id`, `document_name`) so the request page can ask for access.
+enum ShareLinkFailure: Error, Equatable, Sendable {
+    /// `LINK_PASSWORD_REQUIRED`: missing or wrong.
+    case passwordRequired
+    /// `LINK_INVALID`: unknown, expired or revoked.
+    case invalid(ShareLinkDocument?)
+    /// `ROLE_INSUFFICIENT`: a team-members-only link opened by someone outside the team.
+    case teamOnly(ShareLinkDocument?)
+
+    /// The document to request access to, when the server named one.
+    var requestable: ShareLinkDocument? {
+        switch self {
+        case .passwordRequired: nil
+        case let .invalid(document), let .teamOnly(document): document
+        }
+    }
+
+    /// The failure an `ErrorInfo` reason and metadata stand for; nil for any other reason.
+    init?(reason: String, metadata: [String: String]) {
+        let document = metadata["document_id"].flatMap { id in
+            id.isEmpty || metadata["can_request_access"] != "true" ? nil : ShareLinkDocument(id: id, name: metadata["document_name"] ?? "")
+        }
+        switch reason {
+        case "LINK_PASSWORD_REQUIRED": self = .passwordRequired
+        case "LINK_INVALID": self = .invalid(document)
+        case "ROLE_INSUFFICIENT": self = .teamOnly(document)
+        default: return nil
+        }
+    }
+}
+
+/// The document a failed link belongs to.
+struct ShareLinkDocument: Equatable, Sendable {
+    var id: String
+    var name: String
+}

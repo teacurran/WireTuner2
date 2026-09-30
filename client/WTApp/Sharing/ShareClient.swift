@@ -8,6 +8,8 @@ import WTProto
 protocol ShareClient: Sendable {
     func listMembers(documentID: String, accessToken: String) async throws -> ShareRoster
     func invite(documentID: String, email: String, role: DocumentRole, message: String, accessToken: String) async throws -> ShareMember
+    /// Invites a person picked from the suggestions, by account id.
+    func invite(documentID: String, accountID: String, role: DocumentRole, message: String, accessToken: String) async throws -> ShareMember
     func setRole(documentID: String, accountID: String, role: DocumentRole, accessToken: String) async throws -> ShareMember
     /// The member when access remains through the team or a link; nil when none is left.
     func removeMember(documentID: String, accountID: String, accessToken: String) async throws -> ShareMember?
@@ -15,7 +17,10 @@ protocol ShareClient: Sendable {
     func setTeamAccess(documentID: String, override: DocumentRole?, accessToken: String) async throws -> TeamAccessInfo
     func listLinks(documentID: String, accessToken: String) async throws -> [ShareLinkInfo]
     func createLink(documentID: String, options: ShareLinkOptions, accessToken: String) async throws -> CreatedShareLink
+    func updateLink(linkID: String, changes: ShareLinkChanges, accessToken: String) async throws -> ShareLinkInfo
     func revokeLink(linkID: String, accessToken: String) async throws
+    /// Opens a share link as the caller; a refusal throws `ShareLinkFailure`.
+    func openLink(token: String, password: String, accessToken: String) async throws -> OpenedShareLink
     func listAccessRequests(documentID: String, accessToken: String) async throws -> [AccessRequestInfo]
     /// `grant` nil declines.  The new member when granted.
     func resolveAccessRequest(requestID: String, grant: DocumentRole?, accessToken: String) async throws -> ShareMember?
@@ -37,6 +42,15 @@ enum ShareRequests {
         var message = Wiretuner_Docs_V1_InviteRequest()
         message.documentID = documentID
         message.email = email
+        message.role = role.proto
+        message.message = note
+        return message
+    }
+
+    static func invite(documentID: String, accountID: String, role: DocumentRole, message note: String) -> Wiretuner_Docs_V1_InviteRequest {
+        var message = Wiretuner_Docs_V1_InviteRequest()
+        message.documentID = documentID
+        message.accountID = accountID
         message.role = role.proto
         message.message = note
         return message
@@ -73,6 +87,32 @@ enum ShareRequests {
         message.password = options.password
         message.teamMembersOnly = options.teamMembersOnly
         return message
+    }
+
+    static func updateLink(linkID: String, changes: ShareLinkChanges) -> Wiretuner_Docs_V1_UpdateLinkRequest {
+        var message = Wiretuner_Docs_V1_UpdateLinkRequest()
+        message.linkID = linkID
+        if let role = changes.role { message.role = role.proto }
+        // A present, unset timestamp clears the expiry.
+        if let expiresAt = changes.expiresAt { message.expiresAt = expiresAt.map { Google_Protobuf_Timestamp(date: $0) } ?? Google_Protobuf_Timestamp() }
+        if let revoke = changes.revokeOnExpiry { message.revokeOnExpiry = revoke }
+        if let password = changes.password { message.password = password }
+        if let teamOnly = changes.teamMembersOnly { message.teamMembersOnly = teamOnly }
+        return message
+    }
+
+    static func openLink(token: String, password: String) -> Wiretuner_Docs_V1_OpenLinkRequest {
+        var message = Wiretuner_Docs_V1_OpenLinkRequest()
+        message.token = token
+        message.password = password
+        return message
+    }
+
+    /// A refused `OpenLink` as `ShareLinkFailure` from its `ErrorInfo`; any other error as it is.
+    static func linkFailure(_ error: any Error) -> any Error {
+        guard let rpc = error as? RPCError, let info = ((try? rpc.unpackGoogleRPCStatus())?.details ?? []).lazy.compactMap(\.errorInfo).first,
+              let failure = ShareLinkFailure(reason: info.reason, metadata: info.metadata) else { return error }
+        return failure
     }
 
     static func listAccessRequests(documentID: String, cursor: String) -> Wiretuner_Docs_V1_ListAccessRequestsRequest {
@@ -138,6 +178,12 @@ struct GRPCShareClient: ShareClient {
         return response.info
     }
 
+    func invite(documentID: String, accountID: String, role: DocumentRole, message: String, accessToken: String) async throws -> ShareMember {
+        let request = ShareRequests.invite(documentID: documentID, accountID: accountID, role: role, message: message)
+        let response: Share.Invite.Output = try await caller.unary(Share.Invite.descriptor, request, accessToken: accessToken)
+        return response.info
+    }
+
     func setRole(documentID: String, accountID: String, role: DocumentRole, accessToken: String) async throws -> ShareMember {
         let request = ShareRequests.setRole(documentID: documentID, accountID: accountID, role: role)
         let response: Share.SetRole.Output = try await caller.unary(Share.SetRole.descriptor, request, accessToken: accessToken)
@@ -165,6 +211,21 @@ struct GRPCShareClient: ShareClient {
         let request = ShareRequests.createLink(documentID: documentID, options: options)
         let response: Share.CreateLink.Output = try await caller.unary(Share.CreateLink.descriptor, request, accessToken: accessToken)
         return response.info
+    }
+
+    func updateLink(linkID: String, changes: ShareLinkChanges, accessToken: String) async throws -> ShareLinkInfo {
+        let request = ShareRequests.updateLink(linkID: linkID, changes: changes)
+        let response: Share.UpdateLink.Output = try await caller.unary(Share.UpdateLink.descriptor, request, accessToken: accessToken)
+        return response.info
+    }
+
+    func openLink(token: String, password: String, accessToken: String) async throws -> OpenedShareLink {
+        do {
+            let response: Share.OpenLink.Output = try await caller.unary(Share.OpenLink.descriptor, ShareRequests.openLink(token: token, password: password), accessToken: accessToken)
+            return response.info
+        } catch {
+            throw ShareRequests.linkFailure(error)
+        }
     }
 
     func revokeLink(linkID: String, accessToken: String) async throws {
@@ -216,6 +277,14 @@ extension Wiretuner_Docs_V1_ListLinksResponse {
 
 extension Wiretuner_Docs_V1_CreateLinkResponse {
     var info: CreatedShareLink { CreatedShareLink(link: ShareLinkInfo(link), token: token) }
+}
+
+extension Wiretuner_Docs_V1_UpdateLinkResponse {
+    var info: ShareLinkInfo { ShareLinkInfo(link) }
+}
+
+extension Wiretuner_Docs_V1_OpenLinkResponse {
+    var info: OpenedShareLink { OpenedShareLink(documentID: documentID, documentName: documentName, role: DocumentRole(effectiveRole)) }
 }
 
 extension Wiretuner_Docs_V1_ListAccessRequestsResponse {

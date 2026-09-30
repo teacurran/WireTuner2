@@ -21,6 +21,8 @@ struct ReviewWorld {
     var state = EngineState()
     var local: [Wiretuner_Doc_V1_Change] = []
     var remote: [Wiretuner_Doc_V1_Change] = []
+    /// The changes both sides started from, in server order (another client's replica replays them).
+    var baseChanges: [Wiretuner_Doc_V1_Change] = []
     private var counter: UInt64 = 1
     private var serverSeq: UInt64 = 0
     private var seqs: [UInt64: UInt64] = [:]
@@ -43,6 +45,7 @@ struct ReviewWorld {
         let (change, first) = change(Self.base, ops)
         serverSeq += 1
         state.apply(change, serverSeq: serverSeq)
+        baseChanges.append(change)
         return first
     }
 

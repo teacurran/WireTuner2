@@ -1,6 +1,7 @@
 package com.villagecompute.wiretuner.api.grpc;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -198,6 +199,28 @@ public final class StatusExceptions {
     public static StatusRuntimeException linkInvalid() {
         return withReason(Code.NOT_FOUND, ErrorReasons.LINK_INVALID, "the share link is unknown, expired or revoked",
                 Map.of());
+    }
+
+    /**
+     * {@code NOT_FOUND / LINK_INVALID} for a link that exists but no longer opens (expired or revoked):
+     * {@code requestable} names its document ({@code document_id}, {@code document_name},
+     * {@code can_request_access = true}) so the client can show the request page.
+     */
+    public static StatusRuntimeException linkInvalid(Map<String, String> requestable) {
+        return withReason(Code.NOT_FOUND, ErrorReasons.LINK_INVALID, "the share link is expired or revoked", requestable);
+    }
+
+    /**
+     * {@code PERMISSION_DENIED / ROLE_INSUFFICIENT} for a team-members-only link opened by someone outside
+     * the team, with the link's document ({@link #linkInvalid(Map)}) besides {@code required} and
+     * {@code actual}.
+     */
+    public static StatusRuntimeException linkTeamOnly(Map<String, String> requestable) {
+        Map<String, String> metadata = new HashMap<>(requestable);
+        metadata.put("required", "member");
+        metadata.put("actual", "none");
+        return withReason(Code.PERMISSION_DENIED, ErrorReasons.ROLE_INSUFFICIENT,
+                "this link opens only for members of the document's team", metadata);
     }
 
     /** {@code ALREADY_EXISTS / DOCUMENT_EXISTS}: the client-chosen document id is taken by a different document. */
