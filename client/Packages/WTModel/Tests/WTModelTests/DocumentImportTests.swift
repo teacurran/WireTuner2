@@ -110,6 +110,26 @@ import struct WTGeometry.AffineTransform
         #expect(Self.contents(state) == ["Hidden": [], "Foreground": ["x"]])
     }
 
+    /// D-085: an Illustrator layer's eye, lock, print and outline settings become the document
+    /// layer's; the first page to name a layer sets them.
+    @Test func layerSettingsComeFromTheFile() throws {
+        func layer(_ name: String, _ state: ImportedLayerState, _ nodes: [ImportedNode]) -> ImportedNode {
+            .group(ImportedGroup(children: nodes, name: name, role: .layer, layerState: state))
+        }
+        let document = ImportedDocument(format: .illustrator, name: "Layers.ai", pages: [
+            ImportedPage(size: Size(width: 100, height: 100), nodes: [layer("Sketch", ImportedLayerState(visible: false, locked: true), [Self.square(0, name: "s")]),
+                                                                      layer("Guide", ImportedLayerState(printing: false, outline: true), [])]),
+            ImportedPage(size: Size(width: 100, height: 100), nodes: [layer("Sketch", .normal, [Self.square(1, name: "t")]), Self.square(2, name: "loose")]),
+        ], layerSource: .layerMarks)
+        #expect(DocumentImport(document).layerContents.map(\.state) == [ImportedLayerState(visible: false, locked: true), ImportedLayerState(printing: false, outline: true), .normal])
+        let state = try Self.open(document).state
+        let layers = Dictionary(uniqueKeysWithValues: LayerOrder(state).layers.map { ($0.name, $0) })
+        #expect(layers["Sketch"].map { !$0.visible && $0.locked && $0.printing && !$0.keyline } == true)
+        #expect(layers["Guide"].map { $0.visible && !$0.locked && !$0.printing && $0.keyline } == true)
+        #expect(layers["Foreground"].map { $0.visible && !$0.locked && $0.printing && !$0.keyline } == true)
+        #expect(Self.contents(state)["Sketch"] == ["s", "t"])
+    }
+
     @Test func aLargeFileIsWrittenInPartsThatAreNotUndoSteps() throws {
         let nodes = (0..<300).map { Self.square(Double($0), name: "p\($0)") }
         let command = CreateDocument(.imported(DocumentImport(ImportedDocument(format: .svg, name: "Many.svg", pages: [ImportedPage(size: Size(width: 10, height: 10), nodes: nodes)]))))

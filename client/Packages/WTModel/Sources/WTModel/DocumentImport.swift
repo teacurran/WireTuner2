@@ -11,7 +11,9 @@ import struct WTGeometry.AffineTransform
 // "Created from <file>" -- like a template, part of the document and not an undo step.  The file's
 // pages (a PDF's pages, an Illustrator file's artboards) become pages at their own sizes, set in
 // rows on the pasteboard; its layers become document layers in the file's order, bottom to top,
-// with artwork outside any layer on "Foreground"; the *Notes* and *URLs* layers follow.  The
+// with artwork outside any layer on "Foreground"; the *Notes* and *URLs* layers follow.  A file
+// layer that is hidden, locked, non-printing or drawn as outlines in the file (an Illustrator
+// layer, D-085) is created so: hidden, locked, a background layer, a keyline layer.  The
 // document template (swatches, the Normal styles) is written too, so the new document is a
 // WireTuner document like any other.  Blobs must be in the cache before it runs, as for an import.
 
@@ -78,10 +80,12 @@ public struct DocumentImport: Sendable {
 
     /// The document layers in order, bottom to top, with the nodes each receives in stacking
     /// order, already in pasteboard space (their pages' offsets applied, a file layer's own
-    /// transform composed onto its children).
-    public var layerContents: [(name: String, nodes: [ImportedNode])] {
+    /// transform composed onto its children), and the settings of the file layer that first
+    /// names each (`.normal` for *Foreground* and the named layers).
+    public var layerContents: [(name: String, nodes: [ImportedNode], state: ImportedLayerState)] {
         var order: [String] = []
         var contents: [String: [ImportedNode]] = [:]
+        var states: [String: ImportedLayerState] = [:]
         func add(_ node: ImportedNode, to name: String) {
             if contents[name] == nil {
                 order.append(name)
@@ -96,6 +100,7 @@ public struct DocumentImport: Sendable {
                 if case .group(let group) = node, group.role == .layer {
                     let toPage = group.transform.concatenating(offset)
                     let name = group.name.flatMap { $0.isEmpty ? nil : $0 } ?? Self.looseLayer
+                    if states[name] == nil { states[name] = group.layerState }
                     if group.children.isEmpty, contents[name] == nil {
                         order.append(name)
                         contents[name] = []
@@ -112,7 +117,7 @@ public struct DocumentImport: Sendable {
                 for node in layer.nodes { add(node.applying(offset), to: layer.name) }
             }
         }
-        return order.map { ($0, contents[$0]!) }
+        return order.map { ($0, contents[$0]!, states[$0] ?? .normal) }
     }
 
     /// Writes the document: template, pages, layers and artwork.
@@ -135,8 +140,10 @@ public struct DocumentImport: Sendable {
         for (layer, layerKey) in zip(layers, layerKeys) {
             var props = Wiretuner_Doc_V1_NodeProps()
             props.layer.common.name = String(layer.name.prefix(256))
-            props.layer.visible = true
-            props.layer.printing = true
+            props.layer.visible = layer.state.visible
+            props.layer.locked = layer.state.locked
+            props.layer.printing = layer.state.printing
+            props.layer.keyline = layer.state.outline
             let id = builder.append(Ops.create(parent: WellKnown.layers, position: layerKey, props: props))
             let keys = try PathEditing.keys(between: nil, and: nil, count: layer.nodes.count)
             for (node, key) in zip(layer.nodes, keys) {

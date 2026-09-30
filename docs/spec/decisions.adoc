@@ -957,8 +957,7 @@ other file types]; IO-040):
   document: one page per page of the file at its own size -- a PDF's pages, an Illustrator file's
   artboards (Illustrator writes each artboard as a page of the PDF it embeds) -- in rows on the
   pasteboard; the file's layers (a PDF's optional content, a DXF file's layers, a PostScript
-  Illustrator file's layers; a PDF-based Illustrator file keeps its layers in private data that is
-  not read, so it opens on one layer) as document
+  Illustrator file's layers; a PDF-based Illustrator file's layers since D-085) as document
   layers in the file's order, bottom to top, with artwork outside any layer on *Foreground*, and the
   *Notes* and *URLs* layers the PDF importer makes; the built-in template's swatches and styles.  It
   is not an undo step, as a template is not.  Fonts resolve exactly as on import, and fonts not on
@@ -1083,6 +1082,55 @@ Signing is unchanged: the export signs the framework with the app's team (librar
 under the hardened runtime), and an unsigned build signs it ad hoc without the hardened runtime, as
 before (D-080).  `make release-check` fails a build in which the framework is missing, embedded twice,
 or not loaded by the app and the importer.
+
+[[D-085]]
+=== D-085 PDF-based Illustrator files open with their layers, read from Illustrator's layer marks
+Found in use (2026-09-30): Illustrator 9 and later files, the owner's main format, opened (D-082)
+and imported on one layer.  Illustrator keeps its native document in the PDF's private data
+(`/PieceInfo /Illustrator /Private`, `/AIPrivateData1…N`, from CS on behind `%AI12_CompressedData`
+as zlib), and optional content exists only when *Create Acrobat Layers* was chosen.  But
+Illustrator also brackets each top-level layer's drawing in its PDF with `/Layer /MCn BDC … EMC`,
+whose properties carry the layer's `/Title`, `/Visible`, `/Editable`, `/Printed` and `/Preview`, and
+keeps a hidden layer's artwork (which it does not draw) as `/AltAI8` marked content inside the
+layer, whose properties are `/AIType /HiddenLayer` with their own `/Contents` and `/Resources`.  In
+the owner's corpus every one of the 72 PDF-based files marks its layers this way or with optional
+content, and none draws anything outside them.  So (xref:import-formats.adoc[Import file formats]):
+
+* *The PDF drawing stays the artwork.*  It renders as Illustrator saved it; the layers only group
+  it.  Reading the native format instead would mean a second converter for Illustrator's objects,
+  its appearance model and its text engine, for no gain in what is drawn.
+* *Layers come from, in order:* the `/Layer` marks (hidden layers from their `/AltAI8` copies); the
+  optional content (visibility from the default configuration; lock, print and outline from the
+  private data's layer record of the same name, because Acrobat layers carry none); for a file with
+  neither, the private data's layer table when it has exactly one top-level layer (Illustrator 9 and
+  10 files), all the artwork on it.  The private data is read only for its `%AI5_BeginLayer`
+  records (`Lb` flags and `Ln` name); Zstandard data (Illustrator 2020 and later) is not read, which
+  loses nothing while those files keep their marks.
+* *Settings.*  Hidden opens hidden with its artwork, locked opens locked, not printing becomes a
+  background layer (so it stacks below the printing layers, as WireTuner orders them), outline view
+  becomes the keyline.  Sublayers become groups named after them on their top-level layer; two
+  layers with one name become *Name* and *Name 2* (document layers are matched by name).
+* *Certainty or nothing.*  When a page draws anything outside the layers, draws one layer in two
+  separate places, stacks the layers in another order than an earlier page, or a file mixes `/Layer`
+  and `/OC` layers, the file opens as its PDF reads (optional content, if any, else one layer) with a
+  note.  No path loses artwork: the fallback is exactly the pre-D-085 reading.
+* *Import.*  menu:File[Import…] keeps the layers as groups named after them, as the spec always
+  said, leaves hidden layers out with a note and drops empty ones.  A plain PDF's optional content
+  that is off now opens as a hidden layer and is left out of an import, as PDF readers hide it; the
+  `/Layer` marks are read only in Illustrator files.
+
+Corpus (the owner's 76 `.ai` files, read in place through `WT_EXTERNAL_CORPUS`, report in the
+scratchpad): all 76 open; 66 take their layers from the
+`/Layer` marks (88 layers), 6 from optional content (17, their lock settings from the private data), none needed the private-data-only path or fell
+back, and the 4 PostScript files keep their legacy reading (2 with layers).  Against the single-layer
+reading before this change: 18 files gain layers (up to 5), every layer count equals the private
+data's top-level layer count, 4 files gain the artwork of 6 hidden layers (hidden), page 1 against
+Quartz is unchanged within 0.005 for 107 of the 108 compared files and closer for one (a file whose
+Acrobat layers are off, now hidden: 0.012 to 0.001)
+
+Rejected: matching the private data's objects to the PDF's by geometry (fragile where one native
+object draws as several PDF objects, and unnecessary given the marks); reading layers from the
+private data for multi-layer files without marks (no way to tell which drawing is on which layer).
 
 == Open questions
 

@@ -30,6 +30,21 @@ public struct ImportedPage: Hashable, Sendable {
     }
 }
 
+/// Where an opened Illustrator file's layers came from (D-085), for the open report and the
+/// corpus run.
+public enum ImportedLayerSource: String, Hashable, Sendable, CaseIterable {
+    /// The `/Layer` marked content Illustrator writes around each layer's drawing in its PDF.
+    case layerMarks = "layer marks"
+    /// PDF optional content (*Create Acrobat Layers*).
+    case optionalContent = "optional content"
+    /// Illustrator's private data, for a file whose PDF marks no layers and that has one layer.
+    case privateData = "private data"
+    /// A PostScript-based file's own layer operators.
+    case postScript = "PostScript"
+    /// None could be matched to the drawing with certainty: the artwork is on one layer.
+    case none = "one layer"
+}
+
 /// The result of opening a file as a document.
 public struct ImportedDocument: Hashable, Sendable {
     /// The format the file was read as.
@@ -40,12 +55,15 @@ public struct ImportedDocument: Hashable, Sendable {
     public var pages: [ImportedPage]
     /// What was approximated or left out, for the open report.
     public var notes: [String]
+    /// Where an Illustrator file's layers came from; nil for other formats.
+    public var layerSource: ImportedLayerSource?
 
-    public init(format: ImportFormat, name: String, pages: [ImportedPage], notes: [String] = []) {
+    public init(format: ImportFormat, name: String, pages: [ImportedPage], notes: [String] = [], layerSource: ImportedLayerSource? = nil) {
         self.format = format
         self.name = name
         self.pages = pages
         self.notes = notes
+        self.layerSource = layerSource
     }
 
     /// A one-page document of `scene`: the page is the scene's bounds (at least one point on each

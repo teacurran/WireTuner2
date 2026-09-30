@@ -86,9 +86,17 @@ Select it and choose menu:Edit[Cut Contents] to release the objects.
 Illustrator files saved with the *Create PDF Compatible File* option (the default since
 Illustrator 9) contain a PDF, and {product} imports that PDF with the PDF options above.  Live
 blends become groups of the blended shapes; gradient meshes become paths with a 50% black fill.
-Illustrator layers become groups named after the layers.  Opened as a document rather than
-imported, an Illustrator file keeps its artboards as pages (and a PostScript-based one its layers as
-layers).
+Illustrator layers become groups named after the layers; hidden layers are left out of an import
+(the import says so) and layers with nothing on them are skipped.
+
+Opened as a document rather than imported, an Illustrator file keeps its artboards as pages and its
+layers as layers, bottom to top in the same order, with the same names and each object on its own
+layer.  A layer that is hidden in Illustrator opens hidden with its artwork, a locked one opens
+locked, one set not to print becomes a background layer and one shown as outlines draws as
+keylines.  Two layers with the same name are told apart by a number after the second name
+(*Art*, *Art 2*).  When {product} cannot match the layers to the artwork with certainty, the file
+opens the way its PDF reads -- usually with all the artwork on one layer -- and the open report says
+so; no artwork is left out either way.
 
 Older Illustrator files (versions 1.1 through 8) and Illustrator EPS files are PostScript-based.
 {product} reads their drawing operators directly -- paths, fills, strokes, text and placed
@@ -404,7 +412,8 @@ top of the layer list when missing, in the same change.
 in `appearance.effects`.  With a `clip`: `GROUP_KIND_CLIP` whose first child is a `path` node
 made from the clip (no fills or strokes, `even_odd` from its rule, the clip's own `transform`)
 and `clip_path` referencing it (OBJ-027).  `role == .layer` is a group too (Illustrator, DXF and
-PDF optional-content layers arrive as groups named after the layer).
+PDF optional-content layers arrive as groups named after the layer); its `layerState` is used only
+when the file is opened as a document.
 
 |`ImportedPath`
 |`path` node: one `Contour` per `ImportedContour` (`closed`), its points from
@@ -667,6 +676,31 @@ paint and the `XI` operand order is assumed; both want checking against real AI 
 50-PDF corpus and real AI 8/10/CS/CC fixtures are not vendored: coverage comes from round trips
 through the PDF and Illustrator exporters (corpus pages render within 2% of the source), PDFs
 built in the tests and hand-written AI files.
+
+NOTE: Illustrator layers (xref:decisions.adoc#D-085[D-085]; `Import/Illustrator/IllustratorImporter.swift`,
+`IllustratorPrivateData.swift`, the `/Layer` and `/AltAI8` cases of `PDFImportInterpreter`).  The
+PDF drawing stays the source of the artwork; the layers come from, in order: the `/Layer /MCn BDC`
+marked content Illustrator writes around each top-level layer (properties `/Title`, `/Visible`,
+`/Editable`, `/Printed`, `/Preview`; a hidden layer's artwork is the `/AltAI8` marked content inside
+it whose properties are `/AIType /HiddenLayer` with their own `/Contents` and `/Resources`, read
+into the layer and not drawn by PDF readers); optional content (*Create Acrobat Layers*; `/OC`,
+visibility from the default configuration's `/OFF` or `/BaseState`, lock, print and outline from
+the private data's layer table when a name matches one top-level record); for a file with neither,
+the private data's layer table when it has exactly one top-level layer (all the artwork goes on it).
+The private data is page 1's `/PieceInfo /Illustrator /Private` `/AIPrivateData1…N` streams in
+numeric order, the part after `%AI12_CompressedData` inflated as one zlib stream (at most 1 GiB);
+`%AI24_ZStandard_Data` is not read.  Each `%AI5_BeginLayer` record gives `Lb`'s first four flags
+(visible, preview, enabled, printing) and the `Ln` name, nested by `%AI5_EndLayer`.  A layer inside
+a layer (a sublayer) is a group named after it.  Opening falls back to the plain PDF reading
+(optional content still becomes layers) with a note when a page has artwork outside every layer,
+one layer is drawn in two separate runs of a page, the pages stack their layers in different
+orders, or a file has both `/Layer` and `/OC` layers; layers are matched across pages by name and
+their rank among the page's layers of that name.  An import (`convert`) keeps the layer groups,
+drops empty ones and leaves hidden ones out with a note; the same applies to a PDF's optional
+content that is off.  `ImportedGroup.layerState` carries the settings and
+`ImportedDocument.layerSource` where the layers came from.  *Keep page clip* now clips inside
+each top-level layer group (and around each run of other objects) rather than around the whole
+page, so layers survive it.  Corpus (76 owner files, WT_EXTERNAL_CORPUS): see the D-085 record.
 
 NOTE: As built by IMG-013 (`WTInterchange/Import/DXF/`).  Natural size is the drawing's exact
 extents with their top-left moved to the origin; `$EXTMIN`/`$EXTMAX` are not read.

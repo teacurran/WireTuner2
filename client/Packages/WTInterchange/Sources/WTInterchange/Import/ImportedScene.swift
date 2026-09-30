@@ -451,6 +451,30 @@ public struct ImportedPlacedFile: Hashable, Sendable {
 
 // MARK: - Groups
 
+/// How a layer of the opened file was set in it (D-085): what a `.layer` group's document layer
+/// is created with when the file opens as a document.  An import (a scene placed on the current
+/// layer) leaves hidden layers out and ignores the rest.
+public struct ImportedLayerState: Hashable, Sendable {
+    /// Shown (Illustrator's eye; a PDF optional content group that is on).
+    public var visible: Bool
+    /// Locked against editing (Illustrator's lock).
+    public var locked: Bool
+    /// Printed; a layer that is not becomes a background layer.
+    public var printing: Bool
+    /// Drawn as outlines (Illustrator's Outline view of the layer, the layer's keyline).
+    public var outline: Bool
+
+    public init(visible: Bool = true, locked: Bool = false, printing: Bool = true, outline: Bool = false) {
+        self.visible = visible
+        self.locked = locked
+        self.printing = printing
+        self.outline = outline
+    }
+
+    /// Visible, unlocked, printing, previewed: a layer created without the file saying otherwise.
+    public static let normal = ImportedLayerState()
+}
+
 /// A `group` node, a clipping group, or a layer of the imported file.
 public struct ImportedGroup: Hashable, Sendable {
     public enum Role: Hashable, Sendable {
@@ -477,9 +501,11 @@ public struct ImportedGroup: Hashable, Sendable {
     /// below the contents and the stroke above them, as a WireTuner clip group draws its clip
     /// path).  Off for formats whose clips are geometry only (PDF, SVG).
     public var clipAppearance: Bool
+    /// A `.layer` group's settings in the file; `.normal` for every other group.
+    public var layerState: ImportedLayerState
 
     public init(children: [ImportedNode], clip: ImportedPath? = nil, opacity: Double = 1, transform: AffineTransform = .identity, name: String? = nil, role: Role = .group,
-                clipAppearance: Bool = false) {
+                clipAppearance: Bool = false, layerState: ImportedLayerState = .normal) {
         self.children = children
         self.clip = clip
         self.opacity = opacity
@@ -487,6 +513,7 @@ public struct ImportedGroup: Hashable, Sendable {
         self.name = name
         self.role = role
         self.clipAppearance = clipAppearance
+        self.layerState = layerState
     }
 }
 

@@ -86,9 +86,11 @@ final class PDFImportInterpreter {
         tree.flushText()
     }
 
-    /// The scopes a node emitted now is inside, outermost first.
+    /// The scopes a node emitted now is inside, outermost first: the layers outside the clips
+    /// (which draws the same, a layer being a plain group), so a clip Illustrator sets in one
+    /// layer and restores after the next layer began does not wrap that layer in a clipping group.
     var scopes: [PDFImportScope] {
-        outerScopes + (marked.compactMap { $0 } + state.clips).sorted { $0.id < $1.id }
+        outerScopes + marked.compactMap { $0 } + state.clips
     }
 
     // MARK: Operators
@@ -175,9 +177,15 @@ final class PDFImportInterpreter {
                 image(spec)
             }
         case "BMC", "BDC":
+            if op == "BDC", session.illustratorLayers, operands.first?.name == "AltAI8" {
+                hiddenLayer(operands)
+            }
             marked.append(op == "BDC" ? layerScope(operands) : nil)
         case "EMC":
-            _ = marked.popLast()
+            if let closing = marked.popLast() ?? nil, !collectGlyphs {
+                // A layer with nothing drawn in it still becomes a layer.
+                tree.touch(outerScopes + marked.compactMap { $0 } + [closing])
+            }
         case "BT":
             textMatrix = .identity
             lineMatrix = .identity
@@ -349,24 +357,73 @@ final class PDFImportInterpreter {
     // MARK: Marked content
 
     /// The layer scope a `BDC` opens: `/OC` with an optional content group (or membership
-    /// dictionary) names a layer; anything else opens nothing.
+    /// dictionary) names a layer, off when the default configuration turns its groups off; in an
+    /// Illustrator file `/Layer` with Illustrator's layer properties (`/Title`, `/Visible`,
+    /// `/Editable`, `/Printed`, `/Preview`) does too (D-085); anything else opens nothing.
     func layerScope(_ operands: [PDFImportOperand]) -> PDFImportScope? {
-        guard operands.first?.name == "OC", operands.count > 1 else {
+        guard operands.count > 1, let tag = operands.first?.name else {
             return nil
         }
-        var name: String?
-        switch operands[1] {
-        case .name(let key):
-            if let dict = resources?.dict("Properties")?.dict(key) {
-                let group = dict.name("Type") == "OCMD" ? (dict.dict("OCGs") ?? dict.array("OCGs")?[0]?.dict) : dict
-                name = group?.text("Name")
+        let layer: PDFImportLayer?
+        switch (tag, operands[1]) {
+        case ("OC", .name(let key)):
+            layer = resources?.dict("Properties")?.dict(key).flatMap(optionalContentLayer)
+        case ("OC", .dict(let dict)):
+            layer = dict["Name"]?.string.map { PDFImportLayer(name: PDFImportOperand.text($0), source: .optionalContent) }
+        case ("Layer", .name(let key)) where session.illustratorLayers:
+            layer = resources?.dict("Properties")?.dict(key).flatMap { dict in
+                dict.text("Title").map { PDFImportInterpreter.illustratorLayer($0, identity: dict.id) { dict.bool($0) } }
             }
-        case .dict(let dict):
-            name = dict["Name"]?.string.map(PDFImportOperand.text)
+        case ("Layer", .dict(let dict)) where session.illustratorLayers:
+            layer = dict["Title"]?.string.map { title in
+                PDFImportInterpreter.illustratorLayer(PDFImportOperand.text(title), identity: nil) { key in
+                    if case .bool(let value)? = dict[key] { return value }
+                    return nil
+                }
+            }
         default:
-            break
+            layer = nil
         }
-        return name.map { session.scope(.layer($0)) }
+        guard let layer else {
+            return nil
+        }
+        session.layerSources.insert(layer.source)
+        return session.scope(.layer(layer))
+    }
+
+    /// The layer an optional content group (or a membership dictionary, through its first group)
+    /// names; a membership dictionary is visible when any of its groups is.
+    func optionalContentLayer(_ dict: PDFImportDict) -> PDFImportLayer? {
+        let groups: [PDFImportDict]
+        if dict.name("Type") == "OCMD" {
+            groups = dict.dict("OCGs").map { [$0] } ?? dict.array("OCGs")?.values.compactMap(\.dict) ?? []
+        } else {
+            groups = [dict]
+        }
+        guard let first = groups.first, let name = first.text("Name") else {
+            return nil
+        }
+        let visible = groups.contains { !session.hiddenGroups.contains($0.id) }
+        return PDFImportLayer(name: name, state: ImportedLayerState(visible: visible), source: .optionalContent, identity: first.id)
+    }
+
+    /// An Illustrator layer from its properties; `flag` reads a boolean entry.
+    static func illustratorLayer(_ title: String, identity: UnsafeRawPointer?, flag: (String) -> Bool?) -> PDFImportLayer {
+        let state = ImportedLayerState(visible: flag("Visible") ?? true, locked: !(flag("Editable") ?? true), printing: flag("Printed") ?? true,
+                                       outline: !(flag("Preview") ?? true))
+        return PDFImportLayer(name: title, state: state, source: .illustrator, identity: identity)
+    }
+
+    /// Illustrator's copy of a hidden layer's artwork (`/AltAI8` marked content whose properties
+    /// are `/AIType /HiddenLayer` with their own `/Contents` and `/Resources`, which PDF readers
+    /// do not draw), read into the layer that encloses it.
+    func hiddenLayer(_ operands: [PDFImportOperand]) {
+        guard operands.count > 1, case .name(let key) = operands[1], let dict = resources?.dict("Properties")?.dict(key),
+              dict.name("AIType") == "HiddenLayer", let contents = dict.stream("Contents"), depth < 16 else {
+            return
+        }
+        let child = PDFImportInterpreter(session: session, tree: tree, resources: dict.dict("Resources"), ctm: state.ctm, pageBox: pageBox, outerScopes: scopes, depth: depth + 1)
+        child.run(contents.data)
     }
 
     // MARK: XObjects

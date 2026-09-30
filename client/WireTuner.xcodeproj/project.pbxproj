@@ -4665,11 +4665,11 @@
 		};
 		0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_15827CBB-9F23-4CF7-AF51-330239F76EF6" /* WTInterchange */;
+			productRef = "TEMP_495AE8E9-C3BF-42F4-82D6-6E946B51800D" /* WTInterchange */;
 		};
 		1389D84F7311322BA59FB06B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_29E2E122-ABFD-482F-93E1-51DC890319FC" /* WTRender */;
+			productRef = "TEMP_FB2A3E3D-42C8-428F-B7D9-93DDA71889A6" /* WTRender */;
 		};
 		23AA14013E4A515EC9987F5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4683,11 +4683,11 @@
 		};
 		48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_0496FFB6-F254-4F72-A911-985217D4FEBF" /* WTModel */;
+			productRef = "TEMP_BBA569A0-CA00-491D-A32E-14CE5A395210" /* WTModel */;
 		};
 		5345AFFAC55816C31DADAB2D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_D1BDAB7A-402B-4175-840C-2B395030266F" /* WTGeometry */;
+			productRef = "TEMP_EF6D7765-D7EE-4712-BE40-5CBA4F8F2EAB" /* WTGeometry */;
 		};
 		6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4696,15 +4696,15 @@
 		};
 		81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_06097145-374F-4ECC-B9B4-386A475DA9B2" /* WTCRDT */;
+			productRef = "TEMP_6A6E0BFE-6B67-4E13-A995-D980ED83F39D" /* WTCRDT */;
 		};
 		85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_81DF009B-9E01-4277-990C-4FB49F58ACC9" /* WTSync */;
+			productRef = "TEMP_0288CE03-5F38-433D-86C4-E64C20451E8A" /* WTSync */;
 		};
 		8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_617F5469-3301-4604-B646-D231494D5371" /* WTModel */;
+			productRef = "TEMP_5CB02677-872C-437E-A951-14FA8CB57E2F" /* WTModel */;
 		};
 		920E4750ADBCB78008950CBB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4713,7 +4713,7 @@
 		};
 		B81CA2100C47093C70BAEEFB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_8B119B0F-981D-4A8A-8D99-A8BF82E54BD9" /* WTText */;
+			productRef = "TEMP_189B3E2D-8CA6-454D-AD40-80721C5293A8" /* WTText */;
 		};
 		C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4722,7 +4722,7 @@
 		};
 		D83546DB4F210659857E1489 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_29899582-7209-4C6C-894B-A98DEDD10B45" /* WTProto */;
+			productRef = "TEMP_29473F74-5147-4DFA-8D00-48FCED668AC1" /* WTProto */;
 		};
 		DDA1225ED9423A83ED60A11B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5360,41 +5360,41 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_0496FFB6-F254-4F72-A911-985217D4FEBF" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_06097145-374F-4ECC-B9B4-386A475DA9B2" /* WTCRDT */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTCRDT;
-		};
-		"TEMP_15827CBB-9F23-4CF7-AF51-330239F76EF6" /* WTInterchange */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTInterchange;
-		};
-		"TEMP_29899582-7209-4C6C-894B-A98DEDD10B45" /* WTProto */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTProto;
-		};
-		"TEMP_29E2E122-ABFD-482F-93E1-51DC890319FC" /* WTRender */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTRender;
-		};
-		"TEMP_617F5469-3301-4604-B646-D231494D5371" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_81DF009B-9E01-4277-990C-4FB49F58ACC9" /* WTSync */ = {
+		"TEMP_0288CE03-5F38-433D-86C4-E64C20451E8A" /* WTSync */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTSync;
 		};
-		"TEMP_8B119B0F-981D-4A8A-8D99-A8BF82E54BD9" /* WTText */ = {
+		"TEMP_189B3E2D-8CA6-454D-AD40-80721C5293A8" /* WTText */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTText;
 		};
-		"TEMP_D1BDAB7A-402B-4175-840C-2B395030266F" /* WTGeometry */ = {
+		"TEMP_29473F74-5147-4DFA-8D00-48FCED668AC1" /* WTProto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTProto;
+		};
+		"TEMP_495AE8E9-C3BF-42F4-82D6-6E946B51800D" /* WTInterchange */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTInterchange;
+		};
+		"TEMP_5CB02677-872C-437E-A951-14FA8CB57E2F" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_6A6E0BFE-6B67-4E13-A995-D980ED83F39D" /* WTCRDT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTCRDT;
+		};
+		"TEMP_BBA569A0-CA00-491D-A32E-14CE5A395210" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_EF6D7765-D7EE-4712-BE40-5CBA4F8F2EAB" /* WTGeometry */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTGeometry;
+		};
+		"TEMP_FB2A3E3D-42C8-428F-B7D9-93DDA71889A6" /* WTRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTRender;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

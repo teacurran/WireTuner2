@@ -6,11 +6,27 @@
 import Foundation
 import WTGeometry
 
+/// A layer a marked-content sequence opened: an optional content group, or (Illustrator files,
+/// D-085) the `/Layer` properties Illustrator writes around each of its layers.
+struct PDFImportLayer {
+    enum Source: Hashable {
+        case optionalContent
+        case illustrator
+    }
+
+    var name: String
+    var state: ImportedLayerState = .normal
+    var source: Source
+    /// The properties dictionary that names the layer -- one per layer of the file, so two
+    /// sequences with the same identity are the same layer -- or nil for an inline dictionary.
+    var identity: UnsafeRawPointer?
+}
+
 /// A clipping path, a layer or a group the content stream opened.
 struct PDFImportScope {
     enum Kind {
         case clip(ImportedPath)
-        case layer(String)
+        case layer(PDFImportLayer)
         case group(opacity: Double)
     }
 
@@ -25,15 +41,23 @@ final class PDFImportSession {
     /// The grey level unsupported shadings are filled with (0.1 for PDF, 0.5 for Illustrator
     /// gradient meshes).
     let meshBlack: Double
+    /// Illustrator's `/Layer` marks and hidden-layer streams are read as layers (D-085).
+    let illustratorLayers: Bool
+    /// The optional content groups that are off in the default configuration.
+    let hiddenGroups: Set<UnsafeRawPointer>
+    /// The kinds of layer the content opened.
+    var layerSources = Set<PDFImportLayer.Source>()
     private(set) var notes: [String] = []
     private var fonts: [UnsafeRawPointer: PDFImportFont] = [:]
     private var nextID = 0
     var missingFonts = Set<String>()
 
-    init(name: String, text: ImportTextHandling, meshBlack: Double) {
+    init(name: String, text: ImportTextHandling, meshBlack: Double, illustratorLayers: Bool = false, hiddenGroups: Set<UnsafeRawPointer> = []) {
         self.name = name
         self.text = text
         self.meshBlack = meshBlack
+        self.illustratorLayers = illustratorLayers
+        self.hiddenGroups = hiddenGroups
     }
 
     /// Records `note` once.
@@ -69,6 +93,10 @@ final class PDFImportTree {
     private var open: [(scope: PDFImportScope, children: [ImportedNode])] = []
     /// A text node still accepting runs on its baseline.
     private var pendingText: (text: ImportedText, scopes: [Int])?
+    /// The layer of each top-level layer group, in order (D-085's certainty checks).
+    private(set) var layerRuns: [PDFImportLayer] = []
+    /// How many top-level nodes are outside every layer.
+    private(set) var looseCount = 0
 
     func emit(_ node: ImportedNode, scopes: [PDFImportScope]) {
         flushText()
@@ -98,6 +126,13 @@ final class PDFImportTree {
         append(.text(pending.text))
     }
 
+    /// Opens the groups of `scopes` without emitting anything, so a layer with no artwork still
+    /// becomes an (empty) layer group.
+    func touch(_ scopes: [PDFImportScope]) {
+        flushText()
+        sync(scopes)
+    }
+
     private func place(_ node: ImportedNode, scopes: [PDFImportScope]) {
         sync(scopes)
         append(node)
@@ -105,6 +140,7 @@ final class PDFImportTree {
 
     private func append(_ node: ImportedNode) {
         if open.isEmpty {
+            if case .group(let group) = node, group.role == .layer {} else { looseCount += 1 }
             root.append(node)
         } else {
             open[open.count - 1].children.append(node)
@@ -131,8 +167,14 @@ final class PDFImportTree {
         switch scope.kind {
         case .clip(let path):
             group = ImportedGroup(children: children, clip: path)
-        case .layer(let name):
-            group = ImportedGroup(children: children, name: name, role: .layer)
+        case .layer(let layer):
+            if open.contains(where: { if case .layer = $0.scope.kind { return true } else { return false } }) {
+                // A layer inside a layer (a sublayer): a group named after it.
+                group = ImportedGroup(children: children, name: layer.name)
+            } else {
+                group = ImportedGroup(children: children, name: layer.name, role: .layer, layerState: layer.state)
+                if open.isEmpty { layerRuns.append(layer) }
+            }
         case .group(let opacity):
             group = ImportedGroup(children: children, opacity: opacity)
         }

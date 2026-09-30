@@ -193,7 +193,7 @@ import WTRender
         let session = PDFImportSession(name: "t", text: .editable, meshBlack: 0.1)
         let tree = PDFImportTree()
         let clip = session.scope(.clip(ImportedPath(contours: [])))
-        let layer = session.scope(.layer("L"))
+        let layer = session.scope(.layer(PDFImportLayer(name: "L", source: .optionalContent)))
         let run = ImportedTextRun(text: "a", fontName: "Helvetica", fontSize: 10, origin: Point(x: 0, y: 10))
         var next = run
         next.origin.x = 20
