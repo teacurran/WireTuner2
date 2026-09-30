@@ -521,8 +521,8 @@ typing, acts on the text the change before left.  The first character is `TypeNe
 character so the rest of the first word joins it.  While text is edited Space types, Command no
 longer pushes the temporary Pointer, and Edit menu Cut, Copy, Paste, Select All and Clear act on
 the text (plain text on the pasteboard, line ends read as paragraph ends); kbd:[Shift+Return]
-types an end of line (U+2028).  An emptied block is deleted when editing ends.  Deviations:
-kbd:[Option]-click behaves as a click until the Text Editor exists (TYPE-011); the composition is
+types an end of line (U+2028).  An emptied block is deleted when editing ends.  kbd:[Option]-click opens
+the Text Editor with the block (TYPE-011).  Deviations: the composition is
 drawn over the text at the insertion point (underlined, in the overlay) rather than laid out
 inside the line; the caret does not blink.
 
@@ -589,7 +589,7 @@ TYPE-010's selection and keys): the *Done when* tests are app-hosted tests drivi
 canvas events (`TextToolTests`, `TextEditingTests`): an auto-expanding and a fixed-size block are
 created and typed into, an abandoned block leaves no node and no change, and marked text leaves
 the document untouched until it is committed.  kbd:[Option]-click opening the Text Editor waits
-for TYPE-011.  The *Text tool reverts to Pointer* and *New text containers auto-expand*
+for TYPE-011, which built it (`TypeEditingTests`).  The *Text tool reverts to Pointer* and *New text containers auto-expand*
 preferences are read at each click (a click with the latter off makes a 144 × 72 pt block).
 A click in any text block's laid-out rectangle -- between lines, or in a fixed-size block's empty
 part -- edits it; the Pointer's double-click on text hands the block to the Text tool with the

@@ -98,6 +98,7 @@ struct StylesPanelBody: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .onDrag(Self.dragging(row.id, model))
                 .accessibilityIdentifier("styles.text.\(row.name)")
             }
         }

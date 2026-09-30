@@ -395,7 +395,7 @@ struct EditWorld {
         let active = ActiveSelection(model: world.window.selection.model, document: world.document, editing: world.window.objectEditing)
         let state = FindReplaceState()
         state.select(.select)
-        #expect(FindReplaceState.Attribute.available(in: .select).count == 11 && FindReplaceState.Attribute.name.title == "Name")
+        #expect(FindReplaceState.Attribute.available(in: .select).count == 15 && FindReplaceState.Attribute.name.title == "Name")
         state.attribute = .name
         state.objects.name = "logo"
         #expect(state.find(active) == [ids[1].opID] && state.result == "1 object found")

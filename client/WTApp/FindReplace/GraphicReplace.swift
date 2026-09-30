@@ -9,21 +9,24 @@ import WTRender
 
 /// The Find & Replace tab's object attributes (find-replace.adoc, "Find & Replace tab"; OBJ-023):
 /// *Color* (From and To wells taking the document's swatches from their menus or a colour dragged
-/// from the Swatches panel or Color Mixer), *Stroke width* (Min, Max; the new width or arithmetic),
-/// *Remove*, *Rotate*, *Scale* and *Blend steps* and *Simplify*.  btn:[Change] runs
+/// from the Swatches panel or Color Mixer, and *Include tints*), *Stroke width* (Min, Max; the new
+/// width or arithmetic), *Remove* (invisible objects, overprinting, custom halftones, contents),
+/// *Path shape* (From and To btn:[Paste In] from the native pasteboard, *Transform to fit
+/// original*), *Rotate*, *Scale* and *Blend steps* and *Simplify*.  btn:[Change] runs
 /// `ReplaceGraphics` over the scope's candidates: one labelled change (split at the op limit into
 /// parts performed as one undo step), and the count changed.
 @MainActor
 @Observable
 final class GraphicReplaceState {
     enum Attribute: String, CaseIterable, Identifiable {
-        case color, strokeWidth, remove, rotate, scale, simplify, blendSteps
+        case color, strokeWidth, remove, pathShape, rotate, scale, simplify, blendSteps
         var id: String { rawValue }
         var title: String {
             switch self {
             case .color: "Color"
             case .strokeWidth: "Stroke width"
             case .remove: "Remove"
+            case .pathShape: "Path shape"
             case .rotate: "Rotate"
             case .scale: "Scale"
             case .simplify: "Simplify"
@@ -34,6 +37,13 @@ final class GraphicReplaceState {
 
     var from: Wiretuner_Doc_V1_ColorRef?
     var to: Wiretuner_Doc_V1_ColorRef?
+    /// *Include tints*.
+    var includeTints = false
+    /// *Path shape*'s pasted sample and replacement.
+    var pastedFrom: ClipboardPayload?
+    var pastedTo: ClipboardPayload?
+    /// *Transform to fit original*.
+    var fit = false
     var minWidth = ""
     var maxWidth = ""
     /// The new width, or arithmetic (`*2`, `+1`, `/3`).
@@ -63,13 +73,16 @@ final class GraphicReplaceState {
         switch attribute {
         case .color:
             guard let from, let to else { return nil }
-            return .color(from: from, to: to)
+            return .color(from: from, to: to, tints: includeTints)
         case .strokeWidth:
             guard let edit = NumberEdit(newWidth) else { return nil }
             let low = Self.number(minWidth)
             return .strokeWidth(ValueRange(min: low, max: Self.number(maxWidth) ?? low), to: edit)
         case .remove:
             return .remove(remove)
+        case .pathShape:
+            guard let sample = pastedFrom.flatMap(PathShape.init), let pastedTo, !pastedTo.isEmpty else { return nil }
+            return .pathShape(from: sample, to: pastedTo, fit: fit)
         case .rotate:
             return NumberEdit(angle).map { edit in .rotate(edit.apply(0)) }
         case .scale:
@@ -112,6 +125,26 @@ final class GraphicReplaceState {
         return task
     }
 
+    /// btn:[Paste In] beside *From* or *To*: the pasteboard's objects, or why they cannot be used.
+    @discardableResult
+    func pasteIn(_ payload: ClipboardPayload?, asSample: Bool) -> Bool {
+        guard let payload, !payload.isEmpty else {
+            result = "Copy an object first"
+            return false
+        }
+        if asSample {
+            guard PathShape(payload) != nil else {
+                result = "The sample must be a path or a shape"
+                return false
+            }
+            pastedFrom = payload
+        } else {
+            pastedTo = payload
+        }
+        result = nil
+        return true
+    }
+
     /// The query scope of the panel's *Change in*.
     static func scope(_ scope: SearchScope, selection: Selection, document: DocumentHandle) -> AttributeQuery.Scope {
         switch scope {
@@ -128,6 +161,8 @@ struct GraphicReplaceFields: View {
     let attribute: GraphicReplaceState.Attribute
     let swatches: [Swatch]
     let resolver: ColorResolver?
+    /// The native pasteboard's objects (*Paste In*).
+    var paste: @MainActor () -> ClipboardPayload? = { nil }
 
     static let none = "Choose"
 
@@ -153,14 +188,28 @@ struct GraphicReplaceFields: View {
         }
     }
 
-    @ViewBuilder
+    /// What *Path shape* has been given.
+    static func pathShapeNote(_ state: GraphicReplaceState) -> String {
+        switch (state.pastedFrom != nil, state.pastedTo != nil) {
+        case (true, true): "Sample and replacement pasted"
+        case (true, false): "Sample pasted; copy the replacement and Paste In beside To"
+        case (false, true): "Replacement pasted; copy the sample and Paste In beside From"
+        case (false, false): "Copy the sample and Paste In beside From"
+        }
+    }
+
     func well(_ title: String, _ value: Binding<Wiretuner_Doc_V1_ColorRef?>) -> some View {
-        Picker(title, selection: Self.colorBinding(value, swatches: swatches, resolver: resolver)) {
+        Self.well(title, value, swatches: swatches, resolver: resolver)
+    }
+
+    /// A colour well over `value` (the Select tab's *Color* too).
+    static func well(_ title: String, _ value: Binding<Wiretuner_Doc_V1_ColorRef?>, swatches: [Swatch], resolver: ColorResolver?) -> some View {
+        Picker(title, selection: colorBinding(value, swatches: swatches, resolver: resolver)) {
             Text(Self.none).tag(Self.none)
             Text("Color").tag("Color")
             ForEach(swatches) { Text($0.name).tag($0.name) }
         }
-        .onDrop(of: [ColorDrag.utType], isTargeted: nil, perform: Self.dropping(into: value))
+        .onDrop(of: [ColorDrag.utType], isTargeted: nil, perform: dropping(into: value))
         .accessibilityIdentifier("findReplace.color.\(title.lowercased())")
     }
 
@@ -169,6 +218,7 @@ struct GraphicReplaceFields: View {
         case .color:
             well("From", $state.from)
             well("To", $state.to)
+            Toggle("Include tints", isOn: $state.includeTints).accessibilityIdentifier("findReplace.color.tints")
         case .strokeWidth:
             TextField("Min", text: $state.minWidth).accessibilityIdentifier("findReplace.width.min")
             TextField("Max", text: $state.maxWidth).accessibilityIdentifier("findReplace.width.max")
@@ -176,9 +226,22 @@ struct GraphicReplaceFields: View {
         case .remove:
             Picker("Remove", selection: $state.remove) {
                 Text("Invisible objects").tag(GraphicEdit.RemoveTarget.invisible)
+                Text("Overprinting").tag(GraphicEdit.RemoveTarget.overprinting)
                 Text("Custom halftones").tag(GraphicEdit.RemoveTarget.halftones)
+                Text("Contents").tag(GraphicEdit.RemoveTarget.contents)
             }
             .accessibilityIdentifier("findReplace.remove")
+        case .pathShape:
+            LabeledContent("From") {
+                Button("Paste In") { state.pasteIn(paste(), asSample: true) }.accessibilityIdentifier("findReplace.shape.from")
+            }
+            .help(state.pastedFrom == nil ? "No sample" : "Sample pasted")
+            LabeledContent("To") {
+                Button("Paste In") { state.pasteIn(paste(), asSample: false) }.accessibilityIdentifier("findReplace.shape.to")
+            }
+            .help(state.pastedTo == nil ? "No replacement" : "Replacement pasted")
+            Text(Self.pathShapeNote(state)).font(.caption).foregroundStyle(.secondary)
+            Toggle("Transform to fit original", isOn: $state.fit).accessibilityIdentifier("findReplace.shape.fit")
         case .rotate:
             TextField("Angle", text: $state.angle).accessibilityIdentifier("findReplace.angle")
         case .scale:

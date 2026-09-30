@@ -400,7 +400,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         let colorDrop = CanvasColorDrop(document: document, selection: selection)
         colorDrop.defaultSpace = { preferences[PreferenceCatalog.Colors.defaultColorSpace] == "srgb" ? .sRGB : .displayP3 }
         canvas.colorDrop = colorDrop
-        canvas.styleDrop = StyleCanvasDrop(document: document, selection: selection)
+        let styleDrop = StyleCanvasDrop(document: document, selection: selection)
+        styleDrop.textDrop = { [weak self] style, viewPoint in
+            guard let self else { return nil }
+            let wholeBlock = preferences[PreferenceCatalog.Text.styleDragScope] == "block"
+            return TextStyleOperations.drop(style, at: viewport.toPasteboard(viewPoint), on: self, wholeBlock: wholeBlock)
+        }
+        canvas.styleDrop = styleDrop
         if let importFiles = environment.importFiles {
             canvas.onFileDrop = { [weak self] urls, point in self.map { importFiles($0, urls, point) } ?? false }
         }

@@ -121,7 +121,7 @@ import WTRender
         #expect(state.find(selection) == [mixed] && state.result == "1 block found")
         state.select(.replace)
         #expect(state.attribute == .font, "the Replace tab has no text effect attribute")
-        #expect(FindReplaceState.Attribute.available(in: .replace) == [.font, .color, .replaceStrokeWidth, .remove, .rotate, .scale, .simplify, .blendSteps] && FindReplaceState.Tab.select.title == "Select")
+        #expect(FindReplaceState.Attribute.available(in: .replace) == [.font, .color, .replaceStrokeWidth, .remove, .replacePathShape, .rotate, .scale, .simplify, .blendSteps] && FindReplaceState.Tab.select.title == "Select")
         let single = ActiveSelection(model: SelectionModel(Selection([SelectionID(courier)])), document: document)
         state.to = FontReplacement(size: 11)
         state.from = FontCriteria()

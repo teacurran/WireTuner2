@@ -896,9 +896,10 @@ path or rectangle shows a widget inside every corner (curve points and an open p
 centre or 8 px in; dragging one sets the radius along the bisector -- the first drag adds the Corners effect, and with points
 selected the drag adds them to *Selected points* -- in one undo group; kbd:[Option]-click cycles Round, Inverted round,
 Chamfer; a double-click selects the effect in the Object panel and shows it.  A rectangle carrying the effect dims its radius
-fields with a note.  menu:View[Show Corner Widgets] hides them (this Mac's defaults).  Deviations: a drag writes on every event
-rather than coalescing to one outbox change; DRAW-009's rectangle radius handles, which the effect would redirect, are not
-built.
+fields with a note.  menu:View[Show Corner Widgets] hides them (this Mac's defaults).  A drag previews on the canvas and
+writes one change on mouse-up (`GestureEdit`, D-076), so it is one undo step and one outbox change; a rectangle carrying the
+effect has no Pointer radius handles (`RectangleHandles`), so its corners are adjusted through the widgets.  (This note
+once listed a write per drag event and missing rectangle handles as deviations; both were superseded.)
 
 === Build tasks
 

@@ -6,7 +6,8 @@ import WTProto
 // OBJ-023): `ReplaceGraphics` finds the candidates the attribute's *From* settings match and maps
 // each to the register writes of the owning feature's command -- recolour, stroke width,
 // halftone, transform, simplify, blend steps, delete -- in one change labelled
-// `Replace <attribute> in N objects`.  A replace larger than one change's op limit is split by
+// `Replace <attribute> in N objects`.  *Path shape* pastes the replacement over each match and
+// deletes the match (`PathShapeReplacement`).  A replace larger than one change's op limit is split by
 // `chunks(limit:in:)` into several with a `(2/3)` suffix, which the caller performs in one undo
 // group.
 
@@ -48,8 +49,10 @@ public enum NumberEdit: Hashable, Sendable {
 
 /// What btn:[Change] does.
 public enum GraphicEdit: Hashable, Sendable {
-    /// Every fill, stroke and text colour equal to `from` becomes `to`.
-    case color(from: Wiretuner_Doc_V1_ColorRef, to: Wiretuner_Doc_V1_ColorRef)
+    /// Every fill, stroke, gradient stop and text colour equal to `from` becomes `to`; with
+    /// `tints` (*Include tints*) a tint of the swatch `from` -- named or unnamed -- becomes the same
+    /// tint of the swatch `to` (`ColorReplacement`).
+    case color(from: Wiretuner_Doc_V1_ColorRef, to: Wiretuner_Doc_V1_ColorRef, tints: Bool = false)
     /// Basic strokes whose width lies in `range` get `to` of their width.
     case strokeWidth(ValueRange, to: NumberEdit)
     /// Removes what `RemoveTarget` names.
@@ -62,12 +65,20 @@ public enum GraphicEdit: Hashable, Sendable {
     case simplify(points: Int, amount: Double)
     /// Blends whose steps lie in `range` get `to` steps.
     case blendSteps(ValueRange, to: NumberEdit)
+    /// Objects with the shape, stroke and fill of `from` are replaced by the first object of `to`
+    /// (a clipboard payload, *Paste In*): placed by the similarity carrying the sample onto the
+    /// match, or with `fit` (*Transform to fit original*) scaled onto the match's bounds.
+    case pathShape(from: PathShape, to: ClipboardPayload, fit: Bool)
 
     public enum RemoveTarget: String, Hashable, Sendable, CaseIterable {
         /// Objects with no fill and no stroke (paths and shapes).
         case invisible
+        /// Overprinting on basic fills and strokes and on text.
+        case overprinting
         /// Custom halftones.
         case halftones
+        /// The contents of clipping paths (the clip path stays).
+        case contents
     }
 
     /// The attribute's name in the label.
@@ -77,10 +88,13 @@ public enum GraphicEdit: Hashable, Sendable {
         case .strokeWidth: "stroke width"
         case .remove(.invisible): "invisible objects"
         case .remove(.halftones): "halftones"
+        case .remove(.overprinting): "overprinting"
+        case .remove(.contents): "contents"
         case .rotate: "rotation"
         case .scale: "scale"
         case .simplify: "path points"
         case .blendSteps: "blend steps"
+        case .pathShape: "path shape"
         }
     }
 }
@@ -106,25 +120,34 @@ public struct ReplaceGraphics: Command {
 
     /// The candidates `edit` changes.
     public static func matches(_ edit: GraphicEdit, in candidates: [OpID], state: EngineState) -> [OpID] {
-        candidates.filter { !commands(edit, for: $0, state: state).isEmpty }
+        let context = Context(edit, state: state)
+        return candidates.filter { !commands(edit, for: $0, state: state, context: context).isEmpty }
+    }
+
+    /// What every node's commands share, read once per replace: the colour mapping.
+    struct Context {
+        var colors: ColorReplacement?
+
+        init(_ edit: GraphicEdit, state: EngineState) {
+            if case .color(let from, let to, let tints) = edit { colors = ColorReplacement(from: from, to: to, tints: tints, state: state) }
+        }
     }
 
     /// The commands that change `node`, empty when it does not match.
-    static func commands(_ edit: GraphicEdit, for node: OpID, state: EngineState) -> [any Command] {
+    static func commands(_ edit: GraphicEdit, for node: OpID, state: EngineState, context: Context) -> [any Command] {
         guard state.isLive(node) else { return [] }
         let entries = AppearanceEditing.entries(node, in: state)
         switch edit {
-        case .color(let from, let to):
-            var result: [any Command] = []
-            let rows = entries.filter { entry in AttributeFields.color(entry).map { ColorMatching.same($0, from) } == true }.map { (node, $0.row) }
-            if !rows.isEmpty { result.append(SetAppearanceColor(rows, color: to)) }
-            if let text = state.textNode(node) {
-                for run in text.runs where run.values.contains(where: { if case .fill(let color)? = $0.value { ColorMatching.same(color, from) } else { false } }) {
-                    result.append(ApplyMark(node: node, from: text.anchor(at: run.range.lowerBound), to: text.anchor(at: run.range.upperBound),
-                                            value: .with { $0.fill = to }))
-                }
-            }
-            return result
+        case .color:
+            return context.colors.map { $0.commands(node, entries: entries, state: state) } ?? []
+        case .remove(.overprinting):
+            return RemoveOverprinting.commands(node, entries: entries, state: state)
+        case .remove(.contents):
+            guard ClipGroups.clipPath(of: node, in: state) != nil else { return [] }
+            let contents = ClipGroups.contents(of: node, in: state)
+            return contents.isEmpty ? [] : [DeleteNodes(contents)]
+        case .pathShape(let from, let to, let fit):
+            return PathShapeReplacement(sample: from, replacement: to, fit: fit).commands(node, state: state)
         case .strokeWidth(let range, let to):
             return entries.compactMap { entry -> (any Command)? in
                 guard entry.kind == .stroke(.basic), let width = AttributeFields.width(entry), range.contains(width) else { return nil }
@@ -159,8 +182,14 @@ public struct ReplaceGraphics: Command {
     }
 
     public func execute(_ builder: inout ChangeBuilder, state: EngineState) throws {
+        let context = Context(edit, state: state)
+        var edit = edit
+        if case .pathShape(let from, let to, let fit) = edit {
+            // The replacement's named colours are resolved once for every copy.
+            edit = .pathShape(from: from, to: try PathShapeReplacement.resolvingColors(to, state: state, builder: &builder), fit: fit)
+        }
         for node in candidates {
-            for command in Self.commands(edit, for: node, state: state) {
+            for command in Self.commands(edit, for: node, state: state, context: context) {
                 try command.execute(&builder, state: state)
             }
         }
@@ -171,11 +200,12 @@ public struct ReplaceGraphics: Command {
     public static func chunks(_ edit: GraphicEdit, candidates: [OpID], limit: Int = opLimit, in state: EngineState) -> [ReplaceGraphics] {
         let matched = matches(edit, in: candidates, state: state)
         guard !matched.isEmpty else { return [] }
+        let context = Context(edit, state: state)
         var parts: [[OpID]] = [[]]
         var count = 0
         for node in matched {
             var scratch = ChangeBuilder(replica: 1, startCounter: 1)
-            for command in commands(edit, for: node, state: state) { try? command.execute(&scratch, state: state) }
+            for command in commands(edit, for: node, state: state, context: context) { try? command.execute(&scratch, state: state) }
             let ops = scratch.ops.count
             if count + ops > limit, !parts[parts.count - 1].isEmpty {
                 parts.append([])

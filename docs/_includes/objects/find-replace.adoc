@@ -203,9 +203,27 @@ object's own bounds centre, *Simplify* (paths over a point count) and *Blend ste
 `TransformObjects`, `SimplifyPaths`, `EditBlend.steps`) in one change "Replace <attribute> in N
 objects"; `chunks(limit:)` splits one past 10,000 ops into parts labelled `(2/3)`, performed in one
 undo group.  menu:Edit[Find and Replace > Graphics…] (kbd:[Cmd+Option+F]) brings the panel forward.
-Not built: *Font* beyond TYPE-022's, *Include tints*, gradient stops, *Overprinting* and *Contents*
-removal, *Path shape* replacement, *Resample at*, the Select tab's *Style* well and *Paste In* wells,
-and the Main toolbar button.
+What this note once listed as not built is built except *Resample at* (below, OBJ-023's remainder);
+*Font* is TYPE-022's (family, style and size range to family, style and size), and the Main toolbar's
+*Find & Replace* button is `MainToolbar`'s.
+
+NOTE: As built by OBJ-023's remainder (`WTModel/GraphicReplaceEdits.swift`; `WTApp/FindReplace/GraphicReplace.swift`,
+`FindReplacePanel.swift`, `WTApp/Edit/AttributeSelect.swift`).  *Color* now recolours gradient stops of the fill's current ramp
+(`RecolorGradientStop`) beside fills, strokes and text runs, and *Include tints* (`GraphicEdit.color(tints:)`, both wells
+naming swatches) maps a tint of *From* -- an unnamed tint of it or a named tint swatch based on it -- to the same percentage
+of *To*: the named tint of *To* at that percentage when the document has one, else an unnamed tint; with an unnamed colour on
+either side only the colour itself is replaced.  *Remove* adds *Overprinting* (basic fills and strokes and text runs that
+overprint get overprint off) and *Contents* (a clip group with a usable clip path loses every other child, so it draws as its
+clip path).  *Path shape* takes *From* and *To* from the native pasteboard with btn:[Paste In] (the sample must be a path or
+shape; the replacement is the pasteboard's first object); each match -- same shape under a similarity, same fills and strokes
+-- gets a copy of the replacement directly above it in its parent, placed by the similarity carrying the sample onto it (so
+the replacement sits on every match as it sat on the sample) or, with *Transform to fit original*, by `PathShape.fit` of the
+replacement's bounds onto the match's geometry bounds, and the match is deleted, all in the one change "Replace path shape in
+N objects"; the replacement's named colours are resolved once for every copy.  The Select tab adds *Color* (a well like the
+Replace tab's), *Style* (the graphic styles, then the paragraph and character styles), *Fill type*, *Stroke type*, and
+btn:[Paste In] for *Path shape*, whose pasted sample is used instead of the first selected object (and then the selected
+object can be found).  Not built: *Resample at* (the steps for the printer resolution need a steps-per-resolution rule the
+blend page does not give).  Tests: `GraphicReplaceEditTests` (WTModel), `FindReplaceAttributeTests` (WTApp).
 
 === Build tasks
 

@@ -21,9 +21,9 @@ final class FindReplaceState {
     enum Attribute: String, CaseIterable, Identifiable {
         case font, textEffect
         // The Replace tab's object attributes (OBJ-023; `GraphicReplaceState`).
-        case color, replaceStrokeWidth, remove, rotate, scale, simplify, blendSteps
+        case color, replaceStrokeWidth, remove, replacePathShape, rotate, scale, simplify, blendSteps
         // The object attributes of the Select tab (OBJ-022's query; `ObjectAttributeSearch`).
-        case name, objectType, sameAs, pathShape, strokeWidth, size, halftone, overprint
+        case selectColor, style, name, objectType, sameAs, pathShape, fillType, strokeType, strokeWidth, size, halftone, overprint
         /// Objects and blocks using a link (WEB-003; `LinkUseSearch`).
         case link
         var id: String { rawValue }
@@ -36,14 +36,20 @@ final class FindReplaceState {
             }
         }
         /// The object attribute this is, nil for the type attributes.
-        var objectAttribute: ObjectAttributeSearch.Attribute? { ObjectAttributeSearch.Attribute(rawValue: rawValue) }
+        var objectAttribute: ObjectAttributeSearch.Attribute? {
+            self == .selectColor ? .color : ObjectAttributeSearch.Attribute(rawValue: rawValue)
+        }
         /// The Replace tab's graphic attribute this is.
         var graphicAttribute: GraphicReplaceState.Attribute? {
-            self == .replaceStrokeWidth ? .strokeWidth : GraphicReplaceState.Attribute(rawValue: rawValue)
+            switch self {
+            case .replaceStrokeWidth: .strokeWidth
+            case .replacePathShape: .pathShape
+            default: GraphicReplaceState.Attribute(rawValue: rawValue)
+            }
         }
         /// The Replace tab has *Font* and the graphic attributes; the Select tab the rest.
         static func available(in tab: Tab) -> [Attribute] {
-            let graphic: [Attribute] = [.color, .replaceStrokeWidth, .remove, .rotate, .scale, .simplify, .blendSteps]
+            let graphic: [Attribute] = [.color, .replaceStrokeWidth, .remove, .replacePathShape, .rotate, .scale, .simplify, .blendSteps]
             return tab == .replace ? [.font] + graphic : allCases.filter { !graphic.contains($0) }
         }
     }
@@ -167,6 +173,11 @@ struct FindReplacePanelBody: View {
         state.find(selection)
     }
 
+    /// The native pasteboard's objects (*Paste In*).
+    static func pasted(_ selection: ActiveSelection?) -> ClipboardPayload? {
+        selection?.editing?.pasteboard.read().flatMap { ClipboardPayload(decoding: $0) }
+    }
+
     static func effectTitle(_ criteria: EffectCriteria) -> String {
         switch criteria {
         case .any: "Any effect"
@@ -218,7 +229,7 @@ struct FindReplacePanelBody: View {
                 .accessibilityIdentifier("findReplace.attribute")
                 if state.tab == .replace, let graphic = state.attribute.graphicAttribute {
                     GraphicReplaceFields(state: state.graphics, attribute: graphic, swatches: selection?.document.map { SwatchList($0.state).swatches } ?? [],
-                                         resolver: selection?.document.map { SwatchList($0.state).resolver })
+                                         resolver: selection?.document.map { SwatchList($0.state).resolver }, paste: { Self.pasted(selection) })
                 } else if state.tab == .replace {
                     Self.fontCriteria("From", $state.from)
                     Section("To") {
@@ -239,7 +250,10 @@ struct FindReplacePanelBody: View {
                 } else if state.attribute == .link {
                     LinkUseSearchField(document: selection?.document, link: $state.link)
                 } else if let object = state.attribute.objectAttribute {
-                    ObjectAttributeFields(search: state.objects, attribute: object)
+                    let list = selection?.document.map { SwatchList($0.state) }
+                    ObjectAttributeFields(search: state.objects, attribute: object, swatches: list?.swatches ?? [], resolver: list?.resolver,
+                                          styles: object == .style ? selection?.document.map { ObjectAttributeSearch.styles(in: $0.state) } ?? [] : [],
+                                          paste: { Self.pasted(selection) })
                 } else {
                     Picker("Effect", selection: Self.effect(state)) {
                         Text(Self.effectTitle(.any)).tag(Self.effectTitle(.any))

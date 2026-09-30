@@ -83,6 +83,13 @@ final class ExtrasWindowParts {
     static func attach(_ window: DocumentWindowController) -> ExtrasWindowParts {
         if let existing = parts(of: window) { return existing }
         let handles = TextBlockHandles()
+        let preferences = window.environment.preferences
+        handles.hiddenBlock = { [weak window] in
+            guard let window, window.canvas.toolManager?.textInput != nil else { return nil }
+            return TextBlockHandles.hiddenBlock(rulersShown: TypeWindowParts.parts(of: window)?.rulers.isShown ?? true,
+                                                showHandles: preferences[PreferenceCatalog.Text.handlesWithoutRuler],
+                                                editing: window.objectEditing.textSession?.node)
+        }
         let result = ExtrasWindowParts(handles: handles)
         entries[ObjectIdentifier(window)] = Entry(window: window, parts: result)
         window.canvas.textKeys = { [weak window] event in

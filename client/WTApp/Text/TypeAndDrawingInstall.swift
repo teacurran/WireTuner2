@@ -89,7 +89,11 @@ final class TypeWindowParts {
                 validation: { .checked(defaults.object(forKey: TextRulers.shownKey) as? Bool ?? true) },
                 action: .perform {
                     defaults.set(!(defaults.object(forKey: TextRulers.shownKey) as? Bool ?? true), forKey: TextRulers.shownKey)
-                    if let front = window() { parts(of: front)?.rulers.update() }
+                    if let front = window() {
+                        parts(of: front)?.rulers.update()
+                        // The edited block's handles follow the ruler (*Show text handles when ruler is off*).
+                        front.canvas.setNeedsOverlayDisplay()
+                    }
                 })
     }
 }

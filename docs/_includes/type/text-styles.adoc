@@ -267,8 +267,10 @@ text color*, alignment (blank = no selection), space above and below, the three 
 punctuation and keep with next (tri-state), keep lines, *Next style* -- with *Global settings*, and
 btn:[OK] writes only the settings that changed (`EditTextStyle`).  `TextStyleOperations.drop` applies a
 style dropped on text to the paragraph under the drop or, per *Dragging a text style changes*, the
-block.  Not built: wiring that drop to the Styles panel's drag (LIB-020's; a follow-up),
-and the sheet's text ruler for tabs.  The axes and features controls came with TYPE-046.
+block.  The Styles panel's text style rows drag the style (`StyleDrag`), and the canvas drop
+(`StyleCanvasDrop.textDrop`, which the window sets) sends a paragraph or character style to
+`TextStyleOperations.drop` with *Dragging a text style changes*, so it applies to the text under the drop
+and never as a graphic style.  Not built: the sheet's text ruler for tabs.  The axes and features controls came with TYPE-046.
 
 === Build tasks
 

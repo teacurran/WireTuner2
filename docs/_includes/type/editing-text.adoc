@@ -500,8 +500,9 @@ kbd:[Cmd+Delete].  The selection is published as presence's `TextCaret` (the cha
 is before, zero for the end, and the other end of a range).  A caret is an anchor before a
 character, so a remote delete of that character leaves it where the character was -- after the
 nearest surviving predecessor -- and typing continues there.  The text ruler and menu:View[Text Rulers] came with TYPE-023;
-*Show text handles when ruler is off* is not built (the block's selection handles show while it is
-edited).
+*Show text handles when ruler is off* came later: with menu:View[Text Rulers] off and the preference
+off, the block the Text tool edits shows no handles (`TextBlockHandles.hiddenBlock`, set per window in
+`Glue/ExtrasInstall.swift`); otherwise its selection handles show while it is edited.
 
 [[TYPE-011]]
 ==== TYPE-011 Text Editor window

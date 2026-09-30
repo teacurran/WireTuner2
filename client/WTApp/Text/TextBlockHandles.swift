@@ -258,11 +258,22 @@ final class TextBlockHandles: CanvasHandleLayer {
     /// A drag from a link box (TYPE-007).
     let linking = TextLinkDrag()
     private(set) var typeDrag: TypeDrag?
+    /// The block whose handles are hidden: the one the Text tool edits while menu:View[Text
+    /// Rulers] is off and *Show text handles when ruler is off* is off (TYPE-010; the window sets
+    /// it); nil shows every selected block's.
+    var hiddenBlock: @MainActor () -> OpID? = { nil }
 
     init() {}
 
     func frames(_ context: ToolContext) -> [TextBlockFrame] {
-        context.selection.selection.ids.compactMap { TextBlockFrame($0.opID, document: context.document) }
+        let hidden = hiddenBlock()
+        return context.selection.selection.ids.filter { $0.opID != hidden }.compactMap { TextBlockFrame($0.opID, document: context.document) }
+    }
+
+    /// The block `hiddenBlock` names for a window: the edited block when the ruler is hidden and
+    /// the preference is off.
+    static func hiddenBlock(rulersShown: Bool, showHandles: Bool, editing: OpID?) -> OpID? {
+        rulersShown || showHandles ? nil : editing
     }
 
     /// What a press at `viewPoint` hits.

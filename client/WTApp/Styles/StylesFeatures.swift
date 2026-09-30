@@ -12,6 +12,9 @@ import WTRender
 final class StyleCanvasDrop {
     let document: DocumentHandle
     let selection: SelectionController
+    /// A text style dropped at a view point: applied to the text under it (TYPE-035's
+    /// `TextStyleOperations.drop`, which the window installs); nil off text.
+    var textDrop: (@MainActor (OpID, Point) -> Task<Wiretuner_Doc_V1_Change?, Never>?)?
 
     init(document: DocumentHandle, selection: SelectionController) {
         self.document = document
@@ -31,10 +34,13 @@ final class StyleCanvasDrop {
         return nil
     }
 
-    /// Applies the dragged style to the object under `viewPoint`; nil when nothing takes it.
+    /// Applies the dragged style to the object under `viewPoint`; nil when nothing takes it.  A
+    /// paragraph or character style goes to the text under the drop.
     @discardableResult
     func drop(_ pasteboard: NSPasteboard, at viewPoint: Point, viewport: Viewport) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
-        guard let payload = StyleDrag.read(from: pasteboard), payload.document == document.id, let node = target(at: viewPoint, viewport: viewport) else { return nil }
+        guard let payload = StyleDrag.read(from: pasteboard), payload.document == document.id else { return nil }
+        if document.state.textStyles.style(payload.style) != nil { return textDrop?(payload.style, viewPoint) }
+        guard let node = target(at: viewPoint, viewport: viewport) else { return nil }
         return document.perform(ApplyGraphicStyle(payload.style, to: [node], in: document.state))
     }
 }
