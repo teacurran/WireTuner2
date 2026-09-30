@@ -81,6 +81,15 @@ The common items only, plus Combine ▸ (Union, Divide, Intersect, Punch, Crop, 
 Blend, Join) and Align ▸.  Kind-specific items appear when every selected object is the same
 kind.
 
+=== Selected points
+
+kbd:[Control]-clicking a selected point of a path, rectangle, ellipse or polygon -- or the
+object, while any of its points are selected -- puts the point items first: Point Type ▸
+(Corner, Curve, Connector; the selected points' type is checked, and a dash marks each type
+when they differ), Retract Handles and Automatic.  They act on every selected point
+(xref:editing-paths.adoc#changing-points[Changing points]).  The object's own items and the
+common items follow.
+
 === Empty pasteboard or page
 
 View ▸ (magnification levels from 6% to 25,600%, Fit to Page, Fit All), Paste, Paste Behind,
@@ -240,6 +249,13 @@ status bar's page field); *Rename Document…* (a sheet renaming the library ent
 are built: *Remove Overlap* (DRAW-060, editing-paths.adoc), *Release Contents* (OBJ-060,
 clipping-paths.adoc), *Convert to Editable* (IMG-060, import-formats.adoc) and *Hide <name>'s Cursor*
 (COLLAB-060, presence.adoc); `ControlReachabilityTests.notBuilt` is empty.
+
+NOTE: As built by ctx.  Selected points get their own target, `ContextMenuTarget.points(kinds)`
+(contexts: the objects' plus the new `MenuContext.points`): the resolver returns it when the object
+under the pointer is in the selection and the selection has points of a path or live shape selected.
+Its layout is `ContextMenuCatalog.pointEntries` (Point Type ▸ Corner, Curve, Connector; Retract Handles;
+Automatic), a line, then the objects' menu.  Menu items show a dash for a mixed value
+(`CommandValidation.isMixed`).  The commands and their menu-bar home are editing-paths.adoc's ctx note.
 
 === Build tasks
 

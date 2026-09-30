@@ -68,8 +68,9 @@ starts extended depends on the neighboring points.
 |===
 
 Unselected curve and connector points draw as squares like corner points; the shape appears
-when you select the point.  You change a point's type with the Object panel or by
-kbd:[Option]-clicking it with the Pointer tool (xref:editing-paths.adoc[Editing paths]).
+when you select the point.  You change a point's type from its context menu (Point Type ▸),
+menu:Modify[Points], the Object panel, or by kbd:[Option]-clicking it with the Pointer tool
+(xref:editing-paths.adoc#changing-points[Changing points]).
 
 // TODO screenshot: corner, curve and connector points with their handles
 

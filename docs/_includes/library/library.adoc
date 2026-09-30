@@ -886,6 +886,17 @@ character attribute; a `style` mark and the cleared marks for a character style)
 override's paragraphs and runs.  Deviation: a paragraph style leaves an override paragraph's own tab stops (a paragraph edit writes
 registers, not the `tabs` sequence).  Tests: `OverrideTextStylesTests` (WTModel), `SymbolOverrideEditingTests`.
 
+NOTE: As built by ctx (`WTTestSupport`: `SymbolArtworkScenarioTests`), the multi-client cases of "Working together" and
+the merge table's `Override.tail_paragraph` row, each live and with one editor offline for 12 simulated hours, converging to one
+state hash across three clients and the server.  *Two people draw into one symbol*: both `CreatePath`s go through
+`SymbolPlacedCommand` (the symbol editing window's placement, LIB-012); both paths are the symbol's children above its part, in one
+order everywhere, and nothing is listed.  *The same attribute of one part* (both rename it): the later name stands; offline the part
+is *Same attribute* (*Name*).  *Different tail-paragraph settings* of one text override (alignment against space below, after a
+first write gave the element its tail registers): both stand; offline the instance is *Both edited* (*Overrides*), not *Same
+attribute*.  *The same setting* (two alignments): LWW everywhere; offline *Same attribute* (*Overrides*).  The first tail write
+copies the master's tail settings with it, so two concurrent *first* writes overlap on every register: the tail cases start from an
+element that already has them.
+
 NOTE: As built by LIB-016 (`WTSync/TeamLibraryClient.swift`; `WTModel/TeamLibraryPlacement.swift`, `Symbols.artwork(of:in:)`
 in `Symbols.swift`, the child provenance in `LibraryCatalog.swift`; `WTApp/Library/TeamLibraryFeatures.swift` and additions to
 `TeamLibraries.swift`).  `TeamLibraryClient` lists each of the account's teams' libraries (`ListLibraries`, every page; the last

@@ -59,6 +59,8 @@ enum ContextObjectKind: String, CaseIterable, Hashable, Sendable {
 enum ContextMenuTarget: Equatable, Sendable {
     /// One object, or a selection containing the object clicked.
     case objects([ContextObjectKind])
+    /// Selected points of those objects: the point items, then the objects' menu.
+    case points([ContextObjectKind])
     /// Empty pasteboard, or a page when `overPage`.
     case pasteboard(overPage: Bool)
     case guide(locked: Bool)
@@ -79,6 +81,8 @@ enum ContextMenuTarget: Equatable, Sendable {
             var result = Set(kinds.map(\.context))
             if kinds.count > 1 { result.insert(.multiple) }
             return result
+        case let .points(kinds):
+            return ContextMenuTarget.objects(kinds).contexts.union([.points])
         case let .pasteboard(overPage): return overPage ? [.pasteboard, .page] : [.pasteboard]
         case .guide: return [.guide]
         case .presence: return [.presence]
@@ -114,11 +118,20 @@ struct ContextMenuResolver {
             let kinds = selection.model.ids.compactMap { id in
                 document.object(for: id).map { ContextObjectKind(kind: $0.kind, item: $0.item) }
             }
-            return .objects(kinds.isEmpty ? [.path] : kinds)
+            let objects = kinds.isEmpty ? [ContextObjectKind.path] : kinds
+            return Self.hasSelectedPoints(selection.model.selection, document: document) ? .points(objects) : .objects(objects)
         }
         if let guide = guide(viewPoint) { return guide }
         if let presence = presence(viewPoint) { return presence }
         let point = viewport.toPasteboard(viewPoint)
         return .pasteboard(overPage: document.pages.contains { $0.contains(point) })
+    }
+
+    /// Whether `selection` has points selected on a path or a live shape (the point items).
+    static func hasSelectedPoints(_ selection: Selection, document: DocumentHandle) -> Bool {
+        selection.ids.contains { id in
+            guard case let .points(points)? = selection.subSelection(of: id), !points.isEmpty, let object = document.object(for: id) else { return false }
+            return PointEditing.editsPoints(of: object)
+        }
     }
 }

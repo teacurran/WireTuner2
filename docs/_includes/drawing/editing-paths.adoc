@@ -17,7 +17,8 @@ To select and move points:
 The arrow keys nudge selected points by the *Cursor distance* preference; kbd:[Shift]+arrow
 nudges ten times as far (xref:moving.adoc[Moving]).  kbd:[Option]-clicking a point with the
 Pointer toggles it between corner and curve; kbd:[Option]-dragging a retracted handle out of
-a point extends it.
+a point extends it.  To change a point's type in other ways -- several points at once, or to a
+connector point -- see <<changing-points,Changing points>>.
 
 Rectangles, ellipses and polygons show their points too.  Editing one of them -- or using any
 command on this page on a selected shape -- turns the shape into an ordinary path first, in the
@@ -39,9 +40,37 @@ point's handle only lengthens along its fixed line.  Dragging a corner point's h
 its point curves a straight segment; dragging a curve point's handle across its point turns
 the curve inside out.
 
-== Changing points in the Object panel
+[[changing-points]]
+== Changing points
 
-Select one or more points and the Object panel adds a point section.
+A point's type, its handles and its *Automatic* setting can be changed from the context menu,
+the menu bar or the Object panel.  Each acts on every selected point at once, on as many paths
+as you have points selected in, and is one step to undo.
+
+To change the type of points:
+
+. With the Pointer or Subselect tool, select the points (kbd:[Shift]-click or drag a marquee).
+. Do one of the following:
+* kbd:[Control]-click one of the selected points (or right-click it) and choose
+  menu:Point Type[Corner], menu:Point Type[Curve] or menu:Point Type[Connector].
+* Choose menu:Modify[Points > Corner], menu:Modify[Points > Curve] or
+  menu:Modify[Points > Connector].
+* Click *Corner*, *Curve* or *Connector* in the Object panel's point section.
+
+In the menus the selected points' type is checked; when they are of different types, each of
+their types shows a dash.  The same menus have *Retract Handles*, which pulls both handles of
+every selected point back into it, and *Automatic*, which is checked when every selected point
+is automatic and shows a dash when only some are; choosing it makes them all automatic, or,
+when they all are, turns it off.
+
+Converting a rectangle's, ellipse's or polygon's points turns the shape into an ordinary path in
+the same step (xref:rectangles-ellipses-lines.adoc#editing-points[Editing a shape's points]).
+
+=== The point section of the Object panel
+
+Select one or more points and the Object panel adds a point section.  With several points
+selected, a value they do not all share shows as mixed -- no type button chosen, or the
+*Automatic* box empty -- and setting it sets it on all of them.
 
 [cols="1,3"]
 |===
@@ -63,7 +92,7 @@ Automatic off for that point.
 
 |X, Y
 |The point's location in the document's unit from the page's zero point.  Hidden when more
-than one point is selected.
+than one point is selected; the section shows how many are instead.
 |===
 
 == Adding and deleting points and segments
@@ -463,6 +492,26 @@ Fractalize, Split, Knife, Eraser, Freeform, the distort tools) take live rectang
 polygons, which the change converts to paths first; the DRAW-028 note's "not cut until converted"
 no longer holds.  A command that would not change the shape leaves it live and writes nothing.
 Details on rectangles-ellipses-lines.adoc's DRAW-062 note.
+
+NOTE: As built by ctx (point type from the menus; `WTApp/Menus/PointTypeCommands.swift`,
+`Panels/ObjectPanel.swift`, `Menus/ContextMenuTarget.swift`, `Menus/ContextMenuCatalog.swift`).  No page
+gave the menu bar a home for the point commands, so they are menu:Modify[Points > Corner / Curve /
+Connector], a line, then menu:Modify[Points > Retract Handles] and menu:Modify[Points > Automatic]
+(`modify.points.corner`, `.curve`, `.connector`, `.retractHandles`, `.automatic`; section 3 beside Join,
+Split and Alter Path, no shortcuts), each with the context `points`; the context menu on selected points
+is `ContextMenuTarget.points(kinds)`, its items first (Point Type ▸ with the three types, Retract Handles,
+Automatic) and then the objects' own menu.  They and the Object panel's point section run the same
+`ObjectPanelModel` commands over *every* selected point: one `SetPointKind`, `RetractHandles` or
+`SetAutomatic` per object, batched into one change when the points are on several objects, labelled
+"Set Point Type", "Retract Handles" and "Automatic" (the labels DRAW-004 gave the single-point
+controls), through `DocumentHandle.perform`, so live rectangles, ellipses and polygons convert first in
+the same change (D-078).  Menu state: a type is checked when every selected point has it and shows the
+dash (`CommandValidation.isMixed`, `NSControl.StateValue.mixed`) when some do; *Automatic* is checked
+when all are and dashed when some are, and turns it on for all unless all have it.  The point section,
+which DRAW-004's build showed for exactly one point, now shows for any number (vector-basics.adoc's
+DRAW-004 "mixed-state display for multiple selections"): no type segment chosen when the types differ,
+*Automatic* on only when all are (accessibility value "mixed" otherwise), X and Y for one point only and
+a point count for several.  Tests: `PointTypeCommandsTests`, `ObjectPanelTests`.
 
 === Build tasks
 

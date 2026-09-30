@@ -252,7 +252,8 @@ review and in restore (COLLAB-032, `CommentScenarioTests`), the colour list (COL
 standing in for the data service), the collaboration guide's cases against two API nodes
 (COLLAB-003, `CollaborationCaseScenarioTests`, through `SimCluster`, `SimulationBackend.cluster`),
 layers, symbols and styles (LIB-023, `LibraryScenarioTests`), instance overrides (LIB-028,
-`OverrideScenarioTests`), comments under concurrency against the server's record of comments (COLLAB-034,
+`OverrideScenarioTests`), two people in one symbol's artwork and one override's last paragraph
+(`SymbolArtworkScenarioTests`), comments under concurrency against the server's record of comments (COLLAB-034,
 `CommentCaseScenarioTests`), pages, masters and guides (DOC-031, `DocumentSetupScenarioTests`) and typefaces with
 generated fonts compared (FONT-029, `TypefaceScenarioTests`); together they add about 55 s to the suite.
 

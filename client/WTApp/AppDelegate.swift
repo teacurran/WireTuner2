@@ -393,6 +393,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installLibraryTransfer()
         installSubjectCommands()
         installReachability()
+        installPointTypeCommands()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()

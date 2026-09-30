@@ -115,6 +115,7 @@
 		210775C92D316B77A116AEB1 /* CommentsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD93515E2F1BD61EDC6DCD1 /* CommentsPanel.swift */; };
 		224B04F5894295293F4A4FF9 /* GuidesLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BDFC2660A5582DF4B3E683 /* GuidesLayer.swift */; };
 		22A54560A7FDD68A137C518F /* PathAlterFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A77CCDB9DCA7E0EE2271208 /* PathAlterFeatures.swift */; };
+		22DF75E04F8ED70B546DE533 /* PointTypeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CBEA48C1ED615437BD8CBB /* PointTypeCommands.swift */; };
 		230E4BCF2D1284DF6AA400E0 /* WebFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4683C129A7D2F9FEDED3DAC /* WebFeatures.swift */; };
 		23BB499D2424FAF671912C6A /* TransformTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84DD536171A8B12424140BDC /* TransformTools.swift */; };
 		24039848E35B7EFCEDD9D943 /* PerspectiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36B6C14CDD29B4CB44B4530 /* PerspectiveUITests.swift */; };
@@ -792,6 +793,7 @@
 		ECB0D0E8172AFE275389681B /* ReviewSheetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE50C7CF931608ADE21324B /* ReviewSheetModel.swift */; };
 		ECDBE1CABF9FFDF3746B487B /* AttributeEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103A1F5A2243AF603F41D105 /* AttributeEditing.swift */; };
 		ED606C47957E9AED5B3B17BC /* SpellingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8642E40ECDAB4DAE46BE7D66 /* SpellingWindow.swift */; };
+		EDFCC9652119C05AA0135765 /* PointTypeCommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C33359C25BD6CEA754528F3 /* PointTypeCommandsTests.swift */; };
 		EECD4D6A63788582C211101B /* ToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C850205BEF75FD2F88647D9 /* ToolTests.swift */; };
 		EF16D340EA4F1E91F9EF4598 /* PerfBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2654D697EDEFF7541F8128 /* PerfBudget.swift */; };
 		EF450BFADCBA66239843E194 /* LibraryTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868D46D74FE24FD07B21BD0C /* LibraryTransferTests.swift */; };
@@ -1008,6 +1010,7 @@
 		1B40F5A9F4FB1C05002AA882 /* CollaborationCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollaborationCommands.swift; sourceTree = "<group>"; };
 		1B590396C475E250064ABF64 /* LibraryWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryWindowController.swift; sourceTree = "<group>"; };
 		1BEC2CF0D02B00C621EBFEEA /* TextColorSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextColorSection.swift; sourceTree = "<group>"; };
+		1C33359C25BD6CEA754528F3 /* PointTypeCommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointTypeCommandsTests.swift; sourceTree = "<group>"; };
 		1C71585CB0483C19D2E5F0CF /* LinkBadges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkBadges.swift; sourceTree = "<group>"; };
 		1C850205BEF75FD2F88647D9 /* ToolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolTests.swift; sourceTree = "<group>"; };
 		1CCEA975AEC3DF5039E4769A /* CommandPaletteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteController.swift; sourceTree = "<group>"; };
@@ -1681,6 +1684,7 @@
 		E97090908E89BAD127B0068A /* ColorMixerPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorMixerPanel.swift; sourceTree = "<group>"; };
 		E9734417E31F42CF25967614 /* PanelLayoutControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutControllerTests.swift; sourceTree = "<group>"; };
 		E99EA0F80B6618BCF1626CD2 /* FontFamilyPickerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontFamilyPickerTests.swift; sourceTree = "<group>"; };
+		E9CBEA48C1ED615437BD8CBB /* PointTypeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointTypeCommands.swift; sourceTree = "<group>"; };
 		EA2ED86727D25B5CFD4EBB9B /* LinksWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinksWindow.swift; sourceTree = "<group>"; };
 		EA54A0CCE45BDCEBE1156BA1 /* CanvasScrollerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasScrollerModel.swift; sourceTree = "<group>"; };
 		EADA90FDF1386ED0B8539B94 /* PanelRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelRendering.swift; sourceTree = "<group>"; };
@@ -2931,6 +2935,7 @@
 				D7D834E77C929EF576FC8105 /* ContextMenus.swift */,
 				0AFB3D37C588D0AAFC40F9BD /* ContextMenuTarget.swift */,
 				5EDAFFAFEB4FEAB6C696F718 /* PanelContextMenus.swift */,
+				E9CBEA48C1ED615437BD8CBB /* PointTypeCommands.swift */,
 				146FB754C60B3496A53D13D9 /* ReachabilityFeatures.swift */,
 			);
 			path = Menus;
@@ -3146,6 +3151,7 @@
 				D36B6C14CDD29B4CB44B4530 /* PerspectiveUITests.swift */,
 				6B72CFD34CC8CB571C446740 /* PointerMoveTests.swift */,
 				4E82155BEA5A3C26441687C1 /* PointHandleTests.swift */,
+				1C33359C25BD6CEA754528F3 /* PointTypeCommandsTests.swift */,
 				1327BE8B439F5E12B3450E50 /* PreferenceTests.swift */,
 				3ECEA43AED9C93F3CDAF9B87 /* PreferenceWindowContentTests.swift */,
 				515B3B46752456B350532F89 /* PreviewAllAndImageProfileTests.swift */,
@@ -3975,6 +3981,7 @@
 				66E6F34484E3FC21A9A5281B /* PhotoTrace.swift in Sources */,
 				96E99C921E244205F0BA4C1E /* PlaceholderPanels.swift in Sources */,
 				E2F89DC07633C68E40B8B493 /* PointHandleEditing.swift in Sources */,
+				22DF75E04F8ED70B546DE533 /* PointTypeCommands.swift in Sources */,
 				4FAC4E7EA72605E4789C3DE6 /* PointerDial.swift in Sources */,
 				8B31D93640CD6B7FB028CA2C /* PointerTool.swift in Sources */,
 				A1129A9B052A7FA51AABE365 /* PosterRenderer.swift in Sources */,
@@ -4387,6 +4394,7 @@
 				611B2BAB917A78815ACD6DA7 /* PerspectiveEventPathTests.swift in Sources */,
 				24039848E35B7EFCEDD9D943 /* PerspectiveUITests.swift in Sources */,
 				58ED787DD9CE68BBED1FA84D /* PointHandleTests.swift in Sources */,
+				EDFCC9652119C05AA0135765 /* PointTypeCommandsTests.swift in Sources */,
 				8B7D11267A1DF750283E4FD4 /* PointerMoveTests.swift in Sources */,
 				93EC1286F7D4CAE745E539F2 /* PreferenceTests.swift in Sources */,
 				2762E0B8A9011C718E5992B6 /* PreferenceWindowContentTests.swift in Sources */,

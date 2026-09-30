@@ -2,18 +2,21 @@ import Foundation
 
 /// The result of asking a command whether it can run right now.  Menus disable the item and
 /// show `reason` as a tooltip; the command palette lists disabled commands greyed with the
-/// reason; `isChecked` draws the check mark; `title` overrides the static title ("Undo Move").
+/// reason; `isChecked` draws the check mark, `isMixed` the dash of a value only some of the
+/// selection has; `title` overrides the static title ("Undo Move").
 struct CommandValidation: Equatable, Sendable {
     var isEnabled: Bool
     var reason: String?
     var isChecked: Bool
     var title: String?
+    var isMixed: Bool
 
-    init(isEnabled: Bool = true, reason: String? = nil, isChecked: Bool = false, title: String? = nil) {
+    init(isEnabled: Bool = true, reason: String? = nil, isChecked: Bool = false, title: String? = nil, isMixed: Bool = false) {
         self.isEnabled = isEnabled
         self.reason = reason
         self.isChecked = isChecked
         self.title = title
+        self.isMixed = isMixed
     }
 
     static let enabled = CommandValidation()
@@ -87,6 +90,9 @@ enum MenuContext: String, Hashable, Sendable, Codable, CaseIterable {
     case path, text, bitmap, importedGraphic, group, blend, clip, connector, symbolInstance, chart, envelope
     case multiple, pasteboard, page, guide, presence, swatch, layer, style, symbol, tint
     case pageThumbnail, tab, panelTab, textEditing
+    /// Selected points of paths or live shapes (the point items: Point Type ▸, Retract Handles,
+    /// Automatic).
+    case points
     /// The Swatches panel's empty area and the Color Mixer or Tints panel's color box.
     case swatchesArea, colorBox
 }

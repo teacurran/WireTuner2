@@ -31,11 +31,16 @@ final class CommandMenuTarget: NSObject, NSMenuItemValidation {
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         guard let id = Self.commandID(of: item), let command = registry.command(id) else { return false }
         let validation = command.validation()
-        item.state = validation.isChecked ? .on : .off
+        item.state = validation.controlState
         if !(item is FixedTitleMenuItem) { item.title = validation.title ?? command.title }
         item.toolTip = validation.isEnabled ? nil : validation.reason
         return validation.isEnabled
     }
+}
+
+extension CommandValidation {
+    /// The menu item's state: the dash wins over the check mark.
+    var controlState: NSControl.StateValue { isMixed ? .mixed : isChecked ? .on : .off }
 }
 
 /// A menu item whose title the context menu chose; validation leaves it alone.

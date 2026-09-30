@@ -38,17 +38,28 @@ struct ObjectPanelModel {
         var points: Int
     }
 
-    /// The point section: exactly one point selected.
-    struct PointSection: Equatable {
+    /// One selected point: its object, contour and id.
+    struct PointTarget: Hashable {
         var node: OpID
         var contour: OpID
         var point: OpID
-        var kind: PointKind
-        var automatic: Bool
-        /// The anchor in pasteboard coordinates.
-        var location: Point
+    }
+
+    /// The point section: every selected point of the selected paths and live shapes (D-078).
+    struct PointSection: Equatable {
+        var points: [PointTarget]
+        /// The type every selected point has; nil when they differ.
+        var kind: PointKind?
+        /// The types the selected points have (the menus' dash on the types some have).
+        var kinds: Set<PointKind>
+        var automatic: MixedState
+        /// The anchor in pasteboard coordinates; nil when more than one point is selected.
+        var location: Point?
         /// A curve point whose handles a merge left non-collinear.
         var handlesUnlinked: Bool
+
+        /// The one selected point, when only one is.
+        var single: PointTarget? { points.count == 1 ? points[0] : nil }
     }
 
     let document: DocumentHandle
@@ -78,16 +89,40 @@ struct ObjectPanelModel {
 
     var point: PointSection? {
         let references = selection.ids.flatMap { id -> [PointReference] in
-            if case let .points(points) = selection.subSelection(of: id) { return Array(points) }
+            if case let .points(points) = selection.subSelection(of: id) { return points.sorted() }
             return []
         }
-        guard references.count == 1, let reference = references.first, let object = document.object(for: SelectionID(reference.node)),
-              PointEditing.editsPoints(of: object), let contour = object.path?.contour(reference.contour),
-              let point = contour.drawn.first(where: { $0.id == reference.point }) else { return nil }
+        var targets: [PointTarget] = []
+        var values: [(point: VectorPoint, location: Point)] = []
+        for reference in references {
+            guard let object = document.object(for: SelectionID(reference.node)), PointEditing.editsPoints(of: object),
+                  let contour = object.path?.contour(reference.contour),
+                  let point = contour.drawn.first(where: { $0.id == reference.point }) else { continue }
+            targets.append(PointTarget(node: object.id, contour: contour.id, point: point.id))
+            values.append((point, object.transform.apply(point.anchor)))
+        }
+        guard !targets.isEmpty else { return nil }
+        let kinds = Set(values.map(\.point.kind))
         return PointSection(
-            node: object.id, contour: contour.id, point: point.id, kind: point.kind, automatic: point.automatic,
-            location: object.transform.apply(point.anchor), handlesUnlinked: point.handlesUnlinked
+            points: targets, kind: kinds.count == 1 ? kinds.first : nil, kinds: kinds, automatic: MixedState(values.map(\.point.automatic)),
+            location: values.count == 1 ? values[0].location : nil, handlesUnlinked: values.contains { $0.point.handlesUnlinked }
         )
+    }
+
+    /// One command per object over the selected points (`make` gets the object and its points),
+    /// batched as one change labelled `label` when the points are on several objects.
+    private func pointCommand(
+        _ label: String, _ make: (OpID, [(contour: OpID, point: OpID)]) -> any WTModel.Command
+    ) -> (any WTModel.Command)? {
+        guard let point else { return nil }
+        var order: [OpID] = []
+        var byNode: [OpID: [(contour: OpID, point: OpID)]] = [:]
+        for target in point.points {
+            if byNode[target.node] == nil { order.append(target.node) }
+            byNode[target.node, default: []].append((target.contour, target.point))
+        }
+        let commands = order.map { make($0, byNode[$0] ?? []) }
+        return commands.count == 1 ? commands[0] : CommandBatch(label, commands)
     }
 
     // MARK: Commands (one change each)
@@ -107,24 +142,24 @@ struct ObjectPanelModel {
         return CommandBatch("Flatness", path.nodes.map { SetFlatness(node: $0, flatness: flatness) })
     }
 
+    /// Sets every selected point's type, one change "Set Point Type".
     func setKind(_ kind: PointKind) -> (any WTModel.Command)? {
-        guard let point else { return nil }
-        return SetPointKind(node: point.node, points: [(point.contour, point.point)], kind: kind)
+        pointCommand("Set Point Type") { SetPointKind(node: $0, points: $1, kind: kind) }
     }
 
+    /// Retracts both handles of every selected point, one change "Retract Handles".
     func retractHandles() -> (any WTModel.Command)? {
-        guard let point else { return nil }
-        return RetractHandles(node: point.node, points: [(point.contour, point.point)])
+        pointCommand("Retract Handles") { RetractHandles(node: $0, points: $1) }
     }
 
+    /// Sets every selected point's *Automatic*, one change "Automatic".
     func setAutomatic(_ automatic: Bool) -> (any WTModel.Command)? {
-        guard let point else { return nil }
-        return SetAutomatic(node: point.node, points: [(point.contour, point.point)], automatic: automatic)
+        pointCommand("Automatic") { SetAutomatic(node: $0, points: $1, automatic: automatic) }
     }
 
     /// Moves the point to `location` (pasteboard coordinates).
     func setLocation(_ location: Point) -> (any WTModel.Command)? {
-        guard let point, location.isFinite, let object = document.object(for: SelectionID(point.node)),
+        guard let point = point?.single, location.isFinite, let object = document.object(for: SelectionID(point.node)),
               let local = object.transform.inverted()?.apply(location) else { return nil }
         return MovePoints(node: point.node, contour: point.contour, point: point.point, to: local)
     }
@@ -178,19 +213,23 @@ struct PathSectionView: View {
     }
 }
 
-/// The point section: type buttons, Retract handles, Automatic, X and Y.
+/// The point section: type buttons, Retract handles, Automatic, and X and Y for one point.  With
+/// several points selected a value they do not share shows as mixed (no type button chosen, the
+/// Automatic box with a dash) and a control sets it on all of them.
 struct PointSectionView: View {
     let section: ObjectPanelModel.PointSection
     let model: ObjectPanelModel
 
-    static let kinds: [(PointKind, String)] = [(.corner, "Corner"), (.curve, "Curve"), (.connector, "Connector")]
+    static let kinds: [(PointKind, String)] = PointTypeCommands.kinds.map { ($0.kind, $0.title) }
 
-    static func kind(_ section: ObjectPanelModel.PointSection, _ model: ObjectPanelModel) -> Binding<PointKind> {
-        Binding(get: { section.kind }, set: { model.perform(model.setKind($0)) })
+    /// The type buttons: the shared type, or none chosen when the points differ.
+    static func kind(_ section: ObjectPanelModel.PointSection, _ model: ObjectPanelModel) -> Binding<PointKind?> {
+        Binding(get: { section.kind }, set: { kind in if let kind { model.perform(model.setKind(kind)) } })
     }
 
+    /// *Automatic*: on when every point has it; setting it from mixed turns it on for all.
     static func automatic(_ section: ObjectPanelModel.PointSection, _ model: ObjectPanelModel) -> Binding<Bool> {
-        Binding(get: { section.automatic }, set: { model.perform(model.setAutomatic($0)) })
+        Binding(get: { section.automatic.isOn }, set: { model.perform(model.setAutomatic($0)) })
     }
 
     static func retract(_ model: ObjectPanelModel) -> () -> Void {
@@ -200,7 +239,8 @@ struct PointSectionView: View {
     /// Commits a typed X (`horizontal`) or Y at the section's other coordinate.
     static func location(_ section: ObjectPanelModel.PointSection, _ model: ObjectPanelModel, horizontal: Bool) -> (Double) -> Void {
         { value in
-            let location = horizontal ? Point(x: value, y: section.location.y) : Point(x: section.location.x, y: value)
+            guard let current = section.location else { return }
+            let location = horizontal ? Point(x: value, y: current.y) : Point(x: current.x, y: value)
             model.perform(model.setLocation(location))
         }
     }
@@ -208,10 +248,11 @@ struct PointSectionView: View {
     var body: some View {
         Form {
             Picker("Type", selection: Self.kind(section, model)) {
-                ForEach(Self.kinds, id: \.0) { kind, title in Text(title).tag(kind) }
+                ForEach(Self.kinds, id: \.0) { kind, title in Text(title).tag(Optional(kind)) }
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("object.point.kind")
+            .accessibilityValue(section.kind == nil ? "mixed" : "")
             if section.handlesUnlinked {
                 Text("Handles unlinked").font(.caption).foregroundStyle(.secondary)
             }
@@ -219,8 +260,14 @@ struct PointSectionView: View {
                 .accessibilityIdentifier("object.point.retract")
             Toggle("Automatic", isOn: Self.automatic(section, model))
                 .accessibilityIdentifier("object.point.automatic")
-            CommitField(title: "X", value: section.location.x, identifier: "object.point.x", commit: Self.location(section, model, horizontal: true))
-            CommitField(title: "Y", value: section.location.y, identifier: "object.point.y", commit: Self.location(section, model, horizontal: false))
+                .accessibilityValue(PathSectionView.accessibilityValue(section.automatic))
+            if let location = section.location {
+                CommitField(title: "X", value: location.x, identifier: "object.point.x", commit: Self.location(section, model, horizontal: true))
+                CommitField(title: "Y", value: location.y, identifier: "object.point.y", commit: Self.location(section, model, horizontal: false))
+            } else {
+                LabeledContent("Points", value: "\(section.points.count)")
+                    .accessibilityIdentifier("object.point.count")
+            }
         }
         .padding(.horizontal)
     }

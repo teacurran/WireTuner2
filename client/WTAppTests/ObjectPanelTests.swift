@@ -78,7 +78,8 @@ import WTRender
         let reference = fixture.point(fixture.open, 1)
         let selection = Selection().applying([fixture.open], sub: [fixture.open: .points([reference])], mode: .replace)
         let point = try #require(fixture.model(selection).point)
-        #expect(point.kind == .corner && !point.automatic && point.location == Point(x: 10, y: 0) && !point.handlesUnlinked)
+        #expect(point.kind == .corner && point.automatic == .off && point.location == Point(x: 10, y: 0) && !point.handlesUnlinked)
+        #expect(point.single == point.points.first && point.kinds == [.corner])
 
         _ = await fixture.model(selection).perform(fixture.model(selection).setKind(.curve))?.value
         #expect(document.undoTitle == "Undo Set Point Type")
@@ -86,8 +87,8 @@ import WTRender
 
         _ = await fixture.model(selection).perform(fixture.model(selection).setAutomatic(true))?.value
         #expect(document.undoTitle == "Undo Automatic")
-        #expect(fixture.model(selection).point?.automatic == true)
-        #expect(fixture.model(selection).point.map { $0.location } == Point(x: 10, y: 0))
+        #expect(fixture.model(selection).point?.automatic == .on)
+        #expect(fixture.model(selection).point?.location == Point(x: 10, y: 0))
 
         _ = await fixture.model(selection).perform(fixture.model(selection).setAutomatic(false))?.value
         _ = await fixture.model(selection).perform(fixture.model(selection).retractHandles())?.value
@@ -103,7 +104,8 @@ import WTRender
         #expect(fixture.model(selection).setLocation(Point(x: .nan, y: 0)) == nil)
 
         let two = selection.applying([fixture.open], sub: [fixture.open: .points([fixture.point(fixture.open, 0)])], mode: .add)
-        #expect(fixture.model(two).point == nil, "two points: no point section")
+        #expect(fixture.model(two).point?.points.count == 2, "two points: one section for both")
+        #expect(fixture.model(two).point?.location == nil && fixture.model(two).setLocation(.zero) == nil, "no X and Y for two points")
         let none = fixture.model(Selection([fixture.open]))
         #expect(none.setKind(.curve) == nil && none.retractHandles() == nil && none.setAutomatic(true) == nil && none.setLocation(.zero) == nil)
     }
@@ -159,7 +161,8 @@ import WTRender
         #expect(PointSectionView.automatic(point, model).wrappedValue == false)
         PointSectionView.automatic(point, model).wrappedValue = true
         await document.settle()
-        #expect(fixture.model(selection).point?.automatic == true)
+        #expect(fixture.model(selection).point?.automatic == .on)
+        PointSectionView.kind(point, model).wrappedValue = nil
         PointSectionView.retract(model)()
         await document.settle()
         #expect(document.undoTitle == "Undo Retract Handles")
@@ -196,12 +199,75 @@ import WTRender
         host.rootView = CommitField(title: "X", value: 2.5, identifier: "x") { _ in }
         host.layoutSubtreeIfNeeded()
         _ = host.fittingSize
+        let target = ObjectPanelModel.PointTarget(node: fixture.open.opID, contour: .zero, point: .zero)
         let unlinked = ObjectPanelModel.PointSection(
-            node: fixture.open.opID, contour: .zero, point: .zero, kind: .curve, automatic: false, location: .zero, handlesUnlinked: true
+            points: [target], kind: .curve, kinds: [.curve], automatic: .off, location: .zero, handlesUnlinked: true
         )
         _ = NSHostingView(rootView: PointSectionView(section: unlinked, model: fixture.model(.empty))).fittingSize
+        let mixed = ObjectPanelModel.PointSection(
+            points: [target, target], kind: nil, kinds: [.curve, .corner], automatic: .mixed, location: nil, handlesUnlinked: false
+        )
+        _ = NSHostingView(rootView: PointSectionView(section: mixed, model: fixture.model(.empty))).fittingSize
+        PointSectionView.location(mixed, fixture.model(.empty), horizontal: true)(3)
         #expect(FieldFormat<Double>.number.format(nil) == "")
         #expect(FieldFormat<Double>.number.format(1.25) == "1.25" && FieldFormat<Double>.number.format(1234.5) == "1234.5")
         #expect(PointSectionView.kinds.map(\.1) == ["Corner", "Curve", "Connector"])
+    }
+
+    // MARK: Several points (ctx)
+
+    /// Two points of the open path and one of the triangle.
+    static func threePoints(_ fixture: Fixture) -> Selection {
+        Selection().applying(
+            [fixture.open, fixture.closed],
+            sub: [fixture.open: .points([fixture.point(fixture.open, 0), fixture.point(fixture.open, 1)]), fixture.closed: .points([fixture.point(fixture.closed, 2)])],
+            mode: .replace
+        )
+    }
+
+    @Test func thePointSectionShowsMixedValuesAndEditsEverySelectedPointInOneChange() async throws {
+        let fixture = await Fixture.make()
+        let document = fixture.document
+        let selection = Self.threePoints(fixture)
+        _ = await document.perform(SetPointKind(node: fixture.open.opID, points: [(fixture.point(fixture.open, 1).contour, fixture.point(fixture.open, 1).point)], kind: .curve)).value
+        _ = await document.perform(SetAutomatic(node: fixture.closed.opID, points: [(fixture.point(fixture.closed, 2).contour, fixture.point(fixture.closed, 2).point)], automatic: true)).value
+        let section = try #require(fixture.model(selection).point)
+        #expect(section.points.count == 3 && section.single == nil && section.location == nil)
+        #expect(section.kind == nil && section.kinds == [.corner, .curve], "types differ")
+        #expect(section.automatic == .mixed)
+
+        let changes = document.changeCount
+        _ = await fixture.model(selection).perform(fixture.model(selection).setKind(.curve))?.value
+        #expect(document.changeCount == changes + 1, "one change for three points on two paths")
+        #expect(document.undoTitle == "Undo Set Point Type")
+        #expect(fixture.model(selection).point?.kind == .curve, "every point is a curve point")
+
+        _ = await fixture.model(selection).perform(fixture.model(selection).setAutomatic(true))?.value
+        #expect(document.undoTitle == "Undo Automatic" && fixture.model(selection).point?.automatic == .on)
+        _ = await fixture.model(selection).perform(fixture.model(selection).setAutomatic(false))?.value
+        _ = await fixture.model(selection).perform(fixture.model(selection).retractHandles())?.value
+        #expect(document.undoTitle == "Undo Retract Handles")
+        #expect(document.changeCount == changes + 4)
+        _ = await document.undo().value
+        _ = await document.undo().value
+        _ = await document.undo().value
+        _ = await document.undo().value
+        #expect(fixture.model(selection).point?.kinds == [.corner, .curve], "one undo per change")
+    }
+
+    @Test func pointsOfALiveShapeConvertItToAPathInTheSameChange() async throws {
+        let document = DocumentHandle.memory(title: "Shapes")
+        let ids = await document.addRectangles([Rect(x: 0, y: 0, width: 10, height: 10)])
+        let object = try #require(document.object(for: ids[0]))
+        let contour = try #require(object.path?.contours.first)
+        let references = contour.drawn.prefix(2).map { PointReference(node: ids[0].node, contour: contour.id, point: $0.id) }
+        let model = ObjectPanelModel(document: document, selection: Selection().applying(ids, sub: [ids[0]: .points(Set(references))], mode: .replace))
+        #expect(model.point?.points.count == 2)
+        let changes = document.changeCount
+        _ = await model.perform(model.setKind(.curve))?.value
+        #expect(document.changeCount == changes + 1)
+        let path = try #require(document.selectableIDs().first)
+        #expect(document.selectableIDs().count == 1 && document.object(for: path)?.kind == .path, "the rectangle is now a path")
+        #expect(document.path(path)?.contours.first?.drawn.filter { $0.kind == .curve }.count == 2)
     }
 }

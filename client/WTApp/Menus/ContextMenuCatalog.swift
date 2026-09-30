@@ -340,6 +340,13 @@ enum ContextMenuCatalog {
             + [selectSubmenu, .command(PanelCommands.ID.show("object"), title: "Object Panel")]
     }
 
+    /// The items for selected points (FreeHand's point menu; `PointTypeCommands`): Point Type ▸
+    /// with the three types, Retract Handles and Automatic.
+    static let pointEntries: [ContextMenuEntry] = [
+        .submenu("Point Type", PointTypeCommands.kinds.map { .command(PointTypeCommands.ID.kind($0.kind)) }),
+        .command(PointTypeCommands.ID.retract), .command(PointTypeCommands.ID.automatic),
+    ]
+
     /// The pasteboard (and page) menu.
     static func pasteboardEntries(overPage: Bool) -> [ContextMenuEntry] {
         let ids = StandardCommands.ID.self
@@ -386,6 +393,7 @@ enum ContextMenuCatalog {
             let distinct = Set(kinds)
             let specific = distinct.count == 1 ? kindEntries(kinds[0]) : []
             return specific + (specific.isEmpty ? [] : [.separator]) + commonEntries(multiple: kinds.count > 1)
+        case let .points(kinds): return pointEntries + [.separator] + entries(for: .objects(kinds))
         case let .pasteboard(overPage): return pasteboardEntries(overPage: overPage)
         case let .guide(locked): return guideEntries(locked: locked)
         case .presence: return presenceEntries
