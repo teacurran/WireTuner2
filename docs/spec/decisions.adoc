@@ -1041,6 +1041,49 @@ objects that lie on it.  The corpus test (`FreeHandCorpusTests`) reads the owner
 `WT_EXTERNAL_CORPUS` and never copies them into the repository; no FreeHand files with a licence
 allowing it exist to vendor, so the repository's tests write theirs byte by byte.
 
+[[D-084]]
+=== D-084 The shared packages link once, as WireTunerKit.framework in the app's Frameworks
+The 2026.09.29-002 beta was 210 MB unzipped (a 101 MB DMG), because two executables each carried
+the model: the app (128 MB universal, stripped) and the Spotlight importer (83 MB).  The importer
+links WTModel for the snapshot's zstd and protobuf decoding (IO-035), and WTModel brings WTProto --
+swift-protobuf, gRPC, NIO, BoringSSL twice (swift-crypto and swift-nio-ssl), swift-certificates --
+and WTCRDT, WTInterchange (libfreehand), WTRender and WTText.  The linker maps agreed: 36 MB of the
+importer's arm64 code was the same package objects as the app's, led by WTModel (6.8 MB), WTProto
+(5.1 MB), WTInterchange (3.9 MB) and WTRender (2.6 MB).  The Quick Look and Share extensions link no
+package and stay about 0.2 MB each.  So the packages are linked once (building.adoc, "The shared
+framework"):
+
+* *One framework target in the project, the packages unchanged.*  `WireTunerKit` (`client/WTKit`,
+  no code of its own) links every WireTuner package statically, with their dependencies, into one
+  dynamic framework.  The app embeds it in `Contents/Frameworks`; the Spotlight importer links it
+  without embedding it and loads the app's copy through the runpath
+  `@executable_path/../../../../Frameworks`; the app's hosted tests link it for the symbols they used
+  to find in the app.  The app and the importer still name the packages, with xcodegen's
+  `link: false`, so their modules stay visible and nothing is linked twice -- a type linked into two
+  images of one process would exist twice and fail casts across them.
+* *Not `type: .dynamic` package products.*  Xcode embeds a dynamic package product in every bundle
+  that links it, the app extension included (the second copy this decision removes, and a bundle
+  identifier collision besides); each package would become its own framework, and the third-party
+  code under them (gRPC, NIO, swift-protobuf) would still be linked statically into each unless their
+  manifests changed too; and when Xcode 26.4 turns package products into frameworks by itself it
+  fails to schedule swift-crypto's link before swift-certificates' (the reason the test target links
+  no product).  The manifests also serve `swift test` and the iOS builds (D-073), which a project
+  target leaves alone.
+* *Not a slimmer importer.*  A WTModel subset without gRPC would still leave the importer tens of
+  megabytes and the app its own copy, and would split packages for the sake of packaging.
+
+Result (unsigned universal Release build of 1839de7): the app 213 MB -> 135 MB, the DMG 102.3 MB ->
+64.7 MB, the zip 93.2 MB -> 58.6 MB; the app's executable 128.3 MB -> 37.4 MB, WireTunerKit 92.7 MB,
+the importer 83.3 MB -> 0.14 MB.  The framework is larger than the importer's copy was because a
+dynamic library keeps what it exports, which dead stripping would have removed from an executable;
+that is the price of sharing, and still a third of the app.  The packages' resource bundles
+(`WTRender_WTRender.bundle`, `WTCRDT_WTCRDTSchema.bundle` and the dependencies', 0.6 MB) are still
+copied into the app's and the importer's `Resources`, where `Bundle.module` finds them first.
+Signing is unchanged: the export signs the framework with the app's team (library validation passes
+under the hardened runtime), and an unsigned build signs it ad hoc without the hardened runtime, as
+before (D-080).  `make release-check` fails a build in which the framework is missing, embedded twice,
+or not loaded by the app and the importer.
+
 == Open questions
 
 [[Q-001]]

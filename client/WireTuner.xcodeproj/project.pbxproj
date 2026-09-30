@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		00A8E5921B0273408FF2582C /* WTSync in Frameworks */ = {isa = PBXBuildFile; productRef = 471B5A84CD7866567E0FC54B /* WTSync */; };
 		010AB3229C272807D8308817 /* CollaborationRestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1DD559048C67A833DE831C0 /* CollaborationRestTests.swift */; };
 		01EC77E6D6E708E67C48D94C /* MenuTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A0D8F43A952271C28A18B88 /* MenuTree.swift */; };
 		03166915ACBEAEF973D9B30A /* WireTuner.sdef in Resources */ = {isa = PBXBuildFile; fileRef = 78C813AD79AEB19C3FC02F6B /* WireTuner.sdef */; };
@@ -41,6 +40,7 @@
 		0BB3920DA81AB10E094C3DF5 /* PanelDescriptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E0BCC92D5EA76458AB33C3 /* PanelDescriptor.swift */; };
 		0BC23D29B805C68EF62E3E2E /* DataSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600A1DC34216964CA977E8F2 /* DataSession.swift */; };
 		0BE4EFC3F4101353AB9F7F01 /* OverridesSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 524AB783B618490E75667E20 /* OverridesSection.swift */; };
+		0C3E7662506029ECF4CA468F /* WTProto in Frameworks */ = {isa = PBXBuildFile; productRef = BE5612DF36222575539FF5C9 /* WTProto */; };
 		0C6A4FDEFF0F71D9AB59FEE3 /* WindowChromeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 633EB97BF123731B1E14D82C /* WindowChromeTests.swift */; };
 		0C8BA19E9475E39019A48CFE /* WebLinkAndSymbolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EE54A9A09CA6D5AFC1B9585 /* WebLinkAndSymbolTests.swift */; };
 		0CE3B9E6CA04A5DFB95AA2E5 /* SpecialCharacters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DECB272C7913A8E1C183505 /* SpecialCharacters.swift */; };
@@ -79,6 +79,7 @@
 		14488512503266FB0637A265 /* FontControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A44931821C2885FF6B5CDB1 /* FontControlTests.swift */; };
 		150B645B7CCEAD50111BBDCC /* EmbeddedProfileChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640F1D67D9521A263CBE7272 /* EmbeddedProfileChoice.swift */; };
 		156D6FDCF19A835B3693A54E /* MasterTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223917A46B6A33FC62EB89BF /* MasterTabTests.swift */; };
+		15B7FED4B5E6D452CB25A102 /* WTInterchange in Frameworks */ = {isa = PBXBuildFile; productRef = 3BA5B24B30C9155D287A9D14 /* WTInterchange */; };
 		16A7EAE9F4022B4CF9222681 /* RasterEffectSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA69B06737172FE0D7357E41 /* RasterEffectSettings.swift */; };
 		1725723CAB4D488E388BD02E /* ObjectPanelSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A94A6D6679A21D02764E92 /* ObjectPanelSections.swift */; };
 		17FF0E112E376E269065340C /* CommandRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D5F817250F1C205B441B67 /* CommandRegistryTests.swift */; };
@@ -88,7 +89,6 @@
 		18752EDF9ECDE25BC8E6ADD0 /* MissingFontsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97850604BB691FBB30C2B80E /* MissingFontsSheet.swift */; };
 		18F7CC058460478BDDA7507B /* ShareHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055C5C0317092C1A299D9275 /* ShareHandoff.swift */; };
 		19992E7F63941725A0ABE0C4 /* TypingSpelling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27FDC541781673F1B962BE3B /* TypingSpelling.swift */; };
-		1A84CC0C77CAEADD7EA6D532 /* WTCRDT in Frameworks */ = {isa = PBXBuildFile; productRef = BAE3DB4DC8F06661870A2657 /* WTCRDT */; };
 		1A9FE4F20CD4035B5227371F /* PathEditingToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB6ADF9C942F951636928C28 /* PathEditingToolTests.swift */; };
 		1ACA20C91A0A11E396E1736F /* PanelAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD64AC458AC0BB2C7CA8F44A /* PanelAppearance.swift */; };
 		1B154FAA8E049D06BB373075 /* StyleTransferSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5026FC40E61D4ADA35DE62 /* StyleTransferSheets.swift */; };
@@ -99,7 +99,6 @@
 		1D2B0ED9E3166BAB0B919FAD /* InspectorHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A8A66A32EB4ACE4F78690C2 /* InspectorHost.swift */; };
 		1D2DC871FBA056D9AC5093D5 /* StorageMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777A8FCF1847D7651B2B29CA /* StorageMonitor.swift */; };
 		1D8610FF1068A43C6BA8EC95 /* Tool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74E963B003B9FDBC0688BF24 /* Tool.swift */; };
-		1D8999F10F24DD8CC03713F6 /* WTText in Frameworks */ = {isa = PBXBuildFile; productRef = 08C3675137E50641A70094F8 /* WTText */; };
 		1DC6D85BDF135CAD15E973E7 /* AppSyncWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334941E8BF59CFA2ECBA4E2F /* AppSyncWiringTests.swift */; };
 		1DDC4845080A6B317530985F /* EyedropperTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2016CB89827A3320EEDDFB56 /* EyedropperTool.swift */; };
 		1E28CAD6BE9BD69BF0D68F1E /* PageSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0193402F81B0A6A3160D4EA7 /* PageSheets.swift */; };
@@ -124,6 +123,7 @@
 		24672D8CB34A4B54EDD77890 /* TextOnPathMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90860F6CE46DDDAF187C5867 /* TextOnPathMenu.swift */; };
 		25AEBB81638576D64FA74105 /* FontCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1E861563F0785F4217B4FA /* FontCommands.swift */; };
 		25C3FA889F29BB6DC44558E2 /* WindowCollaboration.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE519A6FCEEF19A469CA05F /* WindowCollaboration.swift */; };
+		260B998892752D434B350EBB /* WTRender in Frameworks */ = {isa = PBXBuildFile; productRef = F1044476CDC6299A4D3AD241 /* WTRender */; };
 		2666D59E12D03A4CFF19650A /* AccessibilityCheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 367DEB732D2D01E530DFF4DE /* AccessibilityCheckerTests.swift */; };
 		269652F7C2EE3AD49D8ED7C7 /* ReviewSides.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7FC519C724DF08D2A6A9EC6 /* ReviewSides.swift */; };
 		275F8994957EE517D5927AD9 /* ExtrasEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96CD0DB598C0A8A753A7AC27 /* ExtrasEdgeTests.swift */; };
@@ -183,7 +183,6 @@
 		355FAFFD5F72FE8822C13459 /* TableReentrancyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4BEABA5190E8C2FE175E4CF /* TableReentrancyTests.swift */; };
 		356628D514A03DCCE2CE66C8 /* PrintSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A8A0D2F145333611DB65FA /* PrintSessionTests.swift */; };
 		35EE711291A1EBDDD221BE3D /* LinkedIdentities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5110FBEE28D88023691BAC48 /* LinkedIdentities.swift */; };
-		364AFDCD5C52E959E60E5AEE /* WTModel in Frameworks */ = {isa = PBXBuildFile; productRef = D7CCC596AE0E2B551643E221 /* WTModel */; };
 		368DF87634D032FEF74E03CA /* PerspectiveTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E3B21B3E049517A45B34211 /* PerspectiveTool.swift */; };
 		36C750730784F85818629EF5 /* FontToolbarControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35B31DA4F42EED00CD30ED10 /* FontToolbarControls.swift */; };
 		36EE46E87DA806BF68731F9F /* CanvasHandleLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2F24F80B5E57091ADDDB29C /* CanvasHandleLayer.swift */; };
@@ -274,7 +273,7 @@
 		4D38963A6EDE2E4C793282FA /* ShapeHandles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A886C011DD31AADC9D257B7B /* ShapeHandles.swift */; };
 		4E0A6D6A2952E28F2CBCADED /* PanelSnappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FBC9FEF62EC3D5B04C43051 /* PanelSnappingTests.swift */; };
 		4E470BE18589562B3E9892B8 /* EyedropperDragOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0C1E19885EC01A46DE2CCF /* EyedropperDragOutTests.swift */; };
-		4E759190313AFF4BA297E5BD /* WTProto in Frameworks */ = {isa = PBXBuildFile; productRef = 41651617B1CA311751CEFAA9 /* WTProto */; };
+		4E759190313AFF4BA297E5BD /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A21803070916F2818F09638E /* Sparkle */; };
 		4E892566E7489F7EA48A1613 /* ScriptSyntax.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52AD7652613B6D386C5ABF49 /* ScriptSyntax.swift */; };
 		4EC97D06EFFB4AF6C0555FAC /* Measurements.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D71313B6CDCD04B15BF3B7 /* Measurements.swift */; };
 		4F5AA7710AC573D711055098 /* PanelTabControlTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C069A8E69547CC5A62E76039 /* PanelTabControlTests.swift */; };
@@ -366,7 +365,6 @@
 		647C7DF27259A3C4C11C0A30 /* SharingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C052827F4028CDBDB9653E /* SharingUITests.swift */; };
 		65198F8D5E89DD1B5372F542 /* DistortKernels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06D70D95F9DA1E420754CC53 /* DistortKernels.swift */; };
 		65320D84F0DE613B7BF69531 /* LibraryClients.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837424E1A6FDF4C8D0E26481 /* LibraryClients.swift */; };
-		65B2DD8A43DDF8CAF3803D45 /* WTGeometry in Frameworks */ = {isa = PBXBuildFile; productRef = 60AA0F560C13C7F9DAB07F68 /* WTGeometry */; };
 		65F3F9139F3E0BA91C15836C /* ThumbnailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5695F5C5375EC136ABD85690 /* ThumbnailProvider.swift */; };
 		664B338AD18F075DF3F0D1D2 /* HoseFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E41A48457A5BFACEB52F4E7 /* HoseFeatures.swift */; };
 		665CAFB75D41606A7F91D56F /* SelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4730554F7A9DC77FD14BFF /* SelectionTests.swift */; };
@@ -436,6 +434,7 @@
 		79636D660F137FFB9EB08AA9 /* ModelGlueFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A3694B95DD6E28FECEAF77 /* ModelGlueFeatures.swift */; };
 		79EC80B15868002510D1B57A /* ExternalEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A9F075A86358221861B7D1 /* ExternalEditTests.swift */; };
 		7A42682B3A826A004012D2D0 /* LocalUpgradeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADFBF973725277AD8B345DC /* LocalUpgradeTests.swift */; };
+		7B60E019451BB9B94DA8F1EE /* WireTunerKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */; };
 		7BB65D12B8AF3B10D0FEA6CE /* PanelLayoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */; };
 		7C0224F789D15D81355A5844 /* ImageFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B83B14A8CBDE46F950492A /* ImageFeatures.swift */; };
 		7C2A421EC0A4A9A4569B4767 /* TeamColorLibraries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70808AAB0D15C2B8896DB306 /* TeamColorLibraries.swift */; };
@@ -449,6 +448,7 @@
 		7FCFDADD8171C6A13BA96C83 /* TextEditorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D498A16B042E6D899409DFE /* TextEditorWindow.swift */; };
 		7FDA3238466042515734C981 /* SvgAnimationFileActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AE6FF362283E0F76727D9E1 /* SvgAnimationFileActions.swift */; };
 		80C25C6D446D77DFDAF9761C /* ReviewSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649E8E419432CAC4A39147CF /* ReviewSheetView.swift */; };
+		80CEBA1D821CEB6900D971AB /* WireTunerKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		80F17677DD46F90804D49A71 /* CanvasNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43564F7438F68FE69C6D54BC /* CanvasNavigation.swift */; };
 		81173DEE1875366751293290 /* ImportPointer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20971AF0DE0C45A78468CC3 /* ImportPointer.swift */; };
 		818E22C4E30B0C79540851F4 /* ChartPictographs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7D98DA32859AE911D9C64D /* ChartPictographs.swift */; };
@@ -472,6 +472,7 @@
 		85F3FD87C2642B4B42366C3F /* TableReentrancy.c in Sources */ = {isa = PBXBuildFile; fileRef = 20FEF685B729049FFAF6A7C5 /* TableReentrancy.c */; };
 		86000CB4D5575024AFE02069 /* RestoreVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187B04D92566D855E01B2A28 /* RestoreVersion.swift */; };
 		863745887F019B4B720BEF5C /* ExportShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31209CD165CBCF16D9A24524 /* ExportShortcutTests.swift */; };
+		868689C4DE3F647BA6F62642 /* WireTunerKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */; };
 		870F2AD0D573EE2D7DE908A7 /* PatternEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136992C5545D5D88F82ADB75 /* PatternEditor.swift */; };
 		876A7BE3F3067684BD49772D /* DockColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF9DB31665D5B46ED43D0ECE /* DockColumn.swift */; };
 		881723847297BC49265D79CB /* PackageController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1D0642DA5FBF5D62ECA7BB /* PackageController.swift */; };
@@ -486,6 +487,7 @@
 		8A570ECB5BE7AA50AAB95894 /* TypeFindReplaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9559D4E2DFA1621F40D236 /* TypeFindReplaceTests.swift */; };
 		8AEF55AC87C13FE35DBE3A1B /* ColorSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17C75D56B809DEB0089FFAA0 /* ColorSheets.swift */; };
 		8B31D93640CD6B7FB028CA2C /* PointerTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DF0B1209F281D7342465BB8 /* PointerTool.swift */; };
+		8B7681C527451B780395A1AF /* WireTunerKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E96DF31FED3C1428BA5781B /* WireTunerKit.swift */; };
 		8B7D11267A1DF750283E4FD4 /* PointerMoveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B72CFD34CC8CB571C446740 /* PointerMoveTests.swift */; };
 		8BECE6DA8BC5D6F2F0503E39 /* TeamClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C98DB7C8F4FAECBE0A7A1DF /* TeamClient.swift */; };
 		8C210B5F72855A5259C47585 /* TemplateFeaturesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FFBE87B3227D97774A23A08 /* TemplateFeaturesTests.swift */; };
@@ -508,6 +510,7 @@
 		92CF9E18A334BD82AEC12614 /* DocumentModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C355E7109B05BF38D0B234 /* DocumentModelTests.swift */; };
 		92DDFBBDBF8F7D177B39EF0D /* RenameGlyphSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57446E8CCF5AA9E32DF68A8B /* RenameGlyphSheet.swift */; };
 		933915AC8FE25B5667FEE554 /* ColorLibrarySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7A224AE9EE85C81462DE9C /* ColorLibrarySheet.swift */; };
+		933DF5E60F27823F875EA5EE /* WTText in Frameworks */ = {isa = PBXBuildFile; productRef = 6991314C954DA94FC1C54B2A /* WTText */; };
 		9374178632F66A75E18091F3 /* VersionsContinuityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D0A92EE923A6EE01A466AF /* VersionsContinuityTests.swift */; };
 		939132D6AA98FA0553C43178 /* DataPanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4142E4942D7F2E6F1912B858 /* DataPanelTests.swift */; };
 		93BE0C1DCE13C705775D6167 /* SetupSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA2909781EAF635ED21012DC /* SetupSheets.swift */; };
@@ -575,6 +578,7 @@
 		A6D19F37B017671A731215AD /* PanelClusterDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E6BE18B35916AB07645F8D3 /* PanelClusterDrag.swift */; };
 		A6F3BA55C53C0297FB8E60A2 /* CropToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C75A18E14BE106858870318F /* CropToolTests.swift */; };
 		A709C46B1964406B461E299C /* GradientEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12959F383885AF0CD9D15679 /* GradientEditor.swift */; };
+		A7699364367C95CEB37FAAC1 /* WireTunerKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */; };
 		A77D2A0BB6ED2126FF0A4B96 /* UndoCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0BFB0B86CE8E1D8415C186 /* UndoCommands.swift */; };
 		A80CC2A7CAF6090B0F0D9F70 /* ReviewWorld.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36744BDEFEC9E7F35262B7F5 /* ReviewWorld.swift */; };
 		A8148E5EF550AF7CCF1DD21E /* LibraryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B590396C475E250064ABF64 /* LibraryWindowController.swift */; };
@@ -615,6 +619,7 @@
 		B4975E9BC52F3309016402F2 /* LibraryBranches.swift in Sources */ = {isa = PBXBuildFile; fileRef = 779260D4B4FFDFEE2804D0ED /* LibraryBranches.swift */; };
 		B55461FEE7700E3095DC5434 /* HistoryPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C09710D4FFC9F89E8F66D9F3 /* HistoryPanel.swift */; };
 		B56237948DD1BA265092FD15 /* TextToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105E1CBD612DA3BA5557AB6C /* TextToolTests.swift */; };
+		B57E6AF43504F4AC2919DE12 /* WTModel in Frameworks */ = {isa = PBXBuildFile; productRef = 1922F2151B9EDD16733DA6EF /* WTModel */; };
 		B595E2EAF455DB5E5CE5FBEC /* WireTunerThumbnail.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F393597A3DA5656C41008D93 /* WireTunerThumbnail.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B6012D4A08AE84F13A6B5115 /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8659B460833F9084505F2CFD /* StatusBarView.swift */; };
 		B78041809E8D3295CE544FFD /* FontSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90E726252272826A1127D1C /* FontSheets.swift */; };
@@ -671,7 +676,6 @@
 		C58610B873B7B3FA7542F341 /* PanelLegibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1BD5AE2BF09A816AE0850B /* PanelLegibilityTests.swift */; };
 		C67AB7A49A46B096EE2A93D2 /* CanvasGestures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2457FBFBF637BF1EC2FC10E0 /* CanvasGestures.swift */; };
 		C67CCCF2A764789739925E36 /* ToolPanelCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C72C794CF969409119A981B /* ToolPanelCommands.swift */; };
-		C72227A3FC3EF6FA6C368A68 /* WTInterchange in Frameworks */ = {isa = PBXBuildFile; productRef = 00D86B1A32BF132424E66A31 /* WTInterchange */; };
 		C7E622BAE265DBE9DDA206FC /* OutputAreaEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89D6EFC038BB61384DFE030 /* OutputAreaEditor.swift */; };
 		C819720BC016CCAA152344F3 /* EditingWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E10CA3D96F1E67CB8079697 /* EditingWiringTests.swift */; };
 		C8253B0BCC730825A7A5ECDF /* TypefaceEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB590333D7441D814DF1378 /* TypefaceEdgeTests.swift */; };
@@ -696,6 +700,7 @@
 		CC9376E31D3BCC89443D0215 /* TeamLibraryFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7CE68D039C6F2728978A52 /* TeamLibraryFeatures.swift */; };
 		CCE52EAD94F0A90FD4196552 /* ToolbarContents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D476D462A94261CBDFF04627 /* ToolbarContents.swift */; };
 		CD326DDEEE55BD27043EFC51 /* EyedropperDragOut.swift in Sources */ = {isa = PBXBuildFile; fileRef = 095B33566033498628E6D791 /* EyedropperDragOut.swift */; };
+		CD4095493F6891081740909C /* WTCRDT in Frameworks */ = {isa = PBXBuildFile; productRef = 6EBA0718BAF07EAD03328DE7 /* WTCRDT */; };
 		CD8542A6DC3E92D083FCBE86 /* NameNoteFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = 190E6CEDE1B64AD3162F1B00 /* NameNoteFields.swift */; };
 		CE7B588C8FA821CC3EA3EF15 /* SyncConnector.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA6A5E665BDEC1023A1DEF93 /* SyncConnector.swift */; };
 		CE9F3385000E3748B264ED4C /* TextBlockSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9556356846636077E76F0024 /* TextBlockSection.swift */; };
@@ -724,7 +729,6 @@
 		D693FE61411540B9E7A12683 /* TextWrapSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5236D230B55EED29110B4007 /* TextWrapSheet.swift */; };
 		D6D12E727A850307AA41A6BF /* DocumentMenusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E59850C4555A8F7BD1C8B979 /* DocumentMenusTests.swift */; };
 		D6F87BCBED633DDBE7AF7374 /* ShapeClassifier.wtmodel in Resources */ = {isa = PBXBuildFile; fileRef = 21FE8DB16A43D9FC014DEEBB /* ShapeClassifier.wtmodel */; };
-		D723AE755F43EFEF271BEC38 /* WTModel in Frameworks */ = {isa = PBXBuildFile; productRef = 23005615E0687BC57AA7AFA2 /* WTModel */; };
 		D838DAA8E7998FC109215B83 /* TextAttributeClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEFEB0188D8E33D27CA90BED /* TextAttributeClipboard.swift */; };
 		D8C779AADAEFD6C13E77117D /* Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100AC02E0231C7026E5A8273 /* Selection.swift */; };
 		D922AE765B77AC58846F5325 /* DocumentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECD0B0BFA0E4AA6BC5BFBDDD /* DocumentController.swift */; };
@@ -817,6 +821,7 @@
 		F3EC20E6A5A65F5FDC6832AB /* PanelTabStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BE7CCEF9C00F4AFF1BB54C9 /* PanelTabStrip.swift */; };
 		F3F5AA0946FC0F283CB2B280 /* TypefaceToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD77D23B354ED18C82B2F700 /* TypefaceToolTests.swift */; };
 		F41005351918477B790CCAF6 /* builtin.illustrator.json in Resources */ = {isa = PBXBuildFile; fileRef = 569FBDF92FF2BA2F7C927396 /* builtin.illustrator.json */; };
+		F448BB2942AE4F3AC25F4A70 /* WTSync in Frameworks */ = {isa = PBXBuildFile; productRef = A9BFC4D0BB9113776AFC2E32 /* WTSync */; };
 		F4BA35F746329F91A58CB8C5 /* ColorMixerPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97090908E89BAD127B0068A /* ColorMixerPanel.swift */; };
 		F4CD9345DF061B6A34427ED8 /* FindReplacePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B616827B36BF754DADC616D7 /* FindReplacePanel.swift */; };
 		F4D8352A9A4B57379BE5B3F0 /* BranchMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1039C0873CF7595B9E01E340 /* BranchMerge.swift */; };
@@ -844,10 +849,9 @@
 		FC034A602E11770613BADF6A /* SpellingChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540C1FBA5DCD7D138C7D604D /* SpellingChecker.swift */; };
 		FC493625FD595C4657F2912D /* TextEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A61EC16A792D5CDE7B54B580 /* TextEditingTests.swift */; };
 		FC5F8942720A9FBADF98626B /* BrowserPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9A17AF06EED598ABB12D28 /* BrowserPreview.swift */; };
-		FCCAA7C0A2B14239132D876E /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A21803070916F2818F09638E /* Sparkle */; };
 		FCE69B6B6291CEB2AE556538 /* PreviewStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = A78549BD1C55FDF18BFA928E /* PreviewStrip.swift */; };
 		FCEB7B894FB3CEA9D4E7E3B9 /* KeyEquivalent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BEDCCF536AA5A6AC6A3995 /* KeyEquivalent.swift */; };
-		FCF6121947A69E9DD2AE3F3A /* WTRender in Frameworks */ = {isa = PBXBuildFile; productRef = 0E3C267385D7C4EC7FE62D3B /* WTRender */; };
+		FD02274D0CA727C0A897E511 /* WTGeometry in Frameworks */ = {isa = PBXBuildFile; productRef = 2631BEDD8EBDB3583E4CB9C3 /* WTGeometry */; };
 		FD1316FD2860E390AA9E12E5 /* HelpBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9820EEBEB7D4D85393C7B93D /* HelpBrowser.swift */; };
 		FD29D9606986922FE3B9825C /* DefaultsAndDraggingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29C96552C2B11923E9F7B18 /* DefaultsAndDraggingTests.swift */; };
 		FD68BF243BF49B455F22386F /* WindowReleaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F350BE5C0BED329F749DA2B /* WindowReleaseTests.swift */; };
@@ -889,12 +893,26 @@
 			remoteGlobalIDString = D625731C59D920CF6D615084;
 			remoteInfo = WireTunerSpotlightImporter;
 		};
+		D5F5E4D505B7B91783074B4C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0E1F37906F578B10B225478;
+			remoteInfo = WireTunerKit;
+		};
 		DA27A8F87ADB677C307213F4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 91272E66766A86F043D79FFE;
 			remoteInfo = WireTuner;
+		};
+		E0EBE52398991F977A07404F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0E1F37906F578B10B225478;
+			remoteInfo = WireTunerKit;
 		};
 		E96DE9F5745BF98ED2649FC4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -903,9 +921,27 @@
 			remoteGlobalIDString = 91272E66766A86F043D79FFE;
 			remoteInfo = WireTuner;
 		};
+		F06B1749FB2C70DAAC0A87AC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1A09B63C62D68F8DD5E7CEDE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0E1F37906F578B10B225478;
+			remoteInfo = WireTunerKit;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		0B56F1F1A1E8738E4AE908A5 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				80CEBA1D821CEB6900D971AB /* WireTunerKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E36C1E7C5B1075075E9FEE3C /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1026,6 +1062,7 @@
 		1E4962FFE7931637377CE777 /* AccountCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountCommands.swift; sourceTree = "<group>"; };
 		1E6BE18B35916AB07645F8D3 /* PanelClusterDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelClusterDrag.swift; sourceTree = "<group>"; };
 		1E82FF5BF1D9D5CF82BBEC41 /* PathOperationSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathOperationSheets.swift; sourceTree = "<group>"; };
+		1E96DF31FED3C1428BA5781B /* WireTunerKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WireTunerKit.swift; sourceTree = "<group>"; };
 		1EADC1DA0032FB67CB2976C3 /* DocumentPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentPanelTests.swift; sourceTree = "<group>"; };
 		1F7E22756877A19FC942EEB4 /* ExportController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportController.swift; sourceTree = "<group>"; };
 		1FBBDE15781B05737FC248AF /* TextSwatchTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSwatchTarget.swift; sourceTree = "<group>"; };
@@ -1284,6 +1321,7 @@
 		64E735BDEE955105DE5545F9 /* WiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiringTests.swift; sourceTree = "<group>"; };
 		6513CF7225FF4606114C1175 /* PathEditingFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathEditingFeatures.swift; sourceTree = "<group>"; };
 		656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelLayoutStore.swift; sourceTree = "<group>"; };
+		65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = WireTunerKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		6694A5F9690E9EDDA1CFC49D /* AlignPanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlignPanelTests.swift; sourceTree = "<group>"; };
 		66A584685F214F707BF3814F /* ShareCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareCommands.swift; sourceTree = "<group>"; };
 		67FCC9777AF2C77BE8DF7FC9 /* ColorLibraryMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorLibraryMenu.swift; sourceTree = "<group>"; };
@@ -1776,12 +1814,35 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		362C20A7F406195D6F5A1B69 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0C3E7662506029ECF4CA468F /* WTProto in Frameworks */,
+				CD4095493F6891081740909C /* WTCRDT in Frameworks */,
+				B57E6AF43504F4AC2919DE12 /* WTModel in Frameworks */,
+				F448BB2942AE4F3AC25F4A70 /* WTSync in Frameworks */,
+				FD02274D0CA727C0A897E511 /* WTGeometry in Frameworks */,
+				260B998892752D434B350EBB /* WTRender in Frameworks */,
+				933DF5E60F27823F875EA5EE /* WTText in Frameworks */,
+				15B7FED4B5E6D452CB25A102 /* WTInterchange in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3A2647327E1F8E4BC169778F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D723AE755F43EFEF271BEC38 /* WTModel in Frameworks */,
+				868689C4DE3F647BA6F62642 /* WireTunerKit.framework in Frameworks */,
 				043BB7CE0BE66A4198639E57 /* CoreSpotlight.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7EF11CFB40229C1D1A97B1ED /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7B60E019451BB9B94DA8F1EE /* WireTunerKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1789,15 +1850,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4E759190313AFF4BA297E5BD /* WTProto in Frameworks */,
-				1A84CC0C77CAEADD7EA6D532 /* WTCRDT in Frameworks */,
-				364AFDCD5C52E959E60E5AEE /* WTModel in Frameworks */,
-				00A8E5921B0273408FF2582C /* WTSync in Frameworks */,
-				65B2DD8A43DDF8CAF3803D45 /* WTGeometry in Frameworks */,
-				FCF6121947A69E9DD2AE3F3A /* WTRender in Frameworks */,
-				1D8999F10F24DD8CC03713F6 /* WTText in Frameworks */,
-				C72227A3FC3EF6FA6C368A68 /* WTInterchange in Frameworks */,
-				FCCAA7C0A2B14239132D876E /* Sparkle in Frameworks */,
+				A7699364367C95CEB37FAAC1 /* WireTunerKit.framework in Frameworks */,
+				4E759190313AFF4BA297E5BD /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2516,6 +2570,7 @@
 				DE3773AA4BCAF3E7BFBFB57B /* WTAppTests */,
 				6B6E868406FE01C54FC2800A /* WTAppUITests */,
 				8C31A2E86C995A6EA17D5449 /* WTExtensions */,
+				FA767251C572D8956E9C6EB6 /* WTKit */,
 				D931F7B1FE31A4938161F5DE /* Config */,
 				71552818E1C50C33CC658E65 /* Packages */,
 				6BA1BD1037A03EA88A182202 /* Frameworks */,
@@ -2840,6 +2895,7 @@
 			isa = PBXGroup;
 			children = (
 				5DA2F15495C3C971FBA861BA /* WireTuner.app */,
+				65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */,
 				EE6230F3CB25ABDB47127CC9 /* WireTunerPreview.appex */,
 				E11A519A1C4AEB0FFCA8F24A /* WireTunerShare.appex */,
 				72120138D3AD9A152D3A65DB /* WireTunerSpotlightImporter.appex */,
@@ -3376,6 +3432,14 @@
 			path = Commands;
 			sourceTree = "<group>";
 		};
+		FA767251C572D8956E9C6EB6 /* WTKit */ = {
+			isa = PBXGroup;
+			children = (
+				1E96DF31FED3C1428BA5781B /* WireTunerKit.swift */,
+			);
+			path = WTKit;
+			sourceTree = "<group>";
+		};
 		FCE4A39EDF6322EA34C83D12 /* Effects */ = {
 			isa = PBXGroup;
 			children = (
@@ -3404,11 +3468,13 @@
 			buildConfigurationList = E2BD6BA54604F0D7AD93AF7E /* Build configuration list for PBXNativeTarget "WireTunerTests" */;
 			buildPhases = (
 				A9B3856742877362969B207F /* Sources */,
+				7EF11CFB40229C1D1A97B1ED /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				018EE3CBDD7B97A87919F052 /* PBXTargetDependency */,
+				DDA1225ED9423A83ED60A11B /* PBXTargetDependency */,
 			);
 			name = WireTunerTests;
 			packageProductDependencies = (
@@ -3461,11 +3527,21 @@
 				F2BB0E281637E66644201D4F /* Resources */,
 				CC3AB9382F5AB459DB10948A /* Frameworks */,
 				E36C1E7C5B1075075E9FEE3C /* Embed Foundation Extensions */,
+				0B56F1F1A1E8738E4AE908A5 /* Embed Frameworks */,
 				8152907BC0837FF6A5858076 /* Help Book */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F62ACBA05EADDCABC16288F7 /* PBXTargetDependency */,
+				D83546DB4F210659857E1489 /* PBXTargetDependency */,
+				81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */,
+				48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */,
+				85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */,
+				5345AFFAC55816C31DADAB2D /* PBXTargetDependency */,
+				1389D84F7311322BA59FB06B /* PBXTargetDependency */,
+				B81CA2100C47093C70BAEEFB /* PBXTargetDependency */,
+				0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */,
 				C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */,
 				3EB74E8D2E78D4EFFFD83C60 /* PBXTargetDependency */,
 				920E4750ADBCB78008950CBB /* PBXTargetDependency */,
@@ -3473,19 +3549,37 @@
 			);
 			name = WireTuner;
 			packageProductDependencies = (
-				41651617B1CA311751CEFAA9 /* WTProto */,
-				BAE3DB4DC8F06661870A2657 /* WTCRDT */,
-				D7CCC596AE0E2B551643E221 /* WTModel */,
-				471B5A84CD7866567E0FC54B /* WTSync */,
-				60AA0F560C13C7F9DAB07F68 /* WTGeometry */,
-				0E3C267385D7C4EC7FE62D3B /* WTRender */,
-				08C3675137E50641A70094F8 /* WTText */,
-				00D86B1A32BF132424E66A31 /* WTInterchange */,
 				A21803070916F2818F09638E /* Sparkle */,
 			);
 			productName = WireTuner;
 			productReference = 5DA2F15495C3C971FBA861BA /* WireTuner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A0E1F37906F578B10B225478 /* WireTunerKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EF1C36BC192FE16C0FB09740 /* Build configuration list for PBXNativeTarget "WireTunerKit" */;
+			buildPhases = (
+				CBD4BF2697BF97CA6F6AA3AE /* Sources */,
+				362C20A7F406195D6F5A1B69 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WireTunerKit;
+			packageProductDependencies = (
+				BE5612DF36222575539FF5C9 /* WTProto */,
+				6EBA0718BAF07EAD03328DE7 /* WTCRDT */,
+				1922F2151B9EDD16733DA6EF /* WTModel */,
+				A9BFC4D0BB9113776AFC2E32 /* WTSync */,
+				2631BEDD8EBDB3583E4CB9C3 /* WTGeometry */,
+				F1044476CDC6299A4D3AD241 /* WTRender */,
+				6991314C954DA94FC1C54B2A /* WTText */,
+				3BA5B24B30C9155D287A9D14 /* WTInterchange */,
+			);
+			productName = WireTunerKit;
+			productReference = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 		D625731C59D920CF6D615084 /* WireTunerSpotlightImporter */ = {
 			isa = PBXNativeTarget;
@@ -3497,10 +3591,11 @@
 			buildRules = (
 			);
 			dependencies = (
+				6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */,
+				8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */,
 			);
 			name = WireTunerSpotlightImporter;
 			packageProductDependencies = (
-				23005615E0687BC57AA7AFA2 /* WTModel */,
 			);
 			productName = WireTunerSpotlightImporter;
 			productReference = 72120138D3AD9A152D3A65DB /* WireTunerSpotlightImporter.appex */;
@@ -3563,6 +3658,9 @@
 					91272E66766A86F043D79FFE = {
 						ProvisioningStyle = Manual;
 					};
+					A0E1F37906F578B10B225478 = {
+						ProvisioningStyle = Manual;
+					};
 					D625731C59D920CF6D615084 = {
 						ProvisioningStyle = Manual;
 					};
@@ -3601,6 +3699,7 @@
 			projectRoot = "";
 			targets = (
 				91272E66766A86F043D79FFE /* WireTuner */,
+				A0E1F37906F578B10B225478 /* WireTunerKit */,
 				D8D851371215E68AC4D09660 /* WireTunerThumbnail */,
 				51875E22542F659F45C415F1 /* WireTunerPreview */,
 				FB809C6CE91B4E1AEEE690A7 /* WireTunerShare */,
@@ -4519,6 +4618,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CBD4BF2697BF97CA6F6AA3AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8B7681C527451B780395A1AF /* WireTunerKit.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EE20318C44134EB0B5DACA34 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -4536,6 +4643,14 @@
 			target = 91272E66766A86F043D79FFE /* WireTuner */;
 			targetProxy = E96DE9F5745BF98ED2649FC4 /* PBXContainerItemProxy */;
 		};
+		0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_9B3A6C35-5657-4258-9DDC-C6AE9D0C03D3" /* WTInterchange */;
+		};
+		1389D84F7311322BA59FB06B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_DB320098-4C0B-4D43-B239-C83D90A2605C" /* WTRender */;
+		};
 		23AA14013E4A515EC9987F5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D625731C59D920CF6D615084 /* WireTunerSpotlightImporter */;
@@ -4546,15 +4661,58 @@
 			target = 51875E22542F659F45C415F1 /* WireTunerPreview */;
 			targetProxy = 4F5AC4AA1EDD73893EF33007 /* PBXContainerItemProxy */;
 		};
+		48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_7A02A82E-D673-433E-9AEF-816E0B22A9B0" /* WTModel */;
+		};
+		5345AFFAC55816C31DADAB2D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_432D8A27-B2EE-46E2-89E5-98005468AE2D" /* WTGeometry */;
+		};
+		6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0E1F37906F578B10B225478 /* WireTunerKit */;
+			targetProxy = F06B1749FB2C70DAAC0A87AC /* PBXContainerItemProxy */;
+		};
+		81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_870678FA-6E9C-4DA6-A76B-3A0B0C4E9F37" /* WTCRDT */;
+		};
+		85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_A7B57A0D-28E5-446A-B089-8F072D750E48" /* WTSync */;
+		};
+		8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_ECD461B0-A26C-4CC6-9D58-F2D2EF1DA788" /* WTModel */;
+		};
 		920E4750ADBCB78008950CBB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FB809C6CE91B4E1AEEE690A7 /* WireTunerShare */;
 			targetProxy = 5355330AA8C5F918013D61EA /* PBXContainerItemProxy */;
 		};
+		B81CA2100C47093C70BAEEFB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_B9F49141-052B-45B8-BD99-F5F2FEA26BD5" /* WTText */;
+		};
 		C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = D8D851371215E68AC4D09660 /* WireTunerThumbnail */;
 			targetProxy = 5283F68C436DA1DF3CEEB229 /* PBXContainerItemProxy */;
+		};
+		D83546DB4F210659857E1489 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = "TEMP_DA8E66E1-9BB1-432E-A79F-87BCCE042791" /* WTProto */;
+		};
+		DDA1225ED9423A83ED60A11B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0E1F37906F578B10B225478 /* WireTunerKit */;
+			targetProxy = E0EBE52398991F977A07404F /* PBXContainerItemProxy */;
+		};
+		F62ACBA05EADDCABC16288F7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0E1F37906F578B10B225478 /* WireTunerKit */;
+			targetProxy = D5F5E4D505B7B91783074B4C /* PBXContainerItemProxy */;
 		};
 		FC493F8B677A2B2CAC4AE986 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4787,6 +4945,28 @@
 			};
 			name = Release;
 		};
+		97A0768F82CD79E4F45387F0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "@rpath";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.kit;
+				PRODUCT_NAME = WireTunerKit;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
 		A9CE83C1F7D51C91D1844268 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -4882,6 +5062,28 @@
 				SKIP_INSTALL = YES;
 			};
 			name = Debug;
+		};
+		F1DCB80C8BDD8F20C85023CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "@rpath";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.villagecompute.wiretuner.kit;
+				PRODUCT_NAME = WireTunerKit;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
 		};
 		F6F1302350B18C4E39BDDE33 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -5039,6 +5241,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		EF1C36BC192FE16C0FB09740 /* Build configuration list for PBXNativeTarget "WireTunerKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				97A0768F82CD79E4F45387F0 /* Debug */,
+				F1DCB80C8BDD8F20C85023CE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -5092,44 +5303,76 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		00D86B1A32BF132424E66A31 /* WTInterchange */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTInterchange;
-		};
-		08C3675137E50641A70094F8 /* WTText */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTText;
-		};
-		0E3C267385D7C4EC7FE62D3B /* WTRender */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTRender;
-		};
-		23005615E0687BC57AA7AFA2 /* WTModel */ = {
+		1922F2151B9EDD16733DA6EF /* WTModel */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTModel;
 		};
-		41651617B1CA311751CEFAA9 /* WTProto */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTProto;
-		};
-		471B5A84CD7866567E0FC54B /* WTSync */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTSync;
-		};
-		60AA0F560C13C7F9DAB07F68 /* WTGeometry */ = {
+		2631BEDD8EBDB3583E4CB9C3 /* WTGeometry */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTGeometry;
+		};
+		3BA5B24B30C9155D287A9D14 /* WTInterchange */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTInterchange;
+		};
+		6991314C954DA94FC1C54B2A /* WTText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTText;
+		};
+		6EBA0718BAF07EAD03328DE7 /* WTCRDT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTCRDT;
 		};
 		A21803070916F2818F09638E /* Sparkle */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0B5F4DCC572B0F8A2731B5CA /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
 		};
-		BAE3DB4DC8F06661870A2657 /* WTCRDT */ = {
+		A9BFC4D0BB9113776AFC2E32 /* WTSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTSync;
+		};
+		BE5612DF36222575539FF5C9 /* WTProto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTProto;
+		};
+		F1044476CDC6299A4D3AD241 /* WTRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTRender;
+		};
+		"TEMP_432D8A27-B2EE-46E2-89E5-98005468AE2D" /* WTGeometry */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTGeometry;
+		};
+		"TEMP_7A02A82E-D673-433E-9AEF-816E0B22A9B0" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_870678FA-6E9C-4DA6-A76B-3A0B0C4E9F37" /* WTCRDT */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTCRDT;
 		};
-		D7CCC596AE0E2B551643E221 /* WTModel */ = {
+		"TEMP_9B3A6C35-5657-4258-9DDC-C6AE9D0C03D3" /* WTInterchange */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTInterchange;
+		};
+		"TEMP_A7B57A0D-28E5-446A-B089-8F072D750E48" /* WTSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTSync;
+		};
+		"TEMP_B9F49141-052B-45B8-BD99-F5F2FEA26BD5" /* WTText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTText;
+		};
+		"TEMP_DA8E66E1-9BB1-432E-A79F-87BCCE042791" /* WTProto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTProto;
+		};
+		"TEMP_DB320098-4C0B-4D43-B239-C83D90A2605C" /* WTRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTRender;
+		};
+		"TEMP_ECD461B0-A26C-4CC6-9D58-F2D2EF1DA788" /* WTModel */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTModel;
 		};

@@ -16,7 +16,8 @@
 # Developer ID signature can pass, and says so.  Exit 1 on any failure.
 source "$(dirname "$0")/common.sh"
 
-dir="$(release_dir 2>/dev/null || true)"
+# A subshell: release_dir exits when nothing is built yet, and APP may still be given.
+dir="$( (release_dir) 2>/dev/null || true)"
 app="${1:-$dir/export/WireTuner.app}"
 dmg="${2:-}"
 if [ -z "$dmg" ] && [ $# -lt 1 ]; then dmg="$(ls "$dir"/dist/*.dmg 2>/dev/null | head -n 1 || true)"; fi
@@ -136,6 +137,27 @@ else
     warn_check "no SUPublicEDKey: the updater stays off in this build"
 fi
 [ -d "$app/Contents/Frameworks/Sparkle.framework" ] && pass "Sparkle.framework embedded" || fail "Sparkle.framework missing"
+
+# The shared packages are linked once, into WireTunerKit.framework in the app's Frameworks, which the
+# app and the Spotlight importer load (D-084): no second copy, and the importer finds the app's.
+echo "Shared framework"
+kit="$app/Contents/Frameworks/WireTunerKit.framework"
+[ -d "$kit" ] && pass "WireTunerKit.framework embedded" || fail "WireTunerKit.framework missing"
+copies="$(find "$app" -name 'WireTunerKit.framework' -type d | wc -l | tr -d ' ')"
+[ "$copies" = 1 ] && pass "one WireTunerKit.framework in the bundle" || fail "$copies copies of WireTunerKit.framework (only the app embeds it)"
+importer="$app/Contents/PlugIns/WireTunerSpotlightImporter.appex/Contents/MacOS/WireTunerSpotlightImporter"
+for code in "$app/Contents/MacOS/WireTuner" "$importer"; do
+    if otool -L "$code" 2>/dev/null | grep -q '@rpath/WireTunerKit.framework/'; then
+        pass "$(basename "$code") loads WireTunerKit.framework"
+    else
+        fail "$(basename "$code") does not load WireTunerKit.framework (the packages linked statically again?)"
+    fi
+done
+if otool -l "$importer" 2>/dev/null | grep -q 'path @executable_path/../../../../Frameworks '; then
+    pass "the Spotlight importer's runpath reaches the app's Frameworks"
+else
+    fail "the Spotlight importer has no @executable_path/../../../../Frameworks runpath"
+fi
 
 echo "Gatekeeper"
 assessment="$(spctl -a -vvv -t exec "$app" 2>&1 || true)"

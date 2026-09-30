@@ -831,8 +831,8 @@ sandboxed with no network; `SpotlightImport.update(_:forFileAt:)` reads the pack
 `kMDItemDisplayName`), `contentDescription`, `keywords` and `textContent` when not empty, and `pageCount`
 (`kMDItemNumberOfPages`) unless the package was over the decode limit.  `SpotlightImport.swift` is compiled
 into the app too, so the app's tests cover it (`SpotlightImporterTests`).  Unlike the Quick Look extensions
-the importer links `WTModel` (the snapshot's zstd and protobuf decoding), so it carries the model and its
-dependencies statically.  Not measured here: `mdimport -t -d2` against the installed importer (the
+the importer uses `WTModel` (the snapshot's zstd and protobuf decoding); it loads the model from the app's
+`Contents/Frameworks/WireTunerKit.framework` rather than carrying its own copy (D-084).  Not measured here: `mdimport -t -d2` against the installed importer (the
 extension must be registered with the system from a signed, installed app) and the 100 MiB / 3 s figure.
 +
 NOTE: As built by IO-034 (`client/WTExtensions/`, targets `WireTunerThumbnail` and `WireTunerPreview`

@@ -11,7 +11,7 @@ options:
   groupSortPosition: top
   # A stable file/group order keeps the committed pbxproj diff small.
   groupOrdering:
-    - order: [WTApp, WTAppTests, WTAppUITests, WTExtensions, Config, Packages]
+    - order: [WTApp, WTAppTests, WTAppUITests, WTExtensions, WTKit, Config, Packages]
 
 configs:
   Debug: debug
@@ -299,14 +299,19 @@ targets:
             echo "Help Book: none (run make help-book); the Help panel uses its catalog pages"
           fi
     dependencies:
-      - package: WTProto
-      - package: WTCRDT
-      - package: WTModel
-      - package: WTSync
-      - package: WTGeometry
-      - package: WTRender
-      - package: WTText
-      - package: WTInterchange
+      # The shared packages are linked once, into WireTunerKit.framework (below; D-084), which the
+      # app embeds in Contents/Frameworks and the Spotlight importer loads from there.  The app
+      # names the packages without linking them (`link: false`) so it still sees their modules;
+      # linking them here too would put a second copy of every type in the process.
+      - target: WireTunerKit
+      - { package: WTProto, link: false }
+      - { package: WTCRDT, link: false }
+      - { package: WTModel, link: false }
+      - { package: WTSync, link: false }
+      - { package: WTGeometry, link: false }
+      - { package: WTRender, link: false }
+      - { package: WTText, link: false }
+      - { package: WTInterchange, link: false }
       - package: Sparkle
       # The Quick Look extensions (saving.adoc, "Client"; IO-034) and the share extension
       # (importing.adoc; IMG-026), embedded under PlugIns.
@@ -315,6 +320,35 @@ targets:
       - target: WireTunerShare
       # The Spotlight importer for packages on disk (saving.adoc, "Client"; IO-035).
       - target: WireTunerSpotlightImporter
+
+  # The shared packages as one embedded dynamic framework (D-084; building.adoc, "The shared
+  # framework"): every WireTuner package and its dependencies (swift-protobuf, gRPC, NIO, GRDB...)
+  # linked statically into WireTunerKit.framework, embedded once in the app's Contents/Frameworks.
+  # The app and the Spotlight importer link it instead of each carrying its own copy.  It has no
+  # code of its own; its module is never imported.
+  WireTunerKit:
+    type: framework
+    platform: macOS
+    sources:
+      - path: WTKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.villagecompute.wiretuner.kit
+        PRODUCT_NAME: WireTunerKit
+        GENERATE_INFOPLIST_FILE: YES
+        # Embedded by the app, not installed on its own.
+        SKIP_INSTALL: YES
+        INSTALL_PATH: "@rpath"
+        DYLIB_INSTALL_NAME_BASE: "@rpath"
+    dependencies:
+      - package: WTProto
+      - package: WTCRDT
+      - package: WTModel
+      - package: WTSync
+      - package: WTGeometry
+      - package: WTRender
+      - package: WTText
+      - package: WTInterchange
 
   # Quick Look for .wiretuner packages (IO-034): sandboxed, no network, no WTModel; they read
   # the package's zip directory through WTExtensions/Shared/PackagePeek.swift.
@@ -421,8 +455,10 @@ targets:
         SKIP_INSTALL: YES
 
   # Spotlight for .wiretuner packages on disk (IO-035): a CSImportExtension, sandboxed with no
-  # network.  Unlike the Quick Look extensions it links WTModel: the attributes come from the
+  # network.  Unlike the Quick Look extensions it uses WTModel: the attributes come from the
   # snapshot, decoded with the app's zstd and protobuf reader (WTModel/PackageSpotlight.swift).
+  # It links WireTunerKit.framework without embedding it and loads the app's copy from
+  # Contents/Frameworks (the runpath below; D-084).
   WireTunerSpotlightImporter:
     type: app-extension
     platform: macOS
@@ -450,8 +486,11 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES
+        # WireTuner.app/Contents/PlugIns/<name>.appex/Contents/MacOS -> WireTuner.app/Contents/Frameworks.
+        LD_RUNPATH_SEARCH_PATHS: ["$(inherited)", "@executable_path/../Frameworks", "@executable_path/../../../../Frameworks"]
     dependencies:
-      - package: WTModel
+      - { target: WireTunerKit, embed: false }
+      - { package: WTModel, link: false }
       - sdk: CoreSpotlight.framework
 
   WireTunerTests:
@@ -465,9 +504,11 @@ targets:
     # No package products here on purpose.  A product linked by both the app and its hosted
     # test bundle makes Xcode build every package as a dynamic "PackageProduct" framework, and
     # Xcode 26.4 then fails to schedule the link of swift-crypto's before swift-certificates'.
-    # Tests reach the packages through the host app (`@testable import WireTuner`).
+    # Tests reach the packages through the host app (`@testable import WireTuner`), and link the
+    # app's WireTunerKit.framework for their symbols (D-084).
     dependencies:
       - target: WireTuner
+      - { target: WireTunerKit, embed: false }
 
   WireTunerUITests:
     type: bundle.ui-testing

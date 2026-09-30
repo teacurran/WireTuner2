@@ -126,8 +126,11 @@ Every release build strips our own products (`DEPLOYMENT_POSTPROCESSING=YES`,
 `STRIP_INSTALLED_PRODUCT=YES`, `STRIP_STYLE=non-global`; the app goes from 664 MB to 306 MB, the DMG
 is about 141 MB and the zip 130 MB).  `COPY_PHASE_STRIP` stays off: it strips Sparkle's binaries,
 which arrive signed, as they are copied, and breaks their signatures.  The dSYMs are kept beside the
-release as `WireTuner-<name>-dSYMs.zip`.  Follow-up: the Spotlight importer links WTModel statically
-(about 137 MB stripped); a shared WTModel framework in `Contents/Frameworks` would halve the app.
+release as `WireTuner-<name>-dSYMs.zip`.  The shared packages are linked once, into
+`Contents/Frameworks/WireTunerKit.framework`, which the app and the Spotlight importer both load
+(xref:decisions.adoc#D-084[D-084]; xref:building.adoc#shared-framework[Building, The shared
+framework]): the unsigned universal build of 2026-09-30 is 135 MB (was 213 MB), its DMG 64.7 MB (was
+102.3 MB) and its zip 58.6 MB (was 93.2 MB).
 
 With an identity, the archive is built with it (`OTHER_CODE_SIGN_FLAGS=--timestamp`,
 `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO`, so no `get-task-allow`) and exported with
@@ -272,6 +275,9 @@ the appcast and the zip from the public URL and warns if either does not answer 
   `logs/entitlements/`, the app's version and build; in the app and the share extension the app group
   entitlement equal to `<TEAMID>.com.villagecompute.wiretuner` (the bare id when ad-hoc) and to the
   bundle's `WTAppGroup`.
+* The shared framework (D-084): `WireTunerKit.framework` embedded once, in the app's `Frameworks`;
+  the app and the Spotlight importer load it, and the importer's runpath reaches it
+  (`@executable_path/../../../../Frameworks`).
 * Sparkle: the framework embedded, an https `SUFeedURL`, and `SUPublicEDKey` a 32-byte key (required
   when Developer ID signed).
 * Gatekeeper when Developer ID signed: `spctl -a -vvv -t exec` accepts the app (and says

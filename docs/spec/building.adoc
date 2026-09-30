@@ -89,6 +89,32 @@ command line (`xcodebuild ... WT_LOCAL_MODE=NO WT_API_URL=https://api.example WT
 to make a Release build that signs in.  A Local mode build offers no sign-in and opens no connection;
 its documents upload to the personal space the first time a build with a server signs in on that Mac.
 
+[[shared-framework]]
+=== The shared framework
+
+The Swift packages (WTModel, WTSync, WTCRDT, WTProto, WTInterchange, WTRender, WTText, WTGeometry)
+and everything they depend on are linked once, statically, into `WireTunerKit.framework`, a
+framework target in `client/project.yml` whose only source is `client/WTKit/WireTunerKit.swift`
+(xref:decisions.adoc#D-084[D-084]).  The app embeds it in `Contents/Frameworks`; the Spotlight
+importer links it without embedding it and finds the app's copy through the runpath
+`@executable_path/../../../../Frameworks`; the app's test bundle links it too.  Targets that
+`import` a package list it with `link: false`, which makes its modules visible without linking a
+second copy:
+
+[source,yaml]
+----
+dependencies:
+  - target: WireTunerKit                # the app embeds it; an extension adds `embed: false`
+  - { package: WTModel, link: false }
+----
+
+So a new package, or a package an app extension starts to use, goes into WireTunerKit's
+dependencies (linked) and into the app's or the extension's with `link: false` -- never linked
+directly by the app or an extension, which would put a second copy of every type in the process.  An
+extension that uses the packages also gets the runpath above.  The packages' manifests are
+unchanged, so `swift test` and `make client-ios` do not involve the framework.  `make release-check`
+fails a build where the framework is missing, embedded twice or not loaded (xref:releasing.adoc[Releasing a beta]).
+
 [[releasing]]
 == Releasing a beta
 
