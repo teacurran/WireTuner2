@@ -3,6 +3,7 @@ import Foundation
 import GRPCCore
 import Observation
 import WTModel
+import WTSync
 
 /// What the library talks to.  Injected so tests use fakes (no network).
 struct LibraryServices: Sendable {
@@ -477,6 +478,41 @@ final class LibraryModel {
         }
         pendingUploads[id] = nil
     }
+
+    /// What every document's sync client asks before it subscribes (DOC-019, D-089): a document
+    /// still waiting to upload is created first -- waiting for the `Create` already running, else
+    /// running it now -- so no Subscribe or push reaches the server before its `Create`.  Every
+    /// document made here (New, a template, a duplicate, a foreign file, a package, a typeface, a
+    /// template copy) goes through `recordDocument`, so the one gate covers them all.
+    var creationGate: DocumentCreationGate {
+        DocumentCreationGate(
+            isPending: { [weak self] id in await self?.isWaitingToUpload(id) ?? false },
+            create: { [weak self] id in try await self?.createOnServer(id) }
+        )
+    }
+
+    /// Whether `id` was made here and not yet created on the server.
+    func isWaitingToUpload(_ id: String) -> Bool {
+        cache.documents[id]?.isPendingUpload ?? false
+    }
+
+    /// Creates `id` on the server unless it is already there; throws while offline (and in Local
+    /// mode, which creates nothing until a sign-in).
+    func createOnServer(_ id: String) async throws {
+        if let running = pendingUploads[id] { await running.value }
+        guard isWaitingToUpload(id) else { return }
+        guard !isLocal() else { throw LocalModeWait() }
+        do {
+            try await upload(id, accessToken: try await services.accessToken())
+            wentOnline()
+        } catch {
+            handle(error)
+            throw error
+        }
+    }
+
+    /// Local mode (D-079) holds a new document's `Create` until a sign-in.
+    struct LocalModeWait: Error {}
 
     private func uploadPending(accessToken: String) async throws {
         try await uploadLocalFolders(accessToken: accessToken)

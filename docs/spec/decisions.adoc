@@ -1169,6 +1169,34 @@ compared files.  1 of the 13 FreeHand files has a hidden layer, which now opens 
 artwork.  No file of the corpus is newer than Illustrator CS3, so none has artboard names, and there
 are no DXF files in it.
 
+[[D-089]]
+=== D-089 A document made on this Mac is created on the server before it syncs
+Found in an audit (2026-09-30): a document made while signed in but offline (New, a template, a
+duplicate, a foreign file or package opened as a new document, a typeface, a template copy) is
+recorded at once with the *Waiting to upload* badge and its `DocumentService.Create` is retried only
+by a library refresh.  Its window's `SyncClient` reconnects on its own backoff, so when the network
+came back it could subscribe first; the server answers `NOT_FOUND` for a document it has not
+created, which the client read as *The document no longer exists* and halted on, the outbox never
+going up.  A headless upload at launch (IO-007) raced the same way.  So
+(xref:sync-protocol.adoc[Sync protocol], "The client as built"):
+
+* *Create happens-before sync.*  `WTSync.DocumentCreationGate` is asked before every Subscribe:
+  while the document is waiting for its `Create`, the session creates it first -- waiting for the
+  `Create` already running, else running it -- and while that cannot succeed the session ends like
+  an unreachable one and retries after the backoff, outbox kept (state *Offline*, never an error).
+* *`NOT_FOUND` while waiting is a wait.*  A `NOT_FOUND` for a document the gate still names waiting
+  ends the session for a retry; for any other document it still halts with *The document no longer
+  exists*.
+* *One gate for every path.*  The app's gate is the library's pending uploads
+  (`LibraryModel.creationGate`); every document made on this Mac is recorded through
+  `LibraryModel.recordDocument`, and every client -- a window's session, a closed window's upload, a
+  headless upload, a template copy -- connects through `SyncConnecting.connect(…, creation:)` with
+  `DocumentSessions.creation`.  Local mode (D-079) creates nothing until a sign-in.
+
+Rejected: holding the session until the next library refresh (a refresh is minutes apart and not
+triggered by the network coming back); treating every `NOT_FOUND` as retryable (a deleted document
+would retry forever); a server-side create-on-subscribe (a Subscribe carries no space, folder or name).
+
 [[D-090]]
 === D-090 *Resample at* sets a blend's steps from the printer resolution, the screen and the largest ink change
 Found in use (2026-09-30): Find & Replace's *Blend steps* has *Resample at* the current printer

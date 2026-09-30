@@ -58,7 +58,7 @@ import WTRender
         #expect(WTColor.CSS.serialize(Self.deepLab).wide == "lab(50 110 -110)")
         let oklab = Color(oklabL: 0.7, a: 0.3, b: 0.1)
         let lch = WTColor.Math.oklch(fromOKLab: SIMD3(0.7, 0.3, 0.1))
-        #expect(WTColor.CSS.serialize(oklab).wide == "oklch(0.7 \(Numbers.format(lch.y, places: 5)) \(Numbers.format(lch.z, places: 3)))")
+        #expect(WTColor.CSS.serialize(oklab).wide == "oklch(0.7 \(Numbers.format(lch.y, places: 5)) \(Numbers.format(lch.z, places: 4)))")
         #expect(WTColor.CSS.declarations("fill", Self.p3Red) == ["fill:\(p3.fallback)", "fill:color(display-p3 1 0 0)"])
         #expect(WTColor.CSS.declarations("fill", .black) == ["fill:#000000"])
         // Every serialized form reads back as the colour through the SVG importer's CSS Color 4

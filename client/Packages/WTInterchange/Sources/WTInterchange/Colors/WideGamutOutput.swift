@@ -35,15 +35,23 @@ extension WTColor.OutputContext {
         return widest
     }
 
-    /// The document gamut scan over every resolved colour the exported pages draw: fills,
-    /// strokes, gradient stops and text (swatches and guides that draw nothing are the model's
-    /// to add; the scan over one snapshot needs no cache).
+    /// The gamut scan over every resolved colour the exported pages draw: fills, strokes,
+    /// gradient stops and text -- the fallback when the context carries no document scan
+    /// (`widestSpaceUsed`, which WTModel's `DocumentGamutScan` keeps cached).
     public static func widestSpaceUsed(in scene: ExportScene) -> GamutReach {
         var colors = Set<Color>()
         for page in scene.pages {
             for item in page.displayList.items { WideColorScan.collect(item, into: &colors) }
         }
         return widestSpace(of: colors)
+    }
+
+    /// `scene`'s context with `widestSpaceUsed` filled in from the exported pages when the
+    /// document scan did not come with it, so every page of one export decides alike.
+    public static func withGamut(of scene: ExportScene) -> WTColor.OutputContext? {
+        guard var output = scene.output else { return nil }
+        if output.widestSpaceUsed == nil { output.widestSpaceUsed = widestSpaceUsed(in: scene) }
+        return output
     }
 
     /// The RGB space an RGB export is written in: Working RGB, or Display P3 when the artwork
@@ -148,17 +156,26 @@ extension WTColor {
         public static func serialize(_ color: Color) -> (fallback: String, wide: String?) {
             let fallback = ColorMath.hex(color)
             guard color.space != .cmyk, !Gamut.contains(color, in: .sRGB) else { return (fallback, nil) }
+            return (fallback, value(color))
+        }
+
+        /// `color` in CSS Color 4's form for its space, whatever its gamut: `lab(l a b)`,
+        /// `oklch(l c h)` (hue 0..<360, 0 when achromatic), else `color(display-p3 r g b)`, with
+        /// ` / a` when alpha is below 1 -- the shortest numbers, as CSS serializes them (the WPT
+        /// `css-color` serialization vectors, `WideGamutOutputTests`).
+        public static func value(_ color: Color) -> String {
             let alpha = color.alpha < 1 ? " / " + number(max(color.alpha, 0), places: 4) : ""
             let c = color.components
             switch color.space {
             case .lab:
-                return (fallback, "lab(\(number(c.x, places: 4)) \(number(c.y, places: 4)) \(number(c.z, places: 4))\(alpha))")
+                return "lab(\(number(c.x, places: 4)) \(number(c.y, places: 4)) \(number(c.z, places: 4))\(alpha))"
             case .oklab:
                 let lch = Math.oklch(fromOKLab: SIMD3(c.x, c.y, c.z))
-                return (fallback, "oklch(\(number(lch.x, places: 5)) \(number(lch.y, places: 5)) \(number(lch.z, places: 3))\(alpha))")
+                let hue = number(lch.z, places: 4)
+                return "oklch(\(number(lch.x, places: 5)) \(number(lch.y, places: 5)) \(hue == "360" ? "0" : hue)\(alpha))"
             case .sRGB, .displayP3, .cmyk:
                 let p3 = ColorMath.displayP3(color)
-                return (fallback, "color(display-p3 \(number(p3.x, places: 4)) \(number(p3.y, places: 4)) \(number(p3.z, places: 4))\(alpha))")
+                return "color(display-p3 \(number(p3.x, places: 4)) \(number(p3.y, places: 4)) \(number(p3.z, places: 4))\(alpha))"
             }
         }
 

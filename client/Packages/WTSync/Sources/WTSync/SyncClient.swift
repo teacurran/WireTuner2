@@ -152,6 +152,8 @@ public actor SyncClient {
     private var snapshotFailures = 0
     private var featureLevel: UInt32 = 0
     private var blobWatcher: Task<Void, Never>?
+    /// Asked before every Subscribe: a document made here is created on the server first (D-089).
+    private var creation: DocumentCreationGate?
 
     // Reconcile (SYNC-006, SYNC-010).
     /// The review holding the outbox until `resolveReview`, if any.
@@ -212,8 +214,9 @@ public actor SyncClient {
     /// `store` (the store itself for a headless upload).
     public init(store: LocalStore, sink: (any RemoteChangeSink)? = nil, transport: any SyncTransport,
                 tokens: any TokenProvider, presence: (any PresenceSource)? = nil, blobs: BlobQueue? = nil,
-                options: Options = Options()) {
+                options: Options = Options(), creation: DocumentCreationGate? = nil) {
         documentID = store.documentID
+        self.creation = creation
         self.store = store
         self.sink = sink ?? store
         self.transport = transport
@@ -224,6 +227,12 @@ public actor SyncClient {
     }
 
     // MARK: Public API
+
+    /// Gives the client the gate that creates a document made on this Mac before its first
+    /// Subscribe (`DocumentCreationGate`); set before `start()`, nil subscribes at once.
+    public func setCreation(_ gate: DocumentCreationGate?) {
+        creation = gate
+    }
 
     /// Starts running sessions (idempotent).
     public func start() {
@@ -499,6 +508,9 @@ public actor SyncClient {
         confirmMark = await store.nextSeq - 1
         nextPoll = .now
         pollDelay = options.ackInterval
+        if let end = await ensureCreated() {
+            return end
+        }
         do {
             let token = try await accessToken()
             sessionToken = token
@@ -546,6 +558,19 @@ public actor SyncClient {
         }
     }
 
+    /// A document made on this Mac and not yet created on the server is created before the
+    /// session subscribes (DOC-019, D-089); nil once it exists, else why the session ends -- the
+    /// run loop retries after the backoff, like an unreachable server.
+    private func ensureCreated() async -> SessionEnd? {
+        guard let creation, await creation.isPending(documentID) else { return nil }
+        do {
+            try await creation.create(documentID)
+        } catch {
+            return .failed("\(DocumentCreationGate.waitingCause): \(error)")
+        }
+        return await creation.isPending(documentID) ? .failed(DocumentCreationGate.waitingCause) : nil
+    }
+
     /// What a refused call that ended the session means.
     private func classify(_ error: SyncCallError) async -> SessionEnd {
         do {
@@ -565,6 +590,10 @@ public actor SyncClient {
                     readOnly = .accessRemoved
                     return .halted
                 case SyncCallError.notFound:
+                    // Made here and not created yet: the next session creates it first (D-089).
+                    if let creation, await creation.isPending(documentID) {
+                        return .failed(DocumentCreationGate.waitingCause)
+                    }
                     errorDetail = "The document no longer exists."
                     return .halted
                 case SyncCallError.invalidArgument:

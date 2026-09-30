@@ -324,7 +324,9 @@ or the `LocalStore` itself for a headless upload.  The settled details:
   accepted is the `error` state.  `ROLE_INSUFFICIENT` makes the document read-only with the outbox kept (salvage is
   SYNC-010); an editor role in a later `Welcome` or `RoleChanged` lifts it.  `PERMISSION_DENIED` on
   `Subscribe` is `readOnly(accessRemoved)` and `NOT_FOUND` is `error`, both halted until *Retry
-  now*.  Deviation: a `VALIDATION_FAILED` change is not reverted locally -- WTSync has the change,
+  now* -- except for a document made on this Mac whose `DocumentService.Create` has not run yet: a
+  client given a `DocumentCreationGate` creates it before every Subscribe and reads `NOT_FOUND` for it
+  as the wait for its `Create` (offline, retried after the backoff; xref:decisions.adoc#D-089[D-089]).  Deviation: a `VALIDATION_FAILED` change is not reverted locally -- WTSync has the change,
   not the inverse the undo stack recorded for it -- but replaced in the outbox by one `Noop` with
   its seq, start counter and base (the seqs stay dense; the counters it took are a Lamport jump
   for the replica's next change, since counters increase but need not be dense across changes),

@@ -40,6 +40,11 @@ extension WTColor {
         public var imageProfiles: [String: ProfileRef]
         /// The conversion service; not part of the value's identity.
         public let converter: Converter
+        /// The document gamut scan (CMS-015, `WideGamutOutput.swift`): how far the whole
+        /// document's colours reach, from the scan WTModel keeps cached (`DocumentGamutScan`).
+        /// nil: the exporter scans the exported scene once (`widestSpaceUsed(in:)`).  Every page
+        /// of an export follows it.  A fact about the document, not part of the value's identity.
+        public var widestSpaceUsed: GamutReach?
 
         public init(rgbProfile: ProfileRef? = nil, cmykProfile: ProfileRef? = nil, grayProfile: ProfileRef? = nil,
                     intent: RenderingIntent = .relativeColorimetric, blackPointCompensation: Bool = true, proof: ProofSetup? = nil,

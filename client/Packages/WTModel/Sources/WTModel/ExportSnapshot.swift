@@ -97,8 +97,10 @@ public struct ExportSnapshot: Sendable {
     /// Takes the snapshot of `state`.  `builder` is the scene builder to draw with (its text
     /// layout set as the window's); `blob` answers a blob's bytes by SHA-256, nil when it is not
     /// on this Mac.
+    /// `gamut` is the document gamut scan's answer (`SwatchesModel.widestSpaceUsed`, cached);
+    /// nil leaves it to the exporter, which scans the exported pages.
     public static func capture(_ state: EngineState, request: Request, builder: DocumentDisplayListBuilder,
-                               blob: @escaping (Data) -> Data?) -> ExportSnapshot {
+                               gamut: DocumentGamutScan.Reach? = nil, blob: @escaping (Data) -> Data?) -> ExportSnapshot {
         var builder = builder
         let screen = builder.rebuild(state)
         let output = builder.outputDisplayList(state, includeHidden: request.includeHidden)
@@ -108,6 +110,7 @@ public struct ExportSnapshot: Sendable {
                                 rasterResolution: rasterResolution(state), placedPostScript: capture.postScript)
         scene.svgAnimations = capture.svgAnimations
         scene.output = outputContext(state)
+        scene.output?.widestSpaceUsed = gamut
         if request.text {
             scene.text = textBlocks(pages, state: state, request: request)
         }

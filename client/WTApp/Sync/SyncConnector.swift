@@ -56,6 +56,18 @@ protocol SyncConnecting: AnyObject {
     func connect(store: LocalStore, sink: any RemoteChangeSink, presence: LocalPresence?) throws -> SyncConnection
 }
 
+extension SyncConnecting {
+    /// A connection whose client creates a document made on this Mac on the server before it
+    /// subscribes (`DocumentCreationGate`, DOC-019, D-089).  Every session, headless upload and
+    /// template copy connects through this.
+    func connect(store: LocalStore, sink: any RemoteChangeSink, presence: LocalPresence?,
+                 creation: DocumentCreationGate?) async throws -> SyncConnection {
+        let connection = try connect(store: store, sink: sink, presence: presence)
+        await connection.client.setCreation(creation)
+        return connection
+    }
+}
+
 /// The app's connector: one `GRPCSyncTransport` per document session to `WT_API_URL`, which is
 /// also the blob queue's transport, tokens from the account, the review thresholds from
 /// Preferences.

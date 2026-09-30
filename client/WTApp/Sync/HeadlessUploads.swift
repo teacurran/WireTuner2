@@ -107,7 +107,7 @@ enum HeadlessUploads {
                     try await store.close()
                     continue
                 }
-                let connection = try connector.connect(store: store, sink: store, presence: nil)
+                let connection = try await connector.connect(store: store, sink: store, presence: nil, creation: sessions.creation)
                 let upload = HeadlessUpload(documentID: id, title: title(id), store: store, connection: connection)
                 sessions.add(upload)
                 await upload.start()

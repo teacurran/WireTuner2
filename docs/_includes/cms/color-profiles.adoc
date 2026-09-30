@@ -245,6 +245,29 @@ in the summary.  Not run: the WPT serialization vectors themselves (the serializ
 through the SVG importer's CSS Color 4 parser), a headless WebKit run with CSS Color 4 disabled, and the Preview/Acrobat
 screen comparison on a P3 display.
 
+NOTE: As built by CMS-015's remaining half.  The document gamut scan is `WTModel.DocumentGamutScan`: the reach of every live
+object's resolved colours (every `ColorUses` use -- fills, strokes, gradient stops, effects, text marks -- resolved through the
+swatches; swatches themselves are not scanned, an unused one drawing nothing), kept per node beyond sRGB and invalidated through
+the `SwatchIndex`: a change re-resolves the nodes it names, and a swatch change every use its dependents list names (through tint
+swatches to their users).  `SwatchesModel` keeps it with the index (`widestSpaceUsed`), so the colour panels' per-document model is
+the cache.  `WTColor.OutputContext.widestSpaceUsed` carries its answer (not part of the context's identity):
+`ExportSnapshot.capture(…, gamut:)` sets it, the app's export passes the cached scan (`ExportController.gamut`), and the bitmap and
+PSD exporters decide the *Automatic* RGB space once for every page from it -- else from one scan of the exported pages
+(`OutputContext.withGamut(of:)`), no longer per page; a PSD's layers render into the composite's space.  `WTColor.CSS.value(_:)`
+is the serializer's form for any colour (the OKLCH hue now to 4 places, 360 written 0).  Tests: `WTModelTests/DocumentGamutScanTests`
+(a P3 swatch fill exports a PNG tagged Display P3 with the P3 value within 1/255, and after *Convert to sRGB* on the swatch the same
+export is tagged with Working RGB; the scan follows a tint's base through the index, undo, reload); `WTInterchangeTests/WideGamutVectorTests`
+(33 expected serializations from WPT `css-color/parsing/color-computed-lab.html` and `color-computed-color-function.html` at
+wpt `d4e04ca3` -- the `lab()`, `oklch()` and `color(display-p3 …)` forms the serializer writes; left out are `none`, `lch()`,
+`oklab()`, other `color()` spaces, P3 components outside 0...1, achromatic `oklch()` with a hue and `calc(infinity)`, which it never
+writes -- every wide value of a written SVG preceded by its fallback in all three stylings, one RGB space for every page);
+`WideGamutWebKitTests` (a headless `WKWebView` computes the SVG's fill as `color(display-p3 1 0 0)`; the run without CSS Color 4
+renders the fallback).  Deviations: WebKit has no switch for CSS Color 4 (its feature flags list none for `color()`, `lab()` or
+`oklch()`), so the run without it loads the file with every wide value renamed to an unknown function -- what a CSS Color 3 engine
+sees, an invalid declaration it drops.  WebP: the WebP P3 test runs only where ImageIO encodes WebP; on the build Mac (IO-024's
+decision, no bundled encoder) it is skipped and the refusal is tested instead.  Not run: the Preview/Acrobat screen comparison on a
+P3 display.
+
 === Build tasks
 
 [[CMS-010]]

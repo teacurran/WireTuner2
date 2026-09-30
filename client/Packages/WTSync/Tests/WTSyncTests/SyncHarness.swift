@@ -82,14 +82,14 @@ struct Harness {
     init(server: FakeSyncServer = FakeSyncServer(), options: SyncClient.Options = fastOptions(), name: String = "doc",
          replicas: Replicas = Replicas(), tokens: FakeTokens = FakeTokens(), presence: FakePresence? = nil,
          sink: (@Sendable (LocalStore) async -> any RemoteChangeSink)? = nil,
-         transport: ((FakeSyncServer) -> any SyncTransport)? = nil) async throws {
+         transport: ((FakeSyncServer) -> any SyncTransport)? = nil, creation: DocumentCreationGate? = nil) async throws {
         self.server = server
         self.tokens = tokens
         store = try await LocalStore.open(documentID: server.documentID, at: scratch.url(name),
                                           options: WTSyncTests.options(replicas: replicas))
         let chosenSink = await sink?(store)
         client = SyncClient(store: store, sink: chosenSink, transport: transport?(server) ?? FakeTransport(server: server),
-                            tokens: tokens, presence: presence, options: options)
+                            tokens: tokens, presence: presence, options: options, creation: creation)
         transitions = Collector(client.transitions())
         events = Collector(client.events())
     }

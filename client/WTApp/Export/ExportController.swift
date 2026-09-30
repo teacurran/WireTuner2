@@ -24,6 +24,9 @@ final class ExportController {
     var appVersion = LaunchEnvironment.clientVersion(Bundle.main.infoDictionary)
     /// Sets up the builder the snapshot draws with (the document's text layout).
     var configureBuilder: @MainActor (inout DocumentDisplayListBuilder, DocumentHandle) -> Void = { _, _ in }
+    /// The document gamut scan's answer for a document (CMS-015: the colour panels' cached
+    /// `SwatchesModel.widestSpaceUsed`); nil lets the exporter scan the exported pages.
+    var gamut: @MainActor (DocumentHandle) -> WTColor.OutputContext.GamutReach? = { _ in nil }
     /// The window's output area, once the Output Area tool makes one.
     var outputArea: @MainActor (DocumentWindowController) -> Rect? = { _ in nil }
     /// A comment author's display name in a window (the window's roster), for *Comments as
@@ -213,7 +216,7 @@ final class ExportController {
         var builder = DocumentDisplayListBuilder(canvas: CanvasID("export-\(document.id)"))
         configureBuilder(&builder, document)
         let blobs = blobs
-        var snapshot = ExportSnapshot.capture(document.state, request: request, builder: builder, blob: { blobs.cached($0) })
+        var snapshot = ExportSnapshot.capture(document.state, request: request, builder: builder, gamut: gamut(document), blob: { blobs.cached($0) })
         // *Comments as annotations* (PDF, never under a PDF/X standard, which forces it off).
         let pdf = settings.options.pdf
         if settings.format == .pdf, pdf.commentsAsAnnotations, pdf.standard == .none {

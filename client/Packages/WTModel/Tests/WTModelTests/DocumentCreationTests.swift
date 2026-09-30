@@ -100,6 +100,22 @@ import WTRender
         #expect(CreateDocument(.document(source.state, name: "")).label == "Created")
         let all = Set(core.state.store.children(WellKnown.layers).flatMap { core.state.store.children($0) })
         #expect(all.allSatisfy { $0.replica == 0xB }, "every node written by the new document's replica")
+        // Styles, masters, custom sizes and units, swatches: copied, each with a fresh id.
+        let styles = OpID.wellKnown(6)
+        let copiedStyles = core.state.store.children(styles), sourceStyles = source.state.store.children(styles)
+        #expect(!copiedStyles.isEmpty && copiedStyles.count == sourceStyles.count, "the template's styles")
+        let sourceSettings = DocumentSettings(source.state)
+        let fresh: [(String, [OpID], [OpID])] = [
+            ("styles", copiedStyles, sourceStyles),
+            ("masters", pages.masters.map(\.id), originals.masters.map(\.id)),
+            ("custom sizes", settings.customPageSizes.map(\.id), sourceSettings.customPageSizes.map(\.id)),
+            ("custom units", settings.customUnits.map(\.id), sourceSettings.customUnits.map(\.id)),
+            ("swatches", SwatchList(core.state).swatches.map(\.id), SwatchList(source.state).swatches.map(\.id)),
+        ]
+        for (what, copied, originalIDs) in fresh {
+            #expect(!copied.isEmpty && Set(copied).isDisjoint(with: originalIDs), "fresh \(what) ids")
+            #expect(copied.allSatisfy { $0.replica == 0xB }, "\(what) written by the new document's replica")
+        }
     }
 
     @Test func documentIDsAreUUIDv7() {

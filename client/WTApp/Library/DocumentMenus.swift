@@ -261,7 +261,7 @@ extension AppDelegate {
             try await store.close()
             return
         }
-        let connection = try connector.connect(store: store, sink: store, presence: nil)
+        let connection = try await connector.connect(store: store, sink: store, presence: nil, creation: sessions.creation)
         let upload = HeadlessUpload(documentID: id, title: library.cache.documents[id]?.name ?? "Template", store: store, connection: connection)
         sessions.add(upload)
         await upload.start()

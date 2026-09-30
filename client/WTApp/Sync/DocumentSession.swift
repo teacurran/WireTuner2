@@ -115,6 +115,8 @@ final class DocumentSession {
     var onUseWithoutAccount: @MainActor () -> Void = {}
     /// Local mode (D-079): no client runs and the state is *On this Mac*.
     let isLocal: @MainActor () -> Bool
+    /// Creates a document made here on the server before the client subscribes (D-089).
+    var creation: DocumentCreationGate?
 
     init(document: DocumentHandle, connector: (any SyncConnecting)?, localUserID: String, clearAfter: Duration = .seconds(5),
          isLocal: @escaping @MainActor () -> Bool = { false }) {
@@ -150,7 +152,7 @@ final class DocumentSession {
                 return
             }
             do {
-                let connection = try connector.connect(store: store, sink: model, presence: self.localPresence)
+                let connection = try await connector.connect(store: store, sink: model, presence: self.localPresence, creation: self.creation)
                 let replica = await store.replica
                 self.localReplica = replica
                 // Only this session's own presence entry is left out (the person's other Macs are not).

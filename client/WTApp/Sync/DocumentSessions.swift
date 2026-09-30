@@ -47,6 +47,9 @@ final class DocumentSessions {
     @ObservationIgnored var onUseWithoutAccount: @MainActor () -> Void = {}
     /// Local mode (D-079): sessions run no client and read *On this Mac*.
     @ObservationIgnored let isLocal: @MainActor () -> Bool
+    /// What every client asks before it subscribes: the library creates a document made here
+    /// first (D-089).  nil in tests that have no library.
+    @ObservationIgnored var creation: DocumentCreationGate?
 
     init(connector: (any SyncConnecting)?, localUserID: @escaping @MainActor () -> String = { "" },
          isLocal: @escaping @MainActor () -> Bool = { false }) {
@@ -59,6 +62,7 @@ final class DocumentSessions {
     func session(for document: DocumentHandle) -> DocumentSession {
         if let existing = sessions[document.id] { return existing }
         let session = DocumentSession(document: document, connector: connector, localUserID: localUserID(), isLocal: isLocal)
+        session.creation = creation
         session.onSignIn = { [weak self] in self?.onSignIn() }
         session.onExportPackage = { [weak self] in self?.onExportPackage() }
         session.onUseWithoutAccount = { [weak self] in self?.onUseWithoutAccount() }

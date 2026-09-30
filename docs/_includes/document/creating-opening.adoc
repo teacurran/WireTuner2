@@ -394,6 +394,20 @@ leaves them out with a note).  `ExternalCorpusOpenTests` now also opens `.dxf` a
 named pages.  Tests: `WTInterchangeTests/IllustratorArtboardTests`, `DXFImportTests.openedAsADocumentHiddenAndFrozenLayersComeInHidden`,
 `FreeHandDocumentTests.hiddenLayers`.
 
+NOTE: As built by DOC-019's server-mode half (xref:decisions.adoc#D-089[D-089]; `WTSync/DocumentCreationGate.swift`,
+`SyncClient`, `WTApp/Library/LibraryModel.swift`, `WTApp/Sync/SyncConnector.swift`).  A document created offline and reconnected
+yields one server document with the same id and the outbox uploaded after `Create`: the sync client asks
+`DocumentCreationGate` before every Subscribe and, while the library still lists the document as waiting to upload, creates it
+first (`LibraryModel.createOnServer`: waits for the running `Create`, else runs it); offline the session ends like an unreachable
+one and retries after the backoff.  A `NOT_FOUND` for a waiting document is retried instead of halting.  Every creation path
+(New, templates, duplicates, foreign files and packages opened as documents, typefaces, template copies) records through
+`recordDocument` and every client (window session, background and headless uploads, template copy) connects through
+`connect(…, creation:)`, so they share the one gate.  Tests: `WTSyncTests/DocumentCreationGateTests` (the race reproduced
+without the gate, Create before the first Subscribe, a Create that leaves it waiting, `NOT_FOUND` while waiting),
+`WTAppTests/DeferredCreateTests` (a window's session and a headless upload against a fake sync server that refuses uncreated
+documents, with no library refresh; Local mode).  The template test now also checks the styles and fresh ids of masters, custom
+sizes, units and swatches (`DocumentCreationTests.aDocumentFromALibraryTemplateHoldsACopyWithFreshIds`).
+
 === Build tasks
 
 [[DOC-019]]

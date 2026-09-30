@@ -35,7 +35,9 @@ public struct PSDExporter: Exporter {
         let page = scene.pages[index]
         let depth = options.bitsPerChannel
         let common = options.common
-        let rasterizer = BitmapRasterizer(common: common, output: scene.output)
+        // Every layer renders into the composite's space (the document gamut scan decides it).
+        let output = WTColor.OutputContext.withGamut(of: scene)
+        let rasterizer = BitmapRasterizer(common: common, output: output)
         let (width, height) = rasterizer.pixelSize(of: page, scale: scale)
         let transparent = common.background == .transparent
         let render = rasterizer.render(page, scale: scale, bitsPerComponent: depth, alpha: transparent)
@@ -46,7 +48,7 @@ public struct PSDExporter: Exporter {
         }
         var layers: [PSDLayer] = []
         for source in PSDWriter.layerSources(of: page, scene: scene, layered: options.layers) {
-            layers.append(layer(source, common: common, scale: scale, depth: depth, output: scene.output))
+            layers.append(layer(source, common: common, scale: scale, depth: depth, output: output))
         }
         let profile = common.embedProfile ? render.bitmap.colorSpace.copyICCData() as Data? : nil
         return PSDWriter.data(

@@ -59,6 +59,9 @@ extension AppDelegate {
         exports.account = { (account.profile?.accountID ?? "", account.profile?.displayName ?? "") }
         // Exports lay text out with the document's own engine, as the canvas does.
         exports.configureBuilder = { builder, document in builder.textLayout = TextSceneLayout(engine: document.textEngine) }
+        // Exports decide their RGB space by the document gamut scan the colour panels keep (CMS-015).
+        let workspace = colors.workspace
+        exports.gamut = { workspace.swatches(for: $0)?.widestSpaceUsed }
         ExportCommands.install(into: commands, hooks: ExportCommands.hooks(exports: exports) { documents.activeWindowController })
     }
 }

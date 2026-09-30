@@ -19,8 +19,19 @@ actor FakeSyncServer {
     private(set) var subscribes = 0
     var collectionPoint: (seq: UInt64, timeMs: Int64)?
     var role: Wiretuner_Account_V1_DocumentRole = .editor
+    /// Whether the document has been created (`DocumentService.Create`): until it has, Subscribe
+    /// and pushes answer `NOT_FOUND` as the server does (DOC-019).  nil: it always exists.
+    var exists: (@Sendable (String) -> Bool)?
+    /// Subscribes refused because the document did not exist yet.
+    private(set) var refusedSubscribes = 0
 
     init() {}
+
+    /// `NOT_FOUND` when `documentID` has not been created yet.
+    func checkExists(_ documentID: String) throws {
+        guard let exists, !exists(documentID) else { return }
+        throw SyncCallError(code: SyncCallError.notFound, message: "no document \(documentID)")
+    }
 
     var head: UInt64 { UInt64(log.count) }
     var subscriberCount: Int { subscribers.count }
@@ -60,6 +71,13 @@ actor FakeSyncServer {
 
     func subscribe(_ request: Wiretuner_Sync_V1_SubscribeRequest, continuation: AsyncThrowingStream<Wiretuner_Sync_V1_ServerFrame, any Error>.Continuation) {
         subscribes += 1
+        do {
+            try checkExists(request.documentID)
+        } catch {
+            refusedSubscribes += 1
+            continuation.finish(throwing: error)
+            return
+        }
         continuation.yield(.with {
             $0.welcome = .with {
                 $0.role = role
@@ -104,6 +122,7 @@ struct FakeSyncTransport: SyncTransport, BlobTransport {
     }
 
     func pushChange(_ request: Wiretuner_Sync_V1_PushChangeRequest, token: String) async throws -> Wiretuner_Sync_V1_PushChangeResponse {
+        try await server.checkExists(request.documentID)
         let seq = await server.accept(request.change)
         return .with { $0.serverSeq = seq }
     }

@@ -229,6 +229,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ))
         let sessions = DocumentSessions(connector: connector, localUserID: { accountModel.profile?.accountID ?? "" }, isLocal: { localMode.isActive })
         self.sessions = sessions
+        // A document made here is created on the server before its client subscribes (D-089).
+        sessions.creation = self.library.creationGate
         let preferenceStore = preferences
         quit = QuitCoordinator(sessions: sessions, warns: { preferenceStore[PreferenceCatalog.Document.warnUnsyncedQuit] })
         super.init()

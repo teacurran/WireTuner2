@@ -166,10 +166,11 @@ public struct BitmapRasterizer: Sendable {
                 return ColorSetup(space: space, tag: space, clipped: wide)
             case .auto:
                 // CMS-015's rule: Working RGB, or Display P3 when the artwork reaches beyond sRGB
-                // and Working RGB does not hold Display P3.
+                // and Working RGB does not hold Display P3 -- by the document gamut scan when the
+                // context carries it (every page of the export alike), else by this page.
                 let space: CGColorSpace
                 if let output {
-                    let profile = output.rgbExportSpace(widest: wide > 0 ? .displayP3 : .sRGB)
+                    let profile = output.rgbExportSpace(widest: output.widestSpaceUsed ?? (wide > 0 ? .displayP3 : .sRGB))
                     space = output.registry.colorSpace(for: profile) ?? sRGB
                 } else {
                     space = wide > 0 ? CGColorSpace(name: CGColorSpace.displayP3)! : sRGB

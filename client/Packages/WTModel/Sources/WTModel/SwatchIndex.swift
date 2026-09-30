@@ -1,6 +1,7 @@
 import struct Foundation.Date
 import Observation
 import WTCRDT
+import WTInterchange
 import WTProto
 
 /// The swatch index of swatches.adoc ("Client") and the `SwatchDependents` index of
@@ -55,6 +56,9 @@ public struct SwatchIndex: Sendable {
             dependents[swatch, default: [:]][use.key] = use
         }
     }
+
+    /// Every node with a colour use recorded (live or not).
+    public var nodesWithUses: Dictionary<OpID, [ColorUse]>.Keys { usesByNode.keys }
 
     /// Every colour use recorded on `node`.
     public func uses(on node: OpID) -> [ColorUse] {
@@ -118,6 +122,8 @@ public struct SwatchIndex: Sendable {
 public final class SwatchesModel {
     /// The index (list, dependents).
     public private(set) var index: SwatchIndex
+    /// CMS-015's document gamut scan, invalidated through `index` (`DocumentGamutScan`).
+    @ObservationIgnored public private(set) var gamut: DocumentGamutScan
     /// Counts the changes the document applied since the model was made; views re-read on it.
     public private(set) var revision = 0
     @ObservationIgnored public let document: Document
@@ -125,7 +131,9 @@ public final class SwatchesModel {
 
     public init(document: Document) {
         self.document = document
-        index = SwatchIndex(document.state)
+        let index = SwatchIndex(document.state)
+        self.index = index
+        gamut = DocumentGamutScan(document.state, index: index)
         token = document.observe { [weak self] event in
             self?.apply(event)
         }
@@ -139,8 +147,13 @@ public final class SwatchesModel {
 
     private func apply(_ event: DocumentEvent) {
         index.apply(event)
+        gamut.apply(event, index: index)
         revision += 1
     }
+
+    /// How far the document's colours reach, from the cached scan: what an export's
+    /// `WTColor.OutputContext.widestSpaceUsed` is.
+    public var widestSpaceUsed: DocumentGamutScan.Reach { gamut.widestSpaceUsed(in: document.state) }
 
     /// The colour list.
     public var list: SwatchList { index.list }

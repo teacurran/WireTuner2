@@ -61,6 +61,11 @@ actor FakeSyncServer {
     var reviewFloor: Wiretuner_Sync_V1_ReviewFloor?
     /// The next Subscribe calls fail with these errors, in order.
     var subscribeFailures: [SyncCallError] = []
+    /// Whether `DocumentService.Create` has made the document: until it has, Subscribe and the
+    /// pushes answer `NOT_FOUND` as the server does (DOC-019).
+    var exists = true
+    /// How many Subscribes had arrived when `create()` ran, for each call.
+    private(set) var creates: [Int] = []
     /// A bulk upload fails (UNAVAILABLE) after this many of its changes were accepted.
     var bulkDisconnectAfter: [Int] = []
     /// A bulk upload's response carries this rejection for this seq.
@@ -245,6 +250,7 @@ actor FakeSyncServer {
         subscribes.append(request)
         do {
             try check(token)
+            try checkExists()
             if !subscribeFailures.isEmpty {
                 throw subscribeFailures.removeFirst()
             }
@@ -293,8 +299,19 @@ actor FakeSyncServer {
         subscribers[id] = nil
     }
 
+    /// `DocumentService.Create`: the document exists from now on.
+    func create() {
+        creates.append(subscribes.count)
+        exists = true
+    }
+
+    private func checkExists() throws {
+        guard exists else { throw SyncCallError(code: SyncCallError.notFound, message: "document not found") }
+    }
+
     func pushChange(_ request: Wiretuner_Sync_V1_PushChangeRequest, token: String) async throws -> Wiretuner_Sync_V1_PushChangeResponse {
         try check(token)
+        try checkExists()
         let change = request.change
         pushes.append((change.replica, change.seq, subscribes.count))
         if let wait = delay.removeValue(forKey: change.seq) {
