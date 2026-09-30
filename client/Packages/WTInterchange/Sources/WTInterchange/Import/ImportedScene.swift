@@ -219,22 +219,94 @@ public struct ImportedContour: Hashable, Sendable {
     }
 }
 
+/// A named colour of the imported file (a FreeHand swatch): `WTModel` writes it as a reference
+/// to the document's swatch of that name and colour, created when there is none.
+public struct ImportedSwatch: Hashable, Sendable {
+    public var name: String
+    public var color: Color
+    /// Spot (true) or process (false).
+    public var spot: Bool
+
+    public init(name: String, color: Color, spot: Bool = false) {
+        self.name = name
+        self.color = color
+        self.spot = spot
+    }
+}
+
+/// A tiled fill's tile (`TiledFill`): artwork repeated across the object.
+public struct ImportedTile: Hashable, Sendable {
+    /// The tile artwork, in tile space (points, y down); its geometric bounds are one cell.
+    public var nodes: [ImportedNode]
+    /// Degrees.
+    public var angle: Double
+    /// Percent.
+    public var scaleX: Double
+    public var scaleY: Double
+    /// Shift of the pattern in the object's own coordinates, points.
+    public var offset: Point
+
+    public init(nodes: [ImportedNode], angle: Double = 0, scaleX: Double = 100, scaleY: Double = 100, offset: Point = .zero) {
+        self.nodes = nodes
+        self.angle = angle
+        self.scaleX = scaleX
+        self.scaleY = scaleY
+        self.offset = offset
+    }
+}
+
 /// A paint an importer can produce.
 public enum ImportedPaint: Hashable, Sendable {
     case none
     case solid(Color)
     /// A gradient whose axis is in the path's own coordinates.
     case gradient(Gradient)
+    /// A named colour (`BasicFill` referencing a swatch).
+    case swatch(ImportedSwatch)
+    /// An 8 × 8 bitmap pattern in one colour (`PatternFill`, `PatternStroke`).
+    case pattern(PatternPaint)
+    /// Tiled artwork (`TiledFill`).
+    case tiled(ImportedTile)
+    /// A lens (`LensFill`), in the path's own coordinates.
+    case lens(LensFill)
 
     public var isNone: Bool { self == .none }
 
-    /// The paint's colour for single-colour consumers: the solid colour or the first stop.
+    /// The paint's colour for single-colour consumers: the solid or named colour, the first
+    /// stop, a pattern's or lens's colour; nil for none and a tile.
     public var representativeColor: Color? {
         switch self {
-        case .none: return nil
+        case .none, .tiled: return nil
         case .solid(let color): return color
         case .gradient(let gradient): return gradient.sortedStops.first?.color
+        case .swatch(let swatch): return swatch.color
+        case .pattern(let pattern): return pattern.color
+        case .lens(let lens): return lens.color
         }
+    }
+
+    /// The named colours the paint uses.
+    public var swatches: [ImportedSwatch] {
+        switch self {
+        case .swatch(let swatch): return [swatch]
+        case .tiled(let tile): return tile.nodes.flatMap(\.swatches)
+        default: return []
+        }
+    }
+}
+
+/// An arrowhead of a stroke (`Arrowhead`): an outline in stroke-width units, origin at the
+/// path's end, +x pointing beyond it.
+public struct ImportedArrowhead: Hashable, Sendable {
+    public var contours: [ImportedContour]
+    /// Filled with the stroke colour; otherwise stroked one unit wide.
+    public var filled: Bool
+    public var name: String
+
+    public init(contours: [ImportedContour], filled: Bool = true, name: String = "") {
+        self.contours = contours
+        self.filled = filled
+        self.name = name
     }
 }
 
@@ -242,10 +314,14 @@ public enum ImportedPaint: Hashable, Sendable {
 public struct ImportedStroke: Hashable, Sendable {
     public var paint: ImportedPaint
     public var style: StrokeStyle
+    public var startArrowhead: ImportedArrowhead?
+    public var endArrowhead: ImportedArrowhead?
 
-    public init(paint: ImportedPaint, style: StrokeStyle = StrokeStyle()) {
+    public init(paint: ImportedPaint, style: StrokeStyle = StrokeStyle(), startArrowhead: ImportedArrowhead? = nil, endArrowhead: ImportedArrowhead? = nil) {
         self.paint = paint
         self.style = style
+        self.startArrowhead = startArrowhead
+        self.endArrowhead = endArrowhead
     }
 }
 
@@ -287,26 +363,53 @@ public struct ImportedTextRun: Hashable, Sendable {
     public var fill: ImportedPaint
     /// The baseline origin of the run's first character in the block's space.
     public var origin: Point
+    /// The family and style when the file names them rather than a PostScript name (FreeHand);
+    /// they win over `fontName`, which is then only the preview's font.
+    public var family: String?
+    public var style: String?
 
-    public init(text: String, fontName: String, fontSize: Double, fill: ImportedPaint = .solid(.black), origin: Point) {
+    public init(text: String, fontName: String, fontSize: Double, fill: ImportedPaint = .solid(.black), origin: Point, family: String? = nil, style: String? = nil) {
         self.text = text
         self.fontName = fontName
         self.fontSize = fontSize
         self.fill = fill
         self.origin = origin
+        self.family = family
+        self.style = style
     }
 }
 
-/// A `text` node: point text of one or more runs, set on one baseline or several.
+/// How the lines of a text block align (`ParagraphProps.alignment`).
+public enum ImportedTextAlignment: Hashable, Sendable {
+    case left
+    case right
+    case center
+    case justify
+}
+
+/// A `text` node: point text of one or more runs, set on one baseline or several; with a
+/// `frame`, area text whose rectangle's top-left corner is the block's origin; with a `path`,
+/// text on that path.
 public struct ImportedText: Hashable, Sendable {
     public var runs: [ImportedTextRun]
     public var transform: AffineTransform
     public var name: String?
+    /// Area text: the block's width and height in points (`TextBlockProps`), its rectangle
+    /// from the block's origin.  The runs' origins are only the preview's layout.
+    public var frame: Size?
+    /// Text on a path: the path in the block's space (`TextOnPathProps`, the path child).
+    public var path: ImportedPath?
+    /// The paragraphs' alignment.
+    public var alignment: ImportedTextAlignment
 
-    public init(runs: [ImportedTextRun], transform: AffineTransform = .identity, name: String? = nil) {
+    public init(runs: [ImportedTextRun], transform: AffineTransform = .identity, name: String? = nil, frame: Size? = nil, path: ImportedPath? = nil,
+                alignment: ImportedTextAlignment = .left) {
         self.runs = runs
         self.transform = transform
         self.name = name
+        self.frame = frame
+        self.path = path
+        self.alignment = alignment
     }
 
     /// The text of every run in order.
@@ -356,24 +459,34 @@ public struct ImportedGroup: Hashable, Sendable {
         /// A layer of the source file (Illustrator, DXF, PDF optional content): imported as a
         /// group named after it (import-formats.adoc).
         case layer
+        /// An instance of the scene's symbol with this `ImportedSymbol.key` (FreeHand): the
+        /// group's `transform` places the symbol and its children are the symbol's artwork, so
+        /// a consumer that knows no symbols draws the expanded group.
+        case instance(symbol: String)
     }
 
     public var children: [ImportedNode]
     /// A clipping group's clip (`GroupProps.clip_path`, OBJ-027): the path that clips the
-    /// children, in the group's space.  Its paint is ignored.
+    /// children, in the group's space.  Its paint is ignored unless `clipAppearance`.
     public var clip: ImportedPath?
     public var opacity: Double
     public var transform: AffineTransform
     public var name: String?
     public var role: Role
+    /// The clip path keeps its fill and stroke (FreeHand's *Paste Inside*: the fill is drawn
+    /// below the contents and the stroke above them, as a WireTuner clip group draws its clip
+    /// path).  Off for formats whose clips are geometry only (PDF, SVG).
+    public var clipAppearance: Bool
 
-    public init(children: [ImportedNode], clip: ImportedPath? = nil, opacity: Double = 1, transform: AffineTransform = .identity, name: String? = nil, role: Role = .group) {
+    public init(children: [ImportedNode], clip: ImportedPath? = nil, opacity: Double = 1, transform: AffineTransform = .identity, name: String? = nil, role: Role = .group,
+                clipAppearance: Bool = false) {
         self.children = children
         self.clip = clip
         self.opacity = opacity
         self.transform = transform
         self.name = name
         self.role = role
+        self.clipAppearance = clipAppearance
     }
 }
 
@@ -414,6 +527,22 @@ public indirect enum ImportedNode: Hashable, Sendable {
         }
         return [self]
     }
+
+    /// The named colours the subtree paints with (fills, strokes, text, tiles, and clip paths
+    /// that keep their appearance), in first-use order with repeats.
+    public var swatches: [ImportedSwatch] {
+        switch self {
+        case .group(let group):
+            let clip = group.clipAppearance ? group.clip.map { ImportedNode.path($0).swatches } ?? [] : []
+            return clip + group.children.flatMap(\.swatches)
+        case .path(let path):
+            return path.fill.swatches + (path.stroke?.paint.swatches ?? [])
+        case .text(let text):
+            return text.runs.flatMap(\.fill.swatches) + (text.path.map { ImportedNode.path($0).swatches } ?? [])
+        case .image, .placed:
+            return []
+        }
+    }
 }
 
 // MARK: - Scene
@@ -425,6 +554,21 @@ public struct ImportedLayer: Hashable, Sendable {
     public var nodes: [ImportedNode]
 
     public init(name: String, nodes: [ImportedNode]) {
+        self.name = name
+        self.nodes = nodes
+    }
+}
+
+/// A symbol of the imported file: artwork its instances (`ImportedGroup.Role.instance`) share.
+public struct ImportedSymbol: Hashable, Sendable {
+    /// Unique within the scene.
+    public var key: String
+    public var name: String
+    /// The artwork in symbol space.
+    public var nodes: [ImportedNode]
+
+    public init(key: String, name: String, nodes: [ImportedNode]) {
+        self.key = key
         self.name = name
         self.nodes = nodes
     }
@@ -454,14 +598,18 @@ public struct ImportedScene: Hashable, Sendable {
     public var layers: [ImportedLayer]
     /// What was approximated or left out, for the import notice.
     public var notes: [String]
+    /// The symbols the scene's instance groups use.
+    public var symbols: [ImportedSymbol]
 
-    public init(kind: Kind, name: String, bounds: Rect, nodes: [ImportedNode], layers: [ImportedLayer] = [], notes: [String] = []) {
+    public init(kind: Kind, name: String, bounds: Rect, nodes: [ImportedNode], layers: [ImportedLayer] = [], notes: [String] = [],
+                symbols: [ImportedSymbol] = []) {
         self.kind = kind
         self.name = name
         self.bounds = bounds
         self.nodes = nodes
         self.layers = layers
         self.notes = notes
+        self.symbols = symbols
     }
 
     /// The subtree `WTModel` creates on the current layer: for a vector import one group named
@@ -507,6 +655,13 @@ public struct ImportedScene: Hashable, Sendable {
         }
         nodes.forEach(visit)
         layers.flatMap(\.nodes).forEach(visit)
+        symbols.flatMap(\.nodes).forEach(visit)
         return result
+    }
+
+    /// Every named colour the scene uses, once per name and colour, in first-use order.
+    public var swatches: [ImportedSwatch] {
+        var seen = Set<ImportedSwatch>()
+        return (nodes + layers.flatMap(\.nodes) + symbols.flatMap(\.nodes)).flatMap(\.swatches).filter { seen.insert($0).inserted }
     }
 }

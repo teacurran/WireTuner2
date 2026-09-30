@@ -176,6 +176,13 @@ targets:
             UTTypeConformsTo: [com.apple.package, public.directory]
             UTTypeTagSpecification:
               public.filename-extension: [ufo]
+          # A FreeHand 3 to MX document or template (import-formats.adoc, "FreeHand"; IO-041):
+          # macOS declares no type for it, so the Import panel and the Finder learn it here.
+          - UTTypeIdentifier: com.macromedia.freehand
+            UTTypeDescription: FreeHand Document
+            UTTypeConformsTo: [public.data, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [fh, fh3, fh4, fh5, fh7, fh8, fh9, fh10, fh11, ft7, ft8, ft9, ft10, ft11]
         CFBundleDocumentTypes:
           - CFBundleTypeName: WireTuner Package
             CFBundleTypeRole: Editor

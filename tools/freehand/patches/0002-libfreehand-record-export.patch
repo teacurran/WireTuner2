@@ -1,0 +1,469 @@
+WireTuner: libfreehand for the FreeHand importer (docs/spec/decisions.adoc D-083).
+- No Boost, ICU or Little CMS: <cstdint> for boost/cstdint.hpp; the ICU UTF macros come from the
+  bridge's shim headers; a process colour's CMYK is converted with the plain formula for
+  libfreehand's own output and kept as CMYK for the importer (FHColorProfiles.h is not vendored).
+- FHParser and FHCollector befriend FHRecordExporter (bridge/FHRecordExport.cpp), which writes
+  the collected records as JSON instead of drawing them through librevenge.
+- Kept for the importer: the dictionary's record type names (FHParser::m_dictionaryNames), each
+  page's rectangle (FHParser::m_pages, where m_pageInfo is their union), each layer's name record
+  (FHLayer::m_nameId), and per colour record its kind, name record, CMYK values and the bytes
+  libfreehand skips (FHColorRecord, FHCollector::collectColorRecord).
+
+diff -ruN a/libfreehand/src/lib/FHCollector.cpp b/libfreehand/src/lib/FHCollector.cpp
+--- a/libfreehand/src/lib/FHCollector.cpp	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/FHCollector.cpp	2026-09-29 21:01:52
+@@ -242,7 +242,7 @@
+   m_pageInfo(), m_fhTail(), m_block(), m_transforms(), m_paths(), m_strings(), m_names(), m_lists(),
+   m_layers(), m_groups(), m_clipGroups(), m_currentTransforms(), m_fakeTransforms(), m_compositePaths(),
+   m_pathTexts(), m_tStrings(), m_fonts(), m_tEffects(), m_paragraphs(), m_tabs(), m_textBloks(), m_textObjects(), m_charProperties(),
+-  m_paragraphProperties(), m_rgbColors(), m_basicFills(), m_propertyLists(),
++  m_paragraphProperties(), m_rgbColors(), m_colorRecords(), m_basicFills(), m_propertyLists(),
+   m_basicLines(), m_customProcs(), m_patternLines(), m_displayTexts(), m_graphicStyles(),
+   m_attributeHolders(), m_data(), m_dataLists(), m_images(), m_multiColorLists(), m_linearFills(),
+   m_tints(), m_lensFills(), m_radialFills(), m_newBlends(), m_filterAttributeHolders(), m_opacityFilters(),
+@@ -381,6 +381,11 @@
+ void libfreehand::FHCollector::collectColor(unsigned recordId, const FHRGBColor &color)
+ {
+   m_rgbColors[recordId] = color;
++}
++
++void libfreehand::FHCollector::collectColorRecord(unsigned recordId, const FHColorRecord &record)
++{
++  m_colorRecords[recordId] = record;
+ }
+ 
+ void libfreehand::FHCollector::collectTintColor(unsigned recordId, const FHTintColor &color)
+diff -ruN a/libfreehand/src/lib/FHCollector.h b/libfreehand/src/lib/FHCollector.h
+--- a/libfreehand/src/lib/FHCollector.h	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/FHCollector.h	2026-09-29 21:01:52
+@@ -24,6 +24,8 @@
+ 
+ class FHCollector
+ {
++  // WireTuner: reads the collected records for the FreeHand importer (FHRecordExport.cpp).
++  friend class FHRecordExporter;
+ public:
+   FHCollector();
+   virtual ~FHCollector();
+@@ -68,6 +70,8 @@
+   void collectPageInfo(const FHPageInfo &pageInfo);
+ 
+   void collectColor(unsigned recordId, const FHRGBColor &color);
++  // WireTuner: see FHColorRecord.
++  void collectColorRecord(unsigned recordId, const FHColorRecord &record);
+   void collectTintColor(unsigned recordId, const FHTintColor &color);
+   void collectBasicFill(unsigned recordId, const FHBasicFill &fill);
+   void collectLensFill(unsigned recordId, const FHLensFill &fill);
+@@ -221,6 +225,7 @@
+   std::map<unsigned, FHCharProperties> m_charProperties;
+   std::map<unsigned, FHParagraphProperties> m_paragraphProperties;
+   std::map<unsigned, FHRGBColor> m_rgbColors;
++  std::map<unsigned, FHColorRecord> m_colorRecords;
+   std::map<unsigned, FHBasicFill> m_basicFills;
+   std::map<unsigned, FHPropList> m_propertyLists;
+   std::map<unsigned, FHBasicLine> m_basicLines;
+diff -ruN a/libfreehand/src/lib/FHParser.cpp b/libfreehand/src/lib/FHParser.cpp
+--- a/libfreehand/src/lib/FHParser.cpp	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/FHParser.cpp	2026-09-29 21:01:52
+@@ -15,9 +15,7 @@
+ 
+ #include <unicode/utf8.h>
+ #include <unicode/utf16.h>
+-#include <lcms2.h>
+ #include "FHCollector.h"
+-#include "FHColorProfiles.h"
+ #include "FHConstants.h"
+ #include "FHInternalStream.h"
+ #include "FHParser.h"
+@@ -60,21 +58,12 @@
+ 
+ libfreehand::FHParser::FHParser()
+   : m_input(nullptr), m_collector(nullptr), m_version(-1), m_dictionary(),
+-    m_records(), m_currentRecord(0), m_pageInfo(), m_colorTransform(nullptr)
++    m_dictionaryNames(), m_records(), m_currentRecord(0), m_pageInfo(), m_pages(), m_lastCMYK(), m_lastHasCMYK(false)
+ {
+-  cmsHPROFILE inProfile  = cmsOpenProfileFromMem(CMYK_icc, sizeof(CMYK_icc)/sizeof(CMYK_icc[0]));
+-  cmsHPROFILE outProfile = cmsCreate_sRGBProfile();
+-
+-  m_colorTransform = cmsCreateTransform(inProfile, TYPE_CMYK_16, outProfile, TYPE_RGB_16, INTENT_PERCEPTUAL, 0);
+-
+-  cmsCloseProfile(inProfile);
+-  cmsCloseProfile(outProfile);
+ }
+ 
+ libfreehand::FHParser::~FHParser()
+ {
+-  if (m_colorTransform)
+-    cmsDeleteTransform(m_colorTransform);
+ }
+ 
+ bool libfreehand::FHParser::parse(librevenge::RVNGInputStream *input, librevenge::RVNGDrawingInterface *painter)
+@@ -125,6 +114,7 @@
+       name.append((char)tmpChar);
+ 
+     auto nameToken = getTokenId(name.cstr());
++    m_dictionaryNames[id] = name.cstr();
+     FH_DEBUG_MSG(("FHParser::parseDictionary - ID: 0x%x, name: %s%s\n",
+                   id, name.cstr(), nameToken == FH_TOKEN_INVALID ? " (unknown)" : ""));
+ 
+@@ -806,11 +796,14 @@
+ 
+ void libfreehand::FHParser::readColor6(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_COLOR6;
+   unsigned var = readU16(input);
+-  _readRecordId(input);
++  record.m_variant = var;
++  record.m_nameId = _readRecordId(input);
+   FHRGBColor color = _readRGBColor(input);
+-  input->seek(4, librevenge::RVNG_SEEK_CUR);
+-  _readRecordId(input);
++  _readColorRaw(input, 4, record);
++  record.m_otherId = _readRecordId(input);
+   unsigned length = 12;
+   if (var == 4)
+     length = 16;
+@@ -820,9 +813,12 @@
+     length = 36;
+   if (m_version < 10)
+     length -= 2;
+-  input->seek(length, librevenge::RVNG_SEEK_CUR);
++  _readColorRaw(input, length, record);
+   if (collector)
++  {
+     collector->collectColor(m_currentRecord+1, color);
++    collector->collectColorRecord(m_currentRecord+1, record);
++  }
+ }
+ 
+ void libfreehand::FHParser::readCompositePath(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+@@ -1290,7 +1286,7 @@
+     input->seek(4, librevenge::RVNG_SEEK_CUR);
+   input->seek(6, librevenge::RVNG_SEEK_CUR);
+   layer.m_elementsId = _readRecordId(input);
+-  _readRecordId(input);
++  layer.m_nameId = _readRecordId(input);
+   layer.m_visibility = readU16(input);
+   input->seek(2, librevenge::RVNG_SEEK_CUR);
+   if (collector)
+@@ -1861,16 +1857,24 @@
+ 
+ void libfreehand::FHParser::readProcessColor(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
+-  _readRecordId(input);
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_PROCESSCOLOR;
++  record.m_nameId = _readRecordId(input);
+   input->seek(2, librevenge::RVNG_SEEK_CUR);
+   FHRGBColor color = _readRGBColor(input);
+   input->seek(4, librevenge::RVNG_SEEK_CUR);
++  m_lastHasCMYK = false;
+   if (color.black())
+     color = _readCMYKColor(input);
+   else
+     input->seek(8, librevenge::RVNG_SEEK_CUR);
++  record.m_hasCMYK = m_lastHasCMYK;
++  record.m_cmyk = m_lastCMYK;
+   if (collector)
++  {
+     collector->collectColor(m_currentRecord+1, color);
++    collector->collectColorRecord(m_currentRecord+1, record);
++  }
+ }
+ 
+ void libfreehand::FHParser::readPropLst(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+@@ -2041,26 +2045,37 @@
+ 
+ void libfreehand::FHParser::readSpotColor(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
+-  _readRecordId(input);
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_SPOTCOLOR;
++  record.m_nameId = _readRecordId(input);
+   input->seek(2, librevenge::RVNG_SEEK_CUR);
+   FHRGBColor color = _readRGBColor(input);
+-  input->seek(16, librevenge::RVNG_SEEK_CUR);
++  _readColorRaw(input, 16, record);
+   if (collector)
++  {
+     collector->collectColor(m_currentRecord+1, color);
++    collector->collectColorRecord(m_currentRecord+1, record);
++  }
+ }
+ 
+ void libfreehand::FHParser::readSpotColor6(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_SPOTCOLOR6;
+   unsigned short size = readU16(input);
+-  _readRecordId(input);
++  record.m_variant = size;
++  record.m_nameId = _readRecordId(input);
+   FHRGBColor color = _readRGBColor(input);
+   if (m_version < 10)
+-    input->seek(16, librevenge::RVNG_SEEK_CUR);
++    _readColorRaw(input, 16, record);
+   else
+-    input->seek(18, librevenge::RVNG_SEEK_CUR);
+-  input->seek(size*4, librevenge::RVNG_SEEK_CUR);
++    _readColorRaw(input, 18, record);
++  _readColorRaw(input, size*4, record);
+   if (collector)
++  {
+     collector->collectColor(m_currentRecord+1, color);
++    collector->collectColorRecord(m_currentRecord+1, record);
++  }
+ }
+ 
+ void libfreehand::FHParser::readStylePropLst(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+@@ -2360,7 +2375,11 @@
+ 
+ void libfreehand::FHParser::readTintColor(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
+-  _readRecordId(input);
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_TINTCOLOR;
++  record.m_nameId = _readRecordId(input);
++  if (collector)
++    collector->collectColorRecord(m_currentRecord+1, record);
+   input->seek(2, librevenge::RVNG_SEEK_CUR);
+   FHRGBColor color = _readRGBColor(input);
+   input->seek(4, librevenge::RVNG_SEEK_CUR);
+@@ -2384,15 +2403,20 @@
+ 
+ void libfreehand::FHParser::readTintColor6(librevenge::RVNGInputStream *input, libfreehand::FHCollector *collector)
+ {
+-  input->seek(2, librevenge::RVNG_SEEK_CUR);
+-  _readRecordId(input);
++  FHColorRecord record;
++  record.m_kind = FH_COLOR_RECORD_TINTCOLOR6;
++  record.m_variant = readU16(input);
++  record.m_nameId = _readRecordId(input);
+   FHRGBColor color = _readRGBColor(input);
+   if (m_version < 10)
+-    input->seek(26, librevenge::RVNG_SEEK_CUR);
++    _readColorRaw(input, 26, record);
+   else
+-    input->seek(28, librevenge::RVNG_SEEK_CUR);
++    _readColorRaw(input, 28, record);
+   if (collector)
++  {
+     collector->collectColor(m_currentRecord+1, color);
++    collector->collectColorRecord(m_currentRecord+1, record);
++  }
+ }
+ 
+ void libfreehand::FHParser::readTransformFilter(librevenge::RVNGInputStream *input, libfreehand::FHCollector * /* collector */)
+@@ -2471,6 +2495,11 @@
+   double maxY = 0.0;
+   FHParagraphProperties paraProps;
+   std::unique_ptr<libfreehand::FHCharProperties> charProps;
++  unsigned pageSides = 0;
++  double pageX = 0.0;
++  double pageY = 0.0;
++  double pageWidth = 0.0;
++  double pageHeight = 0.0;
+   for (unsigned short i = 0; i < num; ++i)
+   {
+     unsigned short key = readU16(input);
+@@ -2481,6 +2510,11 @@
+     case FH_PAGE_START_X2:
+     {
+       minX = _readCoordinate(input) / 72.0;
++      if (rec == FH_PAGE_START_X)
++      {
++        pageX = minX;
++        pageSides |= 4;
++      }
+       if (m_pageInfo.m_minX > 0.0)
+         m_pageInfo.m_minX=std::min(minX,m_pageInfo.m_minX);
+       else
+@@ -2491,6 +2525,11 @@
+     case FH_PAGE_START_Y2:
+     {
+       minY = _readCoordinate(input) / 72.0;
++      if (rec == FH_PAGE_START_Y)
++      {
++        pageY = minY;
++        pageSides |= 8;
++      }
+       if (m_pageInfo.m_minY > 0.0)
+         m_pageInfo.m_minY=std::min(minY,m_pageInfo.m_minY);
+       else
+@@ -2499,13 +2538,17 @@
+     }
+     case FH_PAGE_WIDTH:
+     {
+-      maxX = minX + _readCoordinate(input) / 72.0;
++      pageWidth = _readCoordinate(input) / 72.0;
++      pageSides |= 1;
++      maxX = minX + pageWidth;
+       m_pageInfo.m_maxX = std::max(maxX,m_pageInfo.m_maxX);
+       break;
+     }
+     case FH_PAGE_HEIGHT:
+     {
+-      maxY = minY + _readCoordinate(input) / 72.0;
++      pageHeight = _readCoordinate(input) / 72.0;
++      pageSides |= 2;
++      maxY = minY + pageHeight;
+       m_pageInfo.m_maxY = std::max(maxY,m_pageInfo.m_maxY);
+       break;
+     }
+@@ -2575,6 +2618,17 @@
+         input->seek(4, librevenge::RVNG_SEEK_CUR);
+     }
+   }
++  // WireTuner: each page's own rectangle from its start and size (m_pageInfo is their union;
++  // the second start pair, FH_PAGE_START_X2/Y2, is not the page's corner).
++  if (pageSides == 15)
++  {
++    FHPageInfo page;
++    page.m_minX = pageX;
++    page.m_minY = pageY;
++    page.m_maxX = pageX + pageWidth;
++    page.m_maxY = pageY + pageHeight;
++    m_pages.push_back(page);
++  }
+   if (collector)
+   {
+     if (charProps)
+@@ -2658,6 +2712,12 @@
+   return length;
+ }
+ 
++void libfreehand::FHParser::_readColorRaw(librevenge::RVNGInputStream *input, unsigned long length, FHColorRecord &record)
++{
++  for (unsigned long i = 0; i < length; ++i)
++    record.m_raw.push_back(readU8(input));
++}
++
+ double libfreehand::FHParser::_readCoordinate(librevenge::RVNGInputStream *input)
+ {
+   return (double)readS32(input)/65536.;
+@@ -2681,14 +2741,18 @@
+   cmyk[1] = readU16(input); // M
+   cmyk[2] = readU16(input); // Y
+ 
+-  unsigned short rgb[3] = { 0, 0, 0 };
+-
+-  cmsDoTransform(m_colorTransform, cmyk, rgb, 1);
+-
++  // WireTuner: no Little CMS.  The RGB is a plain conversion for libfreehand's own output; the
++  // values themselves are kept (FHColorRecord) and the importer uses them as CMYK.
++  m_lastCMYK.m_cyan = cmyk[0];
++  m_lastCMYK.m_magenta = cmyk[1];
++  m_lastCMYK.m_yellow = cmyk[2];
++  m_lastCMYK.m_black = cmyk[3];
++  m_lastHasCMYK = true;
++  const double k = 1.0 - cmyk[3] / 65535.0;
+   FHRGBColor tmpColor;
+-  tmpColor.m_red = rgb[0];
+-  tmpColor.m_green = rgb[1];
+-  tmpColor.m_blue = rgb[2];
++  tmpColor.m_red = (unsigned short)(65535.0 * (1.0 - cmyk[0] / 65535.0) * k);
++  tmpColor.m_green = (unsigned short)(65535.0 * (1.0 - cmyk[1] / 65535.0) * k);
++  tmpColor.m_blue = (unsigned short)(65535.0 * (1.0 - cmyk[2] / 65535.0) * k);
+   return tmpColor;
+ }
+ 
+diff -ruN a/libfreehand/src/lib/FHParser.h b/libfreehand/src/lib/FHParser.h
+--- a/libfreehand/src/lib/FHParser.h	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/FHParser.h	2026-09-29 21:01:52
+@@ -12,7 +12,7 @@
+ 
+ #include <map>
+ #include <vector>
+-#include <lcms2.h>
++#include <string>
+ #include <librevenge/librevenge.h>
+ #include "FHTypes.h"
+ 
+@@ -23,6 +23,8 @@
+ 
+ class FHParser
+ {
++  // WireTuner: reads the parsed records for the FreeHand importer (FHRecordExport.cpp).
++  friend class FHRecordExporter;
+ public:
+   explicit FHParser();
+   virtual ~FHParser();
+@@ -175,10 +177,19 @@
+   FHCollector *m_collector;
+   int m_version;
+   std::map<unsigned short, int> m_dictionary;
++  // WireTuner: the record type names of the dictionary, known to libfreehand or not.
++  std::map<unsigned short, std::string> m_dictionaryNames;
+   std::vector<unsigned short> m_records;
+   std::vector<unsigned short>::size_type m_currentRecord;
+   FHPageInfo m_pageInfo;
+-  cmsHTRANSFORM m_colorTransform;
++  // WireTuner: every page's rectangle, in record order (readVMpObj).
++  std::vector<FHPageInfo> m_pages;
++  // WireTuner: the CMYK values of the last _readCMYKColor.
++  FHCMYKColor m_lastCMYK;
++  bool m_lastHasCMYK;
++
++  // WireTuner: reads `length` bytes into a colour record's raw data.
++  void _readColorRaw(librevenge::RVNGInputStream *input, unsigned long length, FHColorRecord &record);
+ };
+ 
+ } // namespace libfreehand
+diff -ruN a/libfreehand/src/lib/FHTypes.h b/libfreehand/src/lib/FHTypes.h
+--- a/libfreehand/src/lib/FHTypes.h	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/FHTypes.h	2026-09-29 21:01:52
+@@ -63,7 +63,9 @@
+   unsigned m_graphicStyleId;
+   unsigned m_elementsId;
+   unsigned m_visibility;
+-  FHLayer() : m_graphicStyleId(0), m_elementsId(0), m_visibility(0) {}
++  // WireTuner: the layer's name record.
++  unsigned m_nameId;
++  FHLayer() : m_graphicStyleId(0), m_elementsId(0), m_visibility(0), m_nameId(0) {}
+ };
+ 
+ struct FHGroup
+@@ -178,6 +180,30 @@
+   unsigned short m_black;
+   FHCMYKColor()
+     : m_cyan(0), m_magenta(0), m_yellow(0), m_black(0xffff) {}
++};
++
++// WireTuner: what a colour record says beyond its RGB preview -- its kind, its name record, the
++// CMYK values of a process colour, and the bytes libfreehand skips (for the importer to read).
++enum FHColorRecordKind
++{
++  FH_COLOR_RECORD_COLOR6 = 1,
++  FH_COLOR_RECORD_SPOTCOLOR6 = 2,
++  FH_COLOR_RECORD_TINTCOLOR6 = 3,
++  FH_COLOR_RECORD_PROCESSCOLOR = 4,
++  FH_COLOR_RECORD_SPOTCOLOR = 5,
++  FH_COLOR_RECORD_TINTCOLOR = 6
++};
++
++struct FHColorRecord
++{
++  unsigned m_kind;
++  unsigned m_variant;
++  unsigned m_nameId;
++  unsigned m_otherId;
++  bool m_hasCMYK;
++  FHCMYKColor m_cmyk;
++  std::vector<unsigned char> m_raw;
++  FHColorRecord() : m_kind(0), m_variant(0), m_nameId(0), m_otherId(0), m_hasCMYK(false), m_cmyk(), m_raw() {}
+ };
+ 
+ struct FHTintColor
+diff -ruN a/libfreehand/src/lib/libfreehand_utils.h b/libfreehand/src/lib/libfreehand_utils.h
+--- a/libfreehand/src/lib/libfreehand_utils.h	2026-09-29 21:01:52
++++ b/libfreehand/src/lib/libfreehand_utils.h	2026-09-29 21:01:52
+@@ -18,7 +18,7 @@
+ #include <string>
+ #include <math.h>
+ 
+-#include <boost/cstdint.hpp>
++#include <cstdint>
+ 
+ #include <librevenge/librevenge.h>
+ 

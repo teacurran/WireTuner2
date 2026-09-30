@@ -290,6 +290,37 @@
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>FreeHand Document</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.macromedia.freehand</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>fh</string>
+					<string>fh3</string>
+					<string>fh4</string>
+					<string>fh5</string>
+					<string>fh7</string>
+					<string>fh8</string>
+					<string>fh9</string>
+					<string>fh10</string>
+					<string>fh11</string>
+					<string>ft7</string>
+					<string>ft8</string>
+					<string>ft9</string>
+					<string>ft10</string>
+					<string>ft11</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 	<key>WTAPIURL</key>
 	<string>$(WT_API_URL)</string>

@@ -1,0 +1,306 @@
+WireTuner: librevenge without Boost (docs/spec/decisions.adoc D-083).
+RVNGPropertyList.cpp: the Boost.Spirit number, unit and boolean parsers are replaced by
+strtod_l in the C locale, std::from_chars and plain comparisons with the same grammar.
+RVNGBinaryData.cpp: Boost's base64 iterators and boost::trim are replaced by a plain codec
+and trim.
+
+diff -ruN a/librevenge/src/lib/RVNGBinaryData.cpp b/librevenge/src/lib/RVNGBinaryData.cpp
+--- a/librevenge/src/lib/RVNGBinaryData.cpp	2026-09-29 21:01:52
++++ b/librevenge/src/lib/RVNGBinaryData.cpp	2026-09-29 21:01:52
+@@ -19,11 +19,6 @@
+ 
+ #include <librevenge/librevenge.h>
+ 
+-#include <boost/algorithm/string.hpp>
+-#include <boost/archive/iterators/binary_from_base64.hpp>
+-#include <boost/archive/iterators/base64_from_binary.hpp>
+-#include <boost/archive/iterators/remove_whitespace.hpp>
+-#include <boost/archive/iterators/transform_width.hpp>
+ 
+ #include <algorithm>
+ #include <iterator>
+@@ -50,29 +45,77 @@
+ 	std::unique_ptr<RVNGMemoryInputStream> m_stream;
+ };
+ 
+-void convertFromBase64(std::vector<unsigned char> &result, const std::string &source)
++// WireTuner: Boost's archive iterators replaced by a plain base64 codec (same results: whitespace
++// is skipped, decoding stops at the first '=', output is padded with '=').
++const char base64Alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
++
++int base64Value(char c)
+ {
+-	std::string::const_iterator paddingIter = std::find(source.begin(), source.end(), '=');
+-	typedef boost::archive::iterators::transform_width<
+-	boost::archive::iterators::binary_from_base64<
+-	boost::archive::iterators::remove_whitespace< std::string::const_iterator > >, 8, 6 > base64_decoder;
++	if (c >= 'A' && c <= 'Z') return c - 'A';
++	if (c >= 'a' && c <= 'z') return c - 'a' + 26;
++	if (c >= '0' && c <= '9') return c - '0' + 52;
++	if (c == '+') return 62;
++	if (c == '/') return 63;
++	return -1;
++}
+ 
+-	std::copy(base64_decoder(source.begin()), base64_decoder(paddingIter), std::back_inserter(result));
++void convertFromBase64(std::vector<unsigned char> &result, const std::string &source)
++{
++	unsigned accumulator = 0;
++	int bits = 0;
++	for (char c : source)
++	{
++		if (c == '=')
++			break;
++		const int value = base64Value(c);
++		if (value < 0)
++			continue;
++		accumulator = (accumulator << 6) | unsigned(value);
++		bits += 6;
++		if (bits >= 8)
++		{
++			bits -= 8;
++			result.push_back((unsigned char)((accumulator >> bits) & 0xff));
++		}
++	}
+ }
+ 
+ void convertToBase64(std::string &result, const std::vector<unsigned char> &source)
+ {
+-	auto numPadding = unsigned((3- (source.size()%3)) %3);
++	std::string encoded;
++	size_t i = 0;
++	for (; i + 2 < source.size(); i += 3)
++	{
++		const unsigned triple = (unsigned(source[i]) << 16) | (unsigned(source[i + 1]) << 8) | unsigned(source[i + 2]);
++		encoded += base64Alphabet[(triple >> 18) & 63];
++		encoded += base64Alphabet[(triple >> 12) & 63];
++		encoded += base64Alphabet[(triple >> 6) & 63];
++		encoded += base64Alphabet[triple & 63];
++	}
++	if (i < source.size())
++	{
++		const unsigned first = source[i];
++		const unsigned second = i + 1 < source.size() ? source[i + 1] : 0;
++		const unsigned triple = (first << 16) | (second << 8);
++		encoded += base64Alphabet[(triple >> 18) & 63];
++		encoded += base64Alphabet[(triple >> 12) & 63];
++		encoded += i + 1 < source.size() ? base64Alphabet[(triple >> 6) & 63] : '=';
++		encoded += '=';
++	}
++	result.insert(0, encoded);
++}
+ 
+-	typedef boost::archive::iterators::base64_from_binary<
+-	boost::archive::iterators::transform_width<std::vector<unsigned char>::const_iterator, 6, 8 > > base64_encoder;
+-
+-	// Encode the buffer and create a string
+-	result.insert(result.begin(),
+-	    base64_encoder(source.begin()),
+-	    base64_encoder(source.end()));
+-
+-	result.append(numPadding, '=');  // add '=' for each padded character
++void trim(std::string &text)
++{
++	const char *space = " \t\n\r\f\v";
++	const size_t first = text.find_first_not_of(space);
++	if (first == std::string::npos)
++	{
++		text.clear();
++		return;
++	}
++	text.erase(text.find_last_not_of(space) + 1);
++	text.erase(0, first);
+ }
+ 
+ } // anonymous namespace
+@@ -131,7 +174,7 @@
+ {
+ 	std::unique_ptr<RVNGBinaryDataImpl> impl(new RVNGBinaryDataImpl());
+ 	std::string base64String(base64.cstr(), base64.size());
+-	boost::trim(base64String);
++	trim(base64String);
+ 	convertFromBase64(impl->m_ptr->m_buf, base64String);
+ 	m_binaryDataImpl = impl.release();
+ }
+@@ -143,7 +186,7 @@
+ 	if (base64)
+ 	{
+ 		std::string base64String(base64);
+-		boost::trim(base64String);
++		trim(base64String);
+ 		convertFromBase64(impl->m_ptr->m_buf, base64String);
+ 	}
+ 	m_binaryDataImpl = impl.release();
+@@ -162,7 +205,7 @@
+ void RVNGBinaryData::appendBase64Data(const RVNGString &base64)
+ {
+ 	std::string base64String(base64.cstr(), base64.size());
+-	boost::trim(base64String);
++	trim(base64String);
+ 	std::vector<unsigned char> buffer;
+ 	convertFromBase64(buffer, base64String);
+ 	if (!buffer.empty())
+@@ -174,7 +217,7 @@
+ 	if (base64)
+ 	{
+ 		std::string base64String(base64);
+-		boost::trim(base64String);
++		trim(base64String);
+ 		std::vector<unsigned char> buffer;
+ 		convertFromBase64(buffer, base64String);
+ 		if (!buffer.empty())
+diff -ruN a/librevenge/src/lib/RVNGPropertyList.cpp b/librevenge/src/lib/RVNGPropertyList.cpp
+--- a/librevenge/src/lib/RVNGPropertyList.cpp	2026-09-29 21:01:52
++++ b/librevenge/src/lib/RVNGPropertyList.cpp	2026-09-29 21:01:52
+@@ -26,42 +26,85 @@
+ #include <string>
+ #include <utility>
+ 
+-#include <boost/spirit/include/qi.hpp>
++#include <cctype>
++#include <cstring>
++#include <system_error>
++#include <charconv>
++#include <cstdlib>
++#include <locale.h>
++#if defined(__APPLE__)
++#include <xlocale.h>
++#endif
+ 
++// WireTuner: Boost.Spirit replaced by strtod_l in the C locale and std::from_chars; the grammar is the original's: a number,
++// optional spaces, then an optional unit (pt, in, *, %, cm, mm), with spaces allowed around.
+ namespace
+ {
+ 
++const char *skipSpaces(const char *first, const char *last)
++{
++	while (first != last && std::isspace((unsigned char)*first))
++		++first;
++	return first;
++}
++
+ bool findDouble(const librevenge::RVNGString &str, double &res, librevenge::RVNGUnit &unit)
+ {
+ 	if (str.empty())
+ 		return false;
+ 
+-	const char *first = str.cstr();
+-	const char *const last = first + str.size();
+-
+-	using namespace boost::spirit::qi;
+-	using namespace librevenge;
++	const char *first = skipSpaces(str.cstr(), str.cstr() + str.size());
++	const char *const last = str.cstr() + str.size();
++	if (first != last && *first == '+')
++		++first;
++	static const locale_t cLocale = newlocale(LC_ALL_MASK, "C", nullptr);
++	char *end = nullptr;
++	const double value = strtod_l(first, &end, cLocale);
++	if (!end || end == first)
++		return false;
++	first = skipSpaces(end, last);
++	const size_t rest = size_t(last - first);
+ 	double ratio = 1;
+-	symbols<char, RVNGUnit> simpleUnit;
+-	simpleUnit.add("pt", RVNG_POINT)("in", RVNG_INCH)("*", RVNG_TWIP);
+-	if (phrase_parse(first, last,
+-	                 //  Begin grammar
+-	                 (
+-	                     double_ >> simpleUnit
+-	                     | double_ >> "%" >> attr(RVNG_PERCENT) >> attr(100.0)
+-	                     | double_ >> "cm" >> attr(RVNG_INCH) >> attr(2.54)
+-	                     | double_ >> "mm" >> attr(RVNG_INCH) >> attr(25.4)
+-	                     | double_ >> attr(RVNG_GENERIC)
+-	                 ),
+-	                 //  End grammar
+-	                 space,
+-	                 res, unit, ratio))
++	using namespace librevenge;
++	if (rest >= 2 && std::strncmp(first, "pt", 2) == 0)
+ 	{
+-		res /= ratio;
+-		return first == last;
++		unit = RVNG_POINT;
++		first += 2;
+ 	}
+-
+-	return false;
++	else if (rest >= 2 && std::strncmp(first, "in", 2) == 0)
++	{
++		unit = RVNG_INCH;
++		first += 2;
++	}
++	else if (rest >= 1 && *first == '*')
++	{
++		unit = RVNG_TWIP;
++		first += 1;
++	}
++	else if (rest >= 1 && *first == '%')
++	{
++		unit = RVNG_PERCENT;
++		ratio = 100.0;
++		first += 1;
++	}
++	else if (rest >= 2 && std::strncmp(first, "cm", 2) == 0)
++	{
++		unit = RVNG_INCH;
++		ratio = 2.54;
++		first += 2;
++	}
++	else if (rest >= 2 && std::strncmp(first, "mm", 2) == 0)
++	{
++		unit = RVNG_INCH;
++		ratio = 25.4;
++		first += 2;
++	}
++	else
++		unit = RVNG_GENERIC;
++	if (skipSpaces(first, last) != last)
++		return false;
++	res = value / ratio;
++	return true;
+ }
+ 
+ bool findInt(const librevenge::RVNGString &str, int &res)
+@@ -69,10 +112,12 @@
+ 	if (str.empty())
+ 		return false;
+ 
+-	const char *first = str.cstr();
+-	const char *const last = first + str.size();
+-	using namespace boost::spirit::qi;
+-	return phrase_parse(first, last, int_, space, res) && first == last;
++	const char *first = skipSpaces(str.cstr(), str.cstr() + str.size());
++	const char *const last = str.cstr() + str.size();
++	if (first != last && *first == '+')
++		++first;
++	const std::from_chars_result parsed = std::from_chars(first, last, res);
++	return parsed.ec == std::errc() && skipSpaces(parsed.ptr, last) == last;
+ }
+ 
+ bool findBool(const librevenge::RVNGString &str, bool &res)
+@@ -80,10 +125,20 @@
+ 	if (str.empty())
+ 		return false;
+ 
+-	const char *first = str.cstr();
+-	const char *const last = first + str.size();
+-	using namespace boost::spirit::qi;
+-	return phrase_parse(first, last, no_case[bool_], space, res) && first == last;
++	const char *first = skipSpaces(str.cstr(), str.cstr() + str.size());
++	const char *const last = str.cstr() + str.size();
++	std::string word;
++	while (first != last && !std::isspace((unsigned char)*first))
++		word += char(std::tolower((unsigned char)*first++));
++	if (skipSpaces(first, last) != last)
++		return false;
++	if (word == "true")
++		res = true;
++	else if (word == "false")
++		res = false;
++	else
++		return false;
++	return true;
+ }
+ 
+ } // anonymous namespace

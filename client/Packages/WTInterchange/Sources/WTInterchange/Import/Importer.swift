@@ -17,6 +17,7 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
     case svg
     case dxf
     case eps
+    case freehand
     case tiff
     case jpeg
     case png
@@ -38,6 +39,7 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
         case .svg: return "SVG"
         case .dxf: return "AutoCAD DXF"
         case .eps: return "Encapsulated PostScript"
+        case .freehand: return "FreeHand"
         case .tiff: return "TIFF"
         case .jpeg: return "JPEG"
         case .png: return "PNG"
@@ -59,6 +61,8 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
         case .svg: return ["svg", "svgz"]
         case .dxf: return ["dxf"]
         case .eps: return ["eps", "epsf", "epsi"]
+        // FreeHand 3 to MX (11) documents and templates.
+        case .freehand: return ["fh", "fh3", "fh4", "fh5", "fh7", "fh8", "fh9", "fh10", "fh11", "ft7", "ft8", "ft9", "ft10", "ft11"]
         case .tiff: return ["tif", "tiff"]
         case .jpeg: return ["jpg", "jpeg", "jpe"]
         case .png: return ["png"]
@@ -80,6 +84,8 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
         case .svg: return ["public.svg-image"]
         case .dxf: return ["com.autodesk.dxf"]
         case .eps: return ["com.adobe.encapsulated-postscript"]
+        // No system type exists; the app declares this one (project.yml, UTImportedTypeDeclarations).
+        case .freehand: return ["com.macromedia.freehand"]
         case .tiff: return ["public.tiff"]
         case .jpeg: return ["public.jpeg"]
         case .png: return ["public.png"]
@@ -96,7 +102,7 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
     /// Whether the format imports as an image object.
     public var isBitmap: Bool {
         switch self {
-        case .pdf, .illustrator, .svg, .dxf, .eps: return false
+        case .pdf, .illustrator, .svg, .dxf, .eps, .freehand: return false
         default: return true
         }
     }
@@ -143,6 +149,7 @@ public enum ImportFormat: String, CaseIterable, Hashable, Sendable, Codable, Cus
         if starts([0x38, 0x42, 0x50, 0x53]) { return .psd }                          // 8BPS
         if starts([0x42, 0x4D]) { return .bmp }                                      // BM
         if starts([0xC5, 0xD0, 0xD3, 0xC6]) { return .eps }                          // DOS EPS binary header
+        if FreeHandFile.isFreeHand(data) { return .freehand }                         // AGD, FH3, or FreeHand 10's 0x1C records
         if starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], at: 8) { return .webp }
         if starts([0x66, 0x74, 0x79, 0x70], at: 4) {                                // ftyp
             let brand = String(decoding: head.dropFirst(8).prefix(4), as: UTF8.self)
@@ -322,6 +329,16 @@ public struct ImportRegistry: Sendable {
     /// Every UTI the Import sheet and drag and drop accept.
     public var acceptedUTIs: [String] {
         availableFormats.flatMap(\.utis)
+    }
+
+    /// The types an Open panel offers for `acceptedUTIs`: each declared type the system knows,
+    /// and for a format whose type it does not know (FreeHand's, when the app's declaration is
+    /// missing) a type per file extension, so its files can still be chosen.
+    public var acceptedTypes: [UTType] {
+        availableFormats.flatMap { format -> [UTType] in
+            let declared = format.utis.compactMap { UTType($0) }
+            return declared.isEmpty ? format.fileExtensions.compactMap { UTType(filenameExtension: $0) } : declared
+        }
     }
 
     /// The importer of `format`.

@@ -679,6 +679,7 @@
 		C8ACDC26250419F798419AB3 /* RulerHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F93D487B956CA64005DBEFB /* RulerHostView.swift */; };
 		C93495B85918B105BD51698B /* ToolbarFlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D28D0AB296D0E5F4A45927 /* ToolbarFlowLayout.swift */; };
 		C93C63A5799135D44B58BE1C /* PanelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A131E4CFAB2CD55BF2F3AA45 /* PanelCatalog.swift */; };
+		C947FA931F3FEEE196AB3F19 /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = AD8E20EA162E54D5E8D54D64 /* Credits.html */; };
 		C9613A38387F89DD6831998A /* EditFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47F538F7DFD3B97CDD4775EA /* EditFeatures.swift */; };
 		C9ADBD2022D263FEDB23AAFE /* WireTunerPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EE6230F3CB25ABDB47127CC9 /* WireTunerPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C9EFA3D8C1BE7DBF13710C8F /* TextEditingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F464345EBB18538FEF72F899 /* TextEditingSession.swift */; };
@@ -1509,6 +1510,7 @@
 		AD64AC458AC0BB2C7CA8F44A /* PanelAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelAppearance.swift; sourceTree = "<group>"; };
 		AD697E6CFC68E1A09C12008D /* BlendUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlendUITests.swift; sourceTree = "<group>"; };
 		AD75D474D14B4C52119E7DDD /* MissingFontsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissingFontsModel.swift; sourceTree = "<group>"; };
+		AD8E20EA162E54D5E8D54D64 /* Credits.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = Credits.html; sourceTree = "<group>"; };
 		AD9DCD210B84A7BC67C18664 /* ControlReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlReachabilityTests.swift; sourceTree = "<group>"; };
 		ADE50C7CF931608ADE21324B /* ReviewSheetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewSheetModel.swift; sourceTree = "<group>"; };
 		AF518BAE563B8B5C9B2A840A /* builtin.quarkxpress.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = builtin.quarkxpress.json; sourceTree = "<group>"; };
@@ -2277,6 +2279,7 @@
 				CC5433ADB020314076A5BA94 /* Views */,
 				3B89478B52DC3A48D7E29FD3 /* Web */,
 				BA559F4D67053E6B84D9EE08 /* AppDelegate.swift */,
+				AD8E20EA162E54D5E8D54D64 /* Credits.html */,
 			);
 			path = WTApp;
 			sourceTree = "<group>";
@@ -3610,6 +3613,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C947FA931F3FEEE196AB3F19 /* Credits.html in Resources */,
 				78B33EDAE8F49E4246777118 /* PatternPresets.json in Resources */,
 				D6F87BCBED633DDBE7AF7374 /* ShapeClassifier.wtmodel in Resources */,
 				03166915ACBEAEF973D9B30A /* WireTuner.sdef in Resources */,

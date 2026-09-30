@@ -44,6 +44,41 @@ extension ImportedPaint {
         case .none: return .none
         case .solid(let color): return .solid(color)
         case .gradient(let gradient): return .gradient(gradient)
+        case .swatch(let swatch): return .solid(swatch.color)
+        case .pattern(let pattern): return .pattern(pattern)
+        case .lens(let lens): return .lens(lens)
+        case .tiled(let tile):
+            return .tiled(TiledFill(tile: tile.nodes.flatMap { ImportedScene.displayItems($0, .identity) }, angle: tile.angle, scaleX: tile.scaleX,
+                                    scaleY: tile.scaleY, offset: tile.offset))
+        }
+    }
+}
+
+extension ImportedNode {
+    /// The node's control-point bounds under `transform` (its parent's space to the result's):
+    /// path and clip geometry, image and placed-file rectangles, text baselines' origins and a
+    /// text path.  Null for nothing.
+    public func controlBounds(_ transform: AffineTransform = .identity) -> Rect {
+        func points(_ contours: [ImportedContour], _ t: AffineTransform) -> Rect {
+            Rect(boundingPoints: contours.flatMap(\.allPoints).map(t.apply))
+        }
+        switch self {
+        case .path(let path):
+            return points(path.contours, path.transform.concatenating(transform))
+        case .group(let group):
+            let total = group.transform.concatenating(transform)
+            let children = group.children.reduce(Rect.null) { $0.union($1.controlBounds(total)) }
+            return group.clip.map { children.union(points($0.contours, $0.transform.concatenating(total))) } ?? children
+        case .text(let text):
+            let total = text.transform.concatenating(transform)
+            var rect = Rect(boundingPoints: text.runs.map { total.apply($0.origin) })
+            if let frame = text.frame { rect = rect.union(Rect(x: 0, y: 0, width: frame.width, height: frame.height).applying(total)) }
+            if let path = text.path { rect = rect.union(points(path.contours, path.transform.concatenating(total))) }
+            return rect
+        case .image(let image):
+            return image.naturalRect.applying(image.transform.concatenating(transform))
+        case .placed(let placed):
+            return placed.bounds.applying(placed.transform.concatenating(transform))
         }
     }
 }
@@ -134,10 +169,21 @@ extension ImportedScene {
             return path.opacity < 1 ? [.group(GroupItem(children: [item], opacity: path.opacity))] : [item]
         case .group(let group):
             let total = group.transform.concatenating(parent)
-            let children = group.children.flatMap { displayItems($0, total) }
+            var children = group.children.flatMap { displayItems($0, total) }
             let clip = group.clip.map { clip in DisplayPath(elements: clip.contours.map { $0.applying(clip.transform.concatenating(total)) }.flatMap(\.displayElements)) }
             if clip == nil && group.opacity >= 1 {
                 return children
+            }
+            if group.clipAppearance, var path = group.clip {
+                // The clip path's fill below the clipped contents and its stroke above them.
+                let stroke = path.stroke
+                path.stroke = nil
+                let below = displayItems(.path(path), total)
+                path.stroke = stroke
+                path.fill = .none
+                let above = stroke == nil ? [] : displayItems(.path(path), total)
+                children = [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero))]
+                return [.group(GroupItem(children: below + children + above, opacity: group.opacity))]
             }
             return [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero, opacity: group.opacity))]
         case .image(let image):

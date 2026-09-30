@@ -156,7 +156,7 @@ final class ImportController {
         panel.prompt = "Import"
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = registry.acceptedUTIs.compactMap { UTType($0) } + [StyleTransferModel.libraryType, SymbolTransferFeatures.libraryType]
+        panel.allowedContentTypes = registry.acceptedTypes + [StyleTransferModel.libraryType, SymbolTransferFeatures.libraryType]
         let accessory = ImportPanelAccessoryModel(importer: self)
         accessory.window = { [weak panel] in panel }
         panel.delegate = accessory

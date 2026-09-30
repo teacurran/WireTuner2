@@ -931,6 +931,67 @@ Merge: the definition is an element insert of a new grid, so it merges as Define
 does; two offline definitions keep both and the page register is LWW (perspective.adoc, "Reshaping
 the built-in grid").  No new op, register or conformance vector.
 
+[[D-083]]
+=== D-083 FreeHand import: libfreehand's parser built from source, its records converted by WireTuner
+WireTuner is FreeHand-shaped and its users bring FreeHand files, so Q-003's "revisit by user
+demand" has come for FreeHand (xref:import-formats.adoc#freehand[Import formats, FreeHand]; IO-041).
+FreeHand's format was never published, and the only maintained reader is libfreehand (the
+Document Liberation Project's, used by LibreOffice; C++, MPL-2.0), which reads FreeHand 3 to MX (11).
+
+* *Link libfreehand; do not rewrite it.*  A Swift reader of the record format would have to be
+  written from libfreehand's source -- the only description of the format -- which makes it a
+  translation (MPL-covered anyway) and throws away a decade of fixes against real files.  Linking
+  keeps WireTuner's code its own and libfreehand upgradable: a new release is a new pin and the two
+  patches re-applied.
+* *Use its parser, not its drawing.*  libfreehand ends by drawing through librevenge, which flattens
+  what WireTuner keeps live: clipping groups become SVG images, tiled fills bitmaps, symbols and
+  blends plain groups, named and spot colours RGB, and layer names and hidden layers are lost.  A
+  bridge of ours (`bridge/FHRecordExport.cpp`, MPL-2.0 like the code it befriends) writes every
+  record libfreehand collected as JSON, and `WTInterchange/Import/FreeHand/` converts the records
+  itself, following libfreehand's lookup rules (styles, attribute inheritance, text runs) but
+  producing WireTuner's live objects.  The JSON costs a copy of the file's data (images as hex);
+  FreeHand files are small (the owner's largest imports in about a second in a debug build).
+* *Built from source as a Swift package, not a binary.*  `client/Vendor/libfreehand` holds the
+  vendored sources: `tools/freehand/vendor.sh` fetches libfreehand 0.1.4 and librevenge 0.0.6 by
+  URL and SHA-256, copies only the files compiled and applies `tools/freehand/patches`
+  (`--check` proves the tree is exactly that).  SwiftPM compiles it for whatever builds
+  `WTInterchange` -- macOS arm64 and x86_64, iOS devices and simulators (D-073) -- so no
+  xcframework is kept in the repository and nothing comes from Homebrew.  Its dependencies are cut:
+  Boost (two librevenge files patched to plain C++), ICU (two UTF macros in shim headers) and
+  Little CMS (a process colour's CMYK is kept as CMYK, which is what WireTuner wants; libfreehand's
+  own RGB preview uses the plain formula); zlib is the SDK's.  The package sits outside
+  `client/Packages`, so the 95% gate measures only WireTuner's Swift (third-party code, like
+  `.build`'s).
+* *Licence.*  MPL-2.0 is file-level copyleft: the app may stay closed, but recipients of the app
+  must be able to get the source of the MPL files as shipped -- the vendored files, our patches and
+  the bridge.  The About panel's credits (`WTApp/Credits.html`) name both libraries, their licence
+  and that their source is available on request; `tools/freehand/vendor.sh --archive` writes that
+  source bundle, to be sent on request or attached to a release (librevenge is also LGPL-2.1;
+  WireTuner takes it under MPL).
+* *Kept live where the file holds the data*: layers, pages (each page's rectangle, which libfreehand
+  only unions -- patch), groups, clipping groups with the clipping path's own fill and stroke,
+  composite paths, named colours as swatches with CMYK kept (patch: the colour records' bytes),
+  graduated, radial, lens, tiled and pattern fills, dashes, arrowheads, area text, text on a path,
+  symbols and instances, images.  *Expanded with a notice* where libfreehand does not read the
+  data: blends (their steps; the step count and key objects are in skipped bytes), and envelopes,
+  perspective, brush strokes, extrusions, shadows, glows and FreeHand 10 and MX's other live
+  effects (the objects come in without them).  Custom and textured fills import as their colour,
+  pattern and custom strokes as basic strokes.
+* *Unverified, for lack of files that use them* (the owner's corpus -- twelve FreeHand 10 files and
+  one FreeHand 9 -- has none): the direction of graduated fills and the colour order of radial
+  fills (both as libfreehand reads them: its ODF angle 90° − a, so 90° runs from the top down, and
+  the first colour outside), the sign of tile angles, arrowhead orientation, FreeHand MX files.  FreeHand 9 and later
+  keep a named colour's spot or process choice in bytes whose meaning is unknown, so a colour is
+  spot when its name comes from a spot library (PANTONE, TOYO, DIC, HKS, ANPA) and otherwise
+  process; FreeHand 8's `SpotColor` records are spot.
+* *Import only.*  WireTuner writes no FreeHand files: the format is undocumented and nothing reads
+  them any more; PDF, EPS, AI and SVG stay the export routes.
+
+A FreeHand file opens as a document through IO-040's document importers (D-082), each page with the
+objects that lie on it.  The corpus test (`FreeHandCorpusTests`) reads the owner's files from
+`WT_EXTERNAL_CORPUS` and never copies them into the repository; no FreeHand files with a licence
+allowing it exist to vendor, so the repository's tests write theirs byte by byte.
+
 == Open questions
 
 [[Q-001]]
@@ -945,7 +1006,8 @@ PANTONE and similar libraries need licences.  Ship none in v1; allow import of A
 [[Q-003]]
 === Q-003 Legacy illustration formats
 Import of older proprietary illustration formats is not planned; PDF, EPS, AI and SVG are the
-interchange routes.  Revisit by user demand.
+interchange routes.  Revisit by user demand.  FreeHand was revisited and is imported (D-083);
+CorelDRAW, Canvas, Xara and the rest remain unplanned.
 
 [[Q-004]]
 === Q-004 Plug-in SDK

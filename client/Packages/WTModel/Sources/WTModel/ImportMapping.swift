@@ -139,6 +139,7 @@ public struct PlaceImportedScene: Command {
         // Only a file placed whole has a link record; images inside a vector file have none.
         var writer = ImportWriter(state: state, link: scene.kind == .vector ? nil : link, poster: poster)
         writer.embeddedProfiles = embeddedProfiles
+        try writer.prepare(scene, builder: &builder)
         let target = ImportTarget.resolve(preferred: layer, in: state)
         // No layer takes it: a new one at the top ("Foreground" in a document without layers).
         let parent = try target.layer ?? writer.createLayer(name: target.fellBack ? "Imported Artwork" : "Foreground", above: nil, builder: &builder)
@@ -204,6 +205,7 @@ public struct ConvertPlacedFile: Command {
         guard Self.accepts(node, in: state), !scene.nodes.isEmpty, let parent = Objects.parent(of: node, in: state) else { return }
         let fit = ImportPlacement.fit(Self.natural(node, in: state), fillWidth: false).transform(for: scene.bounds)
         var writer = ImportWriter(state: state, link: nil, poster: nil)
+        try writer.prepare(scene, builder: &builder)
         let key = try Arranging.keys(next: node, above: true, count: 1, in: state)[0]
         try writer.create(scene.subtree, parent: parent, position: key, placement: fit.concatenating(Objects.transform(of: node, in: state)), builder: &builder)
         builder.append(Ops.setDeleted(node))
@@ -223,6 +225,8 @@ struct ImportWriter {
     var embeddedProfiles = EmbeddedProfilePolicy.useEmbedded
     /// Profile assets created in this change.
     private var profileAssets = ProfileAssets.Pending()
+    /// The swatches and symbols the nodes refer to (`prepare(_:builder:)`).
+    var references = ImportReferences()
 
     init(state: EngineState, link: ImportLink?, poster: ImportedPoster?) {
         self.state = state
@@ -246,13 +250,19 @@ struct ImportWriter {
                          builder: inout ChangeBuilder) throws -> OpID {
         switch node {
         case .group(let group):
+            if case .instance(let key) = group.role,
+               let id = instance(key, name: group.name, transform: group.transform.concatenating(placement), builder: &builder, parent: parent, position: position) {
+                return id
+            }
             let id = try NodeCopier.create(NodeTree(props: ImportMapping.group(group, placement: placement)), parent: parent, position: position,
                                            schema: state.schema, builder: &builder)
             var children = group.children
             var clip: ImportedPath?
             if var path = group.clip {
-                path.fill = .none
-                path.stroke = nil
+                if !group.clipAppearance {
+                    path.fill = .none
+                    path.stroke = nil
+                }
                 path.opacity = 1
                 clip = path
                 children.insert(.path(path), at: 0)
@@ -269,7 +279,7 @@ struct ImportWriter {
             }
             return id
         case .path(let path):
-            return try NodeCopier.create(NodeTree(props: ImportMapping.path(path, placement: placement)), parent: parent, position: position,
+            return try NodeCopier.create(NodeTree(props: ImportMapping.path(path, placement: placement, references: references)), parent: parent, position: position,
                                          schema: state.schema, builder: &builder)
         case .text(let text):
             return createText(text, parent: parent, position: position, placement: placement, builder: &builder)
@@ -297,10 +307,27 @@ struct ImportWriter {
                             builder: inout ChangeBuilder) -> OpID {
         let origin = text.runs.first?.origin ?? Point(x: 0, y: 0)
         var props = Wiretuner_Doc_V1_NodeProps()
-        props.text.common = ImportMapping.common(name: text.name, transform: AffineTransform.translation(x: origin.x, y: origin.y)
-            .concatenating(text.transform).concatenating(placement))
-        props.text.block.autoWidth = true
+        if let frame = text.frame, text.path == nil {
+            // Area text: the block's origin is its rectangle's top-left corner.
+            props.text.common = ImportMapping.common(name: text.name, transform: text.transform.concatenating(placement))
+            props.text.block.width = min(max(frame.width.isFinite ? frame.width : 0, 0), 16_164)
+            props.text.block.height = min(max(frame.height.isFinite ? frame.height : 0, 0), 16_164)
+        } else if text.path != nil {
+            // Text on a path: the path child is in the block's space.
+            props.text.common = ImportMapping.common(name: text.name, transform: text.transform.concatenating(placement))
+            props.text.onPath.mode = .along
+        } else {
+            props.text.common = ImportMapping.common(name: text.name, transform: AffineTransform.translation(x: origin.x, y: origin.y)
+                .concatenating(text.transform).concatenating(placement))
+            props.text.block.autoWidth = true
+        }
         let node = builder.append(Ops.create(parent: parent, position: position, props: props))
+        if var path = text.path {
+            path.fill = .none
+            path.stroke = nil
+            path.opacity = 1
+            builder.append(Ops.create(parent: node, position: [0x80], props: ImportMapping.path(path, placement: .identity)))
+        }
         // The runs' strings with a line break between runs on different baselines.
         var scalars: [Unicode.Scalar] = []
         var spans: [(run: ImportedTextRun, start: Int, count: Int)] = []
@@ -318,9 +345,19 @@ struct ImportWriter {
         for span in spans where span.count > 0 {
             let start = OpID(counter: first.counter + UInt64(span.start), replica: first.replica)
             let end = OpID(counter: first.counter + UInt64(span.start + span.count - 1), replica: first.replica)
-            for value in ImportMapping.marks(span.run) {
+            for value in ImportMapping.marks(span.run, references: references) {
                 builder.append(ImportMapping.mark(node, field, from: start, to: end, value: value))
             }
+        }
+        if let alignment = ImportMapping.alignment(text.alignment) {
+            // Every paragraph: each newline's registers and the tail's.
+            var paragraph = Wiretuner_Doc_V1_ParagraphProps()
+            paragraph.alignment = alignment
+            for (offset, scalar) in scalars.enumerated() where scalar == "\n" {
+                let newline = OpID(counter: first.counter + UInt64(offset), replica: first.replica)
+                builder.append(Ops.set(node, [TextFields.paragraph(newline).child(1)], values: TextEditing.paragraphValues(paragraph, newline: true)))
+            }
+            builder.append(Ops.set(node, [TextFields.tailParagraph.child(1)], values: TextEditing.paragraphValues(paragraph, newline: false)))
         }
         return node
     }
@@ -412,13 +449,13 @@ enum ImportMapping {
         return props
     }
 
-    static func path(_ path: ImportedPath, placement: AffineTransform) -> Wiretuner_Doc_V1_NodeProps {
+    static func path(_ path: ImportedPath, placement: AffineTransform, references: ImportReferences = ImportReferences()) -> Wiretuner_Doc_V1_NodeProps {
         var props = Wiretuner_Doc_V1_NodeProps()
         props.path.common = common(name: path.name, transform: path.transform.concatenating(placement), url: path.url)
         props.path.contours = path.contours.map(contour)
         props.path.evenOdd = path.fillRule == .evenOdd
-        if let fill = fill(path.fill) { props.path.appearance.fills = [fill] }
-        if let stroke = path.stroke.flatMap(stroke) { props.path.appearance.strokes = [stroke] }
+        if let fill = fill(path.fill, references: references) { props.path.appearance.fills = [fill] }
+        if let stroke = path.stroke.flatMap({ stroke($0, references: references) }) { props.path.appearance.strokes = [stroke] }
         if let effect = transparency(path.opacity) { props.path.appearance.effects = [effect] }
         return props
     }
@@ -490,7 +527,7 @@ enum ImportMapping {
         return effect
     }
 
-    static func fill(_ paint: ImportedPaint) -> Wiretuner_Doc_V1_Fill? {
+    static func fill(_ paint: ImportedPaint, references: ImportReferences = ImportReferences()) -> Wiretuner_Doc_V1_Fill? {
         var fill = Wiretuner_Doc_V1_Fill()
         switch paint {
         case .none:
@@ -498,20 +535,44 @@ enum ImportMapping {
         case .solid(let color):
             fill.settings.kind = .basic
             fill.settings.basic.color = colorRef(color)
+        case .swatch:
+            fill.settings.kind = .basic
+            fill.settings.basic.color = references.colorRef(paint)!
         case .gradient(let gradient):
             fill.settings.kind = .gradient
             fill.settings.gradient = self.gradient(gradient)
+        case .pattern(let pattern):
+            fill.settings.kind = .pattern
+            fill.settings.pattern.color = colorRef(pattern.color)
+            fill.settings.pattern.bitmap = patternBitmap(pattern.bitmap)
+        case .lens(let lens):
+            fill.settings.kind = .lens
+            fill.settings.lens = self.lens(lens)
+        case .tiled(let tile):
+            guard let tiled = tiled(tile, references: references) else { return nil }
+            fill.settings.kind = .tiled
+            fill.settings.tiled = tiled
         }
         return fill
     }
 
-    /// A Basic stroke; a gradient stroke paints its first stop's colour.
-    static func stroke(_ stroke: ImportedStroke) -> Wiretuner_Doc_V1_Stroke? {
-        guard let color = stroke.paint.representativeColor else { return nil }
+    /// A Basic stroke (a Pattern stroke for a pattern paint); a gradient stroke paints its first
+    /// stop's colour, a named colour references its swatch.
+    static func stroke(_ stroke: ImportedStroke, references: ImportReferences = ImportReferences()) -> Wiretuner_Doc_V1_Stroke? {
+        guard let color = references.colorRef(stroke.paint) else { return nil }
         var value = Wiretuner_Doc_V1_Stroke()
-        value.settings.kind = .basic
         let style = stroke.style
-        value.settings.basic.color = colorRef(color)
+        if case .pattern(let pattern) = stroke.paint {
+            value.settings.kind = .pattern
+            value.settings.pattern.color = color
+            value.settings.pattern.width = min(max(style.width, 0), 16_164)
+            value.settings.pattern.bitmap = patternBitmap(pattern.bitmap)
+            return value
+        }
+        value.settings.kind = .basic
+        value.settings.basic.color = color
+        if let head = stroke.startArrowhead { value.settings.basic.startArrowhead = arrowhead(head) }
+        if let head = stroke.endArrowhead { value.settings.basic.endArrowhead = arrowhead(head) }
         value.settings.basic.width = min(max(style.width, 0), 16_164)
         value.settings.basic.cap = switch style.cap {
         case .butt: .butt
@@ -594,8 +655,8 @@ enum ImportMapping {
 
     /// The character marks of a run: font family and style (from its PostScript name), size and
     /// fill.
-    static func marks(_ run: ImportedTextRun) -> [Wiretuner_Doc_V1_TextMarkValue] {
-        let (family, style) = font(run.fontName)
+    static func marks(_ run: ImportedTextRun, references: ImportReferences = ImportReferences()) -> [Wiretuner_Doc_V1_TextMarkValue] {
+        let (family, style) = run.family.map { ($0, run.style ?? "") } ?? font(run.fontName)
         var values: [Wiretuner_Doc_V1_TextMarkValue] = []
         var value = Wiretuner_Doc_V1_TextMarkValue()
         value.fontFamily = String(family.prefix(256))
@@ -610,12 +671,22 @@ enum ImportMapping {
             value.size = min(run.fontSize, 10_000)
             values.append(value)
         }
-        if let color = run.fill.representativeColor {
+        if let color = references.colorRef(run.fill) {
             value = Wiretuner_Doc_V1_TextMarkValue()
-            value.fill = colorRef(color)
+            value.fill = color
             values.append(value)
         }
         return values
+    }
+
+    /// The stored alignment, nil for left (the default, written as nothing).
+    static func alignment(_ alignment: ImportedTextAlignment) -> Wiretuner_Doc_V1_Alignment? {
+        switch alignment {
+        case .left: return nil
+        case .right: return .right
+        case .center: return .center
+        case .justify: return .justified
+        }
     }
 
     /// The family and style of the installed font named `postScriptName`; a font that is not

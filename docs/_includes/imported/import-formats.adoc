@@ -11,6 +11,7 @@ command, dragging from the Finder, pasting -- are on xref:importing.adoc[Importi
 
 |PDF |`.pdf` |Paths, text, images |Options: pages, text handling, notes and links.
 |Adobe Illustrator |`.ai` |Paths, text, images |Version 9 and later (PDF-based) fully; earlier versions through the PostScript reader.
+|FreeHand |`.fh3` to `.fh11`, `.fh`, `.ft7` to `.ft11` |Layers, paths, text, images, symbols |FreeHand 3 to MX.  See <<freehand,FreeHand>>.
 |SVG |`.svg`, `.svgz` |Paths, text, images |Options: text handling.
 |AutoCAD DXF |`.dxf` |Paths, text |Options: invisible attributes, white strokes and fills.
 |Encapsulated PostScript |`.eps` |Placed file with preview |The PostScript is kept and written into EPS exports; one carrying a PDF-compatible stream can be converted to editable objects.
@@ -87,6 +88,41 @@ Older Illustrator files (versions 1.1 through 8) and Illustrator EPS files are P
 {product} reads their drawing operators directly -- paths, fills, strokes, text and placed
 images -- without a PostScript interpreter, which covers everything the format was designed to
 carry.  A file that uses PostScript constructs outside that set is placed as an EPS instead.
+
+[[freehand]]
+== FreeHand
+
+FreeHand documents and templates from FreeHand 3 to FreeHand MX (11) open in {product} as editable
+artwork, and most of what FreeHand could do comes in as the same live feature here, because
+{product} follows FreeHand's model:
+
+* *Layers* become layers when you open the file, and groups named after them when you import it
+  into a document.  Hidden layers are left out of an import; the Guides layer is never artwork.
+* *Pages*: every page of a multi-page document comes in; opening the file gives you its pages,
+  importing places the whole pasteboard spread at its natural size.
+* *Paths, rectangles, ellipses, compound paths and groups* keep their shapes and fill rules.
+  Rectangles and ellipses arrive as paths.
+* *Paste Inside* becomes a clipping group whose clipping path keeps its own fill and stroke, drawn
+  as FreeHand drew them.
+* *Colours*: named colours become swatches of the same name -- CMYK colours stay CMYK -- and
+  White, Black and Registration are the document's own.  A colour from a spot library (PANTONE,
+  TOYO, DIC, HKS) becomes a spot colour; check other spot colours in the Swatches panel, because
+  FreeHand 9 and later record the choice in a way {product} cannot read.
+* *Fills*: basic, graduated and radial fills (with all their colours), lens fills (transparency,
+  magnify, lighten, darken, invert, monochrome), tiled fills and pattern fills stay live.  Custom
+  and textured fills become their colour.
+* *Strokes*: width, colour, dash and arrowheads.  Pattern and custom strokes become basic strokes.
+* *Text*: text blocks keep their frame, paragraphs, fonts, sizes, colours and alignment; text
+  attached to a path stays on its path.  A font you do not have is kept by name for font
+  substitution.  Text blocks with several columns or rows arrive as one frame.
+* *Symbols* become symbols in the Library and their instances stay instances when you import the
+  file; a file opened as a document shows its instances as groups.
+* *Images* placed in the file come in as images.
+* *Blends* come in as groups of their steps; envelopes, perspective projections, brush strokes,
+  3D extrusions, shadows, glows and the other live effects FreeHand added in version 10 and MX come
+  in without the effect.
+
+The import notice lists whatever was approximated or left out of a file.
 
 == SVG
 
@@ -389,6 +425,45 @@ and from `preview` -- the PNG blob and its pixel size -- `preview_sha256`, `prev
 `.svgAnimation` → `svg_animation` with an `asset` node for the blob, `natural_size` from
 `bounds`, `duration_ms` and `kinds` from the case; the poster is WEB-025's.
 
+|`ImportedPaint.swatch`
+|A Basic fill (or stroke, or text fill mark) whose `ColorRef.swatch` names the document's swatch of
+that name when it is one of the protected White, Black and Registration (FreeHand's
+`[Registration]` reads as Registration) or holds the same colour and spot choice; otherwise a swatch
+created in the same change at the end of the list (`SwatchProps` name, value, spot), `-N` suffixed
+when the name is taken.  The reference caches the swatch's colour.  All of a scene's swatches are
+written before its nodes.
+
+|`ImportedPaint.pattern`, `.lens`, `.tiled`
+|`PatternFill` (colour, bitmap rows), `LensFill` (type, colour, amount 0...100, magnification
+1...20, centrepoint, objects only), `TiledFill` (the tile's paths and groups as the `Subtree`
+through `Subtrees.tile`, moved so its bounds start at the origin; angle, scales in percent -- 0 or
+not finite read 100 -- and offset).  A tile keeps no clip reference, so its clipping groups are
+plain groups; text, images and placed files have no tile drawing.  A pattern stroke is a
+`PatternStroke` (colour, width, bitmap).
+
+|`ImportedStroke` arrowheads
+|`BasicStroke.start_arrowhead` / `end_arrowhead`: the outline's contours (at most 64) in stroke
+widths, filled, named.
+
+|`ImportedGroup.clipAppearance`
+|The clip path keeps its fill and stroke (they draw below and above the contents, clip-group
+rendering, OBJ-028); without it the clip path is geometry only, as for PDF and SVG.
+
+|`ImportedGroup.Role.instance(symbol:)` with `ImportedScene.symbols`
+|Each `ImportedSymbol` is a `symbol` node after the document's (name; origin the artwork's control
+bounds' centre, as *Convert to Symbol* sets it) with its artwork as children; symbols used inside
+other symbols come first.  An instance group is an `instance` node of that symbol whose transform
+is the translation to the origin, then the group's transform, then the placement; its name is the
+group's.  A group naming a symbol the scene does not hold is imported as the plain group.
+
+|`ImportedText.frame`, `.path`, `.alignment`; `ImportedTextRun.family`, `.style`
+|A frame makes area text: the block's origin is the rectangle's top-left corner (the transform
+without a baseline offset), `width` and `height` set, `auto_width` off.  A path makes text on a
+path: `TextOnPathProps.mode` along, the path a child `path` node (no paint) in the block's space.
+An alignment other than left is written on every paragraph (each newline's registers and
+`tail_paragraph`).  A run's family and style, when given, are the marks' font family and style
+instead of the PostScript name's lookup.
+
 |`ImportedScene.blobs`
 |Every blob once, in first-use order: stored and queued before the change that references them;
 two imports of the same bytes share one blob (content addressing).
@@ -605,6 +680,62 @@ before 2007 that are not UTF-8 are read as Windows-1252 and `\U+XXXX` escapes ar
 AutoCAD, LibreCAD and Blender fixtures are written in the tests in each program's style, and
 the round trips go through the DXF exporter; no third-party files are vendored.
 
+NOTE: As built by IO-041 (xref:decisions.adoc#D-083[D-083]; `WTInterchange/Import/FreeHand/`,
+`client/Vendor/libfreehand`, `tools/freehand/`, `WTModel/ImportLiveMapping.swift`).  The vendored
+libfreehand 0.1.4 parses the file into its record collector (FreeHand 3 to 11: `AGD` or `FH3` at
+the start, or inside the `0x1C` records a FreeHand 10 or MX file begins with; version 9 and later
+inflated with zlib); the bridge (`bridge/FHRecordExport.cpp`, C interface `CFreeHand.h`) writes every
+collected record as JSON, which `FreeHandRecords` decodes and `FreeHandConverter` walks.  Space:
+FreeHand's inches, y up, to points, y down, with the pages' union's top-left corner at the origin;
+geometry is baked into that space (paths carry identity transforms); text, images and symbol
+instances keep a transform.  Pages are each `VMpObj` record's page start and size (patch 0002 keeps
+them; libfreehand keeps only their union), else the union, else the size in the file's tail, else US
+Letter; `ImportDescriptor.pageCount` is their count.  `convert` returns one `.vector` scene of the
+whole spread; `pages(_:name:context:)` returns the page rectangles with it for opening as a document
+(IO-040; `FreeHandImporter+Document.swift` assigns each layer's top-level objects to the page their
+centre lies on).  The walk: the block's layer list; a layer with bit 3 of its visibility (or named
+"Guides") is skipped, one without bit 0 is left out with a note, the others are `.layer` groups
+named after their name record ("Layer" when unnamed; patch 0002 keeps the name); groups compose
+their transform; a clip group's first element (a path or composite path) is the clip, kept with its
+appearance (`clipAppearance`); a path or composite path whose style holds "contents" clips those
+contents the same way; composite paths join their paths' contours in the first path's style, else
+their own; FreeHand 8's `TextObject` (area text of the frame, `startY` its top edge in FreeHand's
+y-up space; `TFOnPath` text on its path) and FreeHand 3 to 7's `DisplayText` and `PathText`; images
+(the data list's bytes through `ImageImporter.decode`, placed on FreeHand's rectangle whose top edge
+is `startY + height`); `NewBlend` as a group "Blend" of its three lists (the step count and key
+objects are among the bytes libfreehand skips, so no live blend); symbol instances as instance
+groups of the class's artwork converted once in symbol space (inches to points, y down, FreeHand's
+origin).  Nesting stops at 48 levels (a note); a record met again inside itself is skipped.  Styles
+follow libfreehand's lookup: FreeHand 8's property lists (the "fill", "stroke" and "contents" name
+records as keys, the parent first), FreeHand 9's graphic styles (an attribute list of attribute
+holders, each holder's value its own or its parent's; filter holders add their style and filters:
+opacity multiplies, shadows and glows are noted).  Colours: a `Color6` or `SpotColor6` record's
+model word (1 RGB, 2 CMYK) and its components as 16.16 fixed point at the record's end (patch 0002
+keeps the bytes libfreehand skips), else the RGB preview; FreeHand 8's `ProcessColor` CMYK
+(libfreehand converted it through Little CMS; the values are kept); a named colour (its name record)
+is an `ImportedSwatch`, spot for FreeHand 8's `SpotColor` and for names from spot libraries; tints
+mix their base with paper.  Graduated fills run across the path's bounds from the first colour in
+the direction (cos a, −sin a) of FreeHand's y-up space, as libfreehand reads the angle (90° runs top
+to bottom); radial fills centre on FreeHand's fractions of the bounds and reach the farthest corner,
+the first colour outside (libfreehand's reading too); multi-colour lists give every stop;
+tiled fills convert the tile group in tile space with scales as percentages, the offset in points
+and the angle negated for y down.  Strokes: width and dash (points) scaled by the transform, miter
+limit (below 1 reads 4), arrowheads from `ArrowPath` (libfreehand keeps their raw units, stroke
+widths, y up).  Text: runs per character-property run, the AGD font's name, size and bold and italic
+bits winning over the properties' own (libfreehand's order), colour from the text colour's basic
+fill, FreeHand's control characters (end of column, optional hyphen) dropped; the first paragraph's
+alignment; a linked frame's `beginPos`/`endPos` range of the string; the text object's own transform
+is not applied to text on a path (in the files read it scales the text, not the path).  Record types
+{product} does not interpret are named in one note (`FreeHandNotes.unread`), as is a file read only
+in part (libfreehand stops at a record type it does not know).  Deviations from the page: none of its
+rules changed; what was unverified against real files -- the direction of graduated fills and the
+colour order of radial fills (both taken from libfreehand), the sign of tile angles, arrowhead
+orientation, the spot flag of FreeHand 9 and later -- is listed on D-083.  Tests: `FreeHandImportTests`, `FreeHandFallbackTests`
+and `ImportedSceneLiveTests` (records written in the tests; FreeHand 8 and 10 files written byte by
+byte through the vendored C++), `ImportLiveMappingTests` for the mapping; `FreeHandCorpusTests`
+imports every FreeHand file under `WT_EXTERNAL_CORPUS` and writes a report and a PNG per page to
+`WT_CORPUS_OUTPUT`, and does nothing without it.
+
 === Build tasks
 
 [[IMG-008]]
@@ -680,6 +811,20 @@ Delivers:: ASCII and binary DXF readers, entity handlers (LINE, LWPOLYLINE, POLY
 Done when::
 * Fixtures from AutoCAD, LibreCAD and Blender import with correct geometry and units.
 * Bulged polylines match arc geometry within 0.01 pt.
+
+[[IO-041]]
+==== IO-041 FreeHand file import
+[horizontal]
+Track:: import-export
+Depends on:: IMG-008, IMG-002, TXT-001
+Size:: L
+Delivers:: FreeHand 3 to MX (11) documents and templates imported through libfreehand vendored from source (D-083), converted to live WireTuner objects: layers, pages, paths, compound paths, groups, clipping groups with their clipping path's appearance, named colours as swatches (CMYK kept), basic, graduated, radial, lens, tiled and pattern fills, strokes with dashes and arrowheads, area text and text on a path, symbols with instances, images; blends as groups of their steps; everything else named in the import notice.  Import only: {product} writes no FreeHand files.
+Done when::
+* Files written in the tests import through libfreehand for FreeHand 8 and 10 (compressed, inside
+  `0x1C` records) with their layer, geometry and named colour.
+* Every FreeHand file of the owner's corpus (`WT_EXTERNAL_CORPUS`, not in the repository) imports
+  with its artwork, and each page renders for review.
+* `tools/freehand/vendor.sh --check` reproduces the vendored sources; `make client-ios` builds them.
 
 [[IMG-015]]
 ==== IMG-015 Bitmap format coverage

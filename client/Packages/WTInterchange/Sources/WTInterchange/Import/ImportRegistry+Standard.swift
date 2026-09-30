@@ -9,6 +9,7 @@ extension ImportRegistry {
         SVGImporter(),
         DXFImporter(),
         EPSImporter(),
+        FreeHandImporter(),
         ImageImporter(),
     ])
 }
