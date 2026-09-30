@@ -135,6 +135,12 @@
       <artifactId>assertj-core</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Polling for asynchronous effects in tests instead of Thread.sleep (version from the Quarkus BOM). -->
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
     <!-- Dev Services start Postgres, Valkey and Keycloak through Testcontainers for every @QuarkusTest. -->
     <dependency>
       <groupId>org.testcontainers</groupId>

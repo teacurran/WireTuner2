@@ -21,6 +21,11 @@ release-check` (including the launch test), `make release-tools-test` (a throwaw
 and verifies a fabricated release's appcast; stubbed `gh`, `aws` and `curl` record the publishing).
 The Developer ID, notarization, GitHub and R2 writes run for the first time when the owner runs
 them with credentials.
+After a publish on 2026-09-29 was cut short by a DNS timeout (a draft with only
+`SHA256SUMS.txt`, which `gh release create` then failed to delete), `publish-github.sh` makes the
+draft itself, retries each upload, checks the uploaded sizes and resumes an existing draft instead of
+deleting it; the stubbed `gh` of `make release-tools-test` covers a retried upload, a resumed draft
+and a wrong-sized asset uploaded again.
 
 == The commands
 
@@ -43,8 +48,8 @@ archive (universal, stripped), the export, a DMG, notarization and stapling, a z
 |`tools/release/appcast.sh`: this release's `dist/appcast.xml` (<<appcast>>).
 
 |`make release-publish`
-|`tools/release/publish-github.sh`: a dry run that prints the `gh release create` call and the notes;
-`PUBLISH=1` creates the GitHub release (<<github>>).
+|`tools/release/publish-github.sh`: a dry run that prints the `gh` calls and the notes;
+`PUBLISH=1` creates the GitHub release, or resumes one an interrupted run left (<<github>>).
 
 |`make release-upload`
 |`tools/release/upload.sh`: a dry run that prints every upload; `UPLOAD=1` publishes the appcast and
@@ -200,16 +205,30 @@ notes is refused.
 [[github]]
 == GitHub Releases
 
-`make release-publish` checks the release (the files match `SHA256SUMS.txt`, the name is still free,
-the build came from a clean checkout whose commit is known) and prints the call and the notes;
-`make release-publish PUBLISH=1` runs it:
+`make release-publish` checks the release (the files match `SHA256SUMS.txt`, the name is still free
+or is this build's own release, the build came from a clean checkout whose commit is known) and
+prints the calls and the notes; `make release-publish PUBLISH=1` runs them:
 
 [source,sh]
 ----
-gh release create <name> WireTuner-<name>.dmg WireTuner-<name>.zip SHA256SUMS.txt \
-    --repo teacurran/WireTuner2 --title "WireTuner <name>" --notes-file github-notes.md \
-    --target <commit> [--prerelease]
+gh release create <name> --draft --repo teacurran/WireTuner2 --title "WireTuner <name>" \
+    --notes-file github-notes.md --target <commit> [--prerelease]
+gh release upload <name> <file> --repo teacurran/WireTuner2 --clobber   # the DMG, the zip, SHA256SUMS.txt
+gh release edit <name> --repo teacurran/WireTuner2 --draft=false
 ----
+
+Publishing is resumable, and nothing is ever deleted:
+
+* The release is made as a *draft* with no assets; each asset is uploaded on its own with up to
+  `WT_PUBLISH_ATTEMPTS` (4) attempts, waiting `WT_PUBLISH_RETRY_DELAY` (5) seconds, then 10, 20.  A
+  create that fails is looked up before it is tried again, so a create that timed out after making the
+  draft does not make a second one.
+* Before publishing, the release's assets are read back and each size must equal the local file's; a
+  mismatch stops the run with the draft left as it is.
+* A release or draft already under the name, at the build's commit, is *resumed*: its title, notes and
+  pre-release flag are set again, assets that are missing or of the wrong size are uploaded with
+  `--clobber`, those already right are kept, and a draft is then published.  One at another commit, or
+  a bare tag of that name, is refused (make release again for the next number).
 
 The tag is made at the commit the build came from (which must be pushed).  A build that is not
 notarized is a pre-release, and its notes open with *Opening it the first time* (Control-click →
@@ -331,5 +350,11 @@ exported file becomes the secret behind `WT_SPARKLE_KEY_FILE` and the public key
   profile to the generated `ExportOptions.plist` (`provisioningProfiles`) in `release.sh`.
 * *The appcast refuses the build number*: the published feed already has that build or a newer one;
   `make bump-build`.
+* *`make release-publish PUBLISH=1` stopped part way* (a DNS timeout, `could not upload …`, `the
+  uploaded assets do not match`): run it again.  It finds the draft (or the release) at the build's
+  commit, uploads only what is missing or of the wrong size, checks every size and publishes.  The
+  script never deletes a release; one that should not exist (at another commit) is removed by hand on
+  GitHub or with `gh release delete <name> --repo teacurran/WireTuner2`, and a tag with it by
+  `--cleanup-tag`.  With a flaky connection, `WT_PUBLISH_ATTEMPTS=8` tries harder.
 * *`the signing key and the embedded public key differ`*: the keychain's Sparkle key is not the one
   the app was built with; restore the backed-up key (`generate_keys -f`).

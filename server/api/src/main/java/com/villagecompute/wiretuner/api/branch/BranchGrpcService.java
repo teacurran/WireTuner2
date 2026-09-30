@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import com.villagecompute.wiretuner.api.auth.Role;
 import com.villagecompute.wiretuner.api.auth.RoleGuard;
+import com.villagecompute.wiretuner.api.auth.RoleGuard.Grant;
 import com.villagecompute.wiretuner.api.docs.DocumentCopies;
 import com.villagecompute.wiretuner.api.docs.DocumentMessages;
 import com.villagecompute.wiretuner.api.docs.Spaces;
@@ -16,6 +17,7 @@ import com.villagecompute.wiretuner.api.persistence.BranchRepository;
 import com.villagecompute.wiretuner.api.persistence.BranchRepository.BranchRow;
 import com.villagecompute.wiretuner.api.persistence.DocumentRepository;
 import com.villagecompute.wiretuner.api.persistence.LibraryRepository;
+import com.villagecompute.wiretuner.api.persistence.LibraryRepository.DocumentRow;
 import com.villagecompute.wiretuner.api.sync.DocumentEvents;
 import com.villagecompute.wiretuner.docs.v1.Branch;
 import com.villagecompute.wiretuner.docs.v1.BranchState;
@@ -98,26 +100,32 @@ public class BranchGrpcService extends MutinyBranchServiceGrpc.BranchServiceImpl
                 return existing.parentId().equals(parentId) ? Uni.createFrom().item(new Told(existing, null))
                         : Uni.createFrom().failure(StatusExceptions.documentExists());
             }
-            return documents.findById(branchId).flatMap(taken -> taken != null
-                    ? Uni.createFrom().failure(StatusExceptions.documentExists())
-                    : branches.find(parentId).flatMap(parentBranch -> parentBranch != null
-                            ? Uni.createFrom().failure(StatusExceptions.validationFailed("a branch cannot be branched",
-                                    Map.of("parent_document_id", "names a branch")))
-                            : library.row(parentId).flatMap(parent -> {
-                                long at = request.getForkServerSeq() == 0 ? parent.headSeq() : request.getForkServerSeq();
-                                if (at > parent.headSeq()) {
-                                    return Uni.createFrom().failure(StatusExceptions.historyUnavailable(at, parent.headSeq()));
-                                }
-                                DocumentCopies.Copy copy = new DocumentCopies.Copy(parent, branchId, parent.spaceId(),
-                                        parent.folderId(), request.getName(), at, request.getInitialChangesList(), false);
-                                return copies.branch(grant.principal(), copy)
-                                        .chain(() -> branches.insert(branchId, parentId, request.getName(), at,
-                                                grant.principal().accountId()))
-                                        .chain(documents::flush)
-                                        .chain(() -> told(grant.principal().accountId(), branchId,
-                                                BranchEventKind.BRANCH_EVENT_KIND_CREATED));
-                            })));
+            return create(request, grant, parentId, branchId);
         }))).call(this::publish).map(told -> CreateBranchResponse.newBuilder().setBranch(branch(told.row())).build());
+    }
+
+    /** A branch that does not exist yet: its id must be free and its parent must not be a branch itself. */
+    Uni<Told> create(CreateBranchRequest request, Grant grant, UUID parentId, UUID branchId) {
+        return documents.findById(branchId).flatMap(taken -> taken != null
+                ? Uni.createFrom().failure(StatusExceptions.documentExists())
+                : branches.find(parentId).flatMap(parentBranch -> parentBranch != null
+                        ? Uni.createFrom().failure(StatusExceptions.validationFailed("a branch cannot be branched",
+                                Map.of("parent_document_id", "names a branch")))
+                        : library.row(parentId).flatMap(parent -> fork(request, grant, parent, branchId))));
+    }
+
+    /** Forks {@code parent} at the requested server_seq (its head when 0) into the branch document. */
+    Uni<Told> fork(CreateBranchRequest request, Grant grant, DocumentRow parent, UUID branchId) {
+        long at = request.getForkServerSeq() == 0 ? parent.headSeq() : request.getForkServerSeq();
+        if (at > parent.headSeq()) {
+            return Uni.createFrom().failure(StatusExceptions.historyUnavailable(at, parent.headSeq()));
+        }
+        DocumentCopies.Copy copy = new DocumentCopies.Copy(parent, branchId, parent.spaceId(), parent.folderId(),
+                request.getName(), at, request.getInitialChangesList(), false);
+        return copies.branch(grant.principal(), copy)
+                .chain(() -> branches.insert(branchId, parent.id(), request.getName(), at, grant.principal().accountId()))
+                .chain(documents::flush)
+                .chain(() -> told(grant.principal().accountId(), branchId, BranchEventKind.BRANCH_EVENT_KIND_CREATED));
     }
 
     @Override

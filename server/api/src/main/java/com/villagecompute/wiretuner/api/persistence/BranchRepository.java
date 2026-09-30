@@ -34,6 +34,9 @@ public class BranchRepository {
                 WHERE c.document_id = b.document_id ORDER BY c.server_seq DESC LIMIT 1) l ON true
             """;
 
+    /** A select of {@link #COLUMNS}; callers add the join and filter. */
+    static final String SELECT_ROWS = "SELECT " + COLUMNS;
+
     public Uni<Integer> insert(UUID branchId, UUID parentId, String name, long forkSeq, UUID createdBy) {
         return Panache.getSession().chain(session -> session.createNativeQuery("""
                         INSERT INTO branch (document_id, parent_document_id, fork_seq, name, created_by_account_id)
@@ -50,7 +53,7 @@ public class BranchRepository {
     /** The branch, or null when the document is not a branch. */
     public Uni<BranchRow> find(UUID branchId) {
         return Panache.getSession().chain(session -> session
-                .createNativeQuery("SELECT " + COLUMNS + " WHERE b.document_id = ?1", Object[].class)
+                .createNativeQuery(SELECT_ROWS + " WHERE b.document_id = ?1", Object[].class)
                 .setParameter(1, branchId)
                 .getSingleResultOrNull())
                 .map(row -> row == null ? null : toRow(row));
@@ -78,7 +81,7 @@ public class BranchRepository {
      * the cursor ({@code afterMicros}, {@code afterId}; {@code Long.MAX_VALUE} for the first page).
      */
     public Uni<List<BranchRow>> list(UUID parentId, boolean includeArchived, long afterMicros, UUID afterId, int limit) {
-        return Panache.getSession().chain(session -> session.createNativeQuery("SELECT " + COLUMNS + """
+        return Panache.getSession().chain(session -> session.createNativeQuery(SELECT_ROWS + """
                          WHERE b.parent_document_id = ?1 AND d.trashed_at IS NULL AND (?2 OR b.state <> 'archived')
                            AND (cast(extract(epoch FROM b.created_at) * 1000000 AS bigint), b.document_id) < (?3, ?4)
                          ORDER BY b.created_at DESC, b.document_id DESC LIMIT ?5
@@ -99,7 +102,7 @@ public class BranchRepository {
      */
     public Uni<List<BranchRow>> listInSpace(UUID accountId, UUID spaceId, boolean includeArchived, long afterMicros,
             UUID afterId, int limit) {
-        return Panache.getSession().chain(session -> session.createNativeQuery("SELECT " + COLUMNS
+        return Panache.getSession().chain(session -> session.createNativeQuery(SELECT_ROWS
                         + " JOIN document p ON p.id = b.parent_document_id"
                         + " WHERE (p.owner_account_id = ?2 OR p.team_id = ?2) AND p.trashed_at IS NULL AND d.trashed_at IS NULL"
                         + " AND (?3 OR b.state <> 'archived') AND " + LibraryRepository.PARENT_VISIBLE + """

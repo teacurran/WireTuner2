@@ -114,18 +114,15 @@ public class LibraryRepository {
         List<Object> params = new ArrayList<>();
         params.add(query.accountId());
         StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS).append(" FROM document d WHERE ");
-        if (query.scope() != Scope.TRASH) {
-            sql.append(NOT_BRANCH).append(" AND ");
-        }
         sql.append(switch (query.scope()) {
-            case SHARED_WITH_ME -> "d.trashed_at IS NULL AND d.owner_account_id IS DISTINCT FROM ?1 AND NOT "
-                    + TEAM_ACCESS + " AND " + NAMED_ACCESS;
-            case TRASH -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NOT NULL AND ((" + NOT_BRANCH
-                    + " AND " + VISIBLE + ") OR " + BRANCH_TRASHED_ALONE + ")";
-            case TEMPLATES -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NULL AND d.is_template AND "
-                    + VISIBLE;
-            case FOLDER -> inSpace(params, query.spaceId()) + " AND d.trashed_at IS NULL AND "
-                    + inFolder(params, query.folderId()) + " AND " + VISIBLE;
+            case SHARED_WITH_ME -> allOf(NOT_BRANCH, "d.trashed_at IS NULL", "d.owner_account_id IS DISTINCT FROM ?1",
+                    "NOT " + TEAM_ACCESS, NAMED_ACCESS);
+            case TRASH -> allOf(inSpace(params, query.spaceId()), "d.trashed_at IS NOT NULL",
+                    "((" + allOf(NOT_BRANCH, VISIBLE) + ") OR " + BRANCH_TRASHED_ALONE + ")");
+            case TEMPLATES -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), "d.trashed_at IS NULL", "d.is_template",
+                    VISIBLE);
+            case FOLDER -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), "d.trashed_at IS NULL",
+                    inFolder(params, query.folderId()), VISIBLE);
         });
         params.add(query.afterName());
         params.add(query.afterId());
@@ -138,6 +135,11 @@ public class LibraryRepository {
             }
             return q.getResultList();
         }).map(rows -> rows.stream().map(LibraryRepository::toRow).toList());
+    }
+
+    /** The conditions joined with AND. */
+    private static String allOf(String... conditions) {
+        return String.join(" AND ", conditions);
     }
 
     private static String inFolder(List<Object> params, UUID folderId) {

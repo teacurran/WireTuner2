@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
@@ -77,7 +78,12 @@ class CommentDigestMailpitTest extends SyncTestSupport {
     CommentDigestJob digest;
 
     String api(String path) {
-        return System.getProperty("wt.mailpit.api").replaceAll("/+$", "") + path;
+        String base = System.getProperty("wt.mailpit.api");
+        int end = base.length();
+        while (end > 0 && base.charAt(end - 1) == '/') {
+            end--;
+        }
+        return base.substring(0, end) + path;
     }
 
     JsonPath get(String path) throws Exception {
@@ -137,20 +143,15 @@ class CommentDigestMailpitTest extends SyncTestSupport {
                 "Opening line 200").doesNotContain("more detail");
         assertThat(message.getString("HTML")).contains("Opening line 100");
 
-        // The next run sends nothing again.
+        // The next run sends nothing again: still one mail a second later.
         digest.digest().await().atMost(WAIT);
-        Thread.sleep(1000);
-        assertThat(mails(email, doc)).hasSize(1);
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(WAIT).pollInterval(Duration.ofMillis(200))
+                .untilAsserted(() -> assertThat(mails(email, doc)).hasSize(1));
     }
 
     /** Mailpit's search, polled until {@code count} mails are there (SMTP delivery is asynchronous). */
-    List<String> awaitMails(String email, UUID doc, int count) throws Exception {
-        long deadline = System.nanoTime() + WAIT.toNanos();
-        List<String> ids = mails(email, doc);
-        while (ids.size() < count && System.nanoTime() < deadline) {
-            Thread.sleep(200);
-            ids = mails(email, doc);
-        }
-        return ids;
+    List<String> awaitMails(String email, UUID doc, int count) {
+        return Awaitility.await().atMost(WAIT).pollInterval(Duration.ofMillis(200))
+                .until(() -> mails(email, doc), ids -> ids.size() >= count);
     }
 }

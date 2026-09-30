@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests for tools/release (`make release-tools-test`): the version file, the appcast writer, the
-# appcast and upload scripts against a fabricated release directory, and the signature check.
+# appcast, upload and GitHub publish scripts against a fabricated release directory (a stateful
+# stubbed gh: retried uploads, a resumed draft, a wrong-sized asset), and the signature check.
 # A throwaway Ed25519 key is made for the run; nothing touches the keychain, the network or R2.
 # Needs Sparkle's sign_update (any resolved WireTuner DerivedData, or WT_SPARKLE_BIN) and an
 # OpenSSL with Ed25519 (Homebrew's openssl@3).
@@ -197,17 +198,81 @@ ok "a release without notes is refused"
 
 # --- release names ---------------------------------------------------------------------------------
 mkdir -p "$work/ghstub"
-cat >"$work/ghstub/gh" <<STUB
-#!/bin/sh
-case "\$1 \$2" in
-"release list") printf '2031.01.02-001\n2031.01.02-004\n2031.01.03-009\nv1\n' ;;
+# A gh that keeps releases under $GH_STATE/<tag>/ (draft, target, title, assets/<file> holding the
+# uploaded size) and logs every release call to $work/gh.log.  $GH_STATE/fail-<verb> holds how many
+# of the next `release <verb>` calls fail (a create that fails after making the draft with
+# fail-create-after); $GH_STATE/short-upload makes every upload land one byte short.
+export GH_STATE="$work/ghstate" GH_LOG="$work/gh.log"
+cat >"$work/ghstub/gh" <<'STUB'
+#!/bin/bash
+set -eu
+failing() { # failing VERB: consumes one injected failure
+    local file="$GH_STATE/fail-$1" n
+    [ -f "$file" ] || return 1
+    n="$(cat "$file")"
+    [ "$n" -gt 0 ] || return 1
+    echo $((n - 1)) >"$file"
+}
+flag() { # flag NAME ARGS...: the value of --NAME VALUE
+    local name="$1"; shift
+    while [ $# -gt 0 ]; do
+        if [ "$1" = "--$name" ]; then echo "$2"; return 0; fi
+        shift
+    done
+}
+case "$1 $2" in
+"release list")
+    printf '2031.01.02-001\n2031.01.02-004\n2031.01.03-009\nv1\n'
+    for d in "$GH_STATE"/*/; do [ -d "$d" ] && basename "$d"; done
+    ;;
 "api repos/owner/repo/tags"*) printf '2031.01.02-002\n' ;;
 "api repos/owner/repo/commits/"*) exit 0 ;;
-"release create") echo "\$@" >> "$work/gh.log" ;;
+"release view")
+    rel="$GH_STATE/$3"
+    [ -d "$rel" ] || { echo "release not found" >&2; exit 1; }
+    python3 - "$rel" <<'EOF'
+import json, os, sys
+rel = sys.argv[1]
+read = lambda name: open(os.path.join(rel, name)).read().strip()
+assets = [{"name": n, "size": int(read("assets/" + n)), "state": "uploaded"} for n in sorted(os.listdir(os.path.join(rel, "assets")))]
+print(json.dumps({"isDraft": read("draft") == "true", "targetCommitish": read("target"), "assets": assets}))
+EOF
+    ;;
+"release create")
+    echo "$@" >>"$GH_LOG"
+    if failing create; then echo "dial tcp: lookup api.github.com: i/o timeout" >&2; exit 1; fi
+    rel="$GH_STATE/$3"
+    mkdir -p "$rel/assets"
+    echo true >"$rel/draft"
+    flag target "$@" >"$rel/target"
+    flag title "$@" >"$rel/title"
+    if failing create-after; then echo "dial tcp: lookup api.github.com: i/o timeout" >&2; exit 1; fi
+    ;;
+"release upload")
+    echo "$@" >>"$GH_LOG"
+    if failing upload; then echo "dial tcp: lookup uploads.github.com: i/o timeout" >&2; exit 1; fi
+    rel="$GH_STATE/$3"
+    size="$(wc -c <"$4" | tr -d ' ')"
+    [ -f "$GH_STATE/short-upload" ] && size=$((size - 1))
+    echo "$size" >"$rel/assets/$(basename "$4")"
+    ;;
+"release edit")
+    echo "$@" >>"$GH_LOG"
+    if failing edit; then echo "HTTP 502" >&2; exit 1; fi
+    rel="$GH_STATE/$3"
+    for arg in "$@"; do [ "$arg" = --draft=false ] && echo false >"$rel/draft"; done
+    title="$(flag title "$@")"
+    [ -z "$title" ] || echo "$title" >"$rel/title"
+    ;;
+"release delete")
+    echo "$@" >>"$GH_LOG"
+    rm -rf "${GH_STATE:?}/$3"
+    ;;
 *) exit 0 ;;
 esac
 STUB
 chmod +x "$work/ghstub/gh"
+mkdir -p "$GH_STATE"
 names() { (cd "$work" && PATH="$work/ghstub:$PATH" WT_GITHUB_REPO=owner/repo WT_RELEASE_DATE="$1" bash -c "source '$tools/common.sh'; next_release_name"); }
 [ "$(names 2031.01.02)" = 2031.01.02-005 ] || fail "the next name after 004 (got $(names 2031.01.02))"
 [ "$(names 2031.01.04)" = 2031.01.04-001 ] || fail "a new day starts at 001"
@@ -216,22 +281,118 @@ if (PATH="$work/ghstub:$PATH" WT_RELEASE_DATE=2031-01-02 bash -c "source '$tools
 ok "release names YYYY.MM.DD-NNN"
 
 # --- publish-github.sh -----------------------------------------------------------------------------
+export WT_PUBLISH_RETRY_DELAY=0
 publish() { WT_RELEASE_DIR="$1" WT_RELEASE_NOTES="$work/notes.md" PATH="$work/ghstub:$PATH" "$tools/publish-github.sh" "${@:2}"; }
+tag="2031.01.02-003"
+fresh() { rm -rf "$GH_STATE" "$GH_LOG"; mkdir -p "$GH_STATE"; } # no releases, no failures
+draft() { # draft FILE=SIZE...: an interrupted run's draft at the build's commit
+    mkdir -p "$GH_STATE/$tag/assets"
+    echo true >"$GH_STATE/$tag/draft"
+    echo "$commit" >"$GH_STATE/$tag/target"
+    local spec
+    for spec in "$@"; do echo "${spec#*=}" >"$GH_STATE/$tag/assets/${spec%%=*}"; done
+}
+size_of() { wc -c <"$1" | tr -d ' '; }
+calls() { if [ -f "$GH_LOG" ]; then grep -c "^release $1 " "$GH_LOG" || true; else echo 0; fi; } # calls VERB
+published() { [ "$(cat "$GH_STATE/$tag/draft")" = false ]; }
+never_deleted() { [ "$(calls delete)" = 0 ] && [ -d "$GH_STATE/$tag" ]; }
+matches_local() { # every asset on the release is the local file's size
+    local file
+    for file in "$1/dist/$stem.dmg" "$1/dist/$stem.zip" "$1/dist/SHA256SUMS.txt"; do
+        [ "$(cat "$GH_STATE/$tag/assets/$(basename "$file")")" = "$(size_of "$file")" ] || return 1
+    done
+}
+
+fresh
 publish "$work/test" >"$work/pub" 2>&1 || { cat "$work/pub"; fail "publish dry run"; }
 grep -q -- '--prerelease' "$work/pub" || fail "an unsigned build is a pre-release"
 grep -q 'Opening it the first time' "$work/pub" || fail "an unsigned build's notes say how to open it"
 grep -q "^## Download" "$work/pub" || fail "the notes have a Download section"
 grep -q "^# Beta 3" "$work/pub" && fail "the notes file title is dropped"
-grep -q "gh release create 2031.01.02-003 .*$stem.dmg .*$stem.zip .*SHA256SUMS.txt --repo owner/repo --title WireTuner" "$work/pub" || { cat "$work/pub"; fail "the gh call"; }
-[ ! -e "$work/gh.log" ] || fail "a dry run created a release"
+grep -q "gh release create $tag --draft --repo owner/repo --title WireTuner" "$work/pub" || { cat "$work/pub"; fail "the gh call"; }
+for file in "$stem.dmg" "$stem.zip" SHA256SUMS.txt; do
+    grep -q "gh release upload $tag .*$file --repo owner/repo --clobber" "$work/pub" || fail "the dry run names the upload of $file"
+done
+grep -q "gh release edit $tag --repo owner/repo --draft=false" "$work/pub" || fail "the dry run names the publish"
+[ ! -e "$GH_LOG" ] || fail "a dry run called gh release"
 publish "$work/test" --publish >"$work/pub" 2>&1 || { cat "$work/pub"; fail "publish"; }
-grep -q -- "--target $commit --prerelease" "$work/gh.log" || fail "the release is made at the build's commit"
+grep -q -- "--target $commit --prerelease" "$GH_LOG" || fail "the release is made at the build's commit"
+[ "$(calls create)" = 1 ] && [ "$(calls upload)" = 3 ] || fail "one draft, three uploads"
+tail -n 1 "$GH_LOG" | grep -q -- '--draft=false' || fail "the draft is published last"
+published && matches_local "$work/test" || fail "a published release with every asset"
+fresh
 publish "$work/good" >"$work/pub" 2>&1
-grep -q -- '--prerelease' "$work/pub" && fail "a notarized build is a full release"
+grep -qE -- '--prerelease( |$)' "$work/pub" && fail "a notarized build is a full release"
 grep -q 'Opening it the first time' "$work/pub" && fail "a notarized build needs no Gatekeeper steps"
 release "$work/dirty" false unsigned "" "0123abc-dirty"
 if publish "$work/dirty" --publish >"$work/pub" 2>&1; then fail "a build from a dirty tree must not publish"; fi
 grep -q 'clean checkout' "$work/pub" || fail "the dirty-tree refusal"
 ok "publish-github.sh"
+
+# A failed upload (the 2026-09-29 DNS timeout) is retried; so is a create that timed out after
+# making the draft, without a second draft.
+fresh
+echo 2 >"$GH_STATE/fail-upload"
+echo 1 >"$GH_STATE/fail-create-after"
+publish "$work/test" --publish >"$work/pub" 2>&1 || { cat "$work/pub"; fail "publish with failing uploads"; }
+[ "$(calls upload)" = 5 ] || { cat "$GH_LOG"; fail "two failed uploads retried (got $(calls upload) uploads)"; }
+[ "$(calls create)" = 1 ] || fail "a create that made the draft is not repeated"
+grep -q 'failed (attempt 1 of 4); retrying' "$work/pub" || fail "the retry is reported"
+published && matches_local "$work/test" && never_deleted || fail "published after the retries"
+ok "a failed upload is retried"
+
+# An upload that keeps failing: the draft is kept, not published and not deleted.
+fresh
+echo 9 >"$GH_STATE/fail-upload"
+if publish "$work/test" --publish >"$work/pub" 2>&1; then fail "an upload failing every time must fail"; fi
+[ "$(calls upload)" = 4 ] || fail "four attempts (got $(calls upload))"
+grep -q 'run again to resume' "$work/pub" || fail "the failure says to run again"
+! published && never_deleted || fail "the draft is kept as a draft"
+ok "an upload that keeps failing keeps the draft"
+
+# Run again: the draft from before (only SHA256SUMS.txt uploaded) is resumed -- no second create,
+# notes and title set again, the missing assets uploaded, then published.
+fresh
+draft "SHA256SUMS.txt=$(size_of "$work/test/dist/SHA256SUMS.txt")"
+publish "$work/test" >"$work/pub" 2>&1 || { cat "$work/pub"; fail "dry run on a draft"; }
+grep -q 'existing release: draft' "$work/pub" || fail "the dry run names the draft"
+grep -q "gh release edit $tag --repo owner/repo --title WireTuner.* --notes-file" "$work/pub" || fail "the dry run resumes the draft"
+grep -q 'already a tag' "$work/pub" && fail "a draft is not a taken name"
+publish "$work/test" --publish >"$work/pub" 2>&1 || { cat "$work/pub"; fail "resuming a draft"; }
+[ "$(calls create)" = 0 ] || fail "a draft is resumed, not created again"
+grep -q "^release edit $tag --repo owner/repo --title WireTuner $tag --notes-file .* --prerelease" "$GH_LOG" || { cat "$GH_LOG"; fail "the notes and title are set"; }
+[ "$(calls upload)" = 2 ] || fail "only the two missing assets are uploaded (got $(calls upload))"
+grep -q "SHA256SUMS.txt" <(grep '^release upload' "$GH_LOG") && fail "an uploaded asset of the right size is kept"
+published && matches_local "$work/test" && never_deleted || fail "the resumed draft is published"
+ok "an existing draft is resumed"
+
+# A wrong-sized asset on the draft is uploaded again with --clobber.
+fresh
+draft "$stem.dmg=12" "$stem.zip=$(size_of "$work/test/dist/$stem.zip")" "SHA256SUMS.txt=$(size_of "$work/test/dist/SHA256SUMS.txt")"
+publish "$work/test" --publish >"$work/pub" 2>&1 || { cat "$work/pub"; fail "a size mismatch"; }
+[ "$(calls upload)" = 1 ] && grep -q "^release upload $tag .*$stem.dmg --repo owner/repo --clobber" "$GH_LOG" || { cat "$GH_LOG"; fail "the wrong-sized DMG is uploaded again"; }
+published && matches_local "$work/test" && never_deleted || fail "published once the sizes match"
+ok "a size mismatch is uploaded again"
+
+# Sizes still wrong after uploading: not published, not deleted.
+fresh
+touch "$GH_STATE/short-upload"
+if publish "$work/test" --publish >"$work/pub" 2>&1; then fail "sizes that do not match must not publish"; fi
+grep -q "do not match" "$work/pub" && grep -q "$stem.dmg: $(( $(size_of "$work/test/dist/$stem.dmg") - 1 )) on GitHub" "$work/pub" || { cat "$work/pub"; fail "the mismatch is named"; }
+[ "$(calls edit)" = 0 ] && ! published && never_deleted || fail "a mismatch leaves the draft alone"
+ok "the uploaded sizes are checked before publishing"
+
+# A draft at another commit, or a bare tag, is not this build's: refused, left alone.
+fresh
+draft
+echo "fedcba9876543210fedcba9876543210fedcba98" >"$GH_STATE/$tag/target"
+if publish "$work/test" --publish >"$work/pub" 2>&1; then fail "a draft at another commit must be refused"; fi
+grep -q "not this build's commit" "$work/pub" || fail "the other-commit refusal"
+[ ! -e "$GH_LOG" ] && never_deleted || fail "a refused draft is left alone"
+release "$work/tagged" false unsigned ""
+sed -i '' 's/"2031.01.02-003"/"2031.01.02-002"/' "$work/tagged/release.json"
+if publish "$work/tagged" --publish >"$work/pub" 2>&1; then fail "a bare tag must be refused"; fi
+grep -q 'already a tag' "$work/pub" || fail "the bare-tag refusal"
+ok "a release that is not this build's is refused"
 
 echo "release tools: all tests passed"
