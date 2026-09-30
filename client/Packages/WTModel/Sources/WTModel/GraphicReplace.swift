@@ -65,6 +65,9 @@ public enum GraphicEdit: Hashable, Sendable {
     case simplify(points: Int, amount: Double)
     /// Blends whose steps lie in `range` get `to` steps.
     case blendSteps(ValueRange, to: NumberEdit)
+    /// *Resample at* the printer resolution: blends whose steps lie in `range` get the steps the
+    /// document's printer resolution and screen call for (`BlendResampling`, D-090).
+    case resampleBlends(ValueRange)
     /// Objects with the shape, stroke and fill of `from` are replaced by the first object of `to`
     /// (a clipboard payload, *Paste In*): placed by the similarity carrying the sample onto the
     /// match, or with `fit` (*Transform to fit original*) scaled onto the match's bounds.
@@ -93,7 +96,7 @@ public enum GraphicEdit: Hashable, Sendable {
         case .rotate: "rotation"
         case .scale: "scale"
         case .simplify: "path points"
-        case .blendSteps: "blend steps"
+        case .blendSteps, .resampleBlends: "blend steps"
         case .pathShape: "path shape"
         }
     }
@@ -177,6 +180,12 @@ public struct ReplaceGraphics: Command {
             guard range.contains(steps) else { return [] }
             let new = Int(to.apply(steps).rounded())
             guard (1...1000).contains(new), Double(new) != steps else { return [] }
+            return [EditBlend.steps([node], new)]
+        case .resampleBlends(let range):
+            guard state.nodeKind(node) == .blend else { return [] }
+            let stored = state.props(node).blend.steps
+            let steps = stored == 0 ? 25 : Int(stored)
+            guard range.contains(Double(steps)), let new = BlendResampling.steps(for: node, in: state), new != steps else { return [] }
             return [EditBlend.steps([node], new)]
         }
     }

@@ -238,6 +238,9 @@ struct ToolContext {
     var objectEditing: ObjectEditing?
     /// *Double-click enables transform handles* (transforming.adoc, OBJ-034).
     var transformHandles: @MainActor () -> Bool = { true }
+    /// The Transform panel's *Strokes*, *Fills* and *Contents* (OBJ-031): the transformation
+    /// tools, the transform handles and Mirror and 3D Rotation transform with them.
+    var transformOptions: @MainActor () -> TransformOptions = { TransformOptions() }
     /// Makes `id` the window's tool (the Text tool handing over to the Pointer).
     var selectTool: @MainActor (ToolID) -> Void = { _ in }
     /// The Pointer's double-click on text: the Text tool takes over with the insertion point at

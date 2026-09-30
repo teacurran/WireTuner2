@@ -144,7 +144,7 @@ final class TransformTool: Tool {
         let nodes = selection.ids.map(\.opID)
         guard !nodes.isEmpty else { return nil }
         let copy = current?.modifiers.contains(.option) == true
-        return TransformObjects(nodes, matrix: matrix, about: about, kind: kind, copies: copy ? 1 : 0)
+        return TransformObjects(nodes, matrix: matrix, about: about, kind: kind, options: context.transformOptions(), copies: copy ? 1 : 0)
     }
 
     /// The selected objects' outlines as the drag would leave them, pasteboard space.

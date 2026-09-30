@@ -9,8 +9,10 @@ import WTProto
 /// setting can be *No selection* -- an empty field, the *No selection* pop-up item, the blank
 /// alignment, the mixed checkbox -- which leaves the text alone when the style is applied.
 /// *Global settings* offers *No settings*, *Restore original values* and *Restore program
-/// defaults* (Normal Text's settings); *Next style* is the style the paragraph after this one gets.
-/// btn:[OK] writes the registers that changed, one change ("Edit style <name>").
+/// defaults* (Normal Text's settings); *Next style* is the style the paragraph after this one gets;
+/// the text ruler (`StyleTabRuler`) sets the tab stops and indents, *No selection* beside it unsets
+/// them.  btn:[OK] writes the registers that changed and, when they changed, the tab stops
+/// (`SetTextStyleTabs`), one change ("Edit style <name>").
 @MainActor
 @Observable
 final class TextStyleBehaviorModel {
@@ -69,11 +71,50 @@ final class TextStyleBehaviorModel {
         Self.fields.filter { !$0.same(original, attrs) && !(isCharacter && $0.path.first == 3) && !(isCharacter && $0.path == [1]) }.map(\.path)
     }
 
-    /// btn:[OK]'s command; nil when nothing changed.
-    var command: EditTextStyle? {
+    /// btn:[OK]'s command: the changed registers and, when they changed, the tab stops; nil when
+    /// nothing changed.
+    var command: (any WTModel.Command)? {
         let fields = changedFields
-        guard !fields.isEmpty else { return nil }
-        return EditTextStyle(style.id, attrs: attrs, fields: fields, name: style.name)
+        let edit = fields.isEmpty ? nil : EditTextStyle(style.id, attrs: attrs, fields: fields, name: style.name)
+        guard tabsChanged else { return edit }
+        let tabs = SetTextStyleTabs(style.id, tabs: attrs.paragraph.tabsSet ? self.tabs.map(Self.withoutID) : nil)
+        guard let edit else { return tabs }
+        return CompositeCommand(edit.label, [edit, tabs])
+    }
+
+    // MARK: Tabs
+
+    /// The tab stops in ruler order; setting them sets the tabs (no longer *No selection*).
+    var tabs: [Wiretuner_Doc_V1_TabStop] {
+        get { attrs.paragraph.tabs.sorted { $0.position < $1.position } }
+        set {
+            attrs.paragraph.tabs = newValue.sorted { $0.position < $1.position }
+            attrs.paragraph.tabsSet = true
+        }
+    }
+
+    static func withoutID(_ stop: Wiretuner_Doc_V1_TabStop) -> Wiretuner_Doc_V1_TabStop {
+        var stop = stop
+        stop.clearID()
+        return stop
+    }
+
+    /// Whether the tab stops differ from where the sheet started (a paragraph style's only).
+    var tabsChanged: Bool {
+        guard !isCharacter else { return false }
+        func read(_ attrs: Wiretuner_Doc_V1_TextStyleAttrs) -> [Wiretuner_Doc_V1_TabStop]? {
+            attrs.paragraph.tabsSet ? attrs.paragraph.tabs.sorted { $0.position < $1.position }.map(Self.withoutID) : nil
+        }
+        return read(original) != read(attrs)
+    }
+
+    /// *No selection* on the ruler: the tabs and the three indents unset.
+    func clearTabsAndIndents() {
+        attrs.paragraph.tabs = []
+        attrs.paragraph.tabsSet = false
+        attrs.paragraph.clearLeftIndent()
+        attrs.paragraph.clearRightIndent()
+        attrs.paragraph.clearFirstLineIndent()
     }
 
     // MARK: Global settings
@@ -240,13 +281,13 @@ final class TextStyleBehaviorModel {
 /// The sheet.
 struct TextStyleBehaviorSheet: View {
     @Bindable var model: TextStyleBehaviorModel
-    let commit: (EditTextStyle?) -> Void
+    let commit: ((any WTModel.Command)?) -> Void
     let cancel: () -> Void
 
     static let tristates = [TextStyleBehaviorModel.noSelection, "On", "Off"]
     static let alignments: [(Wiretuner_Doc_V1_Alignment, String)] = [(.unspecified, " "), (.left, "Left"), (.center, "Center"), (.right, "Right"), (.justified, "Justified")]
 
-    static func committing(_ model: TextStyleBehaviorModel, _ commit: @escaping (EditTextStyle?) -> Void) -> () -> Void {
+    static func committing(_ model: TextStyleBehaviorModel, _ commit: @escaping ((any WTModel.Command)?) -> Void) -> () -> Void {
         { commit(model.command) }
     }
 
@@ -290,6 +331,13 @@ struct TextStyleBehaviorSheet: View {
                 TextField("Left indent", text: model.leftIndent)
                 TextField("Right indent", text: model.rightIndent)
                 TextField("First line", text: model.firstLineIndent)
+                LabeledContent("Tabs") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        StyleTabRulerView(model: model)
+                        Button(TextStyleBehaviorModel.noSelection, action: model.clearTabsAndIndents)
+                            .accessibilityIdentifier("behavior.ruler.noSelection")
+                    }
+                }
                 Picker("Hang punctuation", selection: model.hangPunctuation) { ForEach(Self.tristates, id: \.self) { Text($0).tag($0) } }
                 TextField("Keep lines together", text: model.keepLines)
                 Picker("Keep with next", selection: model.keepWithNext) { ForEach(Self.tristates, id: \.self) { Text($0).tag($0) } }
@@ -311,7 +359,7 @@ struct TextStyleBehaviorSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        .frame(width: 520)
     }
 }
 

@@ -53,6 +53,14 @@ struct TransformPanelModel: Equatable {
         contents = defaults.object(forKey: Self.contentsKey) as? Bool ?? true
     }
 
+    /// The three options as a command takes them.
+    var options: TransformOptions { TransformOptions(strokes: strokes, fills: fills, contents: contents) }
+
+    /// The options as last left in the panel, for the tools and handles (OBJ-031).
+    static func options(_ defaults: UserDefaults?) -> TransformOptions {
+        TransformPanelModel(defaults: defaults).options
+    }
+
     func saveOptions(to defaults: UserDefaults) {
         defaults.set(strokes, forKey: Self.strokesKey)
         defaults.set(fills, forKey: Self.fillsKey)
@@ -88,7 +96,7 @@ struct TransformPanelModel: Equatable {
         let base = handlesCenter ?? selectionCenter
         let center = Point(x: centerX ?? base.x, y: centerY ?? base.y)
         return TransformObjects(nodes, matrix: matrix, about: tab == .move ? nil : center, kind: tab.kind,
-                                options: TransformOptions(strokes: strokes, fills: fills, contents: contents), copies: max(0, copies))
+                                options: options, copies: max(0, copies))
     }
 }
 

@@ -303,6 +303,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         context.redraw = { RedrawSettings(preferences: preferences) }
         context.optionDragCopies = { preferences[PreferenceCatalog.Object.optionDragCopies] }
         context.transformHandles = { preferences[PreferenceCatalog.General.doubleClickTransform] }
+        let transformDefaults = preferences.defaults
+        context.transformOptions = { TransformPanelModel.options(transformDefaults) }
         context.drawing = { DrawingSettings(preferences: preferences) }
         context.commandSink = objectEditing
         context.objectEditing = objectEditing

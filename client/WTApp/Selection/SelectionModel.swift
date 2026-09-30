@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WTCRDT
 
 /// The observable selection of one document window (client.adoc, "Panels": a panel body
 /// observes the document and the selection).  SwiftUI panel bodies read `selection` and redraw
@@ -12,6 +13,10 @@ final class SelectionModel {
     }
 
     private(set) var selection: Selection = .empty
+    /// The clip group whose *Contents* row the Object panel has selected (clipping-paths.adoc,
+    /// "Editing the contents"; OBJ-028): the contents handle shows while it is set.  Any other
+    /// selection clears it.
+    private(set) var contentsRow: OpID?
     @ObservationIgnored private var observers: [UUID: @MainActor (Selection) -> Void] = [:]
 
     init(_ selection: Selection = .empty) {
@@ -26,6 +31,7 @@ final class SelectionModel {
     func set(_ selection: Selection) {
         guard selection != self.selection else { return }
         self.selection = selection
+        if let row = contentsRow, selection.ids != [SelectionID(row)] || selection.subSelection(of: SelectionID(row)) != nil { contentsRow = nil }
         for observer in observers.values { observer(selection) }
     }
 
@@ -34,6 +40,13 @@ final class SelectionModel {
     }
 
     func clear() { set(.empty) }
+
+    /// Selects (or with nil deselects) the *Contents* row of `group`, which must be the whole
+    /// selection; anything else deselects it.
+    func selectContentsRow(_ group: OpID?) {
+        let row = group.flatMap { selection.ids == [SelectionID($0)] && selection.subSelection(of: SelectionID($0)) == nil ? $0 : nil }
+        if row != contentsRow { contentsRow = row }
+    }
 
     @discardableResult
     func observe(_ handler: @escaping @MainActor (Selection) -> Void) -> ObservationToken {

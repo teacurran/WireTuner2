@@ -12,7 +12,8 @@ import WTRender
 /// from the Swatches panel or Color Mixer, and *Include tints*), *Stroke width* (Min, Max; the new
 /// width or arithmetic), *Remove* (invisible objects, overprinting, custom halftones, contents),
 /// *Path shape* (From and To btn:[Paste In] from the native pasteboard, *Transform to fit
-/// original*), *Rotate*, *Scale* and *Blend steps* and *Simplify*.  btn:[Change] runs
+/// original*), *Rotate*, *Scale* and *Blend steps* (a number, or *Resample at* the printer
+/// resolution) and *Simplify*.  btn:[Change] runs
 /// `ReplaceGraphics` over the scope's candidates: one labelled change (split at the op limit into
 /// parts performed as one undo step), and the count changed.
 @MainActor
@@ -58,6 +59,8 @@ final class GraphicReplaceState {
     var minSteps = ""
     var maxSteps = ""
     var newSteps = ""
+    /// *Blend steps*' pop-up: *Resample at* the printer resolution instead of a number (D-090).
+    var resample = false
     private(set) var result: String?
     /// The replace in flight (tests await it).
     @ObservationIgnored private(set) var running: Task<Void, Never>?
@@ -93,8 +96,10 @@ final class GraphicReplaceState {
             guard let count = Self.number(points) else { return nil }
             return .simplify(points: Int(count), amount: amount)
         case .blendSteps:
+            let range = ValueRange(min: Self.number(minSteps), max: Self.number(maxSteps))
+            if resample { return .resampleBlends(range) }
             guard let edit = NumberEdit(newSteps) else { return nil }
-            return .blendSteps(ValueRange(min: Self.number(minSteps), max: Self.number(maxSteps)), to: edit)
+            return .blendSteps(range, to: edit)
         }
     }
 
@@ -254,7 +259,12 @@ struct GraphicReplaceFields: View {
         case .blendSteps:
             TextField("Min steps", text: $state.minSteps).accessibilityIdentifier("findReplace.steps.min")
             TextField("Max steps", text: $state.maxSteps).accessibilityIdentifier("findReplace.steps.max")
-            TextField("Steps", text: $state.newSteps).accessibilityIdentifier("findReplace.steps.to")
+            Picker("Change to", selection: $state.resample) {
+                Text("Steps").tag(false)
+                Text("Resample at printer resolution").tag(true)
+            }
+            .accessibilityIdentifier("findReplace.steps.mode")
+            TextField("Steps", text: $state.newSteps).disabled(state.resample).accessibilityIdentifier("findReplace.steps.to")
         }
     }
 }

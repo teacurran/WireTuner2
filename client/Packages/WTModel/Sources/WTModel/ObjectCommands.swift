@@ -234,15 +234,17 @@ public enum TransformKind: String, Sendable, Hashable, CaseIterable {
     }
 }
 
-/// The Transform panel's options (transforming.adoc, "Client").
+/// The Transform panel's options (transforming.adoc, "The Transform panel" and "Data model"),
+/// which the transformation tools and the transform handles read too.
 public struct TransformOptions: Hashable, Sendable {
     /// Scale stroke widths by `sqrt(|det|)` (leaf objects only).
     public var strokes: Bool
-    /// Transform the fills with the object (off would compensate fill axes, which ATTR's gradient
-    /// and tile registers do not have yet: ignored until then).
+    /// Gradient and tiled fills transform with the object; off, the command writes a compensating
+    /// map onto their registers so they stay put on the page (`TransformFills`).
     public var fills: Bool
-    /// Transform a group's members as well as the group (always true: a group's transform
-    /// carries its members).
+    /// A clipping path's contents transform with it; off, a selected clip group's clip path
+    /// transforms alone (`P.transform`, not `G.transform`).  A move always moves both
+    /// (clipping-paths.adoc, "Transforming a clipping path").
     public var contents: Bool
 
     public init(strokes: Bool = false, fills: Bool = true, contents: Bool = true) {
@@ -256,7 +258,9 @@ public struct TransformOptions: Hashable, Sendable {
 /// transformation, taken about `center` when given -- onto each node's `transform`, converted into
 /// the node's parent space (`T(c) · M · T(-c)` conjugated by the parent's chain), one register
 /// write per node.  *Strokes* multiplies every basic stroke width by `sqrt(|det M|)` in the same
-/// change.  With `copies` > 0 the sources stay and copies are created above them with
+/// change; *Fills* off maps every gradient and tiled fill in the moved subtree back onto the page
+/// (`TransformFills`), in the same change; *Contents* off transforms a selected clip group's clip
+/// path instead of the group (not for a move).  With `copies` > 0 the sources stay and copies are created above them with
 /// `transform = T · Mᵏ` for k = 1…copies ("Rotate with 3 copies").  A matrix that cannot be
 /// inverted is refused.  Locked objects are skipped.
 public struct TransformObjects: Command {
@@ -296,30 +300,55 @@ public struct TransformObjects: Command {
         }
         let factor = abs(m.determinant).squareRoot()
         for node in Objects.editable(nodes, in: state) where state.nodeKind(node) != .connector {
-            let kind = try Objects.kind(node, in: state)
-            let toPasteboard = Objects.parentTransform(of: node, in: state)
+            // What the transformation moves: the node, or with *Contents* off a clip group's clip path.
+            let moved = movedNode(node, in: state)
+            let kind = try Objects.kind(moved, in: state)
+            let toPasteboard = Objects.parentTransform(of: moved, in: state)
             let inParent = toPasteboard.concatenating(m).concatenating(toPasteboard.inverse)
-            let current = Objects.transform(of: node, in: state)
+            let current = Objects.transform(of: moved, in: state)
             if copies > 0, let parent = Objects.parent(of: node, in: state) {
                 var tree = NodeTree(node, state: state)
+                let index = moved == node ? nil : tree.children.firstIndex { $0.source == moved }
                 var step = current
+                var total = AffineTransform.identity
                 var above = state.store.placement(node)?.position
                 let next = Arranging.siblingAfter(node, in: state).flatMap { state.store.placement($0)?.position }
                 for _ in 0..<copies {
                     step = step.concatenating(inParent)
-                    tree.transform = step
-                    if options.strokes, kind != .group { tree.props = Self.scaledStrokes(tree.props, by: factor) }
+                    total = total.concatenating(m)
+                    func advance(_ target: inout NodeTree) {
+                        target.transform = step
+                        if options.strokes, kind != .group { target.props = Self.scaledStrokes(target.props, by: factor) }
+                    }
+                    if let index { advance(&tree.children[index]) } else { advance(&tree) }
+                    var copy = tree
+                    if !options.fills {
+                        if let index { copy.children[index] = TransformFills.keeping(copy.children[index], moving: total, in: state) } else {
+                            copy = TransformFills.keeping(copy, moving: total, in: state)
+                        }
+                    }
                     let key = try PathEditing.keys(between: above, and: next, count: 1)[0]
-                    try NodeCopier.create(tree, parent: parent, position: key, schema: state.schema, builder: &builder)
+                    try NodeCopier.create(copy, parent: parent, position: key, schema: state.schema, builder: &builder)
                     above = key
                 }
                 continue
             }
-            builder.append(Objects.setTransform(node, kind: kind, current.concatenating(inParent)))
+            builder.append(Objects.setTransform(moved, kind: kind, current.concatenating(inParent)))
             if options.strokes, kind != .group, factor != 1 {
-                for op in AppearanceEditing.scaleStrokeWidths(node, kind: kind, by: factor, state: state) { builder.append(op) }
+                for op in AppearanceEditing.scaleStrokeWidths(moved, kind: kind, by: factor, state: state) { builder.append(op) }
+            }
+            if !options.fills {
+                for op in TransformFills.ops(keeping: moved, moving: m, in: state) { builder.append(op) }
             }
         }
+    }
+
+    /// The node the transformation writes for the selected `node`: its clip path when *Contents*
+    /// is off, `node` is a clip group with a usable, unlocked clip path and this is no move;
+    /// otherwise `node`.
+    func movedNode(_ node: OpID, in state: EngineState) -> OpID {
+        guard !options.contents, kind != .move, let clip = ClipGroups.clipPath(of: node, in: state), !Objects.isLocked(clip, in: state) else { return node }
+        return clip
     }
 
     /// `props` with every basic stroke width multiplied by `factor`.

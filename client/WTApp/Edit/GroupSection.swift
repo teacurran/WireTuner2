@@ -4,13 +4,23 @@ import WTModel
 
 /// The Object panel's group section (grouping.adoc, "The Object panel"; clipping-paths.adoc, "The
 /// Object panel"; OBJ-017 and OBJ-027's UI): *Transform as unit* for the selected groups, the
-/// *Contents* row -- how many objects are inside; double-click (or btn:[Select Contents]) subselects
-/// them all -- and, for a clip group, its clip path or *No clip path* with *Choose Clip Path…*.
+/// *Contents* row -- how many objects are inside; a click selects the row, which shows the contents
+/// handle on the canvas (OBJ-028), and a double-click (or btn:[Select Contents]) subselects them
+/// all -- and, for a clip group, the *Clip path* row -- its name or *No clip path*; a click
+/// subselects the clip path, so the panel edits its own strokes, fills and effects -- with *Choose
+/// Clip Path…*.
 @MainActor
 struct GroupSectionModel {
+    /// The window's *Contents* row selection: which clip group's row is selected, and selecting it.
+    struct Rows {
+        var selected: @MainActor () -> OpID? = { nil }
+        var select: @MainActor (OpID?) -> Void = { _ in }
+    }
+
     let panel: ObjectPanelModel
     /// Subselects objects in the front window.
     let select: @MainActor ([OpID]) -> Void
+    var rows = Rows()
 
     var state: EngineState { panel.document.state }
 
@@ -56,6 +66,21 @@ struct GroupSectionModel {
         if !contents.isEmpty { select(contents) }
     }
 
+    /// Whether the clip group's *Contents* row is selected.
+    var contentsRowSelected: Bool { clipGroup.map { rows.selected() == $0 } ?? false }
+
+    /// A click on the *Contents* row: selects it (the contents handle shows), or deselects it.
+    func toggleContentsRow() {
+        guard let group = clipGroup else { return }
+        rows.select(contentsRowSelected ? nil : group)
+    }
+
+    /// A click on the *Clip path* row: subselects the clip path.
+    func selectClipPath() {
+        guard let group = clipGroup, let path = ClipGroups.clipPath(of: group, in: state) else { return }
+        select([path])
+    }
+
     func chooseClipPath(_ path: OpID) {
         guard let group = clipGroup else { return }
         panel.perform(ChooseClipPath(group, path: path))
@@ -75,12 +100,20 @@ struct GroupSectionView: View {
                 .accessibilityIdentifier("object.group.transformAsUnit")
                 .accessibilityValue(PathSectionView.accessibilityValue(model.transformAsUnit))
             LabeledContent("Contents", value: model.contentsTitle)
+                .padding(.horizontal, 2)
+                .background(model.contentsRowSelected ? Color.accentColor.opacity(0.25) : Color.clear)
                 .contentShape(Rectangle())
                 .onTapGesture(count: 2, perform: model.selectContents)
+                .onTapGesture(count: 1, perform: model.toggleContentsRow)
+                .accessibilityAddTraits(model.contentsRowSelected ? .isSelected : [])
                 .accessibilityIdentifier("object.group.contents")
             Button("Select Contents", action: model.selectContents).accessibilityIdentifier("object.group.selectContents")
             if let title = model.clipPathTitle {
-                LabeledContent("Clip path", value: title).accessibilityIdentifier("object.group.clipPath")
+                LabeledContent("Clip path", value: title)
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 1, perform: model.selectClipPath)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityIdentifier("object.group.clipPath")
                 Menu("Choose Clip Path…") {
                     ForEach(model.clipCandidates, id: \.id) { candidate in
                         Button(candidate.name) { model.chooseClipPath(candidate.id) }
@@ -95,10 +128,10 @@ struct GroupSectionView: View {
 }
 
 enum GroupSection {
-    /// The section, subselecting through `select`.
-    static func section(select: @escaping @MainActor ([OpID]) -> Void) -> InspectorSection {
+    /// The section, subselecting through `select`, the *Contents* row through `rows`.
+    static func section(select: @escaping @MainActor ([OpID]) -> Void, rows: GroupSectionModel.Rows = GroupSectionModel.Rows()) -> InspectorSection {
         InspectorSection(id: "group", order: 45, kinds: [.group]) { panel in
-            let model = GroupSectionModel(panel: panel, select: select)
+            let model = GroupSectionModel(panel: panel, select: select, rows: rows)
             return model.groups.isEmpty ? nil : AnyView(GroupSectionView(model: model))
         }
     }

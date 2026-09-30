@@ -377,7 +377,9 @@ final class EditFeatures {
     func install(commands registry: CommandRegistry, inspector: InspectorRegistry = .standard, window: @escaping @MainActor () -> DocumentWindowController?) {
         self.window = window
         for command in commands(previousSplit: registry.command(ContextMenuCatalog.ID.split)) { registry.replace(command) }
-        inspector.register(GroupSection.section(select: subselect))
+        inspector.register(GroupSection.section(select: subselect, rows: GroupSectionModel.Rows(
+            selected: { [weak self] in self?.window()?.selection.model.contentsRow },
+            select: { [weak self] group in self?.selectContentsRow(group) })))
         let preferences = preferences
         SmartGuideLink.shared.color = {
             let c = preferences[PreferenceCatalog.Colors.smartGuideColor].components
@@ -388,6 +390,14 @@ final class EditFeatures {
     /// The *Contents* row's subselection in the front window.
     func subselect(_ nodes: [OpID]) {
         window()?.selection.model.set(Selection(nodes.map { SelectionID($0) }))
+    }
+
+    /// Selects the *Contents* row of `group` in the front window (nil deselects it); the canvas
+    /// redraws the contents handle.
+    func selectContentsRow(_ group: OpID?) {
+        guard let window = window() else { return }
+        window.selection.model.selectContentsRow(group)
+        window.canvas.setNeedsOverlayDisplay()
     }
 }
 

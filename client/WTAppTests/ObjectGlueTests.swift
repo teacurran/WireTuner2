@@ -82,6 +82,8 @@ final class HandleWorld {
         let layer = ClipContentsHandle()
         #expect(ClipContentsHandle.handle(world.context) == nil, "nothing selected")
         world.select([group])
+        #expect(ClipContentsHandle.handle(world.context) == nil, "the Contents row is not selected")
+        world.selection.model.selectContentsRow(group)
         let handle = try #require(ClipContentsHandle.handle(world.context))
         #expect(handle.group == group && handle.position == Point(x: 30, y: 30), "the centre of the contents")
         layer.draw(in: world.bitmap(), viewport: world.host.viewport, context: world.context)
@@ -105,6 +107,9 @@ final class HandleWorld {
         #expect(layer.press(world.event(40, 35, clicks: 2), context: world.context))
         #expect(world.selection.selection.ids.map(\.opID) == [content])
         #expect(ClipContentsHandle.handle(world.context) == nil, "a member selected: no handle")
+        #expect(world.selection.model.contentsRow == nil, "another selection deselects the row")
+        world.selection.model.selectContentsRow(group)
+        #expect(world.selection.model.contentsRow == nil, "only the selected group's row can be selected")
     }
 
     // MARK: Polygon handles

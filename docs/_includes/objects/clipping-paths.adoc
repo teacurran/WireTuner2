@@ -210,8 +210,14 @@ Pointer tool (WTApp); the Object panel rows are OBJ-027's.
 NOTE: As built by OBJ-028's app half (`WTApp/Objects/ShapeHandles.swift`, `ClipContentsHandle`).  A canvas handle layer over the
 Pointer and Subselect tools draws the contents handle at `ContentsHandle.position` of the one selected clip group; dragging it
 previews the contents' outlines moving and writes `MoveContents` on release (one change, "Move contents"); a double-click on it
-subselects the contents.  Deviation: the handle shows whenever one clip group is selected as a whole, not only while the Object
-panel's *Contents* row is selected (the panel keeps no row selection).
+subselects the contents.  (It showed whenever one clip group was selected until the row selection below.)
+
+NOTE: As built by OBJ-028's rows (`WTApp/Edit/GroupSection.swift`, `Selection/SelectionModel.swift`, `Objects/ShapeHandles.swift`,
+`Edit/EditFeatures.swift`).  A click on the Object panel's *Contents* row selects it (highlighted; another click deselects it) and
+the contents handle shows on the canvas only while it is selected -- `SelectionModel.contentsRow`, the window's row selection, which
+any other selection clears; a double-click still subselects the contents.  A click on the *Clip path* row subselects the clip path,
+so the panel shows and edits its own strokes, fills and effects.  The row selection is the window's UI state, not document data.
+Tests: `ObjectGlueTests`, `EditFeaturesTests`.  *Transform with Contents off* is OBJ-031's (xref:transforming.adoc[Transforming]).
 
 NOTE: As built by OBJ-060 (xref:backlog.adoc#OBJ-060[backlog]; `WTModel/Clipping.swift`,
 `WTApp/Menus/ReachabilityFeatures.swift`).  `ReleaseContents(nodes)` ("Release Contents") takes each

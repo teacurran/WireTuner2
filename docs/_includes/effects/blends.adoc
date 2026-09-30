@@ -285,6 +285,11 @@ Interpolation (on read, cached)::
 Default steps:: `max(1, ceil(ΔE × 3))` where `ΔE` is the CIE76 distance between the end
 fill colors, capped at 100; falls back to 25 when there is no color difference.
 
+Resampled steps:: Find & Replace's *Resample at* writes `steps = ceil(levels × change)` (1 ... 1000):
+`levels = min((dpi / lpi)², 256)` from the printer resolution and the default screen, `change` the
+largest one-ink change between adjacent key objects (D-090,
+xref:find-replace.adoc[Find & Replace]).
+
 Cache:: Keyed by `(blend node id, blend state hash, key-object subtree hashes)`; REND-004
 evicts on any change under the node.  Steps are a display-list fragment.
 

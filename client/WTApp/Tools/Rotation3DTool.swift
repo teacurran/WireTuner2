@@ -221,7 +221,7 @@ final class Rotation3DTool: Tool, PointerTracking {
         let current = settings()
         let nodes = context.selection.selection.ids.map(\.opID)
         guard current.expert, let eye = place(current.projectFrom) else {
-            return CompositeCommand("3D rotate", [TransformObjects(nodes, matrix: rotation.affine, about: origin, kind: .skew)])
+            return CompositeCommand("3D rotate", [TransformObjects(nodes, matrix: rotation.affine, about: origin, kind: .skew, options: context.transformOptions())])
         }
         var commands: [any WTModel.Command] = []
         let targets = PathSplitting.targets(context.selection.selection, document: context.document)
@@ -240,7 +240,7 @@ final class Rotation3DTool: Tool, PointerTracking {
             commands.append(RewritePath(node: target.node, edits: edits, label: "3D rotate"))
         }
         let others = nodes.filter { node in !targets.contains { $0.node == node } }
-        if !others.isEmpty { commands.append(TransformObjects(others, matrix: rotation.affine, about: origin, kind: .skew)) }
+        if !others.isEmpty { commands.append(TransformObjects(others, matrix: rotation.affine, about: origin, kind: .skew, options: context.transformOptions())) }
         return CompositeCommand("3D rotate", commands)
     }
 

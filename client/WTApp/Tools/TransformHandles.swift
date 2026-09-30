@@ -189,7 +189,8 @@ struct TransformHandles: Equatable, Sendable {
     /// The one change a drag makes (one per gesture): the selected points of each path, or the
     /// objects -- with kbd:[Option] a transformed copy.
     @MainActor
-    static func command(_ zone: Zone, matrix: WTGeometry.AffineTransform, about center: Point, selection: Selection, copy: Bool) -> (any WTModel.Command)? {
+    static func command(_ zone: Zone, matrix: WTGeometry.AffineTransform, about center: Point, selection: Selection, copy: Bool,
+                        options: TransformOptions = TransformOptions()) -> (any WTModel.Command)? {
         guard matrix.isInvertible else { return nil }
         let kind = kind(zone)
         let about: Point? = kind == .move ? nil : center
@@ -202,7 +203,7 @@ struct TransformHandles: Equatable, Sendable {
         if !pointCommands.isEmpty { return CommandBatch(pointCommands[0].label, pointCommands) }
         let nodes = selection.ids.map(\.opID)
         guard !nodes.isEmpty else { return nil }
-        return TransformObjects(nodes, matrix: matrix, about: about, kind: kind, copies: copy ? 1 : 0)
+        return TransformObjects(nodes, matrix: matrix, about: about, kind: kind, options: options, copies: copy ? 1 : 0)
     }
 
     /// The cursor a zone shows (the plus sign while kbd:[Option] copies).

@@ -413,7 +413,7 @@ final class PointerTool: Tool, PointerTracking, ToolInfoPublishing {
     func handleCommand(_ zone: TransformHandles.Zone, handles: TransformHandles, end: CanvasEvent) -> (any WTModel.Command)? {
         guard let context, let matrix = handleMatrix(zone, handles: handles, end: end) else { return nil }
         return TransformHandles.command(zone, matrix: matrix, about: handles.center, selection: context.selection.selection,
-                                        copy: end.modifiers.contains(.option))
+                                        copy: end.modifiers.contains(.option), options: context.transformOptions())
     }
 
     /// The command a move by `delta` performs: the selected points (one `MovePoints` per path),

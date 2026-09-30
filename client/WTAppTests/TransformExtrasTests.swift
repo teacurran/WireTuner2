@@ -68,6 +68,36 @@ import WTRender
         pointer.activate(in: context)
     }
 
+    @Test func theToolsAndHandlesTransformWithThePanelsOptions() async throws {
+        let defaults = TestDefaults()
+        defer { defaults.remove() }
+        #expect(TransformPanelModel.options(nil) == TransformOptions())
+        let state = TransformPanelState(defaults: defaults.defaults)
+        state.model.fills = false
+        state.model.contents = false
+        state.model.strokes = true
+        let options = TransformPanelModel.options(defaults.defaults)
+        #expect(options == TransformOptions(strokes: true, fills: false, contents: false) && state.model.options == options)
+        // The Rotate tool's command carries them.
+        let document = DocumentHandle.memory(title: "Options")
+        let rect = await document.addRectangles([Rect(x: 0, y: 0, width: 10, height: 10)])[0]
+        let f = DrawingToolTests.Fixture(TransformTool(.rotate), document: document)
+        f.selection.model.set(Selection([rect]))
+        let sink = RecordingSink()
+        var context = ToolContext(document: document, host: f.host, selection: f.selection)
+        context.commandSink = sink
+        context.transformOptions = { options }
+        f.tool.activate(in: context)
+        f.tool.mouseDown(TestEvents.point(0, 0))
+        f.tool.mouseDragged(TestEvents.point(10, 0))
+        f.tool.mouseUp(TestEvents.point(0, 10))
+        #expect((sink.commands.first as? TransformObjects)?.options == options)
+        // The handles' command too.
+        let handles = try #require(TransformHandles.command(.rotate(.top), matrix: .rotation(radians: 0.3), about: .zero, selection: Selection([rect]), copy: false,
+                                                           options: options) as? TransformObjects)
+        #expect(handles.options == options)
+    }
+
     @Test func theOptionsPersistAndOpenOnATab() throws {
         let defaults = TestDefaults()
         defer { defaults.remove() }

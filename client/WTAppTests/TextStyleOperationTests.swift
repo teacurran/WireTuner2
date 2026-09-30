@@ -57,6 +57,61 @@ import WTRender
         #expect(!TextStyleOperations.firstParagraph(preferences))
     }
 
+    @Test func theStyleBehaviorRulerSetsTabsAndIndents() async throws {
+        let (world, node) = try await Self.world()
+        defer { world.close() }
+        _ = await TextStyleOperations.newStyle(.paragraph, model: Self.model(world, node), firstParagraph: true)?.value
+        let style = try #require(world.state.textStyles.styles(.paragraph).first { !$0.isNormalText })
+        let behavior = TextStyleBehaviorModel(style: style, in: world.state)
+        let ruler = StyleTabRuler(model: behavior)
+        #expect(ruler.width == StyleTabRuler.length && ruler.scale == 1 && ruler.stops.isEmpty && !behavior.tabsChanged)
+        // The ruler view's well drops a left stop; the source takes the edit, so nothing is performed.
+        let view = StyleTabRulerView.makeRuler(behavior)
+        view.begin(at: NSPoint(x: -TextRulerView.wellWidth + 3, y: 10))
+        #expect(view.end(at: NSPoint(x: 50.004, y: 10)) == nil)
+        #expect(behavior.tabs.map(\.position) == [50] && behavior.tabsChanged)
+        #expect(ruler.place(.right, at: 400) == nil && behavior.tabs.count == 1, "past the ruler's end: nothing")
+        _ = ruler.place(.center, at: 20)
+        #expect(ruler.stops.map(\.stop.kind) == [.center, .left])
+        _ = ruler.dragStop(from: 50, to: 80, offRuler: false, duplicate: false)
+        _ = ruler.dragStop(from: 80, to: 120, offRuler: false, duplicate: true)
+        _ = ruler.dragStop(from: 20, to: 0, offRuler: true, duplicate: false)
+        _ = ruler.dragStop(from: 80, to: 0, offRuler: true, duplicate: true)
+        _ = ruler.dragStop(from: 77, to: 0, offRuler: true, duplicate: false)
+        #expect(behavior.tabs.map(\.position) == [80, 120])
+        #expect(ruler.defaultTicks.first == 144)
+        // Indents.
+        _ = ruler.dragIndent(.left, by: 10)
+        #expect(ruler.leftIndent == 10 && ruler.firstLine == 0)
+        _ = ruler.dragIndent(.firstLine, by: 5)
+        _ = ruler.dragIndent(.both, by: 5)
+        _ = ruler.dragIndent(.right, by: -20)
+        _ = ruler.dragIndent(.right, by: 0)
+        #expect(ruler.leftIndent == 15 && ruler.firstLine == 10 && ruler.rightIndent == StyleTabRuler.length - 20)
+        // btn:[OK]: the indents and the tab stops in one change.
+        let command = try #require(behavior.command as? CompositeCommand)
+        #expect(command.label == "Edit style \(style.name)")
+        _ = await world.window.objectEditing.perform(command).value
+        var attrs = try #require(world.state.textStyles.style(style.id)?.attrs)
+        #expect(attrs.paragraph.tabsSet && attrs.paragraph.tabs.map(\.position).sorted() == [80, 120])
+        #expect(attrs.paragraph.leftIndent == 15 && attrs.paragraph.firstLineIndent == -5 && attrs.paragraph.rightIndent == 20)
+        // Tabs alone; then *No selection* unsets tabs and indents.
+        let tabsOnly = TextStyleBehaviorModel(style: try #require(world.state.textStyles.style(style.id)), in: world.state)
+        #expect(!tabsOnly.tabsChanged && tabsOnly.command == nil)
+        _ = StyleTabRuler(model: tabsOnly).place(.decimal, at: 200)
+        #expect(tabsOnly.command is SetTextStyleTabs)
+        tabsOnly.clearTabsAndIndents()
+        _ = await world.window.objectEditing.perform(try #require(tabsOnly.command)).value
+        attrs = try #require(world.state.textStyles.style(style.id)?.attrs)
+        #expect(!attrs.paragraph.tabsSet && attrs.paragraph.tabs.isEmpty && !attrs.paragraph.hasLeftIndent && !attrs.paragraph.hasRightIndent)
+        PanelRendering.host(TextStyleBehaviorSheet(model: tabsOnly, commit: { _ in }, cancel: {}))
+        // A character style has no tabs.
+        _ = await TextStyleOperations.newStyle(.character, model: Self.model(world, node), firstParagraph: true)?.value
+        let character = TextStyleBehaviorModel(style: try #require(world.state.textStyles.styles(.character).first), in: world.state)
+        character.tabs = [.with { $0.position = 10 }]
+        #expect(!character.tabsChanged)
+    }
+
     @Test func everyStyleBehaviorControlSetsOrClearsItsField() async throws {
         let (world, node) = try await Self.world()
         defer { world.close() }
@@ -120,7 +175,7 @@ import WTRender
         binding.wrappedValue = TextStyleBehaviorModel.Global.original.rawValue
         binding.wrappedValue = "nothing"
         // The sheets render and commit.
-        var committed: EditTextStyle??
+        var committed: (any WTModel.Command)??
         PanelRendering.host(TextStyleBehaviorSheet(model: global, commit: { committed = .some($0) }, cancel: {}))
         TextStyleBehaviorSheet.committing(global) { committed = .some($0) }()
         #expect(committed != nil)

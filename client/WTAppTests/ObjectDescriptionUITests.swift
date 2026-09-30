@@ -82,6 +82,11 @@ import WTRender
         #expect(graphics.edit(.blendSteps) == .blendSteps(ValueRange(min: 3, max: nil), to: .add(2)))
         graphics.newSteps = ""
         #expect(graphics.edit(.blendSteps) == nil && graphics.edit(.remove) == .remove(.invisible))
+        // *Resample at* the printer resolution needs no number (D-090).
+        graphics.resample = true
+        #expect(graphics.edit(.blendSteps) == .resampleBlends(ValueRange(min: 3, max: nil)))
+        PanelRendering.host(Form { GraphicReplaceFields(state: graphics, attribute: .blendSteps, swatches: list.swatches, resolver: list.resolver) })
+        graphics.resample = false
         graphics.newWidth = "?"
         graphics.angle = ""
         #expect(graphics.edit(.strokeWidth) == nil && graphics.edit(.rotate) == nil)

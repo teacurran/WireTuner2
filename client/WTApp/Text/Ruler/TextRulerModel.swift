@@ -5,13 +5,48 @@ import WTModel
 import WTProto
 import WTRender
 
+/// What a text ruler shows and what its gestures do (`TextRulerView`): the column width, the
+/// tab stops and indent markers in ruler points (points from the column's left edge), view points
+/// per ruler point, and the result of dropping, dragging or removing a stop or dragging an indent
+/// marker -- a command to perform, or nil when the source took the edit itself (the Style Behavior
+/// sheet's ruler edits the sheet's settings, which btn:[OK] writes).
+@MainActor
+protocol TextRulerSource {
+    var width: Double { get }
+    var scale: Double { get }
+    var stops: [(id: OpID, stop: Wiretuner_Doc_V1_TabStop)] { get }
+    var leftIndent: Double { get }
+    var firstLine: Double { get }
+    var rightIndent: Double { get }
+    func place(_ kind: Wiretuner_Doc_V1_TabKind, at position: Double) -> (any WTModel.Command)?
+    func dragStop(from: Double, to: Double, offRuler: Bool, duplicate: Bool) -> (any WTModel.Command)?
+    func dragIndent(_ indent: TextRulerModel.Indent, by delta: Double) -> (any WTModel.Command)?
+}
+
+extension TextRulerSource {
+    /// The default ticks: every half inch past the last set stop, up to the width.
+    var defaultTicks: [Double] {
+        let last = stops.map(\.stop.position).max() ?? 0
+        var ticks: [Double] = []
+        var position = (floor(last / TextRulerModel.defaultSpacing) + 1) * TextRulerModel.defaultSpacing
+        while position <= width {
+            ticks.append(position)
+            position += TextRulerModel.defaultSpacing
+        }
+        return ticks
+    }
+
+    /// Ruler points of a distance along the ruler, view points.
+    func position(_ viewX: Double) -> Double { viewX / scale }
+}
+
 /// The text ruler's model (tabs-indents.adoc, "The text ruler"; TYPE-023): what the ruler above
 /// the Text tool's block shows -- its width, the tab stops and indent markers of the first
 /// paragraph the selection touches, the default ticks every half inch past the last stop -- and
 /// what its gestures write: one change at mouse-up, on every paragraph the selection touches.
 /// Positions are ruler points: points from the column's left edge after the inset.
 @MainActor
-struct TextRulerModel {
+struct TextRulerModel: TextRulerSource {
     /// Default tabs every half inch.
     static let defaultSpacing = 36.0
     /// The ruler's height, view points.
@@ -47,18 +82,6 @@ struct TextRulerModel {
     /// The column width the ruler shows, points.
     var width: Double { max(session.localFrame.width - inset.left - inset.right, 0) }
 
-    /// The default ticks: every half inch past the last set stop, up to the width.
-    var defaultTicks: [Double] {
-        let last = stops.map(\.stop.position).max() ?? 0
-        var ticks: [Double] = []
-        var position = (floor(last / Self.defaultSpacing) + 1) * Self.defaultSpacing
-        while position <= width {
-            ticks.append(position)
-            position += Self.defaultSpacing
-        }
-        return ticks
-    }
-
     /// The indent markers' positions (the first line's is relative to the left indent).
     var leftIndent: Double { paragraph?.props.leftIndent ?? 0 }
     var firstLine: Double { leftIndent + (paragraph?.props.firstLineIndent ?? 0) }
@@ -82,9 +105,6 @@ struct TextRulerModel {
         let axis = toView.apply(Vector(dx: 1, dy: 0))
         return atan2(axis.dy, axis.dx)
     }
-
-    /// Ruler points of a distance along the ruler, view points.
-    func position(_ viewX: Double) -> Double { viewX / scale }
 
     // MARK: Commands
 

@@ -61,8 +61,13 @@ proportionally.  Ticking *Uniform* keeps them equal.
 
 |Blend steps
 |Finds blends with a number of steps and sets a new number, or *Resample at* the current
-printer resolution.
+printer resolution: each blend gets as many steps as the printer can show shades of the colours
+it changes -- more at a high resolution, fewer for a small change of colour.  A blend whose ends
+share their colours keeps its steps.
 |===
+
+*Resample at* reads the printer resolution from the Document panel and the screen from the
+default halftone in the print settings (xref:blends.adoc[Blends]).
 
 Stroke width, simplify, rotate, scale and blend steps take arithmetic in their fields
 (`*2`, `+1`, `/3`), as the Object panel does.
@@ -203,7 +208,7 @@ object's own bounds centre, *Simplify* (paths over a point count) and *Blend ste
 `TransformObjects`, `SimplifyPaths`, `EditBlend.steps`) in one change "Replace <attribute> in N
 objects"; `chunks(limit:)` splits one past 10,000 ops into parts labelled `(2/3)`, performed in one
 undo group.  menu:Edit[Find and Replace > Graphics…] (kbd:[Cmd+Option+F]) brings the panel forward.
-What this note once listed as not built is built except *Resample at* (below, OBJ-023's remainder);
+What this note once listed as not built is built (*Resample at* last, below);
 *Font* is TYPE-022's (family, style and size range to family, style and size), and the Main toolbar's
 *Find & Replace* button is `MainToolbar`'s.
 
@@ -222,8 +227,20 @@ replacement's bounds onto the match's geometry bounds, and the match is deleted,
 N objects"; the replacement's named colours are resolved once for every copy.  The Select tab adds *Color* (a well like the
 Replace tab's), *Style* (the graphic styles, then the paragraph and character styles), *Fill type*, *Stroke type*, and
 btn:[Paste In] for *Path shape*, whose pasted sample is used instead of the first selected object (and then the selected
-object can be found).  Not built: *Resample at* (the steps for the printer resolution need a steps-per-resolution rule the
-blend page does not give).  Tests: `GraphicReplaceEditTests` (WTModel), `FindReplaceAttributeTests` (WTApp).
+object can be found).  *Resample at* came later (below).  Tests: `GraphicReplaceEditTests` (WTModel), `FindReplaceAttributeTests`
+(WTApp).
+
+NOTE: As built by OBJ-023's *Resample at* (`WTModel/BlendResampling.swift`, `GraphicReplace.swift`;
+`WTApp/FindReplace/GraphicReplace.swift`).  The rule is D-090 (xref:decisions.adoc#D-090[decisions]):
+`GraphicEdit.resampleBlends(range)` gives each blend whose steps (never set: 25) lie in *Min* ... *Max*
+`ceil(levels × change)` steps, 1 ... 1000, where `levels = min((dpi / lpi)², 256)` from the document's
+printer resolution and default screen frequency (`BlendResampling.levels(in:)`) and `change` is the
+largest one-ink change between adjacent key objects' topmost fill colours (gradient stops compared in
+ramp order) and topmost Basic stroke colours (`BlendResampling.inkChange`: one spot ink's tint, else the
+CMYK inks); a blend with no change, or already at that number, does not match.  One `EditBlend.steps`
+per blend in the replace's one change.  The Replace tab's *Blend steps* has *Change to* -- *Steps* (the
+number or arithmetic) or *Resample at printer resolution*, which disables the number.  Tests:
+`BlendResamplingTests` (WTModel), `ObjectDescriptionUITests` (WTApp).
 
 === Build tasks
 

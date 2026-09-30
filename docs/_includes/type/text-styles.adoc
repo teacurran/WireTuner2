@@ -270,7 +270,18 @@ style dropped on text to the paragraph under the drop or, per *Dragging a text s
 block.  The Styles panel's text style rows drag the style (`StyleDrag`), and the canvas drop
 (`StyleCanvasDrop.textDrop`, which the window sets) sends a paragraph or character style to
 `TextStyleOperations.drop` with *Dragging a text style changes*, so it applies to the text under the drop
-and never as a graphic style.  Not built: the sheet's text ruler for tabs.  The axes and features controls came with TYPE-046.
+and never as a graphic style.  The axes and features controls came with TYPE-046; the sheet's text ruler, below.
+
+NOTE: As built by TYPE-035's ruler (`WTApp/Text/Styles/StyleTabRuler.swift`, `TextStyleBehavior.swift`;
+`WTApp/Text/Ruler/TextRulerModel.swift`, `TextRulerView.swift`).  The text ruler's view now draws any
+`TextRulerSource` -- the Text tool's paragraph (`TextRulerModel`) or, in the Style Behavior sheet of a
+paragraph style, `StyleTabRuler`: a 300 pt ruler over the style's tab stops and left, first-line and right
+indents.  Its gestures are the text ruler's -- drop a kind from the well, drag a stop, kbd:[Option]-drag a
+copy, drag a stop off to remove it, drag an indent marker (the left marker alone keeps the first line in
+place) -- and edit the sheet's settings; btn:[No selection] beside it unsets the tabs (`tabs_set` false)
+and the three indents.  btn:[OK] writes the changed registers with `EditTextStyle` and, when the stops
+changed, `SetTextStyleTabs` (the stops, or *No selection*), one change "Edit style <name>".  The ruler's
+double-click (the Edit Tab sheet) is the Text tool's only.  Tests: `TextStyleOperationTests`.
 
 === Build tasks
 

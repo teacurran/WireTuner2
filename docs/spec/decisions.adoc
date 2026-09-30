@@ -1169,6 +1169,38 @@ compared files.  1 of the 13 FreeHand files has a hidden layer, which now opens 
 artwork.  No file of the corpus is newer than Illustrator CS3, so none has artboard names, and there
 are no DXF files in it.
 
+[[D-090]]
+=== D-090 *Resample at* sets a blend's steps from the printer resolution, the screen and the largest ink change
+Found in use (2026-09-30): Find & Replace's *Blend steps* has *Resample at* the current printer
+output resolution in its pop-up (the reference book says no more), and the blend page's default
+steps come from the colour difference as the eye sees it, not from what a printer can reproduce.
+A halftoned ink has a fixed number of printable shades: a screen of `lpi` lines per inch on a
+`dpi` device makes cells of `(dpi / lpi)²` device pixels, so `(dpi / lpi)²` grey levels, and
+PostScript output stops at 256.  Steps finer than one shade print as the same shade and only cost
+output time; coarser ones band.  This is the rule the drawing programs of the book's era gave for
+blend steps (steps = grey levels × the percentage change of colour), and *Resample at* applies it
+(xref:find-replace.adoc[Find & Replace], xref:blends.adoc[Blends]):
+
+* *Levels*: `min((dpi / lpi)², 256)`, `dpi` the document's printer resolution (Document panel; 300
+  when never set) and `lpi` the frequency of the document's default screen (Print settings; 60 when
+  unset, the halftone read-time rule).  300 dpi at 60 lpi gives 25; 1,200 at 100 gives 144; 2,540 at
+  150 reaches 256.
+* *Change*: the largest change of any one ink between two adjacent key objects, 0 ... 1 -- the tint
+  change when both colours are tints of one spot ink, else the largest change of cyan, magenta,
+  yellow or black with both colours converted to CMYK (the naive conversion the model already uses
+  for process output).  A key object's colours are its topmost visible fill's (a Basic colour, or a
+  gradient's stops compared stop by stop in ramp order) and its topmost visible Basic stroke's; the
+  largest change over all of them counts, since the steps are per span between adjacent key objects.
+* *Steps*: `ceil(levels × change)`, clamped to 1 ... 1000, written to `BlendProps.steps` as any
+  *Blend steps* replace writes it (one change "Replace blend steps in N objects").  Only blends whose
+  steps (a never-set 0 read as 25) lie in the tab's *Min* ... *Max* are resampled.
+* *No change, no resample*: a blend whose key objects do not change colour (a shape morph) keeps its
+  steps; the formula would give none.
+
+Rejected: resampling from the screen alone (ignores the device), from ΔE as the default steps do
+(a display measure, which is what the default is for), and counting steps from the blend's length
+in device pixels (a long blend with little colour change would get hundreds of identical steps).
+
 == Open questions
 
 [[Q-001]]

@@ -143,7 +143,10 @@ final class MirrorTool: Tool {
         if settings.closePaths, matrices.count == 1, let joined = Self.join(nodes, matrix: matrices[0], center: center, context: context) {
             return joined
         }
-        let copies = matrices.map { TransformObjects(nodes, matrix: $0, about: center, kind: settings.rotate && settings.axis == .multiple ? .rotate : .reflect, copies: 1) }
+        let options = context.transformOptions()
+        let copies = matrices.map {
+            TransformObjects(nodes, matrix: $0, about: center, kind: settings.rotate && settings.axis == .multiple ? .rotate : .reflect, options: options, copies: 1)
+        }
         return CompositeCommand("Mirror", copies)
     }
 

@@ -10,8 +10,8 @@ import WTRender
 /// Pointer and Subselect tools (`ContentsHandle.position`).  Dragging it slides the contents behind
 /// the clip path -- one change "Move contents" on release (`MoveContents`), previewed as the
 /// handle and the contents' outline moving -- and a double-click on it subselects everything
-/// inside.  Deviation: the handle shows whenever one clip group is selected, not only while the
-/// Object panel's *Contents* row is selected (the panel has no row selection to follow).
+/// inside.  It shows while the Object panel's *Contents* row of the selected clip group is
+/// selected (`SelectionModel.contentsRow`).
 @MainActor
 final class ClipContentsHandle: CanvasHandleLayer {
     static let size = 9.0
@@ -21,11 +21,13 @@ final class ClipContentsHandle: CanvasHandleLayer {
 
     init() {}
 
-    /// The one selected clip group and its handle (pasteboard), if any.
+    /// The one selected clip group whose *Contents* row is selected, and its handle (pasteboard),
+    /// if any.
     static func handle(_ context: ToolContext) -> (group: OpID, position: Point)? {
         let ids = context.selection.selection.ids
         guard ids.count == 1, context.selection.selection.subSelection(of: ids[0]) == nil else { return nil }
         let group = ids[0].opID
+        guard context.selection.model.contentsRow == group else { return nil }
         let document = context.document
         return ContentsHandle.position(of: group, in: document.scene, state: document.state).map { (group, $0) }
     }

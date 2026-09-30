@@ -242,6 +242,22 @@ struct EditWorld {
         Render.view(GroupSectionView(model: section))
         section.chooseClipPath(ids[0].opID)
         #expect(world.inspector.views(for: panel).map(\.id).contains("group"))
+        // The Contents row: a click selects it (the contents handle shows), another deselects it;
+        // a click on the Clip path row subselects the clip path (OBJ-028).
+        world.select([SelectionID(group)])
+        let rows = GroupSectionModel(panel: panel, select: { subselected = $0 },
+                                     rows: .init(selected: { world.window.selection.model.contentsRow }, select: { world.features.selectContentsRow($0) }))
+        #expect(!rows.contentsRowSelected && !section.contentsRowSelected)
+        rows.toggleContentsRow()
+        #expect(rows.contentsRowSelected && world.window.selection.model.contentsRow == group)
+        Render.view(GroupSectionView(model: rows))
+        rows.toggleContentsRow()
+        #expect(!rows.contentsRowSelected)
+        rows.toggleContentsRow()
+        rows.selectClipPath()
+        #expect(subselected == [ids[0].opID] && world.window.selection.model.contentsRow == group, "the model's select is the caller's")
+        world.select([SelectionID(group), ids[0]])
+        #expect(world.window.selection.model.contentsRow == nil, "another selection deselects the row")
         // Cut Contents puts the contents on the clipboard and the path back.
         world.select([SelectionID(group)])
         #expect(world.commands.command(ID.cutContents)?.validation() == .enabled)
@@ -326,8 +342,12 @@ struct EditWorld {
         #expect(world.window.selection.model.ids == ids)
         let empty = GroupSectionModel(panel: ObjectPanelModel(document: world.document, selection: Selection([])), select: { _ in Issue.record("nothing to select") })
         empty.selectContents()
+        empty.toggleContentsRow()
+        empty.selectClipPath()
+        #expect(!empty.contentsRowSelected)
         #expect(GroupSection.section { _ in }.make(ObjectPanelModel(document: world.document, selection: Selection(ids))) == nil)
         world.features.window = { nil }
+        world.features.selectContentsRow(group)
         #expect(world.commands.command(item)?.validation() == .disabled(EditFeatures.noDocument))
         #expect(world.features.toggleTransformAsUnit() == nil)
     }

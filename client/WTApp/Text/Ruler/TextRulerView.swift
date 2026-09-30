@@ -22,7 +22,7 @@ final class TextRulerView: NSView {
         case indent(TextRulerModel.Indent)
     }
 
-    var model: TextRulerModel? {
+    var model: (any TextRulerSource)? {
         didSet { needsDisplay = true }
     }
     /// Where the commands go (the window's object editing).
@@ -41,7 +41,7 @@ final class TextRulerView: NSView {
     /// Places the ruler along the block in `canvas` (its bounds origin is the ruler's zero, minus
     /// the well).
     func place(in canvas: NSView) {
-        guard let model else { return }
+        guard let model = model as? TextRulerModel else { return }
         let zero = model.origin
         let height = Double(canvas.bounds.height)
         // View points are y down; AppKit's y up.
@@ -265,7 +265,7 @@ final class TextRulers {
 
     /// The tracking line down the block (canvas overlay, view points).
     func drawTracking(in ctx: CGContext, viewport: Viewport) {
-        guard let position = tracking, tracksLine(), let model = view.model, let session = window?.objectEditing.textSession else { return }
+        guard let position = tracking, tracksLine(), let model = view.model as? TextRulerModel, let session = window?.objectEditing.textSession else { return }
         let x = position + model.inset.left
         let toView = session.toPasteboard.concatenating(viewport.pasteboardToView)
         let top = toView.apply(Point(x: x, y: 0))
