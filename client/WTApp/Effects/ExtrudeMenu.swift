@@ -5,7 +5,8 @@ import WTModel
 import WTRender
 
 /// The menu:Modify[Extrude] submenu (extrude.adoc; FX-020): *Extrude* (the selection toward the
-/// current page's centre at the default depth), *Remove*, *Release*, *Reset* and *Share Vanishing
+/// current page's centre at the default depth -- or, when that would hide the sides, just above
+/// right of the selection), *Remove*, *Release*, *Reset* and *Share Vanishing
 /// Points*, which asks for a click on the canvas.  Each is one change.
 @MainActor
 enum ExtrudeMenu {
@@ -25,6 +26,8 @@ enum ExtrudeMenu {
     static let noExtrusion = "Select an extruded object"
     static let nested = "Extrusions cannot be nested"
     static let twoExtrusions = "Select two or more extruded objects"
+    /// The page's centre would have hidden the sides.
+    static let movedMessage = "The page's centre would hide the sides, so the vanishing point is just off the selection"
 
     /// The selected objects that can be extruded.
     static func flatObjects(_ editing: ObjectEditing) -> [OpID] {
@@ -47,14 +50,35 @@ enum ExtrudeMenu {
         return editing.selectedNodes.compactMap { ExtrudeTool.extrusion(of: $0, in: state) }.filter { seen.insert($0).inserted }
     }
 
-    /// Where *Extrude* from the menu points the solid: the current page's centre.
-    static func defaultVanishingPoint(_ editing: ObjectEditing) -> Point {
-        (editing.document.currentPage ?? Pasteboard.letterPage).center
+    /// The default settings *Extrude* from the menu writes, pointing at `vanishingPoint`.
+    static func spec(_ vanishingPoint: Point) -> ExtrudeSpec {
+        ExtrudeFields.spec(ExtrudeFields.defaults(length: Extrude.defaultLength, vanishingPoint: vanishingPoint))
     }
 
-    static func extrude(_ editing: ObjectEditing) -> Task<Void, Never>? {
+    /// Where *Extrude* from the menu points the solid: the current page's centre, unless that
+    /// hides the sides of a selected object (the page's centre on or inside it); then along the
+    /// line from the selection's centre through the page's centre -- above right when they
+    /// coincide -- just beyond the selection's bounds (`ExtrudeFit`).
+    static func defaultVanishingPoint(_ editing: ObjectEditing) -> Point {
+        let center = (editing.document.currentPage ?? Pasteboard.letterPage).center
+        let items = flatObjects(editing).compactMap { editing.document.item(for: SelectionID($0)) }
+        return ExtrudeFit.vanishingPoint(center, spec: spec(center), children: items)
+    }
+
+    /// The HUD's word after *Extrude* on the selection toward `vanishingPoint`, if any: that the
+    /// point was moved, or that some object shows no sides.
+    static func message(_ editing: ObjectEditing, vanishingPoint: Point) -> String? {
+        let sides = flatObjects(editing).compactMap { editing.document.item(for: SelectionID($0)) }.map { ExtrudeFit.sides(spec(vanishingPoint), child: $0) }
+        if sides.contains(.none) { return ExtrudeTool.flatMessage }
+        if sides.contains(.hidden) { return ExtrudeTool.hiddenMessage }
+        return vanishingPoint != (editing.document.currentPage ?? Pasteboard.letterPage).center ? movedMessage : nil
+    }
+
+    static func extrude(_ editing: ObjectEditing, host: (any CanvasHost)? = nil) -> Task<Void, Never>? {
         guard extrudeRefusal(editing) == nil else { return nil }
-        return BlendMenu.performSelecting(Extrude(flatObjects(editing), vanishingPoint: defaultVanishingPoint(editing)), editing)
+        let vanishingPoint = defaultVanishingPoint(editing)
+        if let host, let message = message(editing, vanishingPoint: vanishingPoint) { host.showHUD(message) }
+        return BlendMenu.performSelecting(Extrude(flatObjects(editing), vanishingPoint: vanishingPoint), editing)
     }
 
     /// Pushes the click that places the shared vanishing point.
@@ -73,7 +97,7 @@ enum ExtrudeMenu {
         let wrapped = BlendMenu.validation(target) { extrusions($0).isEmpty ? noExtrusion : nil }
         return [
             Command(id: ID.extrude, title: "Extrude", menu: path, keywords: ["3d", "solid", "extrude"],
-                    validation: BlendMenu.validation(target, extrudeRefusal), action: run { _ = extrude($0) }),
+                    validation: BlendMenu.validation(target, extrudeRefusal), action: run { _ = extrude($0, host: tools()?.context.host) }),
             Command(id: ID.remove, title: "Remove", menu: path, keywords: ["extrude", "flat"], validation: wrapped,
                     action: run { editing in editing.perform(RemoveExtrusion(extrusions(editing))) }),
             Command(id: ID.release, title: "Release", menu: path, keywords: ["extrude", "faces", "expand"], validation: wrapped,

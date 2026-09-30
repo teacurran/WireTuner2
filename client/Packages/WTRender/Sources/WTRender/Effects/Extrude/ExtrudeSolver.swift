@@ -463,3 +463,102 @@ enum ExtrudeResolver {
         return item
     }
 }
+
+/// Whether an extrusion shows its sides, and where to put a vanishing point so it does
+/// (extrude.adoc, "Extruding").  With the eye at the vanishing point, a vanishing point inside a
+/// convex outline hides every side behind the front face: the solid looks exactly like the flat
+/// shape.  The Extrude tool and menu:Modify[Extrude > Extrude] place the vanishing point with
+/// `vanishingPoint(_:spec:children:)` so a new extrusion always reads as a solid.
+public enum ExtrudeFit {
+    /// What the sides of an extrusion show.
+    public enum Sides: Hashable, Sendable {
+        /// Some side shows beyond the front face.
+        case visible
+        /// Every side is culled or hidden behind the front face.
+        case hidden
+        /// Nothing to extrude: no closed outline, or no depth.
+        case none
+    }
+
+    /// The fraction of the outline's larger side a moved vanishing point is kept beyond its
+    /// bounds, at least `minimumMargin` points.
+    public static let marginFraction = 0.5
+    public static let minimumMargin = 36.0
+    /// How far outside the front face a side's vertex must land to count as showing, points.
+    static let tolerance = 0.5
+
+    /// The direction a vanishing point is moved in when the requested one sits on the outline's
+    /// centre: above right, as the manual's examples draw it.
+    public static let aboveRight = Vector(dx: 1 / 2.0.squareRoot(), dy: -1 / 2.0.squareRoot())
+
+    /// The bounds the solver centres on: the flat child's closed and open outlines.
+    public static func bounds(_ child: DisplayItem) -> Rect? {
+        DisplayList.union(of: WarpSource.plainPaths(ExtrudeResolver.nestedChild(child)).compactMap { $0.path.controlBounds })
+    }
+
+    /// What the sides of `child` extruded by `spec` show.
+    public static func sides(_ spec: ExtrudeSpec, child: DisplayItem) -> Sides {
+        let paths = WarpSource.plainPaths(ExtrudeResolver.nestedChild(child))
+        let bounds = DisplayList.union(of: paths.compactMap { $0.path.controlBounds }) ?? .null
+        let polygons = ExtrudeSolver.polygons(paths.flatMap { $0.path.contours.filter(\.isClosed) }, steps: spec.effectiveSurfaceSteps)
+        guard spec.effectiveLength > 0, !polygons.isEmpty else { return .none }
+        let solver = ExtrudeSolver(spec: spec, bounds: bounds)
+        let fronts = polygons.map { $0.map { solver.map($0, depth: 0) } }
+        let culled = spec.surface == .flat || spec.surface == .shaded || spec.surface == .hiddenMesh
+        for face in solver.faces(polygons) where face.kind != .front && (face.facesViewer || !culled) {
+            if face.polygon.contains(where: { !covered($0, by: fronts) }) { return .visible }
+        }
+        return .hidden
+    }
+
+    /// Whether `point` lies inside the front face (even-odd over its rings) or within
+    /// `tolerance` of its outline.
+    static func covered(_ point: Point, by rings: [[Point]]) -> Bool {
+        var inside = false
+        var nearest = Double.infinity
+        for ring in rings {
+            for index in ring.indices {
+                let a = ring[index], b = ring[(index + 1) % ring.count]
+                if (a.y > point.y) != (b.y > point.y), point.x < a.x + (point.y - a.y) / (b.y - a.y) * (b.x - a.x) { inside.toggle() }
+                nearest = min(nearest, distance(point, a, b))
+            }
+        }
+        return inside || nearest <= tolerance
+    }
+
+    static func distance(_ point: Point, _ a: Point, _ b: Point) -> Double {
+        let ab = b - a
+        let squared = ab.dx * ab.dx + ab.dy * ab.dy
+        let t = squared > 0 ? min(max(((point.x - a.x) * ab.dx + (point.y - a.y) * ab.dy) / squared, 0), 1) : 0
+        return point.distance(to: Point(x: a.x + ab.dx * t, y: a.y + ab.dy * t))
+    }
+
+    /// Where a new extrusion of `children` by `spec` (its vanishing point ignored) should point:
+    /// `requested` when every child's sides show there; otherwise the point on the ray from the
+    /// children's centre through `requested` -- above right when `requested` is the centre --
+    /// just beyond their bounds (half the larger side, at least 36 pt, doubled until the sides
+    /// show, three times at most).
+    public static func vanishingPoint(_ requested: Point, spec: ExtrudeSpec, children: [DisplayItem]) -> Point {
+        func showing(_ point: Point) -> Bool {
+            var trial = spec
+            trial.vanishingPoint = point
+            return children.allSatisfy { sides(trial, child: $0) != .hidden }
+        }
+        guard !showing(requested), let bounds = DisplayList.union(of: children.compactMap(bounds)) else { return requested }
+        let center = bounds.center
+        let toward = requested - center
+        let direction = toward.length >= 1 ? Vector(dx: toward.dx / toward.length, dy: toward.dy / toward.length) : aboveRight
+        // The distance from the centre to the bounds' edge along the direction.
+        let exits = [abs(direction.dx) > 1e-9 ? bounds.width / 2 / abs(direction.dx) : .infinity,
+                     abs(direction.dy) > 1e-9 ? bounds.height / 2 / abs(direction.dy) : .infinity]
+        let exit = exits.min()!
+        var margin = max(minimumMargin, max(bounds.width, bounds.height) * marginFraction)
+        var point = center
+        for _ in 0..<3 {
+            point = center + Vector(dx: direction.dx * (exit + margin), dy: direction.dy * (exit + margin))
+            if showing(point) { break }
+            margin *= 2
+        }
+        return point
+    }
+}

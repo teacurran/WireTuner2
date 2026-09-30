@@ -7,7 +7,10 @@ import WTRender
 
 /// The Extrude tool (extrude.adoc, "Extruding" and "Editing on the canvas"; FX-020).  A drag from a
 /// flat object extrudes it toward where the drag ends -- the vanishing point -- previewing the
-/// solid's rear face as it goes.  A click on an extrusion selects it and shows its controls: the
+/// solid itself as it goes (the same drawing the extrusion makes).  A vanishing point that would
+/// hide every side behind the front face (released inside the object) is moved just off the
+/// object along the drag (`ExtrudeFit`), and the HUD says so; a drag that starts off every object,
+/// or a click on a flat object, says how to extrude instead of doing nothing silently.  A click on an extrusion selects it and shows its controls: the
 /// centre point (drag to move the object, the vanishing point staying put), the depth control on
 /// the axis toward the vanishing point (drag to lengthen or shorten) and the vanishing point (drag
 /// anywhere; kbd:[Shift] keeps it level with or directly above the centre).  A double-click enters
@@ -26,6 +29,16 @@ final class ExtrudeTool: Tool {
     static let circleMargin = 12.0
     static let tabKeyCode: UInt16 = 48
     static let statusMessage = "Drag from an object toward the vanishing point to extrude it; click an extrusion to edit it, double-click to rotate it"
+    /// A drag that started off every object.
+    static let missedMessage = "Start the drag on an object to extrude it"
+    /// A click (or a drag shorter than the threshold) on a flat object.
+    static let tooShortMessage = "Drag from the object toward where its vanishing point should be to extrude it"
+    /// The vanishing point was moved off the object so the sides show.
+    nonisolated static let movedMessage = "Vanishing point moved off the object so its sides show"
+    /// Nothing closed to extrude: the extrusion draws flat until the outline is closed.
+    nonisolated static let flatMessage = "Only closed outlines show sides: close the path to see the solid"
+    /// Every side stays hidden behind the front face.
+    nonisolated static let hiddenMessage = "The sides are hidden behind the front face: drag the vanishing point off the object"
 
     static var descriptor: ToolDescriptor {
         ToolCatalog.all.first { $0.id == id }!.delivering { ExtrudeTool() }
@@ -56,9 +69,47 @@ final class ExtrudeTool: Tool {
         }
     }
 
+    /// A new extrusion of one flat object: the settings it is written with and the drawing it
+    /// makes (extrude.adoc, "Extruding").
+    struct Placement {
+        var node: OpID
+        /// The flat object's drawing, pasteboard space.
+        var item: DisplayItem
+        /// The new extrusion's settings; `vanishingPoint` is where it will point.
+        var spec: ExtrudeSpec
+        /// Whether the vanishing point was moved off the object so the sides show.
+        var moved: Bool
+        var sides: ExtrudeFit.Sides
+
+        var vanishingPoint: Point { spec.vanishingPoint }
+        /// What the extrusion will draw.
+        var preview: DisplayItem { .group(GroupItem(children: [item], live: .extrude(spec))) }
+
+        /// The feedback the HUD gives once it is written, if any.
+        var message: String? {
+            switch sides {
+            case .none: return ExtrudeTool.flatMessage
+            case .hidden: return ExtrudeTool.hiddenMessage
+            case .visible: return moved ? ExtrudeTool.movedMessage : nil
+            }
+        }
+    }
+
+    /// Extruding `node` toward `point` at the default depth and surface: the vanishing point is
+    /// `point` unless that hides every side, then moved off the object along the ray from its
+    /// centre through `point` (`ExtrudeFit`).  Nil when the object draws nothing.
+    static func placement(_ node: OpID, toward point: Point, in document: DocumentHandle) -> Placement? {
+        guard let item = document.item(for: SelectionID(node)) else { return nil }
+        var spec = ExtrudeFields.spec(ExtrudeFields.defaults(length: Extrude.defaultLength, vanishingPoint: point))
+        spec.vanishingPoint = ExtrudeFit.vanishingPoint(point, spec: spec, children: [item])
+        return Placement(node: node, item: item, spec: spec, moved: spec.vanishingPoint != point, sides: ExtrudeFit.sides(spec, child: item))
+    }
+
     enum Gesture: Equatable {
         /// Extruding a flat object.
         case create(OpID)
+        /// A press off every object: a click deselects, a drag says to start on an object.
+        case miss
         /// Dragging one control of an extrusion.
         case handle(Handles, Handles.Part)
         /// Rotating in rotate mode: inside the circle (x and y) or outside (z).
@@ -176,9 +227,9 @@ final class ExtrudeTool: Tool {
                 return
             }
         }
-        guard let hit = context.selection.pick(at: e.viewPoint, viewport: viewport, subselect: false)?.id.opID else {
+        guard let hit = context.selection.pick(at: e.viewPoint, viewport: viewport, subselect: false)?.id.opID ?? selectedFlatObject(at: e.pasteboardPoint) else {
             context.selection.click(at: e.viewPoint, viewport: viewport, modifiers: e.modifiers, subselect: false)
-            gesture = .pick
+            gesture = .miss
             return
         }
         if let wrapper = Self.extrusion(of: hit, in: context.document.state) {
@@ -186,6 +237,17 @@ final class ExtrudeTool: Tool {
             gesture = .pick
         } else {
             gesture = .create(hit)
+        }
+    }
+
+    /// A selected flat object whose bounds hold `point`: a press inside an unfilled shape (which
+    /// hits only on its stroke) still extrudes it once it is selected.
+    func selectedFlatObject(at point: Point) -> OpID? {
+        guard let context else { return nil }
+        let document = context.document
+        return context.selection.selection.ids.map(\.opID).last { id in
+            Objects.isObject(id, in: document.state) && Self.extrusion(of: id, in: document.state) == nil
+                && !ExtrudeReading.containsExtrusion(id, in: document.state) && document.object(for: SelectionID(id))?.bounds?.contains(point) == true
         }
     }
 
@@ -200,12 +262,20 @@ final class ExtrudeTool: Tool {
         guard let context, let gesture, isDragging else {
             if let context, let start, case .create? = gesture {
                 context.selection.click(at: start.viewPoint, viewport: context.viewport, modifiers: e.modifiers, subselect: false)
+                context.host.showHUD(Self.tooShortMessage)
             }
+            return
+        }
+        if gesture == .miss {
+            context.host.showHUD(Self.missedMessage)
             return
         }
         guard let command = command(releasedAt: e) else { return }
         let task = context.commandSink.perform(command)
-        guard case .create = gesture else { return }
+        guard case .create(let node) = gesture else { return }
+        if let message = Self.placement(node, toward: e.pasteboardPoint, in: context.document)?.message {
+            context.host.showHUD(message)
+        }
         let selection = context.selection
         Task { @MainActor in
             guard let created = await task.value?.createdObjects.first else { return }
@@ -218,7 +288,7 @@ final class ExtrudeTool: Tool {
         guard let gesture, let start, let context else { return nil }
         switch gesture {
         case .create(let node):
-            return Extrude([node], vanishingPoint: e.pasteboardPoint)
+            return Self.placement(node, toward: e.pasteboardPoint, in: context.document).map { Extrude([node], vanishingPoint: $0.vanishingPoint) }
         case let .handle(handles, part):
             switch part {
             case .center:
@@ -235,7 +305,7 @@ final class ExtrudeTool: Tool {
         case let .rotate(handles, inside):
             let rotation = Self.rotation(handles, from: start, to: e, inside: inside, viewport: context.viewport)
             return EditExtrusion([handles.wrapper], label: "Rotate extrusion", fields: [ExtrudeFields.rotation]) { $0.rotation = rotation }
-        case .pick:
+        case .pick, .miss:
             return nil
         }
     }
@@ -302,9 +372,8 @@ final class ExtrudeTool: Tool {
         ctx.setStrokeColor(accent)
         ctx.setFillColor(accent)
         ctx.setLineWidth(1)
-        if let context, case .create(let node)? = gesture, let current, isDragging,
-           let bounds = context.document.object(for: SelectionID(node))?.bounds {
-            Self.drawPreview(bounds, toward: current.pasteboardPoint, in: ctx, viewport: viewport)
+        if let placement = preview() {
+            Self.drawPreview(placement, in: ctx, viewport: viewport)
         }
         if let context, let rotating, let handles = Self.handles(rotating, in: context.document) {
             let center = viewport.toView(handles.center)
@@ -345,16 +414,21 @@ final class ExtrudeTool: Tool {
         return result
     }
 
-    /// The drag's preview: the object's outline, a smaller copy toward the vanishing point as the
-    /// rear face, and the edges joining them.
-    static func drawPreview(_ bounds: Rect, toward vanishing: Point, in ctx: CGContext, viewport: Viewport) {
-        let rear = { (point: Point) in Point(x: point.x + (vanishing.x - point.x) * 0.3, y: point.y + (vanishing.y - point.y) * 0.3) }
-        let corners = [Point(x: bounds.minX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.minY), Point(x: bounds.maxX, y: bounds.maxY), Point(x: bounds.minX, y: bounds.maxY)]
-        let front = corners.map { viewport.toView($0).cgPoint }
-        let back = corners.map { viewport.toView(rear($0)).cgPoint }
-        ctx.addLines(between: front + [front[0]])
-        ctx.addLines(between: back + [back[0]])
-        for (a, b) in zip(front, back) { ctx.addLines(between: [a, b]) }
-        ctx.strokePath()
+    /// The create drag's extrusion as it would be released now, or nil.
+    func preview() -> Placement? {
+        guard let context, case .create(let node)? = gesture, let current, isDragging else { return nil }
+        return Self.placement(node, toward: current.pasteboardPoint, in: context.document)
+    }
+
+    /// The drag's preview: the solid the release writes, drawn as the extrusion draws it, and a
+    /// dashed line from the object's centre to the vanishing point.
+    static func drawPreview(_ placement: Placement, in ctx: CGContext, viewport: Viewport) {
+        CoreGraphicsRenderer(background: nil).render(DisplayList(canvas: "extrude-preview", items: [placement.preview]), viewport: viewport, into: ctx)
+        let center = viewport.toView(ExtrudeFit.bounds(placement.item)?.center ?? placement.vanishingPoint)
+        let vanishing = viewport.toView(placement.vanishingPoint)
+        ctx.setLineDash(phase: 0, lengths: [3, 3])
+        ctx.strokeLineSegments(between: [center.cgPoint, vanishing.cgPoint])
+        ctx.setLineDash(phase: 0, lengths: [])
+        CanvasHandleLayers.drawHandle(vanishing, size: handleSize, hollow: true, in: ctx)
     }
 }

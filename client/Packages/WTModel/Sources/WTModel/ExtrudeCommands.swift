@@ -59,6 +59,12 @@ public enum ExtrudeFields {
         props.surface.light2.direction = .none
         return props
     }
+
+    /// `props` lowered to the spec the renderer draws, so a preview draws exactly what the
+    /// extrusion will.
+    public static func spec(_ props: Wiretuner_Doc_V1_ExtrudeProps) -> ExtrudeSpec {
+        Wrappers.extrude(props)
+    }
 }
 
 /// Shared by the wrapper commands.
@@ -116,7 +122,10 @@ public struct Extrude: Command {
     public var length: Double
     public var vanishingPoint: Point
 
-    public init(_ nodes: [OpID], length: Double = 36, vanishingPoint: Point) {
+    /// A new extrusion's depth, points.
+    public static let defaultLength = 36.0
+
+    public init(_ nodes: [OpID], length: Double = defaultLength, vanishingPoint: Point) {
         self.nodes = nodes
         self.length = length
         self.vanishingPoint = vanishingPoint

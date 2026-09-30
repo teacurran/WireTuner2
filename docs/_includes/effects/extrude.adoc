@@ -16,14 +16,31 @@ menu:Modify[Extrude].
 == Extruding
 
 The Extrude tool shares a Tools panel slot with the other 3D and distortion tools
-(xref:toolbars.adoc[The Tools panel]).  It applies to paths, groups of paths and text blocks;
-text is extruded as its glyph outlines while remaining editable text.
+(xref:toolbars.adoc[The Tools panel]).  It applies to shapes (rectangles, ellipses, polygons and
+stars, which stay live shapes inside the extrusion), paths, groups and text blocks; text is
+extruded as its glyph outlines while remaining editable text.  Only closed outlines have sides:
+an open path extrudes flat until you close it.
 
 To extrude an object:
 
 . Select the Extrude tool from its pop-up in the Tools panel.
-. Drag from the object toward where the vanishing point should be.  As you drag, the solid
-  previews; releasing sets the vanishing point and a default depth.
+. Press on the object and drag toward where the vanishing point should be.  As you drag, the
+  solid previews exactly as it will be drawn, with a dashed line to the vanishing point;
+  releasing sets the vanishing point where you let go, at a depth of 36 points.
+
+To extrude with a menu command:
+
+* Select one or more objects and choose menu:Modify[Extrude > Extrude].  The objects extrude
+  toward the centre of the page at a depth of 36 points.  If the page's centre is on a selected
+  object -- an ellipse centred on the page, say -- the vanishing point goes just above and to the
+  right of the selection instead, so the sides show.
+
+TIP: The sides show only when the vanishing point is off the object: seen from a vanishing point
+over the object you look straight down the solid and the front face hides every side.  When you
+release the drag over the object, the vanishing point is moved along the drag to just off the
+object, and a message says so.  A drag that starts away from every object, or a click without a
+drag, tells you how to extrude instead.  To press inside an unfilled shape, which you can only
+hit on its outline, select it first.
 
 To remove an extrusion:
 
@@ -393,18 +410,48 @@ NOTE: As built by FX-020 and FX-021 (`WTApp/Tools/ExtrudeTool.swift`, `WTApp/Eff
 `WTApp/Inspector/Extrude/ExtrudeSection.swift`).  `NodeKind.extrude` joins `Objects.kinds`, so the
 Pointer and the transformation tools move and transform an extrusion by the `extrude` node's own
 transform rather than the flat shape's; the solid is the same and the vanishing point, in pasteboard
-space, stays put.  The drag previews the front outline, a rear outline 30% of the way to the pointer
-and the edges joining them, not the shaded solid, and releases `Extrude` at the default depth
+space, stays put.  The drag previewed the front outline, a rear outline 30% of the way to the pointer
+and the edges joining them (since replaced by the solid itself; see the note below), and releases `Extrude` at the default depth
 (36 pt).  The centre point and the rotation circle belong to the flat shape's bounds; the depth
 control sits on the axis toward the vanishing point at the depth (no farther than the vanishing
 point); a double-click on an extrusion enters rotate mode even over its centre point.  Tumbling is
 0.5° per view point dragged (x from vertical, y from horizontal motion), the spin follows the
 pointer's angle about the centre, and kbd:[Shift] snaps all three angles to 15°.  menu:Modify[Extrude
-> Extrude] points the solid at the current page's centre.  *Share Vanishing Points* pushes a
+> Extrude] points the solid at the current page's centre.  (Superseded for a vanishing point that
+hides the sides; see the note below.)  *Share Vanishing Points* pushes a
 one-click tool over the window's tool; kbd:[Esc] or another tool ends it without a change.  The
 panel's *Position X* and *Y* are the flat shape's centre; typing them moves the extrusion.
 btn:[Paste In] refuses anything but one open path of two or more points with "Paste In takes one
 open path of two or more points: copy it first."
+
+NOTE: As built after "extrude on an ellipse isn't working" (`WTRender/Effects/Extrude/ExtrudeSolver.swift`
+`ExtrudeFit`, `WTApp/Tools/ExtrudeTool.swift`, `WTApp/Effects/ExtrudeMenu.swift`).  With the eye at the
+vanishing point, a vanishing point inside a convex outline culls every side and the front face,
+drawn last, covers the rest: an ellipse centred on the page and extruded from the menu (toward the
+page's centre) or with the tool released inside it looked unchanged although the panel said
+"Extrusion".  `ExtrudeFit.sides` solves the extrusion and reports *visible* (a side's vertex lands
+more than 0.5 pt outside the front face; Wireframe and Mesh count culled sides too), *hidden* or
+*none* (no depth, or no closed outline).  `ExtrudeFit.vanishingPoint` keeps a requested vanishing
+point when every object shows sides there; otherwise it moves it along the ray from the objects'
+bounds centre through the requested point -- above right, (1, −1)/√2, when the point is the centre,
+as the manual's star is drawn -- to the bounds' edge plus half the larger side (at least 36 pt),
+doubling that margin up to twice more until the sides show.  The tool's release and
+menu:Modify[Extrude > Extrude] both place the vanishing point this way (the menu requests the
+current page's centre), and the HUD says when the point moved ("Vanishing point moved off the
+object so its sides show"; from the menu "The page's centre would hide the sides, so the vanishing
+point is just off the selection") or when nothing shows sides ("Only closed outlines show sides:
+close the path to see the solid").  The drag's preview is the extrusion itself: the object's
+drawing in a live `extrude` group with the settings the release writes (`ExtrudeFields.spec`
+lowers them as the scene does), rendered by `CoreGraphicsRenderer` in the overlay, with a dashed
+line to the vanishing point -- no longer the bounding-box wireframe.  A drag that starts off every
+object shows "Start the drag on an object to extrude it"; a click or a drag under 3 view points on
+a flat object selects it and shows "Drag from the object toward where its vanishing point should
+be to extrude it"; a press that misses every painted object but falls inside a selected flat
+object's bounds (inside an unfilled shape) extrudes that object.  FreeHand MX has no
+menu:Modify[Extrude > Extrude] (its submenu is Remove, Release, Reset and Share Vanishing Points)
+and documents only that the drag sets the vanishing point, so the menu command's placement is
+{product}'s.  Walls of holes (an inner contour) are oriented like outer walls, so from a vanishing
+point inside a hole they are culled; `ExtrudeFit` reports what the solver draws.
 
 === Build tasks
 
