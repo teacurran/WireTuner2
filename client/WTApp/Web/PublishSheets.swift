@@ -6,11 +6,35 @@ import WTInterchange
 import WTModel
 import WTProto
 
+/// One step of a publish: a page rendered, or a file of the bundle written.
+enum HTMLPublishStep: Equatable, Sendable {
+    case rendering(page: Int, of: Int)
+    case writing(file: Int, of: Int)
+
+    /// How far the publish is: rendering the pages is most of it.
+    var fraction: Double {
+        switch self {
+        case let .rendering(page, total): 0.9 * Double(page) / Double(max(total, 1))
+        case let .writing(file, total): 0.9 + 0.1 * Double(file) / Double(max(total, 1))
+        }
+    }
+
+    var label: String {
+        switch self {
+        case let .rendering(page, total): "Page \(page) of \(total)"
+        case let .writing(file, total): "Writing file \(file) of \(total)"
+        }
+    }
+}
+
 /// menu:File[Publish as HTML…] (WEB-009; publish-html.adoc, "Publishing"): the HTML setting, the
-/// pages, the folder, *Show output warnings* and *Open when done*; publishing runs off the main
-/// actor with the sheet's progress and btn:[Cancel] (nothing is written until the bundle is
-/// built, so a cancelled publish leaves no folder), then the folder is revealed, the page opened
-/// when asked, and the warnings listed with btn:[Show].
+/// pages, the folder, *Show output warnings* and *Open when done* with its browser; publishing
+/// runs off the main actor with the sheet's progress (page by page, then file by file) and
+/// btn:[Cancel], which stops it between pages or files.  The bundle is assembled beside its folder
+/// and swapped in only when complete (`HTMLBundle.install`), so a cancelled or failed publish
+/// leaves the previous bundle, or no folder; then the folder is revealed, the page opened when
+/// asked, and the warnings listed with btn:[Show].  A collaborator's change to the settings shows
+/// in the open sheet.
 @MainActor
 @Observable
 final class PublishModel {
@@ -36,16 +60,44 @@ final class PublishModel {
     let webLink = WebLinkUpload()
     private(set) var phase = Phase.ready
     private(set) var warnings: [ExportWarning] = []
+    /// The publish's latest step while it runs.
+    private(set) var step: HTMLPublishStep?
+    /// Whether btn:[Cancel] was clicked and the publish is stopping.
+    private(set) var cancelling = false
+    /// Bumped by every change to the document, so the sheet reads the settings again.
+    private(set) var revision = 0
+    /// The browsers the pop-up lists, read when the sheet opens.
+    private(set) var browsers: [URL] = []
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var observation: DocumentHandle.ObservationToken?
     @ObservationIgnored var onClose: @MainActor () -> Void = {}
 
     init(window: DocumentWindowController, features: WebFeatures) {
         self.window = window
         self.features = features
         selected = HTMLSettings(window.documentHandle.state).selected.id
+        browsers = features.browsers.installed()
+        observation = window.documentHandle.observe { [weak self] _ in self?.documentDidChange() }
     }
 
-    var settings: HTMLSettings { HTMLSettings(window?.documentHandle.state ?? EngineState()) }
+    /// The document changed (here or by a collaborator): the sheet reads the settings again.
+    func documentDidChange() {
+        revision += 1
+        // The chosen setting was deleted (by a collaborator): the pop-up shows the one publishing uses.
+        let settings = settings
+        if settings.setting(selected) == nil { selected = settings.selected(selected).id }
+    }
+
+    /// The sheet went: stop following the document.
+    func tearDown() {
+        if let observation { window?.documentHandle.stopObserving(observation) }
+        observation = nil
+    }
+
+    var settings: HTMLSettings {
+        _ = revision
+        return HTMLSettings(window?.documentHandle.state ?? EngineState())
+    }
     var setting: HTMLSettingInfo { settings.selected(selected) }
     var pageCount: Int { window?.documentHandle.pageList.pages.count ?? 0 }
 
@@ -85,6 +137,35 @@ final class PublishModel {
         _ = await window.objectEditing.perform(SetHTMLSettingLocation(setting.id, to: url.path(percentEncoded: false))).value
     }
 
+    // MARK: Browser
+
+    /// The pop-up's choice: the *Preview browser* preference.
+    var browserChoice: BrowserChoice {
+        _ = revision
+        return features.browser.map { .application($0) } ?? .system
+    }
+
+    /// The pop-up's items: the browsers installed, and the chosen one when it is not among them.
+    var browserChoices: [URL] {
+        guard case let .application(url) = browserChoice, !browsers.contains(where: { $0.standardizedFileURL == url.standardizedFileURL }) else { return browsers }
+        return browsers + [url]
+    }
+
+    /// The default browser's name for the pop-up's first item.
+    var defaultBrowserName: String? { features.browsers.defaultBrowser().map(BrowserList.name) }
+
+    /// A pop-up choice; btn:[Other…] asks for an application first.
+    func chooseBrowser(_ choice: BrowserChoice) async {
+        switch choice {
+        case .system: features.browser = nil
+        case let .application(url): features.browser = url
+        case .other:
+            guard let url = await features.chooseApplication(window?.window) else { break }
+            features.browser = url
+        }
+        revision += 1
+    }
+
     /// Whether the web link can be chosen now (it needs a connection; never queued).
     var webLinkAvailable: Bool { WebLinks.services?.isOnline ?? false }
 
@@ -108,9 +189,8 @@ final class PublishModel {
             if pages?.isEmpty != false { phase = .failed("Enter pages to publish, such as 1-3, 5") }
             return nil
         }
-        phase = .publishing
-        warnings = []
         let settings = setting.settings
+        let location = setting.location
         let scene: ExportScene
         do {
             scene = try features.scene(of: window, pages: pages)
@@ -118,28 +198,63 @@ final class PublishModel {
             phase = .failed("The document could not be read for publishing: \(error.localizedDescription)")
             return nil
         }
+        begin()
+        let features = features
         let task = Task { [weak self] in
-            let result = await Task.detached(priority: .userInitiated) { () -> Result<HTMLBundle, any Error> in
-                Result { try HTMLPublisher(settings: settings).publish(scene) }
-            }.value
-            guard let self, !Task.isCancelled else { return }
-            self.finish(result, folder: folder)
+            let result = await features.withAccess(to: location) {
+                await self?.run { report in
+                    let bundle = try HTMLPublisher(settings: settings).publish(scene) { report(.rendering(page: $0, of: $1)) }
+                    try bundle.install(at: folder) { report(.writing(file: $0, of: $1)) }
+                    return bundle
+                }
+            }
+            self?.finish(result, folder: folder)
         }
         self.task = task
         return task
     }
 
-    private func finish(_ result: Result<HTMLBundle, any Error>, folder: URL) {
+    /// A publish starts.
+    private func begin() {
+        phase = .publishing
+        warnings = []
+        step = nil
+        cancelling = false
+    }
+
+    /// `work` run off the main actor, its steps shown in the sheet as they come; cancelling the
+    /// calling task cancels it.
+    private func run(_ work: @escaping @Sendable (_ report: @escaping @Sendable (HTMLPublishStep) -> Void) throws -> HTMLBundle) async -> Result<HTMLBundle, any Error> {
+        guard !Task.isCancelled else { return .failure(CancellationError()) }
+        let (steps, continuation) = AsyncStream.makeStream(of: HTMLPublishStep.self, bufferingPolicy: .bufferingNewest(1))
+        let observe = features.observePublish
+        let shown = Task { [weak self] in
+            for await step in steps { self?.step = step }
+        }
+        let job = Task.detached(priority: .userInitiated) { () -> Result<HTMLBundle, any Error> in
+            defer { continuation.finish() }
+            return Result { try work { step in
+                observe(step)
+                continuation.yield(step)
+            } }
+        }
+        let result = await withTaskCancellationHandler { await job.value } onCancel: { job.cancel() }
+        await shown.value
+        return result
+    }
+
+    private func finish(_ result: Result<HTMLBundle, any Error>?, folder: URL) {
+        defer { cancelling = false }
         do {
-            let bundle = try result.get()
-            try features.withAccess(to: setting.location) {
-                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                _ = try bundle.write(to: folder)
-            }
+            guard let bundle = try result?.get() else { return }
             warnings = bundle.warnings.sorted
             phase = .done(folder)
+            // Cancelled after the swap: the bundle is in place, but nothing opens.
+            guard !cancelling else { return }
             features.reveal([folder])
-            if openWhenDone { features.open(folder.appending(path: "index.html")) }
+            if openWhenDone { features.open(folder.appending(path: "index.html"), features.browser) }
+        } catch is CancellationError {
+            phase = .ready
         } catch {
             phase = .failed("The document could not be published: \(error.localizedDescription)")
         }
@@ -165,22 +280,22 @@ final class PublishModel {
             phase = .failed("The document could not be read for publishing: \(error.localizedDescription)")
             return nil
         }
-        phase = .publishing
-        warnings = []
+        begin()
         let settings = setting.settings
         let name = setting.displayName
         let access = access
         let document = window.documentHandle
         let task = Task { [weak self] in
-            let result = await Task.detached(priority: .userInitiated) { () -> Result<HTMLBundle, any Error> in
-                Result { try HTMLPublisher(settings: settings).publish(scene) }
-            }.value
-            guard let self, !Task.isCancelled else { return }
+            guard let self else { return }
+            let result = await self.run { report in
+                try HTMLPublisher(settings: settings).publish(scene) { report(.rendering(page: $0, of: $1)) }
+            }
+            defer { self.cancelling = false }
             do {
                 let bundle = try result.get()
                 self.warnings = bundle.warnings.sorted
                 let url = try await self.webLink.publish(WebLinks.files(bundle), document: document, settingName: name, access: access, services: services)
-                guard !Task.isCancelled else { return }
+                // Registered even when btn:[Cancel] came too late to stop it: the link is published.
                 self.phase = URL(string: url).map { .done($0) } ?? .ready
             } catch is CancellationError {
                 self.phase = .ready
@@ -192,12 +307,12 @@ final class PublishModel {
         return task
     }
 
-    /// btn:[Cancel] while publishing: nothing is written.
+    /// btn:[Cancel] while publishing: the publish stops between pages or files and the folder
+    /// keeps its previous bundle; otherwise btn:[Close].
     func cancel() {
         if phase == .publishing {
+            cancelling = true
             task?.cancel()
-            task = nil
-            phase = .ready
         } else {
             onClose()
         }
@@ -230,6 +345,9 @@ struct PublishSheet: View {
     static func show(_ model: PublishModel, _ warning: ExportWarning) -> () -> Void { { model.show(warning) } }
     static func selection(_ model: PublishModel) -> Binding<OpID?> {
         Binding(get: { model.selected }, set: { model.select($0) })
+    }
+    static func browser(_ model: PublishModel) -> Binding<BrowserChoice> {
+        Binding(get: { model.browserChoice }, set: { choice in Task { await model.chooseBrowser(choice) } })
     }
 
     var body: some View {
@@ -268,12 +386,20 @@ struct PublishSheet: View {
                 }
             }
             Toggle("Show output warnings", isOn: $model.showWarnings)
-            Toggle("Open when done", isOn: $model.openWhenDone)
+            HStack {
+                Toggle("Open when done", isOn: $model.openWhenDone)
+                BrowserPicker(choices: model.browserChoices, defaultName: model.defaultBrowserName, selection: Self.browser(model))
+                    .disabled(!model.openWhenDone)
+            }
             switch model.phase {
             case .ready: EmptyView()
             case .publishing:
-                if model.destination == .webLink, let progress = model.webLink.progress {
+                if model.cancelling {
+                    ProgressView("Cancelling…").controlSize(.small)
+                } else if model.destination == .webLink, let progress = model.webLink.progress {
                     ProgressView(value: progress.fraction) { Text(WebLinkUpload.label(progress)) }.controlSize(.small)
+                } else if let step = model.step {
+                    ProgressView(value: step.fraction) { Text(step.label) }.controlSize(.small).accessibilityIdentifier("publish.progress")
                 } else {
                     ProgressView("Publishing…").controlSize(.small)
                 }
@@ -292,6 +418,7 @@ struct PublishSheet: View {
                 Button("Published Links…") { model.features.presentPublishedLinks() }.accessibilityIdentifier("publish.links")
                 Spacer()
                 Button(model.phase == .publishing ? "Cancel" : "Close", action: Self.cancel(model)).keyboardShortcut(.cancelAction)
+                    .disabled(model.cancelling).accessibilityIdentifier("publish.cancel")
                 Button("Publish", action: Self.publish(model)).keyboardShortcut(.defaultAction).disabled(model.phase == .publishing)
                     .accessibilityIdentifier("publish.publish")
             }
@@ -303,8 +430,11 @@ struct PublishSheet: View {
 
 /// The HTML Setup sheet (WEB-009; publish-html.adoc, "HTML settings"): the settings list with
 /// btn:[+] and btn:[−] (*Default* cannot be deleted), and every option of the selected setting;
-/// btn:[Apply] writes the edited options (one change), btn:[OK] applies and closes.  A remote
-/// change to the setting shows in the sheet unless the field has been edited here.
+/// btn:[Apply] writes the edited options (one change), btn:[OK] applies and closes.  A change to
+/// the settings -- a collaborator's, or this Mac's from the Publish sheet -- shows in the open
+/// sheet as it arrives: the list, the location, and every field not edited here (the field being
+/// edited keeps what was typed).  The chosen setting deleted by a collaborator hands over to the
+/// first, with a note.
 @MainActor
 @Observable
 final class HTMLSetupModel {
@@ -315,15 +445,49 @@ final class HTMLSetupModel {
     var draft = HTMLPublishSettings.defaults
     /// The options edited since the setting was chosen.
     private(set) var edited: Set<HTMLSettingOption> = []
+    /// Whether the name has been edited since the setting was chosen.
+    private(set) var nameEdited = false
+    /// Why the sheet changed setting under the person (the one chosen was deleted).
+    private(set) var note: String?
+    /// Bumped by every change to the document, so the sheet reads the settings again.
+    private(set) var revision = 0
+    @ObservationIgnored private var observation: DocumentHandle.ObservationToken?
     @ObservationIgnored var onClose: @MainActor () -> Void = {}
 
     init(window: DocumentWindowController, features: WebFeatures) {
         self.window = window
         self.features = features
         choose(HTMLSettings(window.documentHandle.state).selected.id)
+        observation = window.documentHandle.observe { [weak self] _ in self?.documentDidChange() }
     }
 
-    var settings: HTMLSettings { HTMLSettings(window?.documentHandle.state ?? EngineState()) }
+    /// The sheet went: stop following the document.
+    func tearDown() {
+        if let observation { window?.documentHandle.stopObserving(observation) }
+        observation = nil
+    }
+
+    /// The document changed: the list and the fields not edited here follow it.
+    func documentDidChange() {
+        revision += 1
+        let settings = settings
+        if selected == nil, let first = settings.settings.first?.id {
+            // The synthesized Default was materialized (here or elsewhere): follow its element.
+            selected = first
+        }
+        guard settings.setting(selected) != nil else {
+            let gone = name
+            choose(settings.settings.first?.id)
+            note = "“\(gone)” was deleted by a collaborator."
+            return
+        }
+        refresh()
+    }
+
+    var settings: HTMLSettings {
+        _ = revision
+        return HTMLSettings(window?.documentHandle.state ?? EngineState())
+    }
     var setting: HTMLSettingInfo? { settings.setting(selected) }
     /// The first setting (the Default) cannot be deleted.
     var canDelete: Bool { selected != nil && settings.settings.first?.id != selected }
@@ -334,6 +498,14 @@ final class HTMLSetupModel {
         name = info.name
         draft = info.settings
         edited = []
+        nameEdited = false
+        note = nil
+    }
+
+    /// The name field, typed.
+    func rename(_ name: String) {
+        self.name = name
+        nameEdited = true
     }
 
     /// An option edited here.
@@ -345,6 +517,7 @@ final class HTMLSetupModel {
     /// A remote change arrived: options not edited here follow the stored setting.
     func refresh() {
         guard let info = setting else { return }
+        if !nameEdited { name = info.name }
         var merged = info.settings
         let draft = draft
         for option in edited {
@@ -381,8 +554,10 @@ final class HTMLSetupModel {
     @discardableResult
     func delete() async -> Bool {
         guard let window, canDelete, let selected else { return false }
-        let change = await window.objectEditing.perform(DeleteHTMLSetting(selected)).value
+        // The first setting is chosen before the delete lands, so the sheet does not read it as a
+        // collaborator's.
         choose(settings.settings.first?.id)
+        let change = await window.objectEditing.perform(DeleteHTMLSetting(selected)).value
         return change != nil
     }
 
@@ -396,6 +571,7 @@ final class HTMLSetupModel {
             // Renaming the synthesized Default materialized it: later edits go to that element.
             if selected == nil { selected = settings.settings.first?.id }
         }
+        nameEdited = false
         if !edited.isEmpty {
             if await window.objectEditing.perform(EditHTMLSetting(selected, settings: draft, options: edited)).value != nil { wrote = true }
             if selected == nil { selected = settings.settings.first?.id }
@@ -434,7 +610,7 @@ struct HTMLSetupSheet: View {
         Binding(get: { model.draft[keyPath: keyPath] }, set: { model.set(keyPath, $0, option: option) })
     }
     static func name(_ model: HTMLSetupModel) -> Binding<String> {
-        Binding(get: { model.name }, set: { model.name = $0 })
+        Binding(get: { model.name }, set: { model.rename($0) })
     }
 
     var body: some View {
@@ -450,7 +626,8 @@ struct HTMLSetupSheet: View {
                 }
             }
             Form {
-                TextField("Name", text: Self.name(model))
+                if let note = model.note { Text(note).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("setup.note") }
+                TextField("Name", text: Self.name(model)).accessibilityIdentifier("setup.name")
                 LabeledContent("Location") {
                     HStack {
                         Text(model.setting?.location.isEmpty == false ? model.setting!.location : "None").lineLimit(1).truncationMode(.middle)

@@ -25,11 +25,14 @@ To publish a document as HTML:
 . Optionally select *Show output warnings* to see, when publishing finishes, a list of anything
   that could not be reproduced exactly.
 . Optionally select *Open when done* and choose a browser from the pop-up menu -- your default
-  browser, any browser installed, or btn:[Other…] to pick an application.
+  browser, any browser installed, or btn:[Other…] to pick an application.  The browser you
+  choose is also the one menu:View[Preview in Browser] uses (the *Preview browser* preference).
 . Click btn:[Publish].
 
-Publishing runs in the background; the progress appears in the sheet, which you can close and
-reopen from the same menu.  When it finishes, the folder is revealed in the Finder (or the web
+Publishing runs in the background; the progress appears in the sheet, page by page and then
+file by file, which you can close and reopen from the same menu.  btn:[Cancel] stops it: the
+folder keeps what the previous publish put there (or is not created), never half of each.  When
+it finishes, the folder is revealed in the Finder (or the web
 link is copied to the clipboard), the browser opens if you asked for it, and the warnings list
 appears if there was anything to report.
 
@@ -146,7 +149,9 @@ Brochure/
 
 Everything is relative, so the folder can be moved, zipped, mailed, or dropped onto any static
 host.  Files are named deterministically, so republishing over the same folder changes only what
-changed.
+changed.  The folder holds only what {product} publishes: publishing again replaces it as a
+whole, so a page the document no longer has goes, and so does a file you added to the folder --
+keep your own files beside it, not in it.
 
 == Publishing to a web link
 
@@ -493,14 +498,15 @@ menu:File[HTML Setup…].  The Publish sheet chooses the setting (remembered wit
 `SelectHTMLSetting`), the pages (*All*, or a range such as `1-3, 5`), the folder (the setting's
 *Location* on this Mac, `SetHTMLSettingLocation`; the bundle goes into a subfolder named after the
 document), *Show output warnings* and *Open when done*.  The scene is captured on the main actor with
-the text-range link rectangles, `HTMLPublisher.publish` runs detached, and only a finished bundle is
-written (`HTMLBundle.write`), so btn:[Cancel] leaves nothing; the folder is revealed, `index.html`
+the text-range link rectangles, `HTMLPublisher.publish` runs detached, and the bundle is put in place
+as a whole (`HTMLBundle.install`, below), so btn:[Cancel] leaves the previous bundle; the folder is revealed, `index.html`
 opened when asked, and the warnings listed with btn:[Show] (select and fit).  The HTML Setup sheet
 lists the settings with btn:[+] (`AddHTMLSetting`, "Setting N") and btn:[−] (not for the first),
 and every option; btn:[Apply] writes the name (`RenameHTMLSetting`) and the options edited in the
 sheet (`EditHTMLSetting` with just those), btn:[OK] applies and closes, and a remote change shows in
-the options not edited here.  Not built: publishing to a web link (WEB-013), the browser pop-up
-(the default browser opens), progress beyond the spinner, and the UI tests.
+the options not edited here.  Publishing to a web link is WEB-013's; the browser pop-up, the progress,
+the cancel that stops a publish, the sheets following remote changes and the tests are in the
+remaining-half NOTE below.
 
 NOTE: Found in use (2026-09-30): btn:[Choose…] on the Publish and HTML Setup sheets did nothing.
 The open panel went on the document window as a second sheet, which waits unseen behind the one
@@ -509,6 +515,57 @@ btn:[Choose…] in Document Setup and Data Merge), btn:[Publish] with no folder 
 chosen folder is kept as a security-scoped bookmark (`WebFeatures.remember`, `withAccess(to:)`,
 `wt.bookmarks.html.<path>` in this Mac's defaults) so the sandboxed app can still write there after
 a relaunch; the document keeps only the path.
+
+NOTE: As built by WEB-009's remaining half (`WTInterchange/HTML/HTMLBundleInstall.swift`,
+`WTApp/Web/PublishSheets.swift`, `WTApp/Web/BrowserChoice.swift`).  *Progress and cancel:*
+`HTMLPublisher.publish(_:progress:)` reports each page and checks the task's cancellation between
+pages; `HTMLBundle.install(at:progress:)` writes the bundle into a hidden sibling
+(`.<name>.publishing-<uuid>`), copying each file whose bytes the folder already holds from it (so
+its dates stay), checks cancellation between files, and swaps the sibling into place with
+`renamex_np(RENAME_SWAP)` only when every file is written (a volume without the swap moves the
+previous folder aside first); a cancelled or failed publish removes the sibling and leaves the
+folder as it was, and siblings left by a crash are cleared by the next publish.  Deviation: the
+previous folder is replaced as a whole, so a file someone added to it goes (said in the guide
+above); `HTMLBundle.write(to:)` (file by file, nothing removed) stays for callers that want it.
+The Publish sheet runs rendering and installing in one detached task inside the folder's
+security scope (`WebFeatures.withAccess(to:_:)`, async), cancelled with the sheet's task, and
+shows "Page N of M" then "Writing file N of M" from an `AsyncStream` (`HTMLPublishStep`);
+btn:[Cancel] shows "Cancelling…" until the work stops, then the sheet is ready again.  A cancel that
+arrives after the swap leaves the published folder and opens nothing.  *Remote changes:* both
+sheets observe the document (`DocumentHandle.observe`, stopped when the sheet goes): the Publish
+sheet's pop-up and folder follow the settings, falling back to the first setting when the chosen
+one is deleted; the Setup sheet follows the list, the location, the name unless typed here and
+every option not edited here, follows the Default's element when the synthesized Default is
+materialized, and when a collaborator deletes the setting open in it, hands over to the first
+with the note "“Name” was deleted by a collaborator."  *Browser:* the pop-up lists *Default Browser
+(Name)*, the applications Launch Services has for an `https` address (the default first, the rest
+by name) and btn:[Other…] (an application panel on the sheet); the choice is the *Preview browser*
+preference (`export.preview_browser`, path and bookmark), and *Open when done* opens `index.html`
+with it.  Deviation: the list comes from an `https` URL, not an `.html` file, whose list holds
+text editors too.  *Sheets on sheets:* btn:[Setup…] put the HTML Setup sheet on the document
+window, behind the Publish sheet, as the folder panel had been; `WebFeatures.presentSheet` now uses
+`ModalUI.host` too, and dismissing the Publish sheet dismisses a Setup sheet on it first.  The
+folder bookmarks are keyed by the path without a trailing slash (`WebFeatures.folderBookmarkKey`),
+so a folder the open panel names `…/Sites/` and the same folder reached from `…/Sites/Brochure`
+find one bookmark.  *Tests:* `WTInterchangeTests/HTMLBundleInstallTests.swift` (50 pages with
+progress after each, a cancel between pages, republishing with unchanged files keeping their
+dates and stale ones gone, cancels and failures leaving the previous bundle, the no-swap volume);
+`WTAppTests/PublishFlowTests.swift` on a shown document window with real sheets: Return presses
+btn:[Publish] with no folder and the panel is asked for on the Publish sheet; publish again to the
+same folder (unchanged files keep their dates) with *Open when done* in a chosen browser; a
+publish held at its second file and cancelled with Escape leaves the previous bundle; btn:[Setup…]
+opens on the Publish sheet and its *Location* panel on the Setup sheet; a collaborator's rename
+and title arrive in both sheets while an edited *Scale* is kept; a relaunch (new features over the
+same defaults) finds the folder from its bookmark and publishes without a panel.  A 50-page
+document is held at page 20 while the sheet shows page 19 (the main actor free, every step off
+the main thread), cancelled leaving no folder, then published whole.  Create, rename and delete of
+settings (and a collaborator deleting the open one), a range publish of pages 2-3 with its
+warning's btn:[Show] selecting the object, the browser pop-up, and the app's own `NSOpenPanel`
+appearing on the Publish sheet rather than behind it.  These are app-hosted tests: the XCUITest
+target is not run here (it launches the app), and SwiftUI builds no accessibility tree to press
+buttons through without an assistive client, so the sheets are driven by their keyboard
+equivalents and the views' own actions.  Not built: closing the sheet while a publish runs (the
+button is btn:[Cancel] then) and reopening it to the progress.
 
 NOTE: As built by WEB-013, the `WTSync` half (`WTSync/PublishUploader.swift`).  `PublishUploader` runs
 a `Job` (the bundle's files, the seq, the setting name, the access and a UUIDv7 `publish_id`): each

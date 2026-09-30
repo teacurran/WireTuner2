@@ -152,7 +152,7 @@ document should look the same for everyone.
 |Drag export format |PDF |The format written when objects are dragged to the Finder. xref:exporting.adoc[Exporting]
 |Multi-page file name pattern |`{name}-{page}` |How multi-page exports are named. xref:exporting.adoc[Exporting]
 |Open exported file with |None |Per format, an application to open the result (local). xref:exporting.adoc[Exporting]
-|Preview browser |System default |The browser menu:View[Preview in Browser] uses (local). xref:svg-animation.adoc[SVG animations and browser preview]
+|Preview browser |System default |The browser menu:View[Preview in Browser] and Publish as HTML's *Open when done* use (local). xref:svg-animation.adoc[SVG animations and browser preview]
 |===
 
 == Spelling (synced)

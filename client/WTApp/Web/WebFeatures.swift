@@ -165,9 +165,11 @@ final class WebFeatures {
     var window: @MainActor () -> DocumentWindowController? = { nil }
     /// The blobs a snapshot reads.
     var blobs = BlobPlacement()
-    /// Presents a sheet on a window (replaceable in tests).
+    /// Presents a sheet on a window -- on its front sheet when one is open (btn:[Setup…] in the
+    /// Publish sheet), since a second sheet on the window waits unseen behind the first
+    /// (replaceable in tests).
     var presentSheet: @MainActor (NSWindow, NSWindow?) -> Void = { sheet, parent in
-        if let parent { parent.beginSheet(sheet) } else { sheet.makeKeyAndOrderFront(nil) }
+        if let host = ModalUI.host(parent) { host.beginSheet(sheet) } else { sheet.makeKeyAndOrderFront(nil) }
     }
     /// Chooses a folder (the Publish sheet's *Choose…*, the Animated SVG destination).
     var chooseFolder: @MainActor (NSWindow?) async -> URL? = { window in
@@ -183,38 +185,89 @@ final class WebFeatures {
     var folderBookmarks: UserDefaults { preferences.defaults }
     static let folderBookmarkPrefix = "wt.bookmarks.html."
 
+    /// The defaults key of the folder `url`'s bookmark: its path without a trailing slash, so a
+    /// folder the open panel returns (`…/Sites/`) and the same folder named in a path
+    /// (`…/Sites/Brochure` less its last component) find one key.
+    static func folderBookmarkKey(_ url: URL) -> String {
+        var path = url.standardizedFileURL.path(percentEncoded: false)
+        while path.count > 1, path.hasSuffix("/") { path.removeLast() }
+        return folderBookmarkPrefix + path
+    }
+
     /// Remembers access to `url`, a folder the person chose.
     func remember(_ url: URL) {
         guard let data = PreferenceBookmarks.bookmark(for: url) else { return }
-        folderBookmarks.set(data, forKey: Self.folderBookmarkPrefix + url.path(percentEncoded: false))
+        folderBookmarks.set(data, forKey: Self.folderBookmarkKey(url))
+    }
+
+    /// The remembered folder that grants access to `path`: its own bookmark or its nearest
+    /// remembered ancestor's, resolved (a stale bookmark renewed); nil when none is remembered.
+    func bookmarkedFolder(for path: String) -> URL? {
+        var candidate = URL(filePath: path).standardizedFileURL
+        while candidate.path(percentEncoded: false) != "/" {
+            if let data = folderBookmarks.data(forKey: Self.folderBookmarkKey(candidate)) {
+                var stale = false
+                if let url = PreferenceBookmarks.resolve(data, stale: &stale) {
+                    if stale { remember(url) }
+                    return url
+                }
+            }
+            candidate = candidate.deletingLastPathComponent()
+        }
+        return nil
     }
 
     /// `body` run with access to the chosen folder at `path` (or, for a path chosen inside it,
     /// its nearest remembered ancestor).
     func withAccess<T>(to path: String, _ body: () throws -> T) rethrows -> T {
-        var candidate = URL(filePath: path)
-        while candidate.path(percentEncoded: false) != "/" {
-            let key = Self.folderBookmarkPrefix + candidate.path(percentEncoded: false)
-            if let data = folderBookmarks.data(forKey: key) {
-                var stale = false
-                if let url = PreferenceBookmarks.resolve(data, stale: &stale) {
-                    if stale { remember(url) }
-                    let scoped = url.startAccessingSecurityScopedResource()
-                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    return try body()
-                }
-            }
-            candidate = candidate.deletingLastPathComponent()
-        }
+        let url = bookmarkedFolder(for: path)
+        let scoped = url?.startAccessingSecurityScopedResource() ?? false
+        defer { if scoped { url?.stopAccessingSecurityScopedResource() } }
         return try body()
     }
 
+    /// `body` awaited with access to the chosen folder at `path`: the publish writes off the main
+    /// actor while the access lasts.
+    func withAccess<T>(to path: String, _ body: () async throws -> T) async rethrows -> T {
+        let url = bookmarkedFolder(for: path)
+        let scoped = url?.startAccessingSecurityScopedResource() ?? false
+        defer { if scoped { url?.stopAccessingSecurityScopedResource() } }
+        return try await body()
+    }
+
+    /// The browsers *Open when done* offers.
+    var browsers = BrowserList()
+    /// Chooses an application (the browser pop-up's btn:[Other…]).
+    var chooseApplication: @MainActor (NSWindow?) async -> URL? = { window in
+        let panel = PreferenceBookmarks.openPanel(for: PreferenceCatalog.Export.previewBrowser.erased)
+        return await ModalUI.urls(panel, on: window).first
+    }
+    /// The browser *Open when done* uses: the *Preview browser* preference; nil for the default.
+    var browser: URL? {
+        get { PreferenceBookmarks(store: preferences).url(for: PreferenceCatalog.Export.previewBrowser.erased) }
+        set {
+            let bookmarks = PreferenceBookmarks(store: preferences)
+            if let newValue { bookmarks.choose(newValue, for: PreferenceCatalog.Export.previewBrowser.erased) } else { bookmarks.clear(PreferenceCatalog.Export.previewBrowser.erased) }
+        }
+    }
+    /// Sees every step of a publish, on the thread doing it (a test holds a publish mid-way).
+    var observePublish: @Sendable (HTMLPublishStep) -> Void = { _ in }
+
     /// Reveals files in the Finder.
     var reveal: @MainActor ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
-    /// Opens a file (the published page).
-    var open: @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
+    /// Opens a file (the published page), in the application at the second URL when one is
+    /// chosen, else the default one.
+    var open: @MainActor (URL, URL?) -> Void = { url, application in
+        if let application {
+            NSWorkspace.shared.open([url], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration())
+        } else {
+            NSWorkspace.shared.open(url)
+        }
+    }
     private var windows: [ObjectIdentifier: (window: DocumentWindowController, web: WindowWeb, closing: NSObjectProtocol?)] = [:]
     private(set) var sheets: [String: NSWindow] = [:]
+    /// What each open sheet does when it goes (its models stop observing the document).
+    private var teardowns: [String: @MainActor () -> Void] = [:]
 
     init(preferences: PreferenceStore) {
         self.preferences = preferences
@@ -333,7 +386,10 @@ final class WebFeatures {
     // MARK: Sheets
 
     @discardableResult
-    func present<Content: View>(_ content: Content, identifier: String, title: String, on window: DocumentWindowController?) -> NSWindow {
+    func present<Content: View>(_ content: Content, identifier: String, title: String, on window: DocumentWindowController?,
+                                teardown: (@MainActor () -> Void)? = nil) -> NSWindow {
+        dismiss(identifier)
+        teardowns[identifier] = teardown
         let sheet = NSWindow(contentViewController: NSHostingController(rootView: content))
         sheet.identifier = NSUserInterfaceItemIdentifier(identifier)
         sheet.title = title
@@ -345,7 +401,11 @@ final class WebFeatures {
     }
 
     func dismiss(_ identifier: String) {
+        teardowns.removeValue(forKey: identifier)?()
         guard let sheet = sheets.removeValue(forKey: identifier) else { return }
+        // A sheet on this one (the HTML Setup sheet on the Publish sheet) goes first.
+        for (id, other) in sheets where other.sheetParent === sheet { dismiss(id) }
+        if let child = sheet.attachedSheet { sheet.endSheet(child) }
         if let parent = sheet.sheetParent { parent.endSheet(sheet) } else { sheet.orderOut(nil) }
     }
 
@@ -375,7 +435,7 @@ final class WebFeatures {
         guard let window = window() else { return nil }
         let model = PublishModel(window: window, features: self)
         model.onClose = { [weak self] in self?.dismiss(Self.publishSheet) }
-        present(PublishSheet(model: model), identifier: Self.publishSheet, title: "Publish as HTML", on: window)
+        present(PublishSheet(model: model), identifier: Self.publishSheet, title: "Publish as HTML", on: window, teardown: model.tearDown)
         return model
     }
 
@@ -385,7 +445,7 @@ final class WebFeatures {
         guard let window = window() else { return nil }
         let model = HTMLSetupModel(window: window, features: self)
         model.onClose = { [weak self] in self?.dismiss(Self.setupSheet) }
-        present(HTMLSetupSheet(model: model), identifier: Self.setupSheet, title: "HTML Setup", on: window)
+        present(HTMLSetupSheet(model: model), identifier: Self.setupSheet, title: "HTML Setup", on: window, teardown: model.tearDown)
         return model
     }
 

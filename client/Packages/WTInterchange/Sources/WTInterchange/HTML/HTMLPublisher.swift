@@ -60,8 +60,10 @@ public struct HTMLPublisher: Sendable {
     /// The largest PNG page side in pixels; larger pages are clamped and listed.
     public static let maxPixels = 16_384.0
 
-    /// The bundle of `scene`'s pages.
-    public func publish(_ scene: ExportScene) throws -> HTMLBundle {
+    /// The bundle of `scene`'s pages.  `progress` is told the pages done and the page count after
+    /// each page; between pages the current task's cancellation is checked, so a cancelled publish
+    /// stops with `CancellationError`.
+    public func publish(_ scene: ExportScene, progress: ((_ done: Int, _ total: Int) -> Void)? = nil) throws -> HTMLBundle {
         try settings.validate()
         guard !scene.pages.isEmpty else { throw ExportError.nothingToExport }
         let numbers = WebLinks.pageNumbers(scene)
@@ -81,6 +83,7 @@ public struct HTMLPublisher: Sendable {
         let animated = animatedPages(scene, options: svgOptions, pageHrefs: svgPageHrefs)
         var animationRules: [String]?
         for index in scene.pages.indices {
+            try Task.checkCancellation()
             let number = numbers[index]
             let overlay = HTMLAnimations.overlay(scene.pages[index], number: number, scene: scene, settings: settings)
             let page = overlay.page
@@ -102,6 +105,7 @@ public struct HTMLPublisher: Sendable {
                                              files: &files, warnings: &warnings)
             }
             bodies.append("<section id=\"page-\(number)\" class=\"page\" style=\"width:\(HTMLText.number(size.width))px;height:\(HTMLText.number(size.height))px\">\(body)\(overlay.elements.joined())</section>")
+            progress?(index + 1, scene.pages.count)
         }
         var links = WebLinks.warnings(scene)
         if settings.vectorFormat == .png {

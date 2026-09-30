@@ -28,7 +28,9 @@ struct WebWorld {
         features.presentSheet = { sheet, _ in sheets.value.append(sheet) }
         features.chooseFolder = { _ in folder }
         features.reveal = { revealed.value += $0 }
-        features.open = { opened.value.append($0) }
+        features.open = { url, _ in opened.value.append(url) }
+        features.browsers.installed = { [] }
+        features.browsers.defaultBrowser = { nil }
         let blobs = folder.appending(path: "blobs")
         features.blobs.directory = { blobs }
         WebSections.blobs.directory = { blobs }
@@ -446,13 +448,17 @@ struct WebWorld {
     @Test func aChosenFolderIsRememberedForWritingInsideIt() throws {
         let world = WebWorld()
         defer { world.close() }
-        let key = WebFeatures.folderBookmarkPrefix + world.folder.path(percentEncoded: false)
+        let key = WebFeatures.folderBookmarkKey(world.folder)
         defer { world.features.folderBookmarks.removeObject(forKey: key) }
         try FileManager.default.createDirectory(at: world.folder, withIntermediateDirectories: true)
         world.features.remember(world.folder)
         #expect(world.features.folderBookmarks.data(forKey: key) != nil)
         let inside = world.folder.appending(path: "Site").path(percentEncoded: false)
         #expect(world.features.withAccess(to: inside) { 7 } == 7)
+        // Found for a path inside it, and for the folder as the open panel names it (a trailing slash).
+        #expect(world.features.bookmarkedFolder(for: inside) != nil && world.features.bookmarkedFolder(for: world.folder.path(percentEncoded: false) + "/") != nil)
+        #expect(world.features.bookmarkedFolder(for: "/nowhere/at/all") == nil)
+        #expect(WebFeatures.folderBookmarkKey(URL(filePath: "/a/b/", directoryHint: .isDirectory)) == WebFeatures.folderBookmarkPrefix + "/a/b")
         #expect(world.features.withAccess(to: "/nowhere/at/all") { 8 } == 8)
     }
 
