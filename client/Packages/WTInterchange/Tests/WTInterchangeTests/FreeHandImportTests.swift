@@ -123,6 +123,21 @@ struct FreeHandImportTests {
         #expect(Self.path(children[1])?.fill == .solid(Color(red: 0, green: 0, blue: 1)))
     }
 
+    @Test("A composite path inside a composite path adds its contours")
+    func nestedCompositePaths() throws {
+        var f = Fixture()
+        let blueStyle = f.propList(fill: f.basicFill(f.rgb(0, 0, 1)))
+        let outer = f.rect(1, 1, 4, 4, style: blueStyle)
+        let inner = f.composite([f.rect(2, 2, 1, 1), f.rect(3.5, 3.5, 0.5, 0.5)])
+        let nestedFirst = f.composite([f.composite([f.rect(6, 6, 1, 1, style: blueStyle)]), f.rect(6.2, 6.2, 0.5, 0.5)])
+        f.layer([f.composite([outer, inner]), nestedFirst])
+        let children = Self.children(try f.convert())
+        #expect(children.count == 2)
+        #expect(Self.path(children[0])?.contours.count == 3)
+        #expect(Self.path(children[1])?.contours.count == 2)
+        #expect(Self.path(children[1])?.fill == .solid(Color(red: 0, green: 0, blue: 1)))
+    }
+
     // MARK: Groups and clipping
 
     @Test("Groups carry their transform to their children; empty groups vanish")

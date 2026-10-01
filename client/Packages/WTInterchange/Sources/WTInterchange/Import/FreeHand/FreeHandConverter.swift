@@ -276,16 +276,35 @@ struct FreeHandConverter {
     /// A compound path: its paths' contours, painted with the first path's style (libfreehand's
     /// rule), else the composite's own.
     mutating func compositePath(_ composite: FreeHandRecords.CompositePath, _ transform: AffineTransform) -> ImportedPath? {
-        let parts = (records.lists[composite.elements]?.elements ?? []).compactMap { records.paths[$0] }
+        let parts = compositeParts(composite)
         guard let first = parts.first else { return nil }
         let contours = parts.flatMap { FreeHandConverter.contours($0, freeHandTransform($0.xform).concatenating(transform)) }
         guard !contours.isEmpty else { return nil }
         return painted(contours, style: compositeStyle(composite), evenOdd: first.evenOdd, transform: freeHandTransform(first.xform).concatenating(transform))
     }
 
+    /// A compound path's paths in order, a compound path among its elements contributing its own
+    /// (libfreehand reads only direct paths and drops those contours).
+    func compositeParts(_ composite: FreeHandRecords.CompositePath) -> [FreeHandRecords.Path] {
+        var parts: [FreeHandRecords.Path] = []
+        var visited: Set<Int> = []
+        func collect(_ composite: FreeHandRecords.CompositePath, depth: Int) {
+            guard depth < FreeHandConverter.maximumDepth else { return }
+            for id in records.lists[composite.elements]?.elements ?? [] {
+                if let path = records.paths[id] {
+                    parts.append(path)
+                } else if let nested = records.compositePaths[id], visited.insert(id).inserted {
+                    collect(nested, depth: depth + 1)
+                }
+            }
+        }
+        collect(composite, depth: 0)
+        return parts
+    }
+
     /// A compound path's style: its first path's, else its own (libfreehand's rule).
     func compositeStyle(_ composite: FreeHandRecords.CompositePath) -> Int {
-        let first = (records.lists[composite.elements]?.elements.first).flatMap { records.paths[$0] }
+        let first = compositeParts(composite).first
         return first.map { $0.style != 0 ? $0.style : composite.style } ?? composite.style
     }
 

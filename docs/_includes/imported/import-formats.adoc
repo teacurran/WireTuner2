@@ -778,7 +778,9 @@ named after their name record ("Layer" when unnamed; patch 0002 keeps the name);
 their transform; a clip group's first element (a path or composite path) is the clip, kept with its
 appearance (`clipAppearance`); a path or composite path whose style holds "contents" clips those
 contents the same way; composite paths join their paths' contours in the first path's style, else
-their own; FreeHand 8's `TextObject` (area text of the frame, `startY` its top edge in FreeHand's
+their own, a composite path among the elements contributing its paths in order (libfreehand reads
+only direct paths and drops a nested composite's contours, which lost a logo's cut-out panel and
+turned outlines with nested inner contours into solid shapes in the owner's files); FreeHand 8's `TextObject` (area text of the frame, `startY` its top edge in FreeHand's
 y-up space; `TFOnPath` text on its path) and FreeHand 3 to 7's `DisplayText` and `PathText`; images
 (the data list's bytes through `ImageImporter.decode`, placed on FreeHand's rectangle whose top edge
 is `startY + height`); `NewBlend` as a group "Blend" of its three lists (the step count and key

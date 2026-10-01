@@ -63,7 +63,7 @@ extension FreeHandConverter {
 
     /// The first path of composite `id`, for text on a composite path.
     func compositeAsPath(_ id: Int) -> FreeHandRecords.Path? {
-        records.compositePaths[id].flatMap { records.lists[$0.elements]?.elements.first }.flatMap { records.paths[$0] }
+        records.compositePaths[id].flatMap { compositeParts($0).first }
     }
 
     /// The object's paragraphs in its [beginPos, endPos) range of the string (a linked frame
