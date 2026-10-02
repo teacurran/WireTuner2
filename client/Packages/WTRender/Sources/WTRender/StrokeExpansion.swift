@@ -5,8 +5,9 @@
 // Graphics and Metal fill the same polygons, so they cannot disagree about a join or a dash
 // (docs/spec/client.adoc, "Strokes").
 
-import WTGeometry
+import CoreGraphics
 import Foundation
+import WTGeometry
 
 /// One piece of paint in the item's local space.
 enum PaintedRegion: Hashable, Sendable {
@@ -96,7 +97,12 @@ enum StrokeExpansion {
     }
 
     /// GEO-003's stroke outline of `contours` at `width`, as a display path filled non-zero.
-    static func outline(_ contours: [Contour], style: StrokeStyle, width: Double, tolerance: Double) -> DisplayPath {
+    /// Where GEO-003's boolean cleanup cannot resolve the outline (`checkedStrokeOutline`
+    /// throws) its best effort can lack edges -- a letter's outline that came back without its
+    /// inner side filled the whole letter -- so the outline is Core Graphics' instead
+    /// (`coreGraphicsOutline`), the same polygons for both renderers.
+    static func outline(_ contours: [Contour], style: StrokeStyle, width: Double, tolerance: Double,
+                        stroke: ([Contour], WTGeometry.StrokeStyle, Double) throws -> FilledPath = { try Offset.checkedStrokeOutline($0, style: $1, tolerance: $2) }) -> DisplayPath {
         guard !contours.isEmpty, width > 0, width.isFinite else {
             return DisplayPath()
         }
@@ -108,7 +114,32 @@ enum StrokeExpansion {
             dash: style.effectiveDash,
             dashPhase: style.dashPhase
         )
-        return DisplayPath(contours: Offset.strokeOutline(contours, style: geometryStyle, tolerance: tolerance).contours)
+        do {
+            return DisplayPath(contours: try stroke(contours, geometryStyle, tolerance).contours)
+        } catch {
+            return coreGraphicsOutline(contours, style: style, width: width)
+        }
+    }
+
+    /// Core Graphics' stroke outline of `contours` (dashed first), filled non-zero.
+    static func coreGraphicsOutline(_ contours: [Contour], style: StrokeStyle, width: Double) -> DisplayPath {
+        var path = DisplayPath(contours: contours).cgPath
+        let dash = style.effectiveDash
+        if !dash.isEmpty {
+            path = path.copy(dashingWithPhase: CGFloat(style.dashPhase), lengths: dash.map { CGFloat($0) })
+        }
+        let cap: CGLineCap = switch style.cap {
+        case .butt: .butt
+        case .round: .round
+        case .square: .square
+        }
+        let join: CGLineJoin = switch style.join {
+        case .miter: .miter
+        case .round: .round
+        case .bevel: .bevel
+        }
+        let miter = style.miterLimit.isFinite ? max(style.miterLimit, 1) : 4
+        return DisplayPath(cgPath: path.copy(strokingWithWidth: CGFloat(width), lineCap: cap, lineJoin: join, miterLimit: CGFloat(miter)))
     }
 }
 

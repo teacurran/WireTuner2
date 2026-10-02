@@ -1,0 +1,22 @@
+WireTuner: keep FreeHand's explicit "None" in property lists (the FreeHand importer, D-083).
+- _readPropLstElements dropped every element whose value record is 0.  A FreeHand 9 or later
+  object whose stroke or fill is set to None over its style's writes that key with the value 0
+  (an ElemPropLst whose parent StylePropLst holds the stroke), so dropping it gave the object the
+  style's stroke: a rectangle drawn with no fill and no stroke came in with the Normal style's
+  1 pt black stroke.  The entry is kept with its 0; libfreehand's own lookups of value 0 find no
+  record and draw nothing, and the importer reads it as None.
+
+diff -ruN a/libfreehand/src/lib/FHParser.cpp b/libfreehand/src/lib/FHParser.cpp
+--- a/libfreehand/src/lib/FHParser.cpp	2026-10-01 17:43:43
++++ b/libfreehand/src/lib/FHParser.cpp	2026-10-01 17:43:43
+@@ -2770,7 +2770,9 @@
+   {
+     unsigned nameId = _readRecordId(input);
+     unsigned valueId = _readRecordId(input);
+-    if (nameId && valueId)
++    // WireTuner: a zero value is kept -- it is FreeHand's explicit "None" (an object whose
++    // stroke or fill is set to None over its style's), which dropping turned into the style's.
++    if (nameId)
+       properties[nameId] = valueId;
+   }
+ }

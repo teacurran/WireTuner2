@@ -183,4 +183,60 @@ import struct WTGeometry.AffineTransform
         let objects = order.objects(on: order.layers[0].id, in: state)
         #expect(state.props(objects[0]).path.fillWhenOpen && !state.props(objects[1]).path.fillWhenOpen)
     }
+
+    /// A file's named colours become the document's swatches when it opens, as they do on import
+    /// (D-083): CMYK kept, every use a reference to the swatch, the file's White, Black and
+    /// Registration the document's own.  Opening wrote every named colour as an unnamed inline
+    /// colour before, which the canvas drew by the naive complement (a FreeHand logo's C 80 M 5
+    /// blue as RGB 51/242/255).
+    @Test func namedColoursOpenAsSwatchesWithTheirCMYK() throws {
+        let sky = ImportedSwatch(name: "Blue Sky", color: Color(cyan: 0.8, magenta: 0.05, yellow: 0, black: 0), spot: false)
+        let black = ImportedSwatch(name: "Black", color: Color(red: 0, green: 0, blue: 0), spot: false)
+        var path = ImportFixture.square(0, name: "panel")
+        path.fill = .swatch(sky)
+        path.stroke = ImportedStroke(paint: .swatch(black))
+        var second = ImportFixture.square(30, name: "tab")
+        second.fill = .swatch(sky)
+        let document = ImportedDocument(format: .freehand, name: "Logo.fh10", pages: [
+            ImportedPage(size: Size(width: 100, height: 100), nodes: [Self.layer("Foreground", [.path(path)])],
+                         layers: [ImportedLayer(name: "Notes", nodes: [.path(second)])]),
+        ])
+        #expect(document.swatches == [sky, black])
+        let state = try Self.open(document).state
+        let list = SwatchList(state)
+        let swatch = try #require(list.named("Blue Sky"))
+        #expect(swatch.color == Color(cyan: 0.8, magenta: 0.05, yellow: 0, black: 0) && !swatch.isSpot)
+        #expect(list.swatches.filter { $0.name == "Black" }.count == 1, "the file's Black is the document's own")
+        let order = LayerOrder(state)
+        let panel = order.objects(on: order.layers[0].id, in: state)[0]
+        let tab = order.objects(on: order.layers[1].id, in: state)[0]
+        for node in [panel, tab] {
+            #expect(Self.fillSwatch(state, node) == swatch.id)
+        }
+        var builder = DocumentDisplayListBuilder(canvas: CanvasID("open"))
+        let colors = Self.solidColors(builder.rebuild(state).displayList.items)
+        #expect(colors.contains(Color(cyan: 0.8, magenta: 0.05, yellow: 0, black: 0)), "drawn through Working CMYK, not as naive RGB")
+        #expect(!colors.contains { $0.space == .sRGB && $0.green > 0.9 })
+    }
+
+    static func fillSwatch(_ state: EngineState, _ node: OpID) -> OpID? {
+        guard case .swatch(let swatch)? = state.props(node).path.appearance.fills.first?.settings.basic.color.ref else { return nil }
+        return OpID(swatch.id)
+    }
+
+    static func solidColors(_ items: [DisplayItem]) -> [Color] {
+        items.flatMap { item -> [Color] in
+            switch item {
+            case .path(let path):
+                return path.appearance.items.compactMap { element in
+                    switch element {
+                    case .fill(let fill): return fill.paint.color
+                    case .stroke(let stroke): return stroke.paint.color
+                    }
+                }
+            case .group(let group): return solidColors(group.children)
+            default: return []
+            }
+        }
+    }
 }

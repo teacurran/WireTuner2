@@ -118,4 +118,31 @@ import struct WTRender.StrokeStyle
         #expect(HairlineOutline.region(StrokeOutlineTests.line, width: 0, tolerance: 0.1).isEmpty)
         #expect(HairlineOutline.region(DisplayPath(polygon: [Point(x: 1, y: 1), Point(x: 1, y: 1)], closed: false), width: 1, tolerance: 0.1).contours.count == 1, "a dot is one octagon")
     }
+
+    /// Where GEO-003 cannot resolve an outline (`checkedStrokeOutline` throws), its best effort
+    /// can lack the inner edge, and a FreeHand letter's open outline then filled the whole letter;
+    /// the outline is Core Graphics' instead: a band along the path, the inside left unpainted.
+    @Test func anUnresolvedOutlineFallsBackToCoreGraphicsStroker() throws {
+        // A square drawn round to its start but not closed: the letter's case.
+        let loop = DisplayPath(polygon: [Point(x: 0, y: 0), Point(x: 40, y: 0), Point(x: 40, y: 40), Point(x: 0, y: 40), Point(x: 0, y: 0)], closed: false)
+        let failing: ([Contour], WTGeometry.StrokeStyle, Double) throws -> FilledPath = { _, _, _ in throw OffsetError.unresolvedOutline }
+        for (cap, join) in [(LineCap.butt, LineJoin.miter), (.round, .round), (.square, .bevel)] {
+            let style = StrokeStyle(width: 4, cap: cap, join: join)
+            let outline = StrokeExpansion.outline(loop.contours, style: style, width: 4, tolerance: 1.0 / 64, stroke: failing)
+            let region = FilledPath(contours: outline.contours, fillRule: .nonZero)
+            #expect(region.contains(Point(x: 20, y: 0.5)) && region.contains(Point(x: 40, y: 20)), "the band along the path is painted")
+            #expect(!region.contains(Point(x: 20, y: 20)), "the inside is not")
+            #expect(!region.contains(Point(x: 20, y: 3)))
+        }
+        // Dashed, the fallback dashes first; a non-finite miter limit reads as 4.
+        var dashed = StrokeStyle(width: 2, miterLimit: .nan)
+        dashed.dash = [5, 5]
+        let pieces = StrokeExpansion.outline(Self.line.contours, style: dashed, width: 2, tolerance: 1.0 / 64, stroke: failing)
+        let band = FilledPath(contours: pieces.contours, fillRule: .nonZero)
+        #expect(band.contains(Point(x: 2.5, y: 0)) && !band.contains(Point(x: 7.5, y: 0)) && band.contains(Point(x: 12.5, y: 0)))
+        // A resolved outline is GEO-003's own, as before.
+        let resolved = StrokeExpansion.outline(Self.line.contours, style: StrokeStyle(width: 2), width: 2, tolerance: 1.0 / 64)
+        let geometry = Offset.strokeOutline(Self.line.contours, style: WTGeometry.StrokeStyle(width: 2, cap: .butt, join: .miter, miterLimit: 10, dash: [], dashPhase: 0), tolerance: 1.0 / 64)
+        #expect(resolved == DisplayPath(contours: geometry.contours))
+    }
 }

@@ -2770,7 +2770,9 @@ void libfreehand::FHParser::_readPropLstElements(librevenge::RVNGInputStream *in
   {
     unsigned nameId = _readRecordId(input);
     unsigned valueId = _readRecordId(input);
-    if (nameId && valueId)
+    // WireTuner: a zero value is kept -- it is FreeHand's explicit "None" (an object whose
+    // stroke or fill is set to None over its style's), which dropping turned into the style's.
+    if (nameId)
       properties[nameId] = valueId;
   }
 }

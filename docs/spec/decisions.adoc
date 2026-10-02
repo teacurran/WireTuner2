@@ -989,7 +989,7 @@ Document Liberation Project's, used by LibreOffice; C++, MPL-2.0), which reads F
 * *Link libfreehand; do not rewrite it.*  A Swift reader of the record format would have to be
   written from libfreehand's source -- the only description of the format -- which makes it a
   translation (MPL-covered anyway) and throws away a decade of fixes against real files.  Linking
-  keeps WireTuner's code its own and libfreehand upgradable: a new release is a new pin and the two
+  keeps WireTuner's code its own and libfreehand upgradable: a new release is a new pin and the
   patches re-applied.
 * *Use its parser, not its drawing.*  libfreehand ends by drawing through librevenge, which flattens
   what WireTuner keeps live: clipping groups become SVG images, tiled fills bitmaps, symbols and
@@ -1228,6 +1228,33 @@ blend steps (steps = grey levels × the percentage change of colour), and *Resam
 Rejected: resampling from the screen alone (ignores the device), from ΔE as the default steps do
 (a display measure, which is what the default is for), and counting steps from the blend's length
 in device pixels (a long blend with little colour change would get hundreds of identical steps).
+
+[[D-091]]
+=== D-091 A stroke outline GEO-003 cannot resolve is Core Graphics' outline
+Found in use (2026-10-01): the "t" of a FreeHand logo drew as a solid blue letter with a thin dark
+outline where FreeHand cuts it out of the panel.  The letter is a hole in a compound path stroked
+1 pt in the panel's colour; GEO-003's boolean cleanup could not resolve that contour's stroke
+outline (`Offset.checkedStrokeOutline` throws `unresolvedOutline`, open or closed), and the best
+effort `strokeOutline` returns -- the outline without its inner edge -- filled the whole letter.
+Both renderers fill `StrokeExpansion`'s polygons (client.adoc, "Strokes"), so the fix belongs
+there:
+
+* *Checked, then Core Graphics.*  `StrokeExpansion.outline` asks `checkedStrokeOutline`; where it
+  throws, the outline is `CGPath.copy(strokingWithWidth:lineCap:lineJoin:miterLimit:)` of the path
+  (dashed first with `copy(dashingWithPhase:lengths:)`), read back as a `DisplayPath` and filled
+  non-zero like GEO-003's.  The glyph strokes already fall back the same way (to `RoundOutline`).
+* *Still one set of polygons.*  The fallback is geometry, not drawing: Core Graphics and Metal fill
+  the same outline, so they still agree, and the outline is cached with the rest.  Core Graphics'
+  stroker is never asked to draw (the hairline column the REND notes record came from drawing).
+* *Where it shows.*  Only an outline the cleanup leaves unresolved changes; every resolved outline
+  is GEO-003's, bit for bit.  The reference corpus had one: `arrowheadEdgeCases` (a dashed,
+  round-capped wave under open heads), whose golden had recorded the best effort -- the heads and
+  no wave at all; it is re-recorded with the dashes drawn.
+
+Rejected: keeping the best effort (a stroke that paints the inside of a shape is worse than a
+slightly different curve approximation); fixing the arrangement's numerical case first (GEO-003's
+robustness work is its own task, and the renderer needs a correct picture meanwhile); a
+`RoundOutline` fallback (round caps and joins only, wrong for butt, square, miter and bevel).
 
 == Open questions
 

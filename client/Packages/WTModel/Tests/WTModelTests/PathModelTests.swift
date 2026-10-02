@@ -320,7 +320,11 @@ private func point(_ n: UInt64, _ x: Double, _ y: Double, in inHandle: Vector = 
         var cmyk = Wiretuner_Doc_V1_Color()
         cmyk.cmyk.c = 1
         cmyk.cmyk.k = 0.5
-        #expect(Appearances.color(cmyk) == Color(red: 0, green: 0.5, blue: 0.5))
+        #expect(Appearances.color(cmyk) == Color(cyan: 1, magenta: 0, yellow: 0, black: 0.5), "CMYK stays CMYK for Working CMYK")
+        var cmykTint = Wiretuner_Doc_V1_ColorRef()
+        cmykTint.tint.base.cached = try cmyk.serializedData()
+        cmykTint.tint.percent = 50
+        #expect(Appearances.color(cmykTint) == Color(cyan: 0.5, magenta: 0, yellow: 0, black: 0.25), "a tint of CMYK is lighter ink, not naive RGB")
         var lab = Wiretuner_Doc_V1_Color()
         lab.lab.l = 50
         #expect(Appearances.color(lab) == Color(labL: 50, a: 0, b: 0))

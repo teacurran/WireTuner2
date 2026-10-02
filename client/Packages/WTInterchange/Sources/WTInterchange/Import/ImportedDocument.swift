@@ -99,6 +99,13 @@ public struct ImportedDocument: Hashable, Sendable {
         return result
     }
 
+    /// Every named colour the pages use (their nodes and named layers'), once per name and
+    /// colour, in first-use order: what opening the file writes as swatches before the artwork.
+    public var swatches: [ImportedSwatch] {
+        var seen = Set<ImportedSwatch>()
+        return pages.flatMap { $0.nodes + $0.layers.flatMap(\.nodes) }.flatMap(\.swatches).filter { seen.insert($0).inserted }
+    }
+
     /// The names of the file's layers in the order they first appear, bottom to top: the
     /// top-level `.layer` groups of every page, then the named layers.
     public var layerNames: [String] {

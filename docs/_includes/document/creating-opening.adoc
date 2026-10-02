@@ -369,7 +369,8 @@ with the file placed in it) is gone.  Tests: `WTInterchangeTests/ImportedDocumen
 `WT_EXTERNAL_CORPUS` (skipped when unset) and writes its report to `WT_CORPUS_REPORT` (never the repository; the owner's files are
 client work), with `WT_CORPUS_DUMP` saving page 1 as Quartz and as WireTuner draw it.  Fixes the owner's corpus (185 files)
 exposed: an imported filled path with an open contour sets `fill_when_open` (PDF and PostScript fill open subpaths; a shirt
-drawn as one open outline came in unfilled); a JPEG drawn through an inverting `/Decode` is re-read through it (Photoshop's
+drawn as one open outline came in unfilled); a file's named colours (FreeHand's) are written as swatches before the
+artwork, as on import, instead of as inline colours; a JPEG drawn through an inverting `/Decode` is re-read through it (Photoshop's
 CMYK JPEGs came in as negatives); an EPS whose embedded PDF converts to nothing is placed rather than opened blank; the PDF
 importer's per-pixel colour conversion is memoised per sample tuple and whole bytes are read directly (a separation image
 took over a minute); and a display list build reads the stacking order for text wrap once (`TextWrapping.Pass`, a task-local

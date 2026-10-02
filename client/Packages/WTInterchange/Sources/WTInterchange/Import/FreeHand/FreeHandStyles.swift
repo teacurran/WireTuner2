@@ -38,8 +38,14 @@ extension FreeHandConverter {
         guard id != 0, visited.insert(id).inserted, visited.count < FreeHandConverter.maximumDepth else { return }
         if let list = records.propertyLists[id] {
             resolve(list.parent, into: &style, visited: &visited)
-            if let fill = list.elements[String(records.fillName)], records.fillName != 0, isFill(fill) { style.fill = fill }
-            if let stroke = list.elements[String(records.strokeName)], records.strokeName != 0, isStroke(stroke) { style.stroke = stroke }
+            // A key whose value is record 0 is FreeHand's explicit None over the parent's
+            // (patch 0003 keeps it): an object set to no stroke on a style that strokes.
+            if records.fillName != 0, let fill = list.elements[String(records.fillName)] {
+                if fill == 0 { style.fill = nil } else if isFill(fill) { style.fill = fill }
+            }
+            if records.strokeName != 0, let stroke = list.elements[String(records.strokeName)] {
+                if stroke == 0 { style.stroke = nil } else if isStroke(stroke) { style.stroke = stroke }
+            }
             return
         }
         guard let graphic = records.graphicStyles[id] else { return }

@@ -233,7 +233,7 @@ struct FreeHandConverter {
         guard let path else { return [] }
         let contentsID = records.contentsName == 0 ? nil : records.propertyLists[style]?.elements[String(records.contentsName)]
             ?? records.graphicStyles[style]?.elements[String(records.contentsName)]
-        guard let contentsID else { return [.path(path)] }
+        guard let contentsID, contentsID != 0 else { return [.path(path)] }
         let contents = node(contentsID, transform)
         guard !contents.isEmpty else { return [.path(path)] }
         return [.group(ImportedGroup(children: contents, clip: path, clipAppearance: true))]
@@ -258,8 +258,22 @@ struct FreeHandConverter {
             default: break
             }
         }
-        return builder.build().filter { !$0.segments.isEmpty }.map { $0.applying(transform) }
+        // libfreehand records a closed path in its flag, not as a "Z" (its last curve returns to
+        // the start); a contour is closed when the path is, or when it ends where it began --
+        // libfreehand's own rule (FHCollector's _composePath) -- so its stroke joins there
+        // instead of capping both ends.
+        return builder.build().filter { !$0.segments.isEmpty }.map { contour in
+            var contour = contour
+            if path.closed || (abs(contour.end.x - contour.start.x) <= closingTolerance && abs(contour.end.y - contour.start.y) <= closingTolerance) {
+                contour.closed = true
+            }
+            return contour.applying(transform)
+        }
     }
+
+    /// How near (inches) a contour's end must come to its start to close it: libfreehand's
+    /// `FH_EPSILON`.
+    static let closingTolerance = 1e-6
 
     /// The mean scale of `transform`'s linear part (a stroke width's factor).
     static func scale(of transform: AffineTransform) -> Double {

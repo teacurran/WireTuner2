@@ -499,6 +499,14 @@ points are equal, as when a proof device is Working CMYK).  Other intents ignore
 now separates to no ink, sRGB black to the profile's rich black, and without compensation colours
 agree with Core Graphics' conversion within 1/255 (`BlackPointCompensationTests`).
 
+NOTE: Fixed in use (2026-10-01): a CMYK colour stored inline -- an unnamed fill, stroke, gradient
+stop or text colour, and a swatch reference read from its cache outside a scene build -- reached
+the renderers as the naive complement `R = (1 − C)(1 − K)` (`Appearances.color`, written before this
+epic), while the same colour as a swatch and in every export went through Working CMYK: C 80 M 5
+showed as RGB 51/242/255 on the canvas and 0/168/216 in a PNG.  `Appearances.color` now keeps CMYK
+as CMYK and an inline tint mixes its base in the base's own space (`Color.tinted`), so the canvas,
+bitmaps and PDF take every CMYK colour through the same profile (`PathModelTests`).
+
 NOTE: As built by CMS-004 (`WTModel/ColorSettings.swift`).  `ColorSettings` reads
 `SettingsProps.color` with the normalizations above into `WTColor.ProfileRef`s (an unknown
 `bundled_id` or a reference without a space also reads as unset); `pending` lists the custom

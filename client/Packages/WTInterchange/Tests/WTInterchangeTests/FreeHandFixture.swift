@@ -311,15 +311,16 @@ struct FreeHandFileFixture {
         return id
     }
 
-    /// A closed path through `points` (inches) with straight segments.
+    /// A path through `points` (inches) with straight segments, closed (flag bit 0) unless
+    /// `closed` is false.
     @discardableResult
-    mutating func path(_ points: [(Double, Double)], style: Int) -> Int {
+    mutating func path(_ points: [(Double, Double)], style: Int, closed: Bool = true) -> Int {
         let id = record("Path")
         u16(points.count)
         ref(style)
         ref(0)
         skip(4 + 9)
-        u8(1)                     // closed
+        u8(closed ? 1 : 0)
         u16(points.count)
         for (x, y) in points {
             skip(1); u8(0); skip(1)
@@ -361,6 +362,36 @@ struct FreeHandFileFixture {
         let id = record("BasicFill")
         ref(color)
         skip(4)
+        return id
+    }
+
+    /// A BasicLine of colour record `color`, `width` points wide.
+    @discardableResult
+    mutating func basicLine(color: Int, width: Double) -> Int {
+        let id = record("BasicLine")
+        ref(color)
+        ref(0); ref(0); ref(0)
+        coordinate(30)            // miter limit
+        coordinate(width)
+        skip(4)
+        return id
+    }
+
+    /// FreeHand 9 and later's `StylePropLst` (a style) or `ElemPropLst` (an object's own
+    /// settings over its style, `parent`): name and value record pairs, a value of 0 being None.
+    @discardableResult
+    mutating func styleList(_ pairs: [(Int, Int)], parent: Int = 0, element: Bool) -> Int {
+        precondition(version > 8, "FreeHand 9 and later's layout")
+        let id = record(element ? "ElemPropLst" : "StylePropLst")
+        skip(2)
+        u16(pairs.count)
+        skip(2)
+        ref(parent)
+        ref(0)
+        for (name, value) in pairs {
+            ref(name)
+            ref(value)
+        }
         return id
     }
 

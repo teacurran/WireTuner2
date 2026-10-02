@@ -133,8 +133,13 @@ public struct DocumentImport: Sendable {
                 $0.geometry = Self.geometry(width: rect.width, height: rect.height).stored
             }))
         }
-        var writer = ImportWriter(state: state, link: isSinglePlacement ? link : nil, poster: poster)
+        // The file's named colours become swatches before the artwork that uses them, as an
+        // import writes them (`ImportWriter.prepareSwatches`), read against the state with the
+        // template in it so a file's White, Black and Registration are the document's own.
+        let templated = Self.state(state, applying: builder)
+        var writer = ImportWriter(state: templated, link: isSinglePlacement ? link : nil, poster: poster)
         writer.embeddedProfiles = embeddedProfiles
+        try writer.prepareSwatches(document.swatches, builder: &builder)
         let layers = layerContents
         let layerKeys = try PathEditing.keys(between: nil, and: nil, count: layers.count)
         for (layer, layerKey) in zip(layers, layerKeys) {
@@ -150,6 +155,17 @@ public struct DocumentImport: Sendable {
                 try writer.create(node, parent: id, position: key, builder: &builder)
             }
         }
+    }
+
+    /// `state` with the ops `builder` holds so far applied, numbered as the change will number them.
+    static func state(_ state: EngineState, applying builder: ChangeBuilder) -> EngineState {
+        var result = state
+        var counter = builder.startCounter
+        for op in builder.ops {
+            result.apply(op, id: OpID(counter: counter, replica: builder.replica))
+            counter &+= EngineState.counters(op)
+        }
+        return result
     }
 
     /// A page geometry of `width` × `height`: a standard size's name when it is one (either

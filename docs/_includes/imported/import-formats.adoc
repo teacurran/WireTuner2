@@ -817,6 +817,23 @@ byte through the vendored C++), `ImportLiveMappingTests` for the mapping; `FreeH
 imports every FreeHand file under `WT_EXTERNAL_CORPUS` and writes a report and a PNG per page to
 `WT_CORPUS_OUTPUT`, and does nothing without it.
 
+NOTE: Fixes from the owner's comparison of a logo file with FreeHand's own rendering (its JPEG
+export and the BMP thumbnail FreeHand embeds in a FreeHand 10 file).  *Explicit None*: FreeHand 9
+and later write an object's own settings as an `ElemPropLst` over its style's `StylePropLst`, and an
+object set to no stroke (or fill) writes the key with the value record 0; libfreehand dropped
+zero values, so the object took its style's stroke -- a frame rectangle with neither fill nor stroke
+came in with the Normal style's 1 pt black outline.  Patch 0003 (`tools/freehand/patches`) keeps the
+zero; `FreeHandConverter.style` reads a zero fill or stroke as None over the parent's, an absent key
+as inherited, and a zero "contents" as no Paste Inside.  *Closed paths*: libfreehand keeps a path's
+closed flag apart from its segments (its last curve returns to the start, no `Z`); a contour is now
+closed when the path is or when it ends where it began (libfreehand's own rule, `FH_EPSILON`), so its
+stroke joins there.  *Opening named colours*: opening a file as a document (`DocumentImport`) wrote
+every named colour as an inline colour; it now writes `ImportedDocument.swatches` first, as an
+import does, against the state with the template so the file's White, Black and Registration are
+the document's own.  The logo's letter cut out of a stroked panel drew filled because GEO-003 could
+not resolve its stroke outline (D-091).  Tests: `FreeHandNoneAndClosingTests` (FreeHand 10 files
+written byte by byte), `DocumentImportTests.namedColoursOpenAsSwatchesWithTheirCMYK`.
+
 === Build tasks
 
 [[IMG-008]]

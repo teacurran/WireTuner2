@@ -284,21 +284,24 @@ public enum Appearances {
         }
     }
 
+    /// An inline tint read from its cached base: the base mixed toward paper in its own space
+    /// (`Color.tinted`, as `ColorResolver` tints), so a CMYK base stays CMYK.
     static func color(_ tint: Wiretuner_Doc_V1_InlineTint) -> Color {
         let base = (try? Wiretuner_Doc_V1_Color(serializedBytes: tint.base.cached)).map(color) ?? .black
-        let amount = min(max(tint.percent / 100, 0), 1)
-        func mix(_ value: Double) -> Double { 1 - (1 - value) * amount }
-        return Color(red: mix(base.red), green: mix(base.green), blue: mix(base.blue))
+        return base.tinted(min(max(tint.percent / 100, 0), 1))
     }
 
-    /// A stored colour for display: sRGB and Display P3 in their own spaces, CIELAB and OKLab
-    /// tagged, CMYK by the naive complement until the colour-management conversion takes it.
+    /// A stored colour for display, in its own space: sRGB and Display P3, CIELAB and OKLab
+    /// tagged, and CMYK as CMYK, which the renderers take through Working CMYK
+    /// (`ColorManagement`) as they take a swatch's -- an unnamed CMYK fill drew by the naive
+    /// complement `R = (1 − C)(1 − K)` before, far brighter than the same colour as a swatch or
+    /// in any export (C 80 M 5 showed as RGB 51/242/255 instead of 0/168/216).
     public static func color(_ color: Wiretuner_Doc_V1_Color) -> Color {
         switch color.components {
         case .rgb(let rgb)?:
             return color.space == .displayP3 ? Color(displayP3Red: rgb.r, green: rgb.g, blue: rgb.b) : Color(red: rgb.r, green: rgb.g, blue: rgb.b)
         case .cmyk(let cmyk)?:
-            return Color(red: (1 - cmyk.c) * (1 - cmyk.k), green: (1 - cmyk.m) * (1 - cmyk.k), blue: (1 - cmyk.y) * (1 - cmyk.k))
+            return Color(cyan: cmyk.c, magenta: cmyk.m, yellow: cmyk.y, black: cmyk.k)
         case .lab(let lab)?:
             return color.space == .oklab ? Color(oklabL: lab.l, a: lab.a, b: lab.b) : Color(labL: lab.l, a: lab.a, b: lab.b)
         case nil:

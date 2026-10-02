@@ -503,7 +503,8 @@ and ATTR-027 (the ATTR paints).  This supersedes the "until GEO-003" statements 
 REND-002/003/005 and REND-006 notes: no stroke reaches either renderer as a style.  Every stroke
 attribute, hairlines and arrowheads included, is filled as its GEO-003 outline, computed once per
 path, style and tolerance and cached (`StrokeExpansion`); the view modes' lines are
-`HairlineOutline` polygons; neither renderer calls Core Graphics' stroker.  Stack elements lower
+`HairlineOutline` polygons; neither renderer calls Core Graphics' stroker (an outline GEO-003 cannot
+resolve is Core Graphics' outline as geometry, D-091).  Stack elements lower
 to `PaintedRegion`s both renderers fill.  *Paints*: solid colours stay colours in both renderers.
 Every other paint (gradients, patterns, Custom, Textured, Tiled and Lens fills) is drawn by
 `PaintDrawing` in Core Graphics: the reference renderer clips to the region and paints the clip;
