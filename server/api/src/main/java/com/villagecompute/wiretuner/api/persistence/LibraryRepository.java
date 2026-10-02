@@ -88,6 +88,7 @@ public class LibraryRepository {
     public static final String VISIBLE = "(d.owner_account_id = ?1 OR " + TEAM_ACCESS + " OR " + NAMED_ACCESS + ")";
 
     static final String NOT_BRANCH = "NOT EXISTS (SELECT 1 FROM branch br WHERE br.document_id = d.id)";
+    static final String NOT_TRASHED = "d.trashed_at IS NULL";
 
     /** {@link #VISIBLE} of the document aliased {@code p} instead of {@code d}. */
     static final String PARENT_VISIBLE = VISIBLE.replaceAll("\\bd\\.", "p.");
@@ -115,13 +116,13 @@ public class LibraryRepository {
         params.add(query.accountId());
         StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS).append(" FROM document d WHERE ");
         sql.append(switch (query.scope()) {
-            case SHARED_WITH_ME -> allOf(NOT_BRANCH, "d.trashed_at IS NULL", "d.owner_account_id IS DISTINCT FROM ?1",
+            case SHARED_WITH_ME -> allOf(NOT_BRANCH, NOT_TRASHED, "d.owner_account_id IS DISTINCT FROM ?1",
                     "NOT " + TEAM_ACCESS, NAMED_ACCESS);
             case TRASH -> allOf(inSpace(params, query.spaceId()), "d.trashed_at IS NOT NULL",
                     "((" + allOf(NOT_BRANCH, VISIBLE) + ") OR " + BRANCH_TRASHED_ALONE + ")");
-            case TEMPLATES -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), "d.trashed_at IS NULL", "d.is_template",
+            case TEMPLATES -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), NOT_TRASHED, "d.is_template",
                     VISIBLE);
-            case FOLDER -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), "d.trashed_at IS NULL",
+            case FOLDER -> allOf(NOT_BRANCH, inSpace(params, query.spaceId()), NOT_TRASHED,
                     inFolder(params, query.folderId()), VISIBLE);
         });
         params.add(query.afterName());
