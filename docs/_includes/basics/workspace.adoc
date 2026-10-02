@@ -340,4 +340,10 @@ bound: the canvas has no `NSScrollView` and its clamp is hard at the edge, momen
 tool, far-away artwork reachable then gone, the extent following added pages, an old far-away view clamped, the Hand
 tool, a turned canvas).  Where the extent is too large to fit at 6% (pages over about 75 inches in a typical window)
 the floor is 6%, the magnification `ViewState` allows; the scroll bars still reach all of it.
+
+NOTE: Found in use (2026-10-02): clicks, right-clicks and scrolls on the docks, the Tools panel and the status bar
+reached the canvas laid under them, and a press the canvas got that way auto-scrolled the artboard away without end.
+Cause and fix are recorded in xref:panels.adoc[Using panels] (`PanelEventBarrierView`, `CanvasView.owns(_:)`,
+`releaseLostPress`).
+
 endif::spec[]

@@ -598,7 +598,7 @@ final class PanelDockController: NSViewController {
 /// The dock's background: a drop target for panels and groups dragged into it, showing the
 /// insertion line while one is over it.
 @MainActor
-final class DockDropView: NSView {
+final class DockDropView: PanelEventBarrierView {
     weak var controller: PanelDockController?
 
     override init(frame frameRect: NSRect) {
@@ -640,7 +640,7 @@ final class DockDropView: NSView {
 /// dock"): a click hides or shows the dock, a drag resizes the docked cluster's column beside the
 /// canvas.  Drawn as a small grabber; absent while nothing is docked at its edge.
 @MainActor
-final class DockHandleView: NSView {
+final class DockHandleView: PanelEventBarrierView {
     static let thickness: CGFloat = 6
     /// A drag shorter than this (points) is a click.
     static let clickSlop: CGFloat = 3

@@ -217,8 +217,11 @@ import WTRender
         #expect(presence.items.first?.title == "Follow Ana")
         // The canvas asks the window for the menu.
         #expect(controller.canvas.onContextMenu != nil)
+        // At a point where the window shows the canvas (a point under the status bar or a dock is
+        // not the canvas's, found in use 2026-10-02).
+        let safe = controller.canvas.appKitSafeRect
         let event = NSEvent.mouseEvent(
-            with: .rightMouseDown, location: NSPoint(x: 5, y: 5), modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+            with: .rightMouseDown, location: controller.canvas.convert(NSPoint(x: safe.midX, y: safe.midY), to: nil), modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
             eventNumber: 0, clickCount: 1, pressure: 1
         )!
         #expect(controller.canvas.menu(for: event) != nil)

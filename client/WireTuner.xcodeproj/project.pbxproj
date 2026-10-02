@@ -24,6 +24,7 @@
 		0643546912A655B6884BD949 /* PackageHalvesGlue.swift in Sources */ = {isa = PBXBuildFile; fileRef = E039576EB63703F4F34FEBEC /* PackageHalvesGlue.swift */; };
 		06C4A28E90A004BACE159BCB /* AccessBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09556E9FF5FA3B72366110B3 /* AccessBar.swift */; };
 		073DA193B1D4A9DB06F7D8F8 /* RegisterNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC7F947927626CEFDBC841F3 /* RegisterNames.swift */; };
+		073E622452C80C4839FE4468 /* CanvasLostReleaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B70EE94F672FDAFFE86CA0 /* CanvasLostReleaseTests.swift */; };
 		0791E2F338F99A8FD9F2E768 /* MainToolbarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FD41A2E062760D7B2C96C34 /* MainToolbarTests.swift */; };
 		07AFCC8A97FF153F9AC5C1A6 /* AccountClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8C1AE698780A9022F8E66E /* AccountClient.swift */; };
 		081361B7DD48751518657032 /* ServicesBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F26028579D58F3EB5896921 /* ServicesBridge.swift */; };
@@ -195,6 +196,7 @@
 		376512B2D22CE521BF9ABC44 /* MagnificationFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4758DB7ADD7C15BC02319E /* MagnificationFormat.swift */; };
 		3793E0827F2BDBC68B5DF036 /* MirrorTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F822F95DDB4554A0D68B42D /* MirrorTool.swift */; };
 		37BCB724CD3D3C7AA1208626 /* TypefaceWindowMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2155B8FE90D4B50845EDFD2C /* TypefaceWindowMode.swift */; };
+		37D9A5B981FE919B0C823313 /* PanelEventBarrier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 388D4B1A72717E91F08587BA /* PanelEventBarrier.swift */; };
 		3816702025484DD06C7ACFB2 /* DocumentGlueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8766A0D0C953B42544B861B /* DocumentGlueTests.swift */; };
 		38584B10B52B433A277C1739 /* DataUIEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DADB107FCC42446DDA63100 /* DataUIEdgeTests.swift */; };
 		38D8C7466DA17C00D1D21AC7 /* PanelLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D97497B47C9702BD8AD0E7 /* PanelLayoutTests.swift */; };
@@ -374,6 +376,7 @@
 		647C7DF27259A3C4C11C0A30 /* SharingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C052827F4028CDBDB9653E /* SharingUITests.swift */; };
 		65198F8D5E89DD1B5372F542 /* DistortKernels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06D70D95F9DA1E420754CC53 /* DistortKernels.swift */; };
 		65320D84F0DE613B7BF69531 /* LibraryClients.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837424E1A6FDF4C8D0E26481 /* LibraryClients.swift */; };
+		65D09EB7708103494CE77BDD /* PanelClickThroughTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6ECB9E902CE5D1FEAE5B21C /* PanelClickThroughTests.swift */; };
 		65F3F9139F3E0BA91C15836C /* ThumbnailProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5695F5C5375EC136ABD85690 /* ThumbnailProvider.swift */; };
 		664B338AD18F075DF3F0D1D2 /* HoseFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E41A48457A5BFACEB52F4E7 /* HoseFeatures.swift */; };
 		665CAFB75D41606A7F91D56F /* SelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E4730554F7A9DC77FD14BFF /* SelectionTests.swift */; };
@@ -1173,6 +1176,7 @@
 		37D1A8E202F43956FBEED185 /* StylesPanelModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylesPanelModel.swift; sourceTree = "<group>"; };
 		38780872FBF233AFB5AED324 /* ShareClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareClient.swift; sourceTree = "<group>"; };
 		387DB143A248D2D31D6C6B54 /* PosterRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterRenderer.swift; sourceTree = "<group>"; };
+		388D4B1A72717E91F08587BA /* PanelEventBarrier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelEventBarrier.swift; sourceTree = "<group>"; };
 		38B871B3FC78B67E7F728363 /* HistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTests.swift; sourceTree = "<group>"; };
 		391239378827B9FEE73C2CC6 /* WTGeometry */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WTGeometry; path = Packages/WTGeometry; sourceTree = SOURCE_ROOT; };
 		391D226D341B61B36D90BD62 /* WindowComments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowComments.swift; sourceTree = "<group>"; };
@@ -1505,6 +1509,7 @@
 		9258CD8B4476E1F5C0B3CD72 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexer.swift; sourceTree = "<group>"; };
 		92BB4526E1B8FAA005EC7A60 /* InspectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InspectorTests.swift; sourceTree = "<group>"; };
 		93A9F1F1C65B45199E307D73 /* DataExportOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataExportOptions.swift; sourceTree = "<group>"; };
+		93B70EE94F672FDAFFE86CA0 /* CanvasLostReleaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasLostReleaseTests.swift; sourceTree = "<group>"; };
 		93C5914268C241DE0A02ED87 /* DocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSession.swift; sourceTree = "<group>"; };
 		93D3023F36418EEDBBA24218 /* FakeDataTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeDataTransport.swift; sourceTree = "<group>"; };
 		947CBB28FFADEB67CCD0E7C2 /* FontFamilyPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FontFamilyPicker.swift; sourceTree = "<group>"; };
@@ -1758,6 +1763,7 @@
 		E59850C4555A8F7BD1C8B979 /* DocumentMenusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentMenusTests.swift; sourceTree = "<group>"; };
 		E5FB37CA7CD6D80B11862E66 /* TemplateFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateFeatures.swift; sourceTree = "<group>"; };
 		E6084F1773669CAA1B88435E /* CanvasTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasTextInput.swift; sourceTree = "<group>"; };
+		E6ECB9E902CE5D1FEAE5B21C /* PanelClickThroughTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelClickThroughTests.swift; sourceTree = "<group>"; };
 		E6EE3ECE070075D8EEFC124B /* ExportSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportSettings.swift; sourceTree = "<group>"; };
 		E7174C964CD096BDB59258E1 /* ColorFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorFeatures.swift; sourceTree = "<group>"; };
 		E7306458B57616E3B61092CD /* ObjectEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectEditing.swift; sourceTree = "<group>"; };
@@ -2471,6 +2477,7 @@
 				2088A26FF2592954FFDDFE3E /* PanelCommands.swift */,
 				89E0BCC92D5EA76458AB33C3 /* PanelDescriptor.swift */,
 				3E791ECB2B368B1A8E804D8F /* PanelDockController.swift */,
+				388D4B1A72717E91F08587BA /* PanelEventBarrier.swift */,
 				80A8C3C4F00955FDF853E2B3 /* PanelGlass.swift */,
 				7D221275E631E7DBDFE1968F /* PanelGroupView.swift */,
 				3A02F3DD73CCCD58B47B512E /* PanelID.swift */,
@@ -3123,6 +3130,7 @@
 				26FC49CEAB8D57EB39740D9B /* BrushEditorTests.swift */,
 				D20B5C84AA09A8CA2759F190 /* CanvasExtentNavigationTests.swift */,
 				14F9331D700120FF7EB6B0DB /* CanvasHandleTests.swift */,
+				93B70EE94F672FDAFFE86CA0 /* CanvasLostReleaseTests.swift */,
 				8003B4D9EE972FB72DC4992E /* CanvasMetalTests.swift */,
 				A4C5E714998DEF20273E4046 /* CanvasNavigationTests.swift */,
 				A6B0651E3AADCA793911E3DD /* CanvasOrientationTests.swift */,
@@ -3258,6 +3266,7 @@
 				8E2EDE4625C710BDF7F63E90 /* PackageGlueTests.swift */,
 				5DE68C8017B49E282186DB0A /* PageToolTests.swift */,
 				4DDF2F739E6164DCFA9F0D48 /* PanelCatalogTests.swift */,
+				E6ECB9E902CE5D1FEAE5B21C /* PanelClickThroughTests.swift */,
 				4839F8A47661CC1E8C973FFA /* PanelClusterLayoutTests.swift */,
 				DC239E118ADA1229304FF5E7 /* PanelDockTests.swift */,
 				2666C56429641AC38BA0297A /* PanelGlassTests.swift */,
@@ -4133,6 +4142,7 @@
 				47DE63EE474AAA1B474D7A83 /* PanelContextMenus.swift in Sources */,
 				0BB3920DA81AB10E094C3DF5 /* PanelDescriptor.swift in Sources */,
 				3E9812AA700E470404EB0A21 /* PanelDockController.swift in Sources */,
+				37D9A5B981FE919B0C823313 /* PanelEventBarrier.swift in Sources */,
 				4BD32DE47F1F57EC0F02291D /* PanelGlass.swift in Sources */,
 				57828CF8D66A5916DB6D1955 /* PanelGroupView.swift in Sources */,
 				5C914428ED5729BFC3755F28 /* PanelID.swift in Sources */,
@@ -4422,6 +4432,7 @@
 				88778E84083642C47C76DB41 /* BrushEditorTests.swift in Sources */,
 				E4AA371BE35C52A53E7C6820 /* CanvasExtentNavigationTests.swift in Sources */,
 				96D2D0BD70E7C576E9FD6B8C /* CanvasHandleTests.swift in Sources */,
+				073E622452C80C4839FE4468 /* CanvasLostReleaseTests.swift in Sources */,
 				922D114C407E0338A3F57644 /* CanvasMetalTests.swift in Sources */,
 				28F2F1AAD9841A0CEF12B249 /* CanvasNavigationTests.swift in Sources */,
 				5DE69DC23A9D0B95D3C61149 /* CanvasOrientationTests.swift in Sources */,
@@ -4567,6 +4578,7 @@
 				C8530164B4C34E516D2C7A5B /* PackageGlueTests.swift in Sources */,
 				EC96A34672F840691D29D847 /* PageToolTests.swift in Sources */,
 				767A065554C78B3F964953AD /* PanelCatalogTests.swift in Sources */,
+				65D09EB7708103494CE77BDD /* PanelClickThroughTests.swift in Sources */,
 				987E36DB039C4C4D17596C2B /* PanelClusterLayoutTests.swift in Sources */,
 				2F8AECCC98A2059250D201DD /* PanelDockTests.swift in Sources */,
 				2D3B55C00710EC15381556B9 /* PanelGlassTests.swift in Sources */,
@@ -4729,11 +4741,11 @@
 		};
 		0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_049CC012-056E-49CE-98A2-404D75536422" /* WTInterchange */;
+			productRef = "TEMP_3639B8FC-96AB-4441-862C-904134830CA0" /* WTInterchange */;
 		};
 		1389D84F7311322BA59FB06B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_8C25739E-6595-4D20-87B6-C31522243B13" /* WTRender */;
+			productRef = "TEMP_5FC0B56E-D280-4C24-BD72-C97764C1EBDB" /* WTRender */;
 		};
 		23AA14013E4A515EC9987F5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4747,11 +4759,11 @@
 		};
 		48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_AAC5FD18-F6FF-46FF-BFDC-E1FA2D30D793" /* WTModel */;
+			productRef = "TEMP_233D191A-46C5-4882-8487-A36AC19F3CE0" /* WTModel */;
 		};
 		5345AFFAC55816C31DADAB2D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_867E7612-8851-48C9-AC66-32E39F076F76" /* WTGeometry */;
+			productRef = "TEMP_109005AC-256E-487C-8A5D-106CB375D1A8" /* WTGeometry */;
 		};
 		6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4760,15 +4772,15 @@
 		};
 		81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_2C5878E4-07E2-4DC8-B58D-7ACD58F616B6" /* WTCRDT */;
+			productRef = "TEMP_28658607-2B9A-42B7-A9A7-648CFA966AEC" /* WTCRDT */;
 		};
 		85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_3EB199FA-C5DF-4627-BC12-75662296A17A" /* WTSync */;
+			productRef = "TEMP_B6909835-BB74-416A-842C-ED6AACAB4681" /* WTSync */;
 		};
 		8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_2D343A9E-0B9D-4327-B772-75DAFF64B045" /* WTModel */;
+			productRef = "TEMP_892CDE13-9D11-457E-9781-D66A9D5292DC" /* WTModel */;
 		};
 		920E4750ADBCB78008950CBB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4777,7 +4789,7 @@
 		};
 		B81CA2100C47093C70BAEEFB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_77DDE25E-B25C-4D00-8222-4951F3E11EE9" /* WTText */;
+			productRef = "TEMP_B28F2375-EDFF-4531-9A18-3C554AE8AFAA" /* WTText */;
 		};
 		C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4786,7 +4798,7 @@
 		};
 		D83546DB4F210659857E1489 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_CED3142B-52DA-4E64-8692-ACE0B16F7C34" /* WTProto */;
+			productRef = "TEMP_6BF0F098-31E6-4AEC-8FE9-ADDA4EE3B906" /* WTProto */;
 		};
 		DDA1225ED9423A83ED60A11B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5424,41 +5436,41 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_049CC012-056E-49CE-98A2-404D75536422" /* WTInterchange */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTInterchange;
-		};
-		"TEMP_2C5878E4-07E2-4DC8-B58D-7ACD58F616B6" /* WTCRDT */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTCRDT;
-		};
-		"TEMP_2D343A9E-0B9D-4327-B772-75DAFF64B045" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_3EB199FA-C5DF-4627-BC12-75662296A17A" /* WTSync */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTSync;
-		};
-		"TEMP_77DDE25E-B25C-4D00-8222-4951F3E11EE9" /* WTText */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTText;
-		};
-		"TEMP_867E7612-8851-48C9-AC66-32E39F076F76" /* WTGeometry */ = {
+		"TEMP_109005AC-256E-487C-8A5D-106CB375D1A8" /* WTGeometry */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTGeometry;
 		};
-		"TEMP_8C25739E-6595-4D20-87B6-C31522243B13" /* WTRender */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTRender;
-		};
-		"TEMP_AAC5FD18-F6FF-46FF-BFDC-E1FA2D30D793" /* WTModel */ = {
+		"TEMP_233D191A-46C5-4882-8487-A36AC19F3CE0" /* WTModel */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTModel;
 		};
-		"TEMP_CED3142B-52DA-4E64-8692-ACE0B16F7C34" /* WTProto */ = {
+		"TEMP_28658607-2B9A-42B7-A9A7-648CFA966AEC" /* WTCRDT */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTCRDT;
+		};
+		"TEMP_3639B8FC-96AB-4441-862C-904134830CA0" /* WTInterchange */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTInterchange;
+		};
+		"TEMP_5FC0B56E-D280-4C24-BD72-C97764C1EBDB" /* WTRender */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTRender;
+		};
+		"TEMP_6BF0F098-31E6-4AEC-8FE9-ADDA4EE3B906" /* WTProto */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTProto;
+		};
+		"TEMP_892CDE13-9D11-457E-9781-D66A9D5292DC" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_B28F2375-EDFF-4531-9A18-3C554AE8AFAA" /* WTText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTText;
+		};
+		"TEMP_B6909835-BB74-416A-842C-ED6AACAB4681" /* WTSync */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTSync;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

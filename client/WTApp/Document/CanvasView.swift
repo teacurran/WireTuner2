@@ -314,7 +314,9 @@ final class CanvasView: NSView, CanvasHost {
     /// refresh only when something changed, and never by `nextDrawable()` from here.
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
+        observeFocus()
         if window == nil {
+            releaseLostPress()
             tiles.stopDisplayLink()
         } else {
             tiles.startDisplayLink()
@@ -556,6 +558,7 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard owns(event) else { return }
         window?.makeFirstResponder(self)
         if previewFrame != nil {
             // Clicking the canvas ends preview mode (animation.adoc, "Client").
@@ -565,12 +568,50 @@ final class CanvasView: NSView, CanvasHost {
             NSMenu.popUpContextMenu(menu, with: event, for: self)
             return
         }
+        // A press whose mouse-up never came ends where it was before this one begins.
+        if toolManager?.isPressed == true { releaseLostPress() }
         stopAutoscroll()
         let translated = canvasEvent(event)
         onPressAt?(translated.pasteboardPoint)
         toolManager?.mouseDown(translated)
         onPress?(true)
+        watchForRelease()
     }
+
+    /// Whether `event` is the canvas's: not from another window, and not at a point where the
+    /// window shows something laid over the canvas -- a dock, a panel, a dock handle, the status
+    /// bar (`PanelEventBarrierView`).  AppKit passes an event those leave unhandled to the view
+    /// underneath, which is the canvas (found in use, 2026-10-02: a click on a tool in the Tools
+    /// panel pressed the canvas and left it pressed); the barriers stop them, and this keeps any
+    /// that get by from starting anything.  An event with no window (tests) or a canvas outside a
+    /// window is the canvas's.
+    func owns(_ event: NSEvent) -> Bool {
+        guard let window else { return true }
+        if let other = event.window, other !== window { return false }
+        guard let frame = window.contentView?.superview ?? window.contentView else { return true }
+        // `hitTest` takes a point in the superview's space; the frame view's is the window's.
+        let point = frame.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
+        var view = frame.hitTest(point)
+        while let current = view {
+            if current is PanelEventBarrierView { return false }
+            view = current.superview
+        }
+        return true
+    }
+
+    /// Whether a scroll or gesture `event` is the canvas's: its first event decides for the
+    /// rest of the gesture and its momentum; a wheel's clicks are decided one by one.
+    func ownsGesture(_ event: NSEvent) -> Bool {
+        if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
+            gestureIsOwned = owns(event)
+            return gestureIsOwned
+        }
+        if event.phase.isEmpty && event.momentumPhase.isEmpty { return owns(event) }
+        return gestureIsOwned
+    }
+
+    /// Whether the scroll or gesture in progress began over the canvas.
+    private(set) var gestureIsOwned = true
 
     /// Whether `event` lies outside the window's content (a drag out of the window, OBJ-013).
     func leftWindow(_ event: NSEvent) -> Bool {
@@ -599,6 +640,8 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        // The pointer moves with the button up: a press still in progress lost its mouse-up.
+        if toolManager?.isPressed == true, !mouseButtonIsDown() { releaseLostPress() }
         guard appKitSafeRect.contains(convert(event.locationInWindow, from: nil)) else {
             // Tracking areas hear the mouse through the views laid over the canvas.
             onPointer?(nil)
@@ -632,12 +675,14 @@ final class CanvasView: NSView, CanvasHost {
 
     override func mouseUp(with event: NSEvent) {
         stopAutoscroll()
+        stopWatchingForRelease()
         toolManager?.mouseUp(canvasEvent(event))
         onPress?(false)
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {
-        contextMenu(for: event)
+        guard owns(event) else { return nil }
+        return contextMenu(for: event)
     }
 
     /// The context menu for the point of `event`, from the window (BASIC-018).
@@ -652,6 +697,8 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func keyDown(with event: NSEvent) {
+        // kbd:[Esc] ends a drag (the tool manager cancels it): auto-scroll stops with it.
+        if event.keyCode == CanvasEventTranslator.escapeKeyCode { stopAutoscroll() }
         if textKeys?(event) == true { return }
         if toolManager?.keyDown(event) != true { super.keyDown(with: event) }
     }
@@ -670,6 +717,7 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func scrollWheel(with event: NSEvent) {
+        guard ownsGesture(event) else { return }
         gesture(.scroll, phase: event.phase, momentumPhase: event.momentumPhase)
         scroll(
             deltaX: Double(event.scrollingDeltaX), deltaY: Double(event.scrollingDeltaY),
@@ -692,6 +740,7 @@ final class CanvasView: NSView, CanvasHost {
     }
 
     override func magnify(with event: NSEvent) {
+        guard ownsGesture(event) else { return }
         gesture(.magnify, phase: event.phase)
         magnify(by: Double(event.magnification), at: convert(event.locationInWindow, from: nil))
     }
@@ -720,7 +769,7 @@ final class CanvasView: NSView, CanvasHost {
     // MARK: Rotation (BASIC-034)
 
     override func rotate(with event: NSEvent) {
-        guard rotatesWithTrackpad() else { return }
+        guard rotatesWithTrackpad(), ownsGesture(event) else { return }
         gesture(.rotate, phase: event.phase)
         rotate(
             byGestureDegrees: Double(event.rotation), phase: event.phase, snapping: event.modifierFlags.contains(.shift),
@@ -778,6 +827,7 @@ final class CanvasView: NSView, CanvasHost {
     // MARK: Smart zoom and Force click
 
     override func smartMagnify(with event: NSEvent) {
+        guard owns(event) else { return }
         smartMagnify(at: convert(event.locationInWindow, from: nil))
     }
 
@@ -823,6 +873,13 @@ final class CanvasView: NSView, CanvasHost {
     private var autoscrollTask: Task<Void, Never>?
     /// Whether auto-scroll may run for the current tool (the Hand scrolls by itself).
     var autoscrolls: @MainActor () -> Bool = { true }
+    /// Whether the mouse button is down right now (replaceable in tests, which have no mouse).
+    /// Auto-scroll runs only while it is: a press whose mouse-up went elsewhere is released.
+    var mouseButtonIsDown: @MainActor () -> Bool = { NSEvent.pressedMouseButtons & 1 != 0 }
+    /// Hears every mouse-up the app dispatches while a press is in progress (`watchForRelease`).
+    private var releaseMonitor: Any?
+    /// The window resigning key and the app resigning active (`observeFocus`).
+    private var focusObservers: [NSObjectProtocol] = []
 
     private func updateAutoscroll(_ event: CanvasEvent) {
         guard autoscrolls(), CanvasAutoscroll.delta(viewPoint: event.viewPoint, in: safeRect) != nil else {
@@ -844,6 +901,11 @@ final class CanvasView: NSView, CanvasHost {
         guard let event = autoscrollEvent, let delta = CanvasAutoscroll.delta(viewPoint: event.viewPoint, in: safeRect) else {
             return false
         }
+        guard mouseButtonIsDown() else {
+            // The button came up and the canvas never heard it: no scrolling without a press.
+            releaseLostPress()
+            return false
+        }
         setViewport(navigation.scroll(viewport, by: delta))
         let moved = CanvasEvent(
             pasteboardPoint: viewport.toPasteboard(event.viewPoint), viewPoint: event.viewPoint, modifiers: event.modifiers,
@@ -859,6 +921,75 @@ final class CanvasView: NSView, CanvasHost {
         autoscrollTask = nil
         autoscrollEvent = nil
     }
+
+    /// The press in progress lost its mouse-up -- the button is up, or the mouse-up went to
+    /// another view or window: auto-scroll stops and the tool's drag ends where the pointer last
+    /// was, as that mouse-up would have ended it (`ToolManager.finishDrag`).  Nothing happens
+    /// between presses.
+    func releaseLostPress() {
+        stopAutoscroll()
+        stopWatchingForRelease()
+        guard let toolManager, toolManager.isPressed else { return }
+        toolManager.finishDrag()
+        onPress?(false)
+    }
+
+    /// While a press is in progress, every mouse-up the app dispatches is heard: one that does
+    /// not reach the canvas releases the press (`mouseUpWasDispatched`).
+    private func watchForRelease() {
+        guard releaseMonitor == nil else { return }
+        releaseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
+            self?.heardMouseUp()
+            return event
+        }
+    }
+
+    private func stopWatchingForRelease() {
+        if let releaseMonitor { NSEvent.removeMonitor(releaseMonitor) }
+        releaseMonitor = nil
+    }
+
+    /// A mouse-up is about to be dispatched: once AppKit has delivered it, a press still in
+    /// progress did not get it.
+    func heardMouseUp() {
+        Task { @MainActor [weak self] in self?.mouseUpWasDispatched() }
+    }
+
+    /// After a mouse-up was dispatched: the press that missed it is released.
+    func mouseUpWasDispatched() {
+        guard toolManager?.isPressed == true else {
+            stopWatchingForRelease()
+            return
+        }
+        if !mouseButtonIsDown() { releaseLostPress() }
+    }
+
+    /// The window stopped being key or the app stopped being active: auto-scroll stops, and a
+    /// press whose button is already up is released (its mouse-up went to another window or app).
+    func focusDidLeave() {
+        stopAutoscroll()
+        if toolManager?.isPressed == true, !mouseButtonIsDown() { releaseLostPress() }
+    }
+
+    /// Hears the window resign key and the app resign active (`focusDidLeave`).
+    private func observeFocus() {
+        for observer in focusObservers { NotificationCenter.default.removeObserver(observer) }
+        focusObservers = []
+        guard let window else { return }
+        let center = NotificationCenter.default
+        let leave: @Sendable (Notification) -> Void = { [weak self] _ in
+            MainActor.assumeIsolated { self?.focusDidLeave() }
+        }
+        focusObservers = [
+            center.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: nil, using: leave),
+            center.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: nil, using: leave),
+        ]
+    }
+
+    isolated deinit {
+        for observer in focusObservers { NotificationCenter.default.removeObserver(observer) }
+        if let releaseMonitor { NSEvent.removeMonitor(releaseMonitor) }
+    }
 }
 
 /// How fast the view scrolls when a drag reaches the canvas edge.
@@ -867,7 +998,9 @@ enum CanvasAutoscroll {
     static let edge = 8.0
     /// View points per step at the edge; further out scrolls faster, up to `maximumStep`.
     static let step = 8.0
-    static let maximumStep = 48.0
+    /// Capped (found in use, 2026-10-02): over a dock the pointer is far past the edge, and 48
+    /// points a step ran the artboard out of sight before a person could react.
+    static let maximumStep = 24.0
 
     /// The scroll for a pointer at `viewPoint` in a view of `size`; nil well inside it.
     static func delta(viewPoint: Point, size: Size) -> Vector? {

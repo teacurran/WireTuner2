@@ -27,7 +27,7 @@ enum PageSelection {
 /// Add Page, the page selector, magnification, view mode, units, the sync indicator, the
 /// collaborators and the message area.  Thin: every entry is handed to the window controller.
 @MainActor
-final class StatusBarView: NSView, NSComboBoxDelegate {
+final class StatusBarView: PanelEventBarrierView, NSComboBoxDelegate {
     static let height: CGFloat = 24
     static let fitSelectionTitle = "Fit Selection"
     static let fitPageTitle = "Fit to Page"

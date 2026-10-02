@@ -322,7 +322,12 @@ import WTRender
         #expect(manager.activeToolID == .rectangle)
         canvas.keyDown(with: TestEvents.key("q", keyCode: 12))
         canvas.keyUp(with: TestEvents.key("q", keyCode: 12, up: true))
-        let wheel = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: -5, wheel2: 0, wheel3: 0).flatMap(NSEvent.init(cgEvent:)))
+        // A wheel over the canvas (its location, with no window, is read as the window point).
+        let wheelEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 2, wheel1: -5, wheel2: 0, wheel3: 0))
+        let safe = canvas.appKitSafeRect
+        let over = canvas.convert(NSPoint(x: safe.midX, y: safe.midY), to: nil)
+        wheelEvent.location = CGPoint(x: over.x, y: (NSScreen.screens.first?.frame.height ?? 0) - over.y)
+        let wheel = try #require(NSEvent(cgEvent: wheelEvent))
         let before = canvas.viewport
         canvas.scrollWheel(with: wheel)
         #expect(canvas.viewport != before)

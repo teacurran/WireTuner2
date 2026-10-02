@@ -278,6 +278,9 @@ final class ToolManager {
         return true
     }
 
+    /// Whether a press is in progress: a mouse-down (or a handle's) whose mouse-up has not come.
+    var isPressed: Bool { lastEvent != nil || handleDrag != nil }
+
     /// The window is closing mid-drag (library.adoc, "Symbol editing window"): the drag ends where
     /// the pointer last was, as the mouse-up there would end it, so the change it was making is
     /// kept rather than lost with the window.  Nothing happens between drags.

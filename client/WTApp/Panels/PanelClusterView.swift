@@ -9,7 +9,7 @@ import AppKit
 /// the canvas.  Floating, it is rounded all round and its window casts the shadow.  Both stay
 /// translucent (the *Panel transparency* preference and Reduce Transparency make them solid).
 @MainActor
-final class PanelClusterView: NSView {
+final class PanelClusterView: PanelEventBarrierView {
     enum Attachment: Equatable, Sendable {
         case docked(DockEdge)
         case floating

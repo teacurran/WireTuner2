@@ -132,6 +132,8 @@ import WTRender
         let canvas = CanvasView(document: .memory(title: "Scroll"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         let manager = ToolManager(registry: environment.tools, context: ToolContext(document: canvas.document, host: canvas))
         canvas.toolManager = manager
+        // As if the button were held (tests have no mouse): auto-scroll runs only while it is.
+        canvas.mouseButtonIsDown = { true }
         canvas.setViewport(Viewport(scrollOrigin: Point(x: 7000, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
         #expect(!canvas.autoscrollStep(), "no drag in progress")
         let before = canvas.viewport

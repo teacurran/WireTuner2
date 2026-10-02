@@ -520,6 +520,30 @@ columns on the outer side); groups in a floating cluster are one window, so *Cmd
 haptic tick needs a Force Touch trackpad; column widths of a docked cluster other than the one beside the canvas change
 only with the column dividers.
 
+NOTE: Found in use (2026-10-02, clk): "clicking on items in the toolboxes seems to translate the click to a click
+for the artboard underneath the panel ... for right clicking too ... it will cause the artboard to quickly scroll to
+the right infinitely".  *Cause*: AppKit passes an event that no view under the pointer takes on up the responder
+chain and then to the view underneath -- the canvas, which runs under the docks (D-077) -- so `-[NSView
+rightMouseDown:]` on a title bar, gripper, divider, dock handle or the Tools panel ended in `CanvasView.menu(for:)`
+(the canvas's context menu), a scroll over a title bar or handle panned the canvas, and a SwiftUI button's
+`NSHostingView.mouseDown` (the Tools panel's tools) forwarded the press to `CanvasView.mouseDown` without its
+mouse-up: the canvas's tool stayed pressed, the next drag over the dock auto-scrolled toward it, and nothing ended
+it (stack traces and a standalone AppKit reproduction in the clk handoff).  Hit testing was never the cause: no
+point over a dock hits the canvas.  *Fix*: the roots of everything laid over the canvas -- `PanelClusterView`
+(docked and floating), `DockDropView`, `DockHandleView` and `StatusBarView` -- are `PanelEventBarrierView`s
+(`Panels/PanelEventBarrier.swift`), which end every unhandled mouse, scroll and trackpad gesture event; controls
+inside still take theirs first.  The canvas also refuses what reaches it anyway: `CanvasView.owns(_:)` (refuses an event
+from another window, or at a point whose hit view lies in a `PanelEventBarrierView`) guards `mouseDown`, `menu(for:)` and
+smart zoom, and `ownsGesture(_:)` decides a scroll, pinch or rotate by where its first event was, momentum included.
+A press whose mouse-up is lost ends where it was (`CanvasView.releaseLostPress`, `ToolManager.finishDrag`): when
+auto-scroll finds the button up (`NSEvent.pressedMouseButtons`), when a mouse-up the app dispatched (a local monitor
+while a press is in progress) did not reach the canvas, when the pointer moves with the button up, before the next
+press, when the window resigns key or the app resigns active with the button up, and when the canvas leaves its
+window; auto-scroll also stops on kbd:[Esc] and on resigning key, and its step is capped at 24 pt (was 48).
+`PanelClickThroughTests` and `CanvasLostReleaseTests` send real events through the window over the Tools panel
+(buttons, gaps, body, title bar, handle), the docked panels and a floating Tools panel, left, right, Control, middle
+button and scroll, and lose a mouse-up mid-drag.
+
 NOTE: As built by the control reachability audit (rch).  The *Select* panel is the Find & Replace
 panel's body on a state of its own opened on its *Select* tab (`ReachabilityFeatures.selectPanel`);
 before, it was a placeholder body.  `ControlReachabilityTests` fails when any registered panel is a

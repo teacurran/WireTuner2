@@ -510,7 +510,7 @@ magnification) rather than the context menu, which the secondary click still ope
 zooms to the area and opens a New View sheet that names the view but saves nothing until
 BASIC-015; View > Custom > New… opens the same sheet.  Option-drag zooms out by the dragged
 rectangle's share of the window and puts the old window centre at the rectangle's centre.
-*Auto-scroll*: a drag within 8 pt of the canvas edge (or past it) scrolls 8--48 pt every 16 ms and
+*Auto-scroll*: a drag within 8 pt of the canvas edge (or past it) scrolls 8--24 pt every 16 ms (48 until found in use, 2026-10-02: auto-scroll runs only while the button is down, and stops on kbd:[Esc] and when the window loses focus; see panels.adoc) and
 replays the drag at the new pasteboard point, for every tool but the Hand; *Dragging a guide scrolls
 the window* applies once guides can be dragged.  *Drawing modes* reach the renderer through
 `MetalTileCanvas.setViewMode`.  *Redraw preferences*: `RedrawSettings`, read from the store at each

@@ -83,8 +83,8 @@ import WTRender
         let size = Size(width: 400, height: 300)
         #expect(CanvasAutoscroll.delta(viewPoint: Point(x: 200, y: 150), size: size) == nil)
         #expect(CanvasAutoscroll.delta(viewPoint: Point(x: 2, y: 150), size: size) == Vector(dx: -14, dy: 0))
-        #expect(CanvasAutoscroll.delta(viewPoint: Point(x: 200, y: 400), size: size) == Vector(dx: 0, dy: 48))
-        #expect(CanvasAutoscroll.axis(-500, length: 400) == -48)
+        #expect(CanvasAutoscroll.delta(viewPoint: Point(x: 200, y: 400), size: size) == Vector(dx: 0, dy: 24), "capped at 24 points a step")
+        #expect(CanvasAutoscroll.axis(-500, length: 400) == -24)
     }
 }
 
