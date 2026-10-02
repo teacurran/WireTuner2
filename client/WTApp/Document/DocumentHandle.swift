@@ -8,8 +8,10 @@ import WTRender
 import struct WTRender.StrokeStyle
 import WTText
 
-/// The pasteboard every document sits on: 222 × 222 inches, origin at its top-left corner,
-/// y down (workspace.adoc, "The pasteboard").
+/// The pasteboard's coordinate space (points, origin at the top-left, y down) and its *page
+/// area*: the 222 × 222 inch square every page lies in (workspace.adoc, "The pasteboard").  How
+/// far a window scrolls is not this square but the canvas's extent, derived from the pages and
+/// the artwork (`CanvasExtent`, D-093).
 enum Pasteboard {
     static let pointsPerInch = 72.0
     static let sideInches = 222.0
@@ -18,7 +20,9 @@ enum Pasteboard {
 
     /// US Letter, centred on the pasteboard: where a new document's first page goes.
     static let letterPage = Rect(x: (side - 612) / 2, y: (side - 792) / 2, width: 612, height: 792)
-    /// `page` moved (not resized) so it lies on the pasteboard: a page dragged past the edge
+    /// A new document's scrollable extent: the Letter page with its margins.
+    static let newDocumentExtent = CanvasExtent.extent(pages: letterPage)
+    /// `page` moved (not resized) so it lies in the page area: a page dragged past the edge
     /// stops at it.  A page larger than the pasteboard is pinned to its origin.
     static func clamp(_ page: Rect) -> Rect {
         let x = min(max(page.minX, 0), max(side - page.width, 0))

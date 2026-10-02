@@ -25,13 +25,17 @@ struct CanvasInsets: Equatable, Sendable {
 
 /// The zoom and scroll arithmetic behind the View menu, the magnification field, pinch,
 /// Option-scroll and the Hand and Zoom tools.  Pure: every function maps a viewport to a
-/// viewport, clamped to the pasteboard by `CanvasScrollerModel`.  Fits and centring use the
+/// viewport, clamped to the canvas's extent by `CanvasScrollerModel` (D-093).  Fits and centring use the
 /// safe area (`insets`), not the whole view.
 struct CanvasNavigation: Sendable {
     /// Margin, in view points, a Fit command leaves around the fitted rectangle.
     static let fitMargin = 20.0
 
     var scroller = CanvasScrollerModel()
+
+    /// Navigation that never clamps (a tool's own arithmetic, offscreen renders): the canvas's
+    /// `setViewport` clamps the result to its extent.
+    static let unbounded = CanvasNavigation(scroller: .unbounded)
 
     /// The view's covered edges (the dock, rulers, scroll bars): kept in the scroller model, whose
     /// clamp and scroll bars use the same safe area.

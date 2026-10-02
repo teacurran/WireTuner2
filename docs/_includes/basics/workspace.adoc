@@ -26,11 +26,26 @@ Panels dock at the right edge of the window, and the Tools panel docks at the le
 dock inside the window, a single window holds the whole workspace, and a second display can
 hold floating panels if you prefer.
 
+[[pasteboard]]
 === The pasteboard
 
-The pasteboard is the large working area that holds your pages.  It measures 222 by 222 inches
-and can hold up to 520 letter-sized pages.  Objects can sit anywhere on it; objects on a page
-print with menu:File[Print], and objects outside every page print only through an output area
+The pasteboard is the working area around your pages.  It reaches beyond them by half their
+width on the left and right and by half their height above and below, and never by less than
+an A4 sheet's width across or its height down, so there is always room beside, above and below
+the pages to keep artwork, a pasted object or a spare A4 sheet's worth of sketches.  With
+several pages the pasteboard surrounds all of them together.  You can never scroll so far that
+the pages are lost, and zooming out stops once the whole pasteboard fits the window.
+
+The pasteboard follows the document.  Add, move or enlarge a page and it grows or shrinks
+with it.  If an object lies beyond the edge -- one you dragged or pasted past it, or one an
+imported or older document put far away -- the pasteboard stretches to include it, with an
+A4 sheet's worth of room around it, so no object is ever out of reach and you can bring it to the
+middle of the window.  menu:View[Fit All] always brings
+every page back into view.
+
+Pages themselves can be placed anywhere in a 222 by 222 inch area, room for up to 520
+letter-sized pages.  Objects can sit anywhere; objects on a page print with menu:File[Print],
+and objects outside every page print only through an output area
 (xref:output-area.adoc[Output area]).  Pages are added, moved and resized with the Document
 panel and the Page tool (xref:pages.adoc[Pages]).
 
@@ -255,6 +270,23 @@ state comes from `SyncStatusProviding` (`StubSyncStatus`, always synced, until S
 separator is an em dash.  The canvas's scroll limits are APP-002's scroller model;
 `Pasteboard.clamp` keeps a page on the pasteboard for the DOC epic's page drag.
 
+*The canvas's extent* (D-093).  How far a window scrolls and zooms out is a view property derived
+from the document, never stored or synced, so collaborators, offline edits and merges need nothing
+for it: each window computes it from the merged state it draws.  `CanvasExtent.extent(pages:artwork:)`
+(`WTModel`, platform-neutral) takes the union of every page (`PageList.bounds`; pages lie side by side,
+so the extent surrounds them together, not each page) and grows it by `max(width / 2, 210 mm)` on the
+left and right and `max(height / 2, 297 mm)` on the top and bottom -- the A4 minimum is per margin, so a
+whole portrait A4 sheet fits in every margin band, which the stricter reading "the whole extent is at
+least A4" would not give.  The drawn objects' bounds (`CanvasExtent.artworkBounds(of:)`: one pass over the
+display list's precomputed item bounds, skipping the page furniture, which carries no node id) grown by
+A4's width across and height down are added (enough to centre an object at the edge in a window), so an object already outside -- an old document, an import, a paste -- can always be
+scrolled to and pulled back.  The 222 × 222 in square remains the *page area*: where pages may lie
+(`Pasteboard.clamp`, `PageEditing.clamped`, `pageRects` wrapping and the miniature in the Document
+panel), unchanged, so the model, proto and conformance vectors are as they were.  Objects are never
+clamped: a drag or paste past the extent's edge lands where it is dropped and the extent grows to
+include it on that change; auto-scroll during the drag stops at the extent as it stood when the drag
+began, so the view never runs away into empty space.
+
 === Build tasks
 
 [[BASIC-001]]
@@ -288,8 +320,24 @@ Done when::
 Track:: client-ui
 Depends on:: APP-002
 Size:: S
-Delivers:: Document title with sync-state suffix and offline change count bound to the `WTSync` state, and the pasteboard's fixed extent with scroll limits, background and page shadows drawn by the canvas.
+Delivers:: Document title with sync-state suffix and offline change count bound to the `WTSync` state, and the pasteboard's fixed extent with scroll limits, background and page shadows drawn by the canvas (the extent is derived from the pages and artwork since D-093).
 Done when::
 * The title reads "<name>", "<name> — Syncing", "<name> — Offline (12 changes waiting)" and "<name> — Review needed" as the sync state changes in the simulator.  (Superseded by IO-002, saving.adoc "The sync indicator": the title is the name alone and the window subtitle carries the state's text -- "Syncing 3 changes", "Offline — 12 changes waiting", "Needs review".)
-* The canvas cannot scroll beyond the 222 × 222 in pasteboard at any zoom; a page dragged past the edge is clamped (the drag itself belongs to the DOC epic).
+* The canvas cannot scroll beyond the 222 × 222 in pasteboard at any zoom; a page dragged past the edge is clamped (the drag itself belongs to the DOC epic).  (Superseded by D-093: the canvas cannot scroll beyond its extent -- the pages' union with half its size, at least an A4 side, on each side, plus any artwork beyond -- and zooms out no further than the extent fits; a page dragged past the 222 in page area is still clamped.)
+
+NOTE: As built by D-093 (2026-10-02): `CanvasExtent` (`WTModel/CanvasExtent.swift`: `extent(pages:artwork:)`,
+`margins(of:)`, `artworkBounds(of:)`, `minimumZoom(for:rotationDegrees:in:range:)`, tested by `CanvasExtentTests`);
+`CanvasScrollerModel.extent` (was the fixed `pasteboard`; default `Pasteboard.newDocumentExtent`, the Letter page's
+extent) with `minimumZoom(of:)` and a zoom floor in `clamped(_:)`, so every path that sets the view -- scroll wheel and
+trackpad with momentum, pinch, Option-scroll, the Zoom and Hand tools, the scroll bars, Fit commands, smart zoom,
+auto-scroll, a restored or followed view, a named view -- is held inside the extent and at or above the floor;
+`CanvasView.refreshExtent()` recomputes it after each document change (one pass over the display list's item bounds,
+nothing per frame) and re-clamps the view; a glyph canvas keeps its own scroll area (`CanvasView.derivesExtent = false`,
+`TypefaceWindowMode`), which now also keeps the canvas's safe-area insets.  The Zoom tool and the review sheet's
+offscreen fit use `CanvasNavigation.unbounded` and leave the clamping to the canvas.  There is no elastic overscroll to
+bound: the canvas has no `NSScrollView` and its clamp is hard at the edge, momentum included.  Tests:
+`CanvasExtentNavigationTests` (a new document's limits, the zoom floor for menu, pinch, Option-scroll and the Zoom
+tool, far-away artwork reachable then gone, the extent following added pages, an old far-away view clamped, the Hand
+tool, a turned canvas).  Where the extent is too large to fit at 6% (pages over about 75 inches in a typical window)
+the floor is 6%, the magnification `ViewState` allows; the scroll bars still reach all of it.
 endif::spec[]

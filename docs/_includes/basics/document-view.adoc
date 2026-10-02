@@ -1,5 +1,5 @@
 How you look at a document is separate from what is in it.  You can zoom from 6% to 25,600%,
-scroll anywhere on the pasteboard, turn the whole canvas to the angle your hand prefers,
+scroll anywhere on the pasteboard around your pages, turn the whole canvas to the angle your hand prefers,
 switch between drawing modes that trade fidelity for speed, open the same document in several
 windows, and save views by name so you can return to a detail with one click.  Everything on
 this page except named views is private to your Mac; named views are part of the document and
@@ -63,6 +63,13 @@ zoom is continuous rather than stepped.  Double-tap with two fingers on a trackp
 one finger on a Magic Mouse, to *smart zoom*: the view zooms to fit the object under the
 pointer, or to the page if there is none; double-tap again to go back.
 
+How far you can zoom out::
+Zooming out stops once the whole pasteboard -- your pages with the room around them
+(xref:workspace.adoc[The workspace]) -- fits the window, so the pages never shrink to a speck
+or drift out of sight.  The lowest magnification therefore depends on the size of your pages and
+of the window: a Letter page in a laptop-sized window stops at roughly 30%, while
+very large pages can still go down to 6%.
+
 To zoom with a context menu::
 kbd:[Control]-click an empty area of the pasteboard and choose a level from the *View*
 submenu (xref:context-menus.adoc[Context menus]).
@@ -73,7 +80,9 @@ submenu (xref:context-menus.adoc[Context menus]).
   horizontally on a mouse wheel.
 * Hold kbd:[Space] and drag to pan with the Hand tool (kbd:[H]), whatever tool is active.
   While typing in a text block, use the Hand tool from the Tools panel instead.
-* The scroll bars appear on hover in the macOS style; the pasteboard's edge is the limit.
+* The scroll bars appear on hover in the macOS style; the pasteboard's edge is the limit.  The
+  pasteboard reaches half your pages' size beyond them (at least an A4 sheet), and further when
+  an object lies outside that, so you can scroll to every object but never lose the pages.
 * Dragging an object or a guide to the window's edge scrolls the view automatically; turn off
   the guide behavior with *Dragging a guide scrolls the window* in *General* preferences.
 
@@ -415,8 +424,9 @@ Nothing beyond storing and relaying changes.
 +
 NOTE: Deviation recorded by APP-002: the canvas lives in `WTApp/Document` and has no
 `NSScrollView`.  `CanvasView` owns the `Viewport`; `CanvasNavigation` applies zoom, pinch,
-Option-scroll and the Fit commands to it and `CanvasScrollerModel` clamps it to the pasteboard
-and drives two `NSScroller`s, in rotated space, so the rotated scroll extent needs no custom
+Option-scroll and the Fit commands to it and `CanvasScrollerModel` clamps it to the canvas's
+extent (D-093: the pages' union with its margins, plus artwork beyond; the zoom held at or above
+the magnification at which the whole extent fits the safe area) and drives two `NSScroller`s, in rotated space, so the rotated scroll extent needs no custom
 clip view (xref:client.adoc[Client], "The document window").  Magnification is the viewport's
 zoom, used by the renderer as the rasterization scale.  Fit commands leave a 20-point margin.
 Until BASIC-016 the view state persists per document id in
@@ -429,6 +439,12 @@ window opens at Fit to Page.
   rotation is invisible to feature code.  The scroll view scrolls the *rotated* pasteboard's
   bounding rectangle (recomputed on each angle change) so the scroll limits still clamp at the
   222 × 222 in edge.
++
+NOTE: As built by D-093: the rectangle clamped to is the canvas's extent
+(`CanvasScrollerModel.extent`, from `WTModel`'s `CanvasExtent`), not the 222 in square; its rotated
+bounding box also sets the zoom floor (`CanvasScrollerModel.minimumZoom(of:)`), so at the lowest zoom
+the whole extent fits at any angle.  The extent is recomputed after each document change, never per
+frame, and is never stored or synced: it is derived from the document by each window.
 * Rotation gestures (BASIC-034).  `rotate(with:)` on the canvas view accumulates the
   gesture's rotation about its centroid while *Rotate canvas with trackpad* is on; kbd:[Shift]
   rounds the accumulated angle to 15°; `magnify(with:)` drives pinch; `smartMagnify(with:)`

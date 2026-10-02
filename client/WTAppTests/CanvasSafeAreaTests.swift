@@ -13,7 +13,8 @@ import WTRender
     let insets = CanvasInsets(top: 16, left: 16, bottom: 40, right: 300)
 
     private func navigation() -> CanvasNavigation {
-        var navigation = CanvasNavigation()
+        // The fixed 222-inch page area: arithmetic away from any page's extent (D-093).
+        var navigation = CanvasNavigation(scroller: CanvasNavigationTests.pageArea)
         navigation.insets = insets
         return navigation
     }
@@ -38,7 +39,7 @@ import WTRender
         #expect(safe.insetBy(dx: -0.001, dy: -0.001).contains(shown), "nothing of the page lies under the dock")
         #expect(abs(shown.height - (safe.height - 2 * CanvasNavigation.fitMargin)) < 1e-6)
         // Without insets the same fit uses the whole view.
-        let plain = CanvasNavigation().fit(start, rect: page)
+        let plain = CanvasNavigation(scroller: CanvasNavigationTests.pageArea).fit(start, rect: page)
         #expect(plain.zoom > fitted.zoom || abs(plain.zoom - fitted.zoom) < 1e-9)
         #expect(page.applying(plain.pasteboardToView).center.isApproximatelyEqual(to: plain.viewCenter, tolerance: 1e-6))
         // Zooming keeps the safe area's centre.

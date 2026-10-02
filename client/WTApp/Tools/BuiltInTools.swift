@@ -107,7 +107,8 @@ final class ZoomTool: Tool {
     private var context: ToolContext?
     private(set) var start: CanvasEvent?
     private(set) var current: CanvasEvent?
-    private let navigation = CanvasNavigation()
+    /// Unclamped: the canvas clamps the target to its extent and zoom floor.
+    private let navigation = CanvasNavigation.unbounded
 
     init() {}
 
@@ -144,7 +145,7 @@ final class ZoomTool: Tool {
     }
 
     /// Where a zoom gesture from `start` to `end` lands.
-    static func target(viewport: Viewport, start: CanvasEvent, end: CanvasEvent, navigation: CanvasNavigation = CanvasNavigation()) -> Viewport {
+    static func target(viewport: Viewport, start: CanvasEvent, end: CanvasEvent, navigation: CanvasNavigation = .unbounded) -> Viewport {
         let modifiers = end.modifiers
         if end.viewPoint.distance(to: start.viewPoint) < clickSlop {
             if modifiers.contains(.control) {
@@ -162,7 +163,7 @@ final class ZoomTool: Tool {
 
     /// Option-drag: zooms out so that what the window shows now fits the dragged rectangle
     /// (view points), at the rectangle's place.
-    static func shrink(_ viewport: Viewport, into viewRect: Rect, navigation: CanvasNavigation = CanvasNavigation()) -> Viewport {
+    static func shrink(_ viewport: Viewport, into viewRect: Rect, navigation: CanvasNavigation = .unbounded) -> Viewport {
         let factor = min(viewRect.width / max(viewport.size.width, 1), viewRect.height / max(viewport.size.height, 1))
         guard factor > 0 else { return viewport }
         let centre = viewport.toPasteboard(viewport.viewCenter)

@@ -166,6 +166,7 @@ final class CanvasView: NSView, CanvasHost {
 
         document.invalidation.add(tiles)
         documentObservation = document.observe { [weak self] change in self?.documentDidChange(change) }
+        navigation.scroller.extent = documentExtent
         viewport = navigation.clamped(viewport)
         updateAccessibilityValue()
         render()
@@ -338,6 +339,7 @@ final class CanvasView: NSView, CanvasHost {
     /// The document changed: the tiles were already told through the document's invalidation
     /// batcher; the overlay (selection, glyphs) and the accessibility value follow.
     private func documentDidChange(_ change: ContentChange) {
+        refreshExtent()
         if let previewFrame {
             // Out of the invalidation batcher while previewing: the next frame shows the change.
             tiles.update(displayList: FrameComposer.displayList(change.after, for: previewFrame), viewport: viewport, changes: change.summary)
@@ -468,6 +470,33 @@ final class CanvasView: NSView, CanvasHost {
     override func resetCursorRects() {
         // Only the safe area: the dock, rulers and scroll bars over the canvas keep their cursors.
         addCursorRect(appKitSafeRect, cursor: toolManager?.cursor ?? .arrow)
+    }
+
+    // MARK: Scroll extent (D-093)
+
+    /// Whether the scroll extent follows the document (`CanvasExtent`: the pages with their
+    /// margins and any artwork beyond them).  A glyph canvas sets its own extent and turns this off.
+    var derivesExtent = true
+
+    /// The extent the document asks for now: its pages' union with the margins, widened to the
+    /// drawn objects (one pass over the display list's item bounds).
+    var documentExtent: Rect {
+        CanvasExtent.extent(pages: document.allPagesBounds, artwork: CanvasExtent.artworkBounds(of: document.displayList))
+    }
+
+    /// After a document change: the extent follows the pages and artwork, and the view is
+    /// clamped into it (a page moved away, artwork deleted) with the scroll bars updated.
+    func refreshExtent() {
+        guard derivesExtent else { return }
+        let extent = documentExtent
+        guard extent != navigation.scroller.extent else { return }
+        navigation.scroller.extent = extent
+        let clamped = navigation.clamped(viewport)
+        if clamped != viewport {
+            viewport = clamped
+            render()
+        }
+        onViewportChange?(viewport)
     }
 
     // MARK: Safe area (D-077)

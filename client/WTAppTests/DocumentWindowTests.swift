@@ -256,7 +256,8 @@ import WTRender
         let canvas = CanvasView(document: .memory(title: "Canvas"), frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         let manager = ToolManager(registry: environment.tools, context: ToolContext(document: canvas.document, host: canvas))
         canvas.toolManager = manager
-        canvas.setViewport(Viewport(scrollOrigin: Point(x: 7000, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
+        // Inside a new document's extent (D-093): the Letter page with its margins.
+        canvas.setViewport(Viewport(scrollOrigin: Point(x: 7200, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
         return (canvas, manager)
     }
 
@@ -265,7 +266,7 @@ import WTRender
         var reported: [Viewport] = []
         canvas.onViewportChange = { reported.append($0) }
         canvas.scroll(deltaX: -10, deltaY: -20, precise: true, modifierFlags: [], at: .zero)
-        #expect(canvas.viewport.scrollOrigin == Point(x: 7010, y: 7020))
+        #expect(canvas.viewport.scrollOrigin == Point(x: 7210, y: 7020))
         #expect(reported.count == 1)
         let pointer = CGPoint(x: 100, y: 200)
         let viewPoint = Point(x: 100, y: 100)

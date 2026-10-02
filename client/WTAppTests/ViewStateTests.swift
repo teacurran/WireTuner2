@@ -41,8 +41,14 @@ import WTRender
         for percent in ContextMenuCatalog.contextMagnifications {
             reset()
             #expect(registry.perform(ids.magnification(percent)))
-            #expect(abs(controller.viewport.zoom * 100 - Double(percent)) < 1e-9)
-            #expect(registry.validate(ids.magnification(percent))?.isChecked == true)
+            // Below the zoom floor (D-093: the whole extent fits) a level lands on the floor.
+            let floor = controller.canvas.navigation.scroller.minimumZoom(of: controller.viewport)
+            if Double(percent) / 100 >= floor {
+                #expect(abs(controller.viewport.zoom * 100 - Double(percent)) < 1e-9)
+                #expect(registry.validate(ids.magnification(percent))?.isChecked == true)
+            } else {
+                #expect(abs(controller.viewport.zoom - floor) < 1e-9)
+            }
         }
         #expect(registry.perform(ids.fitPage))
         let page = controller.documentHandle.currentPage!

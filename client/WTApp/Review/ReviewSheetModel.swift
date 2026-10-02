@@ -710,7 +710,7 @@ enum ReviewPreview {
             if let rect = object.bounds { bounds = bounds.map { $0.union(rect) } ?? rect }
         }
         guard let bounds else { return nil }
-        let viewport = CanvasNavigation().fit(Viewport(size: size), rect: bounds.expanded(by: margin))
+        let viewport = CanvasNavigation.unbounded.fit(Viewport(size: size), rect: bounds.expanded(by: margin))
         return CoreGraphicsRenderer(background: .white).renderBitmap(DisplayList(canvas: canvas, items: items), viewport: viewport, scale: 2)
     }
 }

@@ -1307,6 +1307,60 @@ import or drawing (a name the user did not type would hide the default label's i
 Left for LIB-031: keyboard navigation of the rows, *Locate Object*, row thumbnails and colour
 drops on object rows.
 
+[[D-093]]
+=== D-093 The canvas scrolls over its pages with half their size around them, not a fixed 222-inch pasteboard
+Asked by the owner (2026-10-02): "the 'infinite' canvas only needs to extend at most 1/2 the width
+of the artboard away in any direction with a minimum size of A4.  This is plenty of room for people
+to have items pasted or held outside the frames and prevents issues where I lose the artboard
+entirely."  The window used to scroll over the whole 222 × 222 in pasteboard, where a Letter page is
+a speck you can scroll or zoom away from and lose.  Now
+(xref:workspace.adoc#pasteboard[The workspace, "The pasteboard"]):
+
+* *The extent.*  The bounding box of every page, grown on the left and right by half its width and
+  on the top and bottom by half its height (`CanvasExtent.extent(pages:artwork:)`, `WTModel`,
+  platform-neutral).  The union of the pages, not each page: multi-page documents lay pages side by
+  side, and a margin per page would leave holes between distant pages that the scroll bars cannot
+  express anyway.
+* *"Minimum size of A4" is per margin.*  Each horizontal margin is at least A4's width (210 mm) and
+  each vertical margin at least its height (297 mm), so a whole portrait A4 sheet always fits
+  beside, above and below the pages.  The other reading -- the whole extent at least A4 -- would let
+  a Letter page's extent be little more than the page, with no room to hold anything outside it.
+* *Nothing becomes unreachable.*  Drawn objects beyond that rectangle (an old document, an import, a
+  paste or a drop past the edge) widen the extent to their bounds plus the same A4 margins (one inch
+  was tried first: an object at the edge could not then be centred by a deep link, Handoff or
+  smart zoom).  Objects are never
+  clamped: a drag past the edge lands where it is dropped and the extent includes it from that
+  change on.  Auto-scroll during a drag stops at the extent as it stood when the drag began (tools
+  preview in the overlay, so the extent does not grow under the pointer), which keeps the view from
+  running away; to go further, drop and drag again.
+* *The zoom floor.*  Zooming out stops at the magnification at which the whole extent (its rotated
+  bounding box at a turned canvas) fits the safe area, never below the View menu's 6% and never above
+  100%.  Every way of changing the view goes through the one clamp -- scrolling with momentum, pinch,
+  Option-scroll, the scroll bars, the Hand and Zoom tools, the Fit commands, smart zoom, auto-scroll,
+  restored, followed and named views -- so the pages always stay reachable and menu:View[Fit All]
+  brings them back.  There is no elastic overscroll to bound: the canvas has no `NSScrollView`.  An
+  extent too large to fit at 6% (pages over about 75 inches in a typical window) keeps 6%, the lower
+  bound `ViewState.magnification` validates; the scroll bars still reach all of it.
+* *The clamp moves the view as little as it can.*  Where the extent is narrower or shorter than the
+  window (at the zoom floor, along one axis) the view may sit anywhere that keeps the whole extent in
+  sight, instead of the extent being centred as before, so a change that grows the extent (a drop,
+  a paste, a remote edit) never shifts the view under the pointer.
+* *A view property, derived.*  The extent is computed by each window from the merged state it draws,
+  never stored or synced: collaborators, offline edits and merges need nothing for it, and two people
+  can see different extents only while their states differ.  It is recomputed once per document
+  change (one pass over the display list's precomputed item bounds -- the page furniture carries no
+  node id and is skipped), never per frame, so 50,000 objects cost a linear scan of rectangles per
+  change, beside the display list rebuild that change already pays.
+* *The 222-inch square stays, as the page area.*  Pages may still lie anywhere in it: page drags clamp
+  to it, `pageRects` rows wrap at its edge, the Document panel's miniature shows it.  No proto,
+  validation or conformance vector changes.  A glyph canvas keeps its own scroll area (the em box).
+
+Rejected: a truly unbounded canvas (the owner's "lose the artboard" problem); clamping objects to the
+extent (a drop or paste would silently move artwork, and old documents' far objects could not be
+pulled back); growing the extent live under a drag (with auto-scroll it is the runaway it replaces);
+per-page margins (holes, above); storing the extent (it would need a merge rule for a value that is
+a function of the document).
+
 == Open questions
 
 [[Q-001]]

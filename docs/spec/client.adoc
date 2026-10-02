@@ -119,13 +119,16 @@ paste, duplicate, clone, transform copies) are `NodeCopier`, generic over the me
 a transparent Core Graphics overlay layer above it for handles, tool previews, smart guides,
 measurements and presence; it owns the tracking loop and forwards events -- mouse, pinch,
 two-finger rotate, smart zoom, Force click -- to the active `Tool`.  The pasteboard is
-222 × 222 inches; pages sit on it.
+222 × 222 inches; pages sit on it.  (Since D-093 that square is the *page area*, where pages may lie;
+the window scrolls over the canvas's extent -- the pages' union grown by half its size, at least an
+A4 side, on each side, plus any artwork beyond -- a view property derived from the document by
+`WTModel`'s `CanvasExtent`, never stored or synced.)
 
 NOTE: Deviation recorded by APP-002 and APP-003.  There is no `NSScrollView`: the canvas is
 `CanvasView` (`WTApp/Document`), a layer-hosting `NSView` whose unflipped root layer holds the
 REND-001 `TiledCanvasLayer` and the tool overlay layer above it, beside two plain `NSScroller`s
 driven by `CanvasScrollerModel`, which clamps the view to the pasteboard in rotated, scaled
-space (`R · S` applied to the 222 × 222 in pasteboard), so a rotated canvas needs no rotated
+space (`R · S` applied to the 222 × 222 in pasteboard; since D-093 to the canvas's extent), so a rotated canvas needs no rotated
 clip view.  An `NSScrollView` would own the document view's bounds origin and magnification,
 which `Viewport` already owns, and it cannot scroll a rotated extent.  The Metal `WTCanvasView`
 (REND-006) replaces the tile layer inside `CanvasView`, not the view.  On-screen orientation

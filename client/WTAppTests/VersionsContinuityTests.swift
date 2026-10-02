@@ -390,12 +390,13 @@ final class FakeSpotlightIndex: SpotlightIndexing, @unchecked Sendable {
         let activity = NSUserActivity(activityType: HandoffActivity.type)
         controller.updateUserActivityState(activity)
         #expect(HandoffActivity.place(from: activity.userInfo)?.documentID == document.id)
-        let place = HandoffActivity.Place(documentID: document.id, pageIndex: 0, zoom: 2, center: Point(x: 7000, y: 7000))
+        // A point on the page, inside the canvas's extent (D-093).
+        let place = HandoffActivity.Place(documentID: document.id, pageIndex: 0, zoom: 2, center: Point(x: 7800, y: 7700))
         controller.apply(place)
         #expect(controller.viewport.zoom == 2)
         // Centred in the part the dock leaves visible (D-077).
         let center = controller.canvas.visibleCenter
-        #expect(abs(center.x - 7000) < 1 && abs(center.y - 7000) < 1, "the same scroll within 1 pt")
+        #expect(abs(center.x - 7800) < 1 && abs(center.y - 7700) < 1, "the same scroll within 1 pt")
         #expect(controller.handoffPlace.zoom == 2)
         controller.windowDidBecomeMain(Notification(name: NSWindow.didBecomeMainNotification))
     }

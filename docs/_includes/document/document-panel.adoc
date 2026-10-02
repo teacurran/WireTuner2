@@ -79,8 +79,10 @@ one in the field and press kbd:[Return].  The setting is a document setting shar
 
 == The pasteboard view
 
-The lower part of the panel shows the pasteboard with a thumbnail for every page, numbered in page
-order.  The selected page is highlighted; pages that other people are currently viewing carry a
+The lower part of the panel shows the whole area pages can be placed in -- 222 inches square, larger
+than the part of the pasteboard a window scrolls over (xref:workspace.adoc[The workspace]) -- with a
+thumbnail for every page, numbered in page order.  Drag a page here to move it anywhere in that
+area; the window's pasteboard follows it.  The selected page is highlighted; pages that other people are currently viewing carry a
 small colored dot in their color (xref:presence.adoc[Presence]).
 
 Magnification buttons:: The three buttons under the view show the pasteboard at small, medium and

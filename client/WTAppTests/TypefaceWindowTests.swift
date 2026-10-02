@@ -113,7 +113,7 @@ final class TypefaceWindowFixture {
         #expect(handle.canvasSnapGuides.count == 7 && fixture.document.canvasSnapGuides.isEmpty)
         // The glyph canvas scrolls over the em.
         let frame = try #require(GlyphCanvas.frame(for: a, in: fixture.document.state))
-        #expect(tab.canvas.navigation.scroller.pasteboard == GlyphCanvas.scrollBounds(frame))
+        #expect(tab.canvas.navigation.scroller.extent == GlyphCanvas.scrollBounds(frame))
         // Closing the tab leaves the document's model open.
         handle.close()
         #expect(handle.model != nil)

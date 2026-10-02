@@ -65,7 +65,7 @@ import WTRender
     }
 
     @Test func smartZoomFitsThenReturns() {
-        let navigation = CanvasNavigation()
+        let navigation = CanvasNavigation(scroller: CanvasNavigationTests.pageArea)
         let start = navigation.clamped(Viewport(scrollOrigin: Point(x: 7000, y: 7000), zoom: 1, size: Size(width: 400, height: 300)))
         var state = SmartZoomState()
         #expect(state.toggle(from: start, target: nil, navigation: navigation) == start)

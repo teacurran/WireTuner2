@@ -4,8 +4,12 @@ import WTGeometry
 import WTRender
 @testable import WireTuner
 
+/// The zoom and scroll arithmetic over a fixed extent: the whole 222-inch page area, so the zoom
+/// floor is the View menu's 6% in an 800 × 600 view (the document-derived extent is
+/// `CanvasExtentNavigationTests`').
 @Suite struct CanvasNavigationTests {
-    let navigation = CanvasNavigation()
+    static let pageArea = CanvasScrollerModel(extent: Pasteboard.bounds)
+    let navigation = CanvasNavigation(scroller: CanvasNavigationTests.pageArea)
     let size = Size(width: 800, height: 600)
 
     private func viewport(zoom: Double = 1, origin: Point = Point(x: 7000, y: 7000), rotation: Double = 0) -> Viewport {
@@ -68,7 +72,7 @@ import WTRender
         #expect(fitted.toView(page.center).isApproximatelyEqual(to: fitted.viewCenter, tolerance: 1e-6))
     }
 
-    @Test func scrollingIsClampedToThePasteboard() {
+    @Test func scrollingIsClampedToTheExtent() {
         let start = viewport(origin: Point(x: 0, y: 0))
         #expect(navigation.scroll(start, by: Vector(dx: -100, dy: -100)).scrollOrigin == .zero)
         let moved = navigation.scroll(start, by: Vector(dx: 100, dy: 50))
@@ -80,19 +84,24 @@ import WTRender
         #expect(close(atTwo.scrollOrigin.x, Pasteboard.side - 400), "the limit is in pasteboard units")
     }
 
-    @Test func aPasteboardSmallerThanTheViewIsCentred() {
-        // At 6% the pasteboard is 959 points square: smaller than a 2000 × 1200 view.
+    @Test func anExtentSmallerThanTheViewStaysWhollyInIt() {
+        // In a 2000 × 1200 view zooming out stops at 1200 / 15984 (7.5%), where the page area
+        // just fits the height; across, it is narrower than the view and may sit anywhere in it.
         let tiny = Viewport(scrollOrigin: Point(x: 5, y: 5), zoom: 0.03, size: Size(width: 2000, height: 1200))
         let clamped = navigation.clamped(tiny)
+        #expect(close(clamped.zoom, 1200 / Pasteboard.side))
         let content = navigation.scroller.contentBounds(of: clamped)
-        #expect(close(content.width, Pasteboard.side * 0.06))
-        let shown = clamped.toView(Pasteboard.bounds.center)
-        #expect(shown.isApproximatelyEqual(to: clamped.viewCenter, tolerance: 1e-6))
-        #expect(CanvasScrollerModel.clamp(10, length: 100, contentMin: 0, contentMax: 50) == -25)
+        #expect(close(content.height, 1200, 1e-6) && content.width < 2000)
+        let shown = Pasteboard.bounds.applying(clamped.pasteboardToView)
+        #expect(clamped.viewBounds.insetBy(dx: -1e-6, dy: -1e-6).contains(shown), "the whole extent is in view")
+        // Along a slack axis the view moves only as far as keeps the extent inside it.
+        #expect(CanvasScrollerModel.clamp(10, length: 100, contentMin: 0, contentMax: 50) == 0)
+        #expect(CanvasScrollerModel.clamp(-20, length: 100, contentMin: 0, contentMax: 50) == -20)
+        #expect(CanvasScrollerModel.clamp(-80, length: 100, contentMin: 0, contentMax: 50) == -50)
     }
 
     @Test func scrollBarsReportProportionAndPosition() {
-        let scroller = CanvasScrollerModel()
+        let scroller = Self.pageArea
         let start = viewport(origin: .zero)
         let horizontal = scroller.horizontal(start)
         #expect(close(horizontal.knobProportion, 800 / Pasteboard.side))

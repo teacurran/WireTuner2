@@ -216,8 +216,11 @@ final class TypefaceWindowMode {
             return nil
         }
         let bounds = GlyphCanvas.scrollBounds(frame)
-        if controller.canvas.navigation.scroller.pasteboard != bounds {
-            controller.canvas.navigation = CanvasNavigation(scroller: CanvasScrollerModel(pasteboard: bounds))
+        // The glyph's own scroll area replaces the document-derived extent (D-093); the covered
+        // edges (insets) stay.
+        controller.canvas.derivesExtent = false
+        if controller.canvas.navigation.scroller.extent != bounds {
+            controller.canvas.navigation.scroller.extent = bounds
         }
         return frame
     }

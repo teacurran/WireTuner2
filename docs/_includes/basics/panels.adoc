@@ -420,7 +420,7 @@ into the ruler host's `obscured` edges; the host puts the rulers, the zero-point
 bars inside the rest and gives the canvas its covered edges as `CanvasView.safeInsets` (`CanvasInsets`:
 dock plus handle plus ruler or scroll bar on each side, status bar and bottom strip below).
 `CanvasNavigation` fits, zooms (about the safe centre) and centres in the safe area, and
-`CanvasScrollerModel` clamps the safe area -- not the view -- to the pasteboard, so the pasteboard's edge
+`CanvasScrollerModel` clamps the safe area -- not the view -- to the canvas's extent (D-093), so the extent's edge
 can be scrolled out from under the dock, and sizes the scroll bars to it.  Auto-scroll starts at the
 safe area's edges (`CanvasAutoscroll.delta(viewPoint:in:)`), the canvas's cursor rect and tracking area
 are the safe area (a pointer over the dock is not over the canvas), the HUD centres in it, and Paste,
