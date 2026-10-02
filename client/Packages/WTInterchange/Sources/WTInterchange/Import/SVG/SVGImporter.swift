@@ -472,8 +472,12 @@ final class SVGImportConverter {
         return value[value.index(value.startIndex, offsetBy: 4)..<close].trimmingCharacters(in: CharacterSet(charactersIn: " '\"#"))
     }
 
-    /// The node name: an Inkscape label, the id, or a `<title>` child.
+    /// The node name: the name as typed (`data-name`, which WireTuner and other editors write
+    /// beside an id that had to change it), an Inkscape label, the id, or a `<title>` child.
     func nodeName(_ element: SVGImportElement) -> String? {
+        if let name = element.attributes["data-name"], !name.isEmpty {
+            return name
+        }
         if let label = element.attributes["inkscape:label"] {
             return label
         }

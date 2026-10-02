@@ -27,6 +27,12 @@ final class LayersPanelState {
     @ObservationIgnored var clickMoves: @MainActor () -> Bool = { true }
     /// *Show frame numbers* (WEB-017; `LayerFrames`).
     var showsFrameNumbers = false
+    /// The search field's text (D-092): only objects whose names contain it show.
+    var filter = ""
+    /// The object row a Shift-click extends from.
+    @ObservationIgnored var objectAnchor: OpID?
+    /// The object whose name is being edited in its row.
+    var renamingObject: OpID?
 
     init() {}
 
@@ -352,6 +358,165 @@ struct LayersPanelModel {
         if !layer.visible { parts.append("Hidden") }
         if !layer.printing { parts.append("Background (does not print)") }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: Objects (D-092)
+
+extension LayersPanelModel {
+    /// What an object row shows (layers.adoc, "Objects in the Layers panel").
+    struct ObjectRow: Equatable {
+        /// The name, else the default label ("Path", "Clip Group", the start of a text).
+        var label: String
+        /// Whether `label` is the object's own name (unnamed rows draw dimmed and italic).
+        var isNamed: Bool
+        var kindTitle: String
+        /// The SF Symbol of the object's kind.
+        var symbol: String
+        /// Hidden on this Mac (menu:View[Hide Selection]).
+        var hidden: Bool
+        var locked: Bool
+
+        init(_ node: OpID, tree: ObjectTree, hidden: Set<OpID>) {
+            let name = tree.name(of: node)
+            label = name ?? tree.defaultLabel(of: node)
+            isNamed = name != nil
+            kindTitle = tree.state.nodeKind(node)?.title ?? "Object"
+            symbol = Self.symbol(node, tree: tree)
+            self.hidden = hidden.contains(node)
+            locked = tree.isLocked(node)
+        }
+
+        var tooltip: String {
+            var parts = [label]
+            if isNamed { parts.append(kindTitle) }
+            if locked { parts.append("Locked") }
+            if hidden { parts.append("Hidden on this Mac") }
+            return parts.joined(separator: " · ")
+        }
+
+        static func symbol(_ node: OpID, tree: ObjectTree) -> String {
+            if tree.role(of: node) == .clipPath { return "scissors" }
+            switch tree.state.nodeKind(node) {
+            case .path?: return tree.state.props(node).path.contours.count > 1 ? "square.on.square.dashed" : "scribble"
+            case .rect?: return "rectangle"
+            case .ellipse?: return "circle"
+            case .polygon?: return "pentagon"
+            case .chart?: return "chart.bar"
+            case .connector?: return "point.3.connected.trianglepath.dotted"
+            case .text?: return "textformat"
+            case .group?: return tree.state.props(node).group.kind == .clip ? "rectangle.dashed" : "folder"
+            case .blend?: return "circle.lefthalf.filled"
+            case .extrude?: return "cube"
+            case .envelope?: return "square.grid.3x3"
+            case .perspective?: return "perspective"
+            case .instance?: return "seal"
+            case .image?: return "photo"
+            case .placedFile?: return "doc.richtext"
+            case .svgAnimation?: return "play.rectangle"
+            case .barcode?: return "barcode"
+            default: return "square"
+            }
+        }
+    }
+
+    var tree: ObjectTree { ObjectTree(document.state, order: order) }
+
+    /// Whether the panel may select `node`: an object on a visible, unlocked layer, neither it
+    /// nor a container above it hidden on this Mac (selecting.adoc, "What cannot be selected").
+    /// A locked object can be selected, not changed.
+    func canSelect(_ node: OpID) -> Bool {
+        let state = document.state
+        let order = self.order
+        guard Objects.isObject(node, in: state), let layer = order.layer(of: node, in: state), let info = order.layer(layer),
+              info.visible, !info.locked else { return false }
+        let hidden = document.locallyHidden
+        var current: OpID? = node
+        while let id = current, order.layer(id) == nil {
+            if hidden.contains(id) { return false }
+            current = state.store.placement(id)?.parent
+        }
+        return true
+    }
+
+    /// A click on an object row: selects the object, as clicking it with the Subselect tool would
+    /// for a group member; kbd:[Cmd] adds or removes it; kbd:[Shift] adds `range` (the object
+    /// rows from the last one clicked).  The panel's layer selection is cleared.
+    func clickObject(_ node: OpID, modifiers: KeyModifiers, range: [OpID] = []) {
+        state.selected = []
+        let selection = editing.selection.model
+        var ids = selection.selection.ids.map(\.opID)
+        if modifiers.contains(.command) {
+            if let index = ids.firstIndex(of: node) { ids.remove(at: index) } else if canSelect(node) { ids.append(node) }
+            state.objectAnchor = node
+        } else if modifiers.contains(.shift), !range.isEmpty {
+            for row in range where !ids.contains(row) && canSelect(row) { ids.append(row) }
+        } else {
+            state.objectAnchor = node
+            guard canSelect(node) else { return }
+            ids = [node]
+        }
+        selection.set(Selection(ids.map(SelectionID.init)))
+    }
+
+    /// Double-click on an object row (or *Rename…* in its menu): edit its name in place.
+    func beginObjectRename(_ node: OpID) {
+        guard Objects.isObject(node, in: document.state) else { return }
+        state.renamingObject = node
+    }
+
+    /// kbd:[Return]: writes the name (one change, `SetNameOrNote`); an empty name clears it, so
+    /// the row shows its default label again.  An unchanged name writes nothing.
+    @discardableResult
+    func commitObjectRename(_ node: OpID, to name: String) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        state.renamingObject = nil
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed != (tree.name(of: node) ?? "") else { return nil }
+        return perform(SetNameOrNote([node], .name, trimmed))
+    }
+
+    /// kbd:[Esc] keeps the old name.
+    func cancelObjectRename() { state.renamingObject = nil }
+
+    /// The eye of an object row: hides or shows the object on this Mac only, like
+    /// menu:View[Hide Selection] (layer visibility is shared; object visibility is not, D-092).
+    func toggleHidden(_ node: OpID) {
+        let hiding = document.hiding
+        if document.locallyHidden.contains(node) { hiding.show([node]) } else { hiding.hide([node]) }
+    }
+
+    /// The padlock of an object row.
+    func toggleLocked(_ node: OpID) -> SetLocked {
+        SetLocked([node], locked: !tree.isLocked(node))
+    }
+
+    /// A drop of object rows into `container` (a layer or a group) at `index` among its rows,
+    /// frontmost first: one change.  Onto or off the Guides layer the objects become or stop
+    /// being guides (`moveCommand`), going to the top of the layer.
+    @discardableResult
+    func dropObjects(_ nodes: [OpID], into container: OpID, at index: Int) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        let state = document.state
+        let order = self.order
+        if let guides = order.guides, order.layer(container) != nil {
+            let layers = Set(nodes.compactMap { order.layer(of: $0, in: state) })
+            if (container == guides && layers != [guides]) || (container != guides && layers.contains(guides)) {
+                return perform(moveCommand(nodes, to: container))
+            }
+        }
+        return perform(RestackObjects(nodes, into: container, at: index))
+    }
+
+    /// An object row's context menu.
+    func objectContextItems(_ node: OpID, rename: @escaping @MainActor () -> Void) -> [LayerMenuItem] {
+        let tree = self.tree
+        let hidden = document.locallyHidden.contains(node)
+        let entries: [(String, @MainActor () -> Void)] = [
+            ("Rename…", rename),
+            ("Select", { clickObject(node, modifiers: []) }),
+            (tree.isLocked(node) ? "Unlock" : "Lock", { perform(toggleLocked(node)) }),
+            (hidden ? "Show" : "Hide", { toggleHidden(node) }),
+        ]
+        return entries.enumerated().map { LayerMenuItem(id: $0.offset, title: $0.element.0, run: $0.element.1) }
     }
 }
 

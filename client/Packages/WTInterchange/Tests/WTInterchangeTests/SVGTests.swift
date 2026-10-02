@@ -64,8 +64,9 @@ final class XMLTreeParser: NSObject, XMLParserDelegate {
 }
 
 enum SVGValidator {
-    /// Core attributes, and the ARIA attributes SVG 2 allows on every rendered element (IO-031).
-    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space", "xml:lang", "role", "aria-labelledby", "aria-describedby", "aria-hidden"]
+    /// Core attributes, the ARIA attributes SVG 2 allows on every rendered element (IO-031), and
+    /// the `data-*` attribute SVG 2 allows on every element that WireTuner writes (`data-name`, D-092).
+    static let core: Set<String> = ["id", "class", "style", "transform", "xml:space", "xml:lang", "role", "aria-labelledby", "aria-describedby", "aria-hidden", "data-name"]
     static let presentation: Set<String> = [
         "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
         "stroke-dasharray", "stroke-dashoffset", "stroke-opacity", "opacity", "clip-path", "clip-rule", "mask", "filter",
@@ -205,9 +206,13 @@ enum PathDataParser {
         let named = Self.write(items + [gradient], nodes: ids, info: info)
         let written = named.root.all("path").compactMap { $0.attributes["id"] }
         #expect(written == ["Logo", "Logo-2", "_3_Eyes___Ears", "wt-g1"])
+        // A name the id had to change goes beside it as typed (D-092); one kept whole does not.
+        let names = named.root.all("path").map { $0.attributes["data-name"] }
+        #expect(names == [nil, "Logo", "3 Eyes & Ears", "___", nil, nil])
         #expect(named.root.all("linearGradient")[0].attributes["id"] == "wt-g2")
         let generated = Self.write(items, options: SVGOptions(ids: .generated), nodes: ids, info: info)
         #expect(generated.root.all("path").compactMap { $0.attributes["id"] } == ["o1", "o2", "o3", "o4", "o5"])
+        #expect(generated.root.all("path").allSatisfy { $0.attributes["data-name"] == nil })
         let none = Self.write(items, options: SVGOptions(ids: .none), nodes: ids, info: info)
         #expect(none.root.all("path").compactMap { $0.attributes["id"] }.isEmpty)
         #expect(SVGIdentifiers.sanitize("-x") == "_-x")

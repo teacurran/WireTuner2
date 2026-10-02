@@ -69,6 +69,14 @@ final class LocalHiding {
         persist()
     }
 
+    /// Shows `nodes` again and leaves the rest hidden (an object row's eye in the Layers panel,
+    /// D-092).
+    func show(_ nodes: [OpID]) {
+        guard let document, !hidden.isDisjoint(with: nodes) else { return }
+        document.setLocallyHidden(hidden.subtracting(nodes))
+        persist()
+    }
+
     /// menu:View[Show All].
     func showAll() {
         guard canShowAll, let document else { return }

@@ -3,10 +3,9 @@ import SwiftUI
 import WTCRDT
 import WTModel
 
-/// The Layers panel body (layers.adoc, "The Layers panel"): a row per layer, frontmost first --
-/// check mark, Preview/Keyline circle, padlock, highlight swatch, name, pen icon on the active
-/// layer -- with the separator row between printing and background layers, the options menu, the
-/// row context menu and the removal sheet.
+/// The Layers panel body (layers.adoc, "The Layers panel" and "Objects in the Layers panel"): the
+/// hidden-active-layer warning, the search field and the options menu over the outline of layers
+/// and their objects (`LayersOutline`), and the removal sheet.
 struct LayersPanelBody: View {
     let selection: ActiveSelection?
     let state: LayersPanelState
@@ -29,7 +28,7 @@ struct LayersPanelBody: View {
     }
 }
 
-/// The list with its header menu.
+/// The list with its header.
 struct LayersList: View {
     let model: LayersPanelModel
 
@@ -39,6 +38,19 @@ struct LayersList: View {
 
     static func cancelRemoval(_ model: LayersPanelModel) -> () -> Void { { model.cancelRemoval() } }
     static func confirmRemoval(_ model: LayersPanelModel) -> () -> Void { { model.confirmRemoval() } }
+
+    /// The search field's binding to the panel state.
+    static func filter(_ state: LayersPanelState) -> Binding<String> {
+        Binding(get: { state.filter }, set: { state.filter = $0 })
+    }
+
+    /// The layers' frame marks, read here so the outline updates while the animation plays.
+    static func marks(_ model: LayersPanelModel) -> [OpID: LayerFrameMarks] {
+        Dictionary(uniqueKeysWithValues: model.layers.map { layer in
+            let marks = LayerFrames.marks(layer.id, document: model.document, state: model.state)
+            return (layer.id, LayerFrameMarks(number: marks.number, playing: marks.playing))
+        })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,20 +68,14 @@ struct LayersList: View {
                     .accessibilityIdentifier("layers.options")
             }
             .padding(.horizontal, 6).padding(.vertical, 4)
-            List {
-                ForEach(Array(model.rows.enumerated()), id: \.element.id) { index, row in
-                    if let layer = row.layer {
-                        LayerRow(model: model, layer: layer, index: model.layers.firstIndex { $0.id == layer.id } ?? index)
-                    } else {
-                        SeparatorRow()
-                    }
-                }
-                .onMove(perform: Self.move(model))
-            }
-            .listStyle(.plain)
-            // The group's frosted card shows through (D-077, revised).
-            .scrollContentBackground(.hidden)
-            .accessibilityIdentifier("layers.list")
+            TextField("Find objects by name", text: Self.filter(model.state))
+                .textFieldStyle(.roundedBorder).controlSize(.small)
+                .padding(.horizontal, 6).padding(.bottom, 4)
+                .accessibilityIdentifier("layers.search")
+            // `revision` and the panel's selection are read so the layer rows' pen icon and
+            // highlight follow; the outline itself follows the document and the canvas selection.
+            let _ = (model.state.revision, model.state.selected, model.state.renaming)
+            LayersOutline(model: model, filter: model.state.filter, marks: Self.marks(model))
         }
         .sheet(isPresented: Binding(get: { !model.state.pendingRemoval.isEmpty }, set: { if !$0 { model.cancelRemoval() } })) {
             VStack(alignment: .leading, spacing: 12) {
@@ -88,25 +94,13 @@ struct LayersList: View {
     }
 }
 
-/// The separator between printing and background layers: draggable, not selectable.
-struct SeparatorRow: View {
-    var body: some View {
-        Rectangle().fill(SwiftUI.Color.secondary).frame(height: 2).frame(maxWidth: .infinity)
-            .help("Layers below this line are background layers: they never print and draw dimmed")
-            .accessibilityIdentifier("layers.separator")
-    }
-}
-
-/// One layer row.
-struct LayerRow: View {
-    let model: LayersPanelModel
-    let layer: LayerInfo
-    /// The row's index among the layers, frontmost first (drag-through toggling).
-    let index: Int
-
+/// What a layer row's controls do (`LayerRowCell` in `LayersOutline`).
+@MainActor
+enum LayerRow {
     static func modifiers() -> KeyModifiers { KeyEquivalentResolver.modifiers(NSEvent.modifierFlags) }
 
-    /// A click (or a drag through the column) on a flag column ends: one change.
+    /// A click (or a drag through the column) on a flag column ends `dy` points below where it
+    /// started: one change.
     static func column(_ model: LayersPanelModel, _ flag: SetLayerFlag.Flag, _ layer: LayerInfo, _ index: Int) -> (CGFloat) -> Void {
         { dy in
             let rows = Int((dy / LayersPanelBody.rowHeight).rounded())
@@ -135,79 +129,5 @@ struct LayerRow: View {
         Binding(get: { LayersPanelModel.swatch(layer).cgColor }, set: { color in
             ContinuousInput.settle { model.setHighlight(layer.id, color: NSColor(cgColor: color) ?? .black) }
         })
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            FlagCell(symbol: layer.visible ? "checkmark" : "", identifier: "visible", end: Self.column(model, .visible, layer, index))
-            FlagCell(symbol: layer.keyline ? "circle" : "circle.fill", identifier: "keyline", end: Self.column(model, .keyline, layer, index))
-            FlagCell(symbol: layer.locked ? "lock.fill" : "lock.open", identifier: "locked", end: Self.column(model, .locked, layer, index))
-            ColorPicker("", selection: Self.highlight(model, layer), supportsOpacity: false).labelsHidden().frame(width: 20)
-                .accessibilityIdentifier("layers.swatch.\(layer.id)")
-            if model.state.renaming == layer.id {
-                RenameField(model: model, layer: layer)
-            } else {
-                Text(layer.name.isEmpty ? "Layer" : layer.name)
-                    .fontWeight(model.selectionLayers.contains(layer.id) ? .bold : .regular)
-                    .foregroundStyle(layer.printing ? .primary : .secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2, perform: Self.rename(model, layer))
-                    .onTapGesture(perform: Self.click(model, layer))
-            }
-            let frame = LayerFrames.marks(layer.id, document: model.document, state: model.state)
-            LayerFrameNumber(number: frame.number)
-            if model.activeLayer == layer.id { Image(systemName: "pencil").accessibilityIdentifier("layers.active") }
-        }
-        .frame(height: LayersPanelBody.rowHeight)
-        .listRowBackground(LayerFrames.background(playing: LayerFrames.marks(layer.id, document: model.document, state: model.state).playing,
-                                                  selected: model.state.selected.contains(layer.id)))
-        .help(LayersPanelModel.tooltip(layer))
-        .contextMenu { LayerContextMenu(model: model, layer: layer) }
-        .accessibilityIdentifier("layers.row.\(layer.id)")
-    }
-}
-
-/// A flag column: a click toggles; a drag through the column applies the first row's new value
-/// to every row crossed (layers.adoc, "Showing and hiding layers").
-struct FlagCell: View {
-    let symbol: String
-    let identifier: String
-    let end: (CGFloat) -> Void
-
-    var body: some View {
-        Image(systemName: symbol.isEmpty ? "square" : symbol)
-            .opacity(symbol.isEmpty ? 0.15 : 1)
-            .frame(width: 16, height: 16)
-            .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onEnded { end($0.translation.height) })
-            .accessibilityAddTraits(.isButton)
-            .accessibilityIdentifier("layers.\(identifier)")
-    }
-}
-
-/// The name field while renaming: kbd:[Return] commits, kbd:[Esc] keeps the old name.  It keeps
-/// its own text, so a remote rename arriving meanwhile does not lose keystrokes.
-struct RenameField: View {
-    let model: LayersPanelModel
-    let layer: LayerInfo
-    @State private var text = ""
-
-    var body: some View {
-        TextField("Name", text: $text)
-            .onAppear { text = layer.name }
-            .onSubmit { model.commitRename(layer.id, to: text) }
-            .onExitCommand { model.cancelRename() }
-            .accessibilityIdentifier("layers.rename")
-    }
-}
-
-/// The row's context menu (context-menus.adoc, "Panel menus": the layer items).
-struct LayerContextMenu: View {
-    let model: LayersPanelModel
-    let layer: LayerInfo
-
-    var body: some View {
-        ForEach(model.contextItems(layer)) { item in Button(item.title, action: item.run) }
     }
 }

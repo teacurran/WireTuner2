@@ -250,6 +250,14 @@ final class SVGBuild {
         ("id", node.flatMap { nodeIDs[$0] })
     }
 
+    /// The object's name as typed, when its id had to change it (spaces, accents, a duplicate) or
+    /// it could not be an id at all:
+    /// `data-name`, which other editors read back as the name (D-092).
+    func nameAttribute(_ node: NodeID?) -> (String, String?) {
+        guard options.ids == .fromNames, let node, let name = scene.nodes[node]?.name, !name.isEmpty, nodeIDs[node] != name else { return ("data-name", nil) }
+        return ("data-name", name)
+    }
+
     // MARK: Elements
 
     func write(_ node: FlatNode) {
@@ -326,7 +334,7 @@ final class SVGBuild {
     }
 
     func writeGroup(_ group: FlatGroup) {
-        var attributes: [(String, String?)] = [idAttribute(group.node)]
+        var attributes: [(String, String?)] = [idAttribute(group.node), nameAttribute(group.node)]
         if let clip = group.clip {
             attributes.append(("clip-path", "url(#\(clipPath(clip)))"))
         }
@@ -402,7 +410,7 @@ final class SVGBuild {
             properties += paintProperties(item.paint, property: "stroke", placement: place, transform: item.transform)
             properties += strokeProperties(style, scale: place.scale)
         }
-        emit("path", [idAttribute(item.node), ("d", pathData(item.path, place.points)), ("transform", place.attribute)] + styleAttributes(properties))
+        emit("path", [idAttribute(item.node), nameAttribute(item.node), ("d", pathData(item.path, place.points)), ("transform", place.attribute)] + styleAttributes(properties))
     }
 
     func strokeProperties(_ style: StrokeStyle, scale: Double) -> [(String, String)] {
@@ -635,7 +643,7 @@ final class SVGBuild {
             properties.append(("font-style", "italic"))
         }
         properties += paint(text.color, "fill")
-        emit("text", [idAttribute(text.node), ("transform", translationOnly ? nil : matrix(toPage)), ("x", xs), ("y", ys), ("xml:space", "preserve")] + styleAttributes(properties), text: text.text)
+        emit("text", [idAttribute(text.node), nameAttribute(text.node), ("transform", translationOnly ? nil : matrix(toPage)), ("x", xs), ("y", ys), ("xml:space", "preserve")] + styleAttributes(properties), text: text.text)
     }
 
     /// The family name of an embedded subset holding every glyph of the fonts `run` uses, or
@@ -705,7 +713,7 @@ final class SVGBuild {
             }
         }
         emit("image", [
-            idAttribute(image.node),
+            idAttribute(image.node), nameAttribute(image.node),
             ("x", number(rect.minX)), ("y", number(rect.minY)), ("width", number(rect.width)), ("height", number(rect.height)),
             ("transform", translationOnly ? nil : matrix(toPage)),
             ("preserveAspectRatio", "none"),
@@ -736,7 +744,7 @@ final class SVGBuild {
             notes.append("a placed SVG animation depends on script, which does not run inside an SVG image")
         }
         emit("image", [
-            idAttribute(node),
+            idAttribute(node), nameAttribute(node),
             ("width", number(animation.width)), ("height", number(animation.height)),
             ("transform", matrix(animation.transform.concatenating(toPage))),
             ("preserveAspectRatio", "none"),

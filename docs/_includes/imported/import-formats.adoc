@@ -151,7 +151,9 @@ SVG files are converted to native objects.  Shapes, paths, groups, gradients, cl
 dashes and embedded or referenced images are imported.  Text can be kept editable or converted
 to paths.  CSS in `<style>` elements and `style` attributes is applied; filters, masks,
 patterns, animation and scripts are not, and the parts they affect are imported without them.
-The document's `viewBox` sets the natural size, at 96 pixels per inch.
+The document's `viewBox` sets the natural size, at 96 pixels per inch.  Each element's name --
+its `data-name`, else its label, else its `id`, else its `<title>` -- becomes the object's name,
+shown in the Layers panel (xref:layers.adoc[Using layers]).
 
 [cols="1,3"]
 |===

@@ -10,7 +10,8 @@ reorder, merge, recolor and remove layers, and you can decide which ones print.
 
 == The Layers panel
 
-The Layers panel lists every layer in the document, frontmost at the top.  Each row carries,
+The Layers panel lists every layer in the document, frontmost at the top, and under each layer's
+disclosure triangle the objects on it (<<objects,Objects in the Layers panel>>).  Each layer row carries,
 from left to right: a visibility check mark, a Preview/Keyline circle, a padlock, the layer's
 highlight color swatch, and the layer name.  A pen icon to the right of a name marks the
 *active layer*, the one new objects and imports land on.
@@ -82,6 +83,96 @@ not empty.
 
 The same commands are on the context menu of a layer row (kbd:[Control]-click or right-click),
 which adds *Move Selection to This Layer* for the row you clicked.
+
+== Objects in the Layers panel [[objects]]
+
+Every layer row has a disclosure triangle.  Click it to list the objects on the layer, frontmost
+at the top, the same order they stack in on the page.  Objects that hold other objects have
+triangles of their own: a group lists its members, a clipping group its contents with the clip
+path at the bottom, a blend its key objects, an extrusion, envelope or perspective object the
+shape it holds, and a chart the artwork it repeats.  kbd:[Option]-click a triangle to open or
+close everything under it at once.
+
+// TODO screenshot: the Layers panel with a layer open, a named group open inside it and a clip group
+
+Each object row shows, from left to right: an icon for the kind of object, its name, an eye and a
+padlock.  An object you have named shows its name.  One you have not shows what it is -- *Path*,
+*Compound Path*, *Rectangle*, *Group*, *Clip Group*, *Clip Path*, the symbol's name for a symbol
+instance, the start of the text for a text block -- in dimmed italics, so you can see at a glance
+which objects still need names.
+
+To find an object by name:
+
+* Type in the *Find objects by name* field at the top of the panel.  Only the objects whose names
+  (or, for unnamed ones, what the row says) contain what you typed are listed, with the layers and
+  groups they are in opened around them.  Clear the field to see everything again.
+
+=== Selecting objects from the panel
+
+The panel and the canvas share one selection.  Selecting an object on the canvas highlights its
+row and opens the layers and groups above it so the row shows; selecting rows in the panel
+selects their objects on the canvas.
+
+To select an object from the panel, do one of the following:
+
+* Click its row.  This selects the object alone -- for a member of a group, the member itself, as
+  the Subselect tool would.
+* kbd:[Cmd]-click rows to add objects to the selection or take them out.
+* kbd:[Shift]-click a row to add every object row between it and the last one you clicked.
+
+Objects on hidden or locked layers, and objects hidden with menu:View[Hide Selection], are not
+selected from the panel, as they are not on the canvas.  A locked object can be selected but not
+changed.
+
+=== Naming objects
+
+Names are what make a long list readable.  You can name any object -- a single line, a path, a
+group -- and the name is shared with everyone working on the document.
+
+To name an object, do one of the following:
+
+* Double-click its name in the Layers panel, type a name and press kbd:[Return].  Press kbd:[Esc]
+  to keep the old one.
+* kbd:[Control]-click its row and choose *Rename…*.
+* Select the object and type in *Name* on the Object panel's root row, or choose
+  menu:Object[Name…] (xref:names-notes.adoc[Names and notes]).
+
+Deleting the whole name gives the object back its default label.  Names travel with the objects
+you export: SVG files carry them as element ids (xref:export-vector.adoc[Exporting vector
+artwork]), and importing an SVG file names its objects after its elements.
+
+=== Hiding and locking single objects
+
+The eye and the padlock on an object row act on that object alone.
+
+* Click the eye to hide the object on this Mac, as menu:View[Hide Selection] does; click it again
+  to show it.  Hiding an object is a view of your own: it is not hidden for anyone else, and it
+  still prints and exports.  menu:View[Show All] shows every hidden object.  To hide something for
+  everyone, put it on a layer and hide the layer.
+* Click the padlock to lock or unlock the object (xref:arranging.adoc[Arranging objects]).  A lock
+  is shared, like a layer's.
+
+The row's context menu has the same commands, as *Hide*/*Show* and *Lock*/*Unlock*, and *Select*.
+
+=== Reordering and regrouping objects
+
+Dragging object rows changes how objects stack, which layer they are on and which group they are
+in, without changing where they are on the page.
+
+To move objects in the stacking order, onto another layer, or into or out of a group:
+
+. Select the rows to move (or start with one).
+. Drag them.  A line shows where they will land: between two rows, they go there; onto a layer
+  or a group row, they go to its top; onto any other object row, beside it.
+. Release the mouse.  The objects keep their order among themselves, and everything moves as one
+  change that undoes in one step.
+
+Some rows stay where they are: a clip path stays at the bottom of its clipping group, and the key
+objects of a blend and the shapes inside an extrusion, envelope, perspective object or chart move
+only with the object that holds them.  Locked objects, and objects on a locked layer, do not move,
+and nothing can be dropped onto a locked layer or into a locked group.  Dragging objects onto the
+Guides layer turns them into guides; dragging guides onto another layer turns them back.  Rows
+cannot be dragged while the search field is filled in.
 
 == Creating layers
 
@@ -362,6 +453,17 @@ name in xref:history.adoc[History].
   xref:branches.adoc[branch].
 * *Hiding a layer hides it for everyone.*  Use it the way you would on a shared drawing board:
   say so, or hide only layers you own.  A per-person "hide for me" view is planned.
+* *Two people name the same object.*  The later name wins for everyone, as with layer names.
+* *Two people drag the same object to different places.*  The later drag wins; both people see the
+  object in one place, and the review sheet lists *move vs move*.  Dragging different objects at
+  the same time keeps both moves.
+* *Someone deletes a group while you drag an object into it.*  Your object goes into the group
+  and so goes with it; undoing the delete, or restoring the group from
+  xref:history.adoc[History], brings both back.
+* *Someone moves an object while you drag it into a group.*  As with ungrouping a moved member,
+  the later of the two places wins; if theirs does, the object can appear offset by the group's
+  transform, and the review sheet lists it as a *Position* conflict.
+* *Hiding an object from its row is yours alone*; locking it is everyone's.
 * *Offline.*  Everything on this page works offline.  When you reconnect, layer changes merge
   like any other: both people's new layers appear, reorders combine, and the review sheet lists
   only the places where you and a collaborator touched the same layer or the same object
@@ -452,6 +554,19 @@ when the layer is Keyline), snaps as a guide, never prints, and is hit-tested on
 double-click that opens the Guides sheet.  The DOC epic's xref:grid-guides.adoc[grid and guides]
 page owns ruler guides, which are also nodes on this layer.
 
+Objects in the panel::
+The object tree adds no field (xref:decisions.adoc#D-092[D-092]).  It is the node tree read on
+demand: a live layer's rows are `LayerOrder.objects(on:)` (its own live objects and those routed
+to it from deleted layers) frontmost first; an object's rows are its live child objects, frontmost
+first, for the kinds that hold objects (`group` -- a clip group's clip path is its bottom row --
+`blend`, `extrude`, `envelope`, `perspective`, `chart`, `text`).  A symbol instance has no rows:
+its artwork is the symbol's.  A group with no live members has no row.  The row's name is
+`CommonProps.name`, else a default label derived from the kind (Clip Group, Clip Path, Compound
+Path for a path of several contours, the symbol's name, the first 40 characters of a text block's
+first line).  The padlock is `CommonProps.locked`; the eye is the local `hidden` set of
+menu:View[Hide Selection] (xref:selecting.adoc[Selecting], "Data model"), view state that is never
+sent.
+
 === Merge semantics
 
 [cols="1,1,3"]
@@ -488,6 +603,29 @@ both positions.
 |Moving an object to a layer is a `MoveNode` under the destination layer with a position at the
 top of its children.  Two people moving one object to different layers: greater OpId wins;
 review lists *move vs move*.
+
+|Object rows dragged (D-092)
+|Tree move + ATOMIC `transform`
+|A drop is one change: per object, a `MoveNode` under the destination layer or group at a fresh
+position between the rows it was dropped between, and -- when it changes parent -- a
+`SetFields(transform)` folding the old and new groups' transforms so it stays put on the page.
+Different objects dragged at once: both apply.  One object dragged to two places: the greater
+OpId's `MoveNode` wins (*move vs move*).  A drag into a group concurrent with a move of the same
+object: parent and `transform` resolve independently, so the object can sit in the group with the
+other side's matrix, offset by the group's transform -- the ungroup-versus-move anomaly of
+xref:grouping.adoc[Grouping], listed as a *Position* conflict.  A drag into a group deleted
+concurrently leaves the object a live child of a deleted node, removed with it and restored with
+it.  Cycles (two people dragging two groups into each other) are resolved by the move algorithm.
+
+|Object name, lock
+|ATOMIC (LWW)
+|`CommonProps.name` and `locked`, as on xref:names-notes.adoc[Names and notes] and
+xref:arranging.adoc[Arranging]: the later rename or lock wins; the review sheet lists *same
+register* with both values.
+
+|Object eye
+|Local only
+|The `hidden` set is this Mac's view state: nothing merges.
 |===
 
 Delete layer versus add objects to it::
@@ -566,7 +704,8 @@ source and destination layer names in the *Position* line.
 
 Every command on this page works offline.  Coalescing (xref:offline.adoc[Offline]) collapses
 repeated toggles of one flag into the last value and repeated reorders of one layer into the
-last move.  A layer created and removed offline disappears from the outbox entirely.
+last move.  The object tree reads the local state only, so it lists, names, locks and reorders objects
+offline like everything else; repeated drags of one object coalesce into its last move.  A layer created and removed offline disappears from the outbox entirely.
 
 === Server
 
@@ -581,7 +720,10 @@ Layers panel; `WTRender` consumes `LayerOrder` and the per-layer visibility, key
 dimming.
 
 Panel:: An `NSOutlineView` with one row per layer, four fixed-width columns of `NSButton`s
-(check, circle, padlock) and a color well, and an editable name cell.  Drag-through toggling is
+(check, circle, padlock) and a color well, and an editable name cell; under each layer, its object
+tree (D-092), read lazily: the outline asks for a container's rows only when it is opened and for
+cells only as rows scroll into view, and a model change re-lists only the containers whose members
+it created, moved or deleted and redraws only the rows whose objects it wrote.  Drag-through toggling is
 implemented as a mouse-down on a column button that captures the mouse and applies the
 initial button's new state to every row the pointer crosses.  Row reordering uses
 `NSOutlineView` drag and drop restricted to the same parent; the separator is a non-selectable
@@ -629,7 +771,8 @@ in `LayerTests.swift`), and the review model's *move vs move* listing (WTSync's)
 NOTE: As built by LIB-004 and LIB-007 (`WTApp/Panels/LayersPanel.swift`, `LayersPanelView.swift`).
 The panel is a SwiftUI `List` (not an `NSOutlineView`) over `LayersPanelModel`, a value read from the
 front window's document on every change, so a remote rename or reorder shows at once while a name
-being edited keeps its own text (`RenameField`).  Rows are frontmost first with the separator as a
+being edited keeps its own text (`RenameField`).  (LIB-029 replaced the `List` with an `NSOutlineView`;
+see its note below.)  Rows are frontmost first with the separator as a
 row of its own; SwiftUI's move offsets become one `ReorderLayer` (with `printing` when a layer
 crosses the separator) or, for the separator, one `SetLayerFlag(printing)` on the layers it crossed.
 Each flag column toggles its layer on click, every layer with kbd:[Option], and a vertical drag
@@ -705,6 +848,44 @@ and two concurrent pastes creating two layers of one name are WTModel tests
 (`LibraryLayerMemoryTests`); the conformance vector is `library/origin-layer-atomic`.  The
 review-sheet side (no conflict rows for the two pastes) is WTSync's measurement, unchanged: two
 creates share no node.
+
+NOTE: As built by LIB-029 (xref:decisions.adoc#D-092[D-092]; `WTModel/ObjectTree.swift`, a new file;
+`WTApp/Panels/LayersOutline.swift`, a new file; `LayersPanel.swift`, `LayersPanelView.swift`).  `ObjectTree`
+is the tree as read: `children(of:)` frontmost first as the Data model above says, `hasChildren` for the
+triangle without listing, `parent`/`ancestors` (the display layer of a routed object), `name` and
+`isLocked` from their one register rather than the whole props, `defaultLabel`/`label`, `role` (the clip
+path), `matching(_:)` for the search (case- and diacritic-insensitive on the label, with the rows above
+each match), and `accepts`/`isMovable`/`isWithin` for drags.  `RestackObjects(nodes, into:, at:)` is the
+drop ("Move" / "Move N objects", one change): the editable, movable nodes not containing the target, an
+object whose container also moves dropped, in stacking order, get consecutive keys between the rows
+they were dropped between (in a clip group never below the clip path; only the parent's own children
+count, not objects routed from a deleted layer) and, when the parent changes, `transform` = old local ×
+old parent space × new parent space⁻¹; a locked layer or group takes nothing and a non-container is
+refused.  The panel is `LayersOutline`, an `NSViewRepresentable` hosting `LayersOutlineController`'s
+`NSOutlineView` under the SwiftUI header (warning strip, *Find objects by name*, options menu) and the
+removal sheet: one stable `LayersTreeItem` per node; `loaded` keeps the rows the outline was given per
+container; on each `ContentChange` the nodes the change created, moved or deleted (its ops; the summary
+for the rest) mark their old and new containers, which are re-listed by `CollectionDifference`
+(`removeItems`/`insertItems`, open rows reopened), a layer change re-lists the root and open layers,
+and every written row is `reloadItem`ed -- never `reloadData` except for another document, a search and a
+state reload of over 500 nodes.  The outline's selection follows the canvas selection
+(`SelectionModel.observe`), opening the containers above up to 200 selected objects and scrolling to the
+first; a click goes to `LayersPanelModel.click` for a layer row (unchanged) or `clickObject` (alone,
+kbd:[Cmd] toggles, kbd:[Shift] adds the object rows from the anchor; `canSelect` refuses hidden or locked
+layers and locally hidden objects).  Layer rows are AppKit cells now: `FlagControl` tracks the mouse to
+its release and maps the layer row under it to `LayerRow.column`'s drag-through; `NSColorWell` (minimal)
+through `ContinuousInput.settle`; `LayersRowView` draws the playing frame's tint.  Object rows:
+`ObjectRowCell` (kind symbol, name or the italic default label, eye -- `LocalHiding.hide`/`show`, the new
+per-object show -- and padlock, `SetLocked`); double-click or *Rename…* edits in place
+(`SetNameOrNote`, empty clears; kbd:[Esc] keeps).  Drags: object rows (not while searching) into a layer
+or group at an index, onto a container at its top, onto a leaf beside it, layer and separator rows among
+the root rows (`move(fromOffsets:toOffset:)` as before); onto or off the Guides layer `moveCommand`.  SVG
+names: export writes `data-name` beside an id that changed the name, import reads it first
+(xref:export-vector.adoc[Exporting vector artwork]).  Measured (debug, this Mac, under load): opening a
+layer of 50,000 objects and a rename or restack with all 50,000 rows open, in
+`LayersOutlineTests.fiftyThousandObjectsOpenAndUpdateWithinAFrame`; the budgets (250 ms, 16 ms,
+100 ms) are held in the perf run.  Left: LIB-030 (object names from Illustrator and FreeHand files),
+LIB-031 (keyboard navigation, *Locate Object*, row thumbnails, colour drops on object rows).
 
 NOTE: The Layers panel's Guides glue is built: moving objects onto the Guides layer (a click with *Clicking a
 layer moves the selection*, or *Move Selection to This Layer*) is `ConvertToGuides`, and moving guide
@@ -797,4 +978,18 @@ Delivers:: *Clicking a layer name moves selected objects* (Panels), *Remember la
 Done when::
 * Each preference has a default matching the Client section and takes effect without relaunch.
 * UI test: with the Panels preference off, clicking a layer name changes the active layer and moves nothing.
+
+[[LIB-029]]
+==== LIB-029 Objects in the Layers panel
+[horizontal]
+Track:: client-ui
+Depends on:: LIB-004, OBJ-007, OBJ-016, OBJ-021, OBJ-027
+Size:: L
+Delivers:: xref:decisions.adoc#D-092[D-092]: the object tree under each layer's disclosure triangle (`ObjectTree`), frontmost first and nested, with kind icons, names or default labels, per-object eye (local hiding) and padlock; row clicks selecting on the canvas and canvas selection revealing rows; in-place renaming; drag reordering and regrouping as one change (`RestackObjects`); search by name; SVG `data-name` export and import; the panel as an `NSOutlineView` that reads lazily and updates incrementally.
+Done when::
+* A layer opens to its objects frontmost first, a group to its members, a clip group with the clip path last; an empty group has no row.
+* Clicking, kbd:[Cmd]- and kbd:[Shift]-clicking rows selects on the canvas; a canvas selection inside a group opens the group and selects the row.
+* A drop into a group, out of it, onto another layer or between rows is one change and one undo step, and every object keeps its place on the page; locked objects and destinations refuse.
+* Merge tests: two replicas dragging different objects keep both moves; dragging one object to two places converges.
+* A rename, a new object and a deletion each update the open outline without reloading it, with 50,000 objects on one layer within the frame budget in the perf run.
 endif::spec[]

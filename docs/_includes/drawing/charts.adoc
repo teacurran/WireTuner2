@@ -362,7 +362,7 @@ commits and closes; btn:[Cancel] discards uncommitted drafts (already-committed 
 Apply is not undone by Cancel).
 
 Pictograph:: The pasted artwork becomes a `group` child of the chart node (real nodes, hidden
-from the Layers panel except under the chart's disclosure); the layout engine instantiates it
+from the Layers panel except under the chart's disclosure, xref:layers.adoc#objects[Layers]); the layout engine instantiates it
 per column with repeat or stretch.  btn:[Copy Out] serializes that subtree to the pasteboard.
 
 Ungroup:: Materializes the layout's elements as nodes under a new `group` at the chart's

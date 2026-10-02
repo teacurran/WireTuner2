@@ -321,7 +321,7 @@ curved, or both straight, reads as `CORNER`.
 Read-time normalizations (complete list)::
 * Fewer than two live points in a contour: the contour does not render and cannot be selected;
   a path with no renderable contour renders nothing but stays selectable by its name in the
-  Layers panel.
+  Layers panel (xref:layers.adoc#objects[Objects in the Layers panel]).
 * `start` dangling: use the next surviving point in stored order.
 * `CURVE` with non-collinear handles: render as stored.
 * `CONNECTOR` with no straight side: treat as `CORNER`.

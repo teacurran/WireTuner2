@@ -126,6 +126,9 @@ Follow <name>, Go to <name>'s Page, Hide <name>'s Cursor (xref:presence.adoc[Pre
 |Layers panel, a layer
 |New Layer, Duplicate Layer, Remove Layer, Rename, Move Selection to This Layer, Lock / Unlock, Hide / Show, Print / Non-printing, All Layers Visible, Merge Selected Layers
 
+|Layers panel, an object
+|Rename…, Select, Lock / Unlock, Hide / Show (xref:layers.adoc#objects[Objects in the Layers panel])
+
 |Styles panel, a style
 |Edit…, Duplicate, Remove, Redefine, Apply, Select Objects Using Style, Style Behavior…
 

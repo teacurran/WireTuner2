@@ -210,10 +210,5 @@ import WTRender
         let host = NSHostingView(rootView: LayersList(model: model))
         host.frame = NSRect(x: 0, y: 0, width: 280, height: 300)
         host.layoutSubtreeIfNeeded()
-        for view in [NSHostingView(rootView: SeparatorRow()) as NSView, NSHostingView(rootView: LayerContextMenu(model: model, layer: model.layers[0])),
-                     NSHostingView(rootView: RenameField(model: model, layer: model.layers[0])),
-                     NSHostingView(rootView: FlagCell(symbol: "", identifier: "x", end: { _ in }))] {
-            view.layoutSubtreeIfNeeded()
-        }
     }
 }

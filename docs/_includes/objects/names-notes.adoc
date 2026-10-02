@@ -25,8 +25,9 @@ multiple selection: typing a name gives it to every selected object.
 
 Where a name shows up:
 
-* The Layers panel lists named objects by name rather than by kind
-  (xref:layers.adoc[Layers]).
+* The Layers panel lists named objects by name rather than by kind, and its search finds them
+  (xref:layers.adoc#objects[Objects in the Layers panel]).  You can also name an object there:
+  double-click its row.
 * The Info toolbar shows the name of the object under the pointer.
 * menu:Edit[Find and Replace > Graphics] finds objects by name
   (xref:find-replace.adoc[Find and replace]).

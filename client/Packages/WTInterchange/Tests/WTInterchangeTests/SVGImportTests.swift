@@ -352,6 +352,8 @@ struct SVGImportConversionTests {
         </g>
         <switch><rect width="1" height="1"/><circle r="1"/></switch>
         <g><title> Titled </title><rect width="1" height="1"/></g>
+        <rect id="Logo_mark" data-name="Logo mark" inkscape:label="Ignored" width="1" height="1"/>
+        <rect id="kept" data-name="" width="1" height="1"/>
         """)
         guard case .group(let outer) = scene.nodes[0] else {
             Issue.record("expected a group")
@@ -363,9 +365,11 @@ struct SVGImportConversionTests {
         #expect(SVGImportFixture.anchors(paths[0])[0] == Point(x: 10, y: 0))
         #expect(paths[0].opacity == 0.5)
         #expect(paths[1].url == "https://example.com" && paths[1].name == "Dot")
-        #expect(paths.count == 4)
-        #expect(scene.nodes.count == 3)
+        #expect(paths.count == 6)
+        #expect(scene.nodes.count == 5)
         #expect(scene.nodes[2].name == "Titled")
+        // The name as typed, beside the id that had to change it (D-092).
+        #expect(paths[4].name == "Logo mark" && paths[5].name == "kept")
     }
 
     @Test func unsupportedFeaturesAreNoted() throws {

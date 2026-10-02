@@ -1256,6 +1256,57 @@ slightly different curve approximation); fixing the arrangement's numerical case
 robustness work is its own task, and the renderer needs a correct picture meanwhile); a
 `RoundOutline` fallback (round caps and joins only, wrong for butt, square, miter and bevel).
 
+[[D-092]]
+=== D-092 The Layers panel lists every object, named or labelled by kind, in a lazily read outline
+Asked by the owner (2026-10-01): the Layers panel listed one row per layer, so in a file of
+thousands of imported objects there was no way to see what a layer holds, find an object or tell
+two unnamed paths apart.  The panel now lists each layer's objects under a disclosure triangle,
+nested as they are grouped, and lets you name, select, hide, lock and restack them from there
+(xref:layers.adoc#objects[Layers, "Objects in the Layers panel"]; LIB-029):
+
+* *No schema change.*  Names were already there: `CommonProps.name` (ATOMIC, 256 characters) with
+  the Object panel's *Name* field and menu:Object[Name…] (OBJ-021).  So were the object lock
+  (`CommonProps.locked`) and the merge semantics of both (LWW, *same register* in the review).
+  The panel adds a third way to write them -- double-click a row -- and nothing to the proto.
+* *The eye on an object row is this Mac's view.*  It is the `hidden` set of menu:View[Hide
+  Selection] (OBJ-007, `local_only`, never sent): hiding one object should not hide it for the
+  team, which is why the selecting page made object hiding local in the first place.  A layer's
+  visibility stays shared.  A shared per-object `hidden` register was considered and rejected: it
+  would add a print/export rule per object and repeat the "hiding a layer hides it for everyone"
+  surprise at a finer grain.
+* *What has rows.*  Objects, frontmost first; the members of groups, clip groups (the clip path
+  last, where it draws), blends, extrusions, envelopes, perspective objects, charts and text
+  blocks, as the node tree holds them.  A symbol instance has none (its artwork is the symbol's,
+  listed in the Library).  A group with no live members has none (grouping's pruning rule).  The
+  default label of an unnamed object says what it is -- Path, Compound Path, Clip Group, Clip Path,
+  the symbol's name, the start of a text -- dimmed and italic, so unnamed objects stand out.
+* *Dragging is a tree move plus a transform.*  `RestackObjects` writes, per object, a `MoveNode`
+  to the destination layer or group at a position between the rows it was dropped between and,
+  when the parent changes, the `transform` that keeps it where it was on the page -- one change,
+  one undo step.  Concurrency is the tree move's (different objects: both apply; one object: LWW,
+  *move vs move*; cycles rejected by the move algorithm) plus the ungroup-versus-move anomaly for
+  a concurrent move of the same object.  Only layers and groups take drops; the members of blends,
+  envelopes and the other wrappers are their structure, and a clip path stays at the bottom.
+* *Lazy and incremental.*  The panel is an `NSOutlineView`: rows are read when a container is
+  opened and cells when rows scroll into view, so 50,000 objects on one layer cost the open rows;
+  a model change re-lists only the containers whose members it created, moved or deleted, and
+  redraws only the rows it wrote.  `ObjectTree` (WTModel) holds the reading, so it is platform
+  neutral and tested without a window.
+* *Names in files.*  SVG export already writes names as ids; where an id must change a name
+  (spaces, accents, duplicates) the name as typed now goes beside it in `data-name`, and SVG
+  import reads `data-name` first, so names survive the round trip.  PDF has no per-object name
+  (its optional content is the layers, already named); EPS and DXF carry none.  Illustrator and
+  FreeHand files keep per-object names in records the importers do not read yet (LIB-030).
+* *Search* is a filter on the label (case- and diacritic-insensitive) that shows each match with
+  its layers and groups opened; while it is on, rows are not dragged (an index among filtered rows
+  is ambiguous).
+
+Rejected: keeping the SwiftUI `List` and nesting `DisclosureGroup`s (it builds every row's view,
+and it has no drop-into-row); a per-object shared visibility flag (above); auto-naming objects on
+import or drawing (a name the user did not type would hide the default label's information).
+Left for LIB-031: keyboard navigation of the rows, *Locate Object*, row thumbnails and colour
+drops on object rows.
+
 == Open questions
 
 [[Q-001]]

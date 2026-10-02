@@ -46,7 +46,6 @@ import WTRender
         window.contentView = NSHostingView(rootView: LayersList(model: model))
         window.contentView?.layoutSubtreeIfNeeded()
         window.displayIfNeeded()
-        FlagCell(symbol: "checkmark", identifier: "x", end: { _ in }).end(0)
         window.close()
         withExtendedLifetime(environment) {}
     }

@@ -856,6 +856,28 @@ Done when::
 * A Finder open of each extension routes to the opener; a PNG does not open and says to use Import….
 * With `WT_EXTERNAL_CORPUS` set, every `.ai`, `.eps` and `.pdf` under it opens, and the run writes a report (outside the repository) of successes, failures by cause, times, page, layer and object counts, notes and a page-1 pixel difference against Quartz; unset, the test is skipped.
 
+[[LIB-030]]
+==== LIB-030 Object names from Illustrator and FreeHand files
+[horizontal]
+Track:: import-export
+Depends on:: IO-041, LIB-029
+Size:: M
+Delivers:: xref:decisions.adoc#D-092[D-092]: the per-object names Illustrator keeps in its private data (legacy `.ai` and EPS art: the object name records the legacy reader skips; PDF-based files: the AIPrivateData art stream, Zstandard in 2020 and later) and FreeHand's object names (where its records hold them; the FreeHand reader decodes a names table it does not apply yet, the place to start), carried as `ImportedPath.name` / `ImportedGroup.name` into `CommonProps.name`, so imported objects show their names in the Layers panel (xref:layers.adoc#objects[Layers]; xref:import-formats.adoc[Import formats]).
+Done when::
+* A fixture of each format with named paths, groups and text imports with those names; unnamed objects keep their default labels.
+* The external corpus run reports how many objects arrived named.
+
+[[LIB-031]]
+==== LIB-031 Layers panel: keyboard, locate and thumbnails
+[horizontal]
+Track:: client-ui
+Depends on:: LIB-029
+Size:: M
+Delivers:: xref:decisions.adoc#D-092[D-092]: arrow keys move the row selection (and the canvas selection) through the object tree, kbd:[Right] and kbd:[Left] open and close, kbd:[Return] renames; *Locate Object* in the panel menu scrolls the canvas to the selected row's object; a small thumbnail of each object in its row, drawn from the display list at the row's size and cached per node revision; colour drops on an object row applying the fill as on the canvas (xref:layers.adoc#objects[Layers]).
+Done when::
+* Keyboard navigation reaches every row of a nested fixture and selects on the canvas as it goes.
+* Thumbnails of 50,000 objects cost only the rows on screen; a change redraws only its row's thumbnail.
+
 Agents work in waves; a wave's tasks depend only on earlier waves.
 
 [cols="1,4"]

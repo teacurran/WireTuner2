@@ -97,8 +97,10 @@ editable but depends on the viewer having the fonts.  *Convert to outlines* writ
 
 |*Element ids*
 |*From object names* uses the names from the Object panel (xref:names-notes.adoc[Names and
-notes]) as `id` attributes, made safe for XML and unique with numeric suffixes.  Layers get
-their layer names.  *None* writes no ids.  *Generated* writes short unique ids.
+notes]) as `id` attributes, made safe for XML and unique with numeric suffixes.  Where that
+changes a name (a space, an accent, a second "Logo"), the name as typed goes beside the id in a
+`data-name` attribute, which {product} and other editors read back as the object's name.  Layers
+get their layer names.  *None* writes no ids.  *Generated* writes short unique ids.
 
 |*Styling*
 |*Presentation attributes* (`fill="#…"` on each element) is the most portable.  *CSS classes*
@@ -436,6 +438,12 @@ characters (`FlatPath.readAs`), and a group holding only outlined runs of one te
 Rasterized items are `<image>` elements tagged with their node, so an image, a rendered pattern or a rendered
 effect carries its object's figure; an item rendered into a group with other pieces carries it on the group.
 The VoiceOver-in-Safari run of the task's *Done when* is a manual acceptance step and has not been recorded.
+
+NOTE: As built by the Layers panel's object tree (D-092; `SVGWriter.nameAttribute`).  With *From object
+names*, an element whose name its id changed -- sanitized, made unique, or not usable as an id at all -- also
+gets `data-name` with the name as typed; an id equal to the name gets none.  The SVG importer reads
+`data-name` before `inkscape:label`, `id` and `<title>`, so a name survives the round trip.  The test
+validator allows `data-name` on every element (SVG 2 `data-*`).
 
 NOTE: As built by IO-018 (`WTInterchange/EPS`).  Each page is flattened for the `.opaque` target
 and written as DSC 3.0 EPSF (`%%BoundingBox` and `%%HiResBoundingBox` from the export bounds, one
