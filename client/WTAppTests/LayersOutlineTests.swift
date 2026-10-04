@@ -626,6 +626,10 @@ import WTRender
         #expect(outline.outlineView(outline.outline, pasteboardWriterForItem: foreign) == nil)
         #expect(!outline.outlineView(outline.outline, shouldSelectItem: foreign))
         #expect(outline.outlineView(outline.outline, numberOfChildrenOfItem: LayersTreeItem(.separator)) == 0)
+        #expect(outline.outlineView(outline.outline, typeSelectStringFor: nil, item: foreign) == nil)
+        #expect(outline.outlineView(outline.outline, typeSelectStringFor: nil, item: LayersTreeItem(.object(node))) == nil)
+        outline.selectFromRows()
+        #expect(!outline.locate())
         let layerCell = LayerRowCell()
         layerCell.colorChanged(layerCell.swatch)
         layerCell.beginEditing(outline)
@@ -635,6 +639,120 @@ import WTRender
         objectCell.lock.performClick(nil)
         objectCell.beginEditing(outline)
         #expect(!objectCell.name.isEditable)
+    }
+
+    /// Clicks as the outline's action hands them over, with the event AppKit is sending: a click
+    /// on a layer's disclosure triangle only opens or closes it (AppKit does that) and selects
+    /// nothing; elsewhere in a row the event's modifier keys apply (kbd:[Cmd] adds); a click with
+    /// no event selects the row alone; a click below the rows (row -1) does nothing.
+    @Test func clicksTakeTheirModifierKeysFromTheEventAndSkipTheTriangle() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        let selection = world.controller.selection.model
+        func event(_ type: NSEvent.EventType, row: Int, at local: NSPoint? = nil, _ flags: NSEvent.ModifierFlags = []) -> NSEvent {
+            let rect = world.view.rect(ofRow: row)
+            let point = world.view.convert(local ?? NSPoint(x: rect.maxX - 20, y: rect.midY), to: nil)
+            return NSEvent.mouseEvent(with: type, location: point, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                                      windowNumber: world.window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+        let art = world.row(world.layers[1])
+        let triangle = world.view.frameOfOutlineCell(atRow: art)
+        #expect(!triangle.isEmpty)
+        let before = (world.model.activeLayer, world.state.selected)
+        let centre = NSPoint(x: triangle.midX, y: triangle.midY)
+        world.outline.click(row: art, event: event(.leftMouseUp, row: art, at: centre))
+        world.outline.click(row: art, event: event(.leftMouseDown, row: art, at: centre))
+        #expect(world.model.activeLayer == before.0 && world.state.selected == before.1, "the triangle selects nothing")
+        // The rest of the row: the event's keys.
+        world.outline.click(row: world.row(world.text), event: event(.leftMouseUp, row: world.row(world.text)))
+        #expect(selection.ids == [SelectionID(world.text)])
+        world.outline.click(row: world.row(world.rect), event: event(.leftMouseUp, row: world.row(world.rect), .command))
+        #expect(Set(selection.ids) == [SelectionID(world.text), SelectionID(world.rect)])
+        // Not a left click, though over a triangle (the group's): selects, with its keys.
+        let groupRow = world.row(world.group)
+        let groupTriangle = world.view.frameOfOutlineCell(atRow: groupRow)
+        world.outline.click(row: groupRow, event: event(.rightMouseUp, row: groupRow, at: NSPoint(x: groupTriangle.midX, y: groupTriangle.midY)))
+        #expect(selection.ids == [SelectionID(world.group)])
+        world.outline.click(row: world.row(world.rect), event: nil)
+        #expect(selection.ids == [SelectionID(world.rect)])
+        world.outline.click(row: -1, event: event(.leftMouseUp, row: world.row(world.text)))
+        #expect(selection.ids == [SelectionID(world.rect)], "below the rows: nothing")
+        // Off the triangle, the layer row's click selects the layer in the panel.
+        #expect(before.1.isEmpty)
+        world.outline.click(row: art, event: event(.leftMouseUp, row: art))
+        #expect(world.model.activeLayer == world.layers[1] && world.state.selected == [world.layers[1]])
+    }
+
+    /// AppKit's drag session over the outline: the rows it begins with are the ones a drop moves
+    /// (what it hands over that is not a row is ignored), and when it ends -- dropped elsewhere or
+    /// cancelled -- no drop is offered any more.  A drop proposed on a row that is no longer in
+    /// the outline (its group was closed) is refused.
+    @Test func aDragSessionCarriesItsRowsUntilItEnds() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        world.expand(world.group)
+        let rectItem = try #require(world.outline.existingItem(world.rect))
+        let textItem = try #require(world.outline.existingItem(world.text))
+        let artItem = try #require(world.outline.existingItem(world.layers[1]))
+        let member = try #require(world.outline.existingItem(world.members[0]))
+        let session = NSDraggingSession()
+        #expect(world.outline.dropTarget(item: textItem, index: -1) == nil, "no drag yet")
+        world.outline.outlineView(world.view, draggingSession: session, willBeginAt: .zero, forItems: [rectItem, "not a row" as NSString])
+        #expect(world.outline.dropTarget(item: textItem, index: -1)?.container === artItem)
+        #expect(world.outline.dropTarget(item: member, index: -1)?.index == 1, "beside a member, in its group")
+        world.view.collapseItem(world.outline.existingItem(world.group))
+        #expect(world.outline.dropTarget(item: member, index: -1) == nil, "a row no longer shown takes nothing")
+        world.outline.outlineView(world.view, draggingSession: session, endedAt: .zero, operation: [])
+        #expect(world.outline.dropTarget(item: textItem, index: -1) == nil)
+        #expect(!world.outline.drop(item: textItem, index: -1))
+        // A colour drag reads the modifier keys held now (none in the test host): the fill.
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("wiretuner.test.layerskeys.\(UUID().uuidString)"))
+        let red = RenderColor(red: 1, green: 0, blue: 0)
+        ColorDrag.write(ColorRefPasteboard(ref: ColorResolver.inline(red), color: red, name: ""), to: pasteboard)
+        #expect(world.outline.dropModifiers() == KeyEquivalentResolver.modifiers(NSEvent.modifierFlags))
+        #expect(world.outline.outlineView(world.view, validateDrop: PasteboardDragging(pasteboard, at: .zero), proposedItem: rectItem,
+                                          proposedChildIndex: NSOutlineViewDropOnItemIndex) == .copy)
+        // An empty pasteboard carries no colour.
+        let empty = NSPasteboard(name: NSPasteboard.Name("wiretuner.test.layersempty.\(UUID().uuidString)"))
+        empty.clearContents()
+        #expect(!LayersOutlineController.carriesColor(empty))
+    }
+
+    /// The panel torn down while AppKit still holds its outline, a layer row and a row menu (a
+    /// menu stays open, the outline is still in a window): keys go to the outline's own handling,
+    /// and a flag column or the menu's Rename does nothing.
+    @Test func anOutlineThatOutlivesItsControllerDoesNothing() async throws {
+        let world = await World()
+        defer { world.close() }
+        weak var gone: LayersOutlineController?
+        var view: LayersOutlineView?
+        var menu: NSMenu?
+        var flag: FlagControl?
+        autoreleasepool {
+            let controller = LayersOutlineController()
+            controller.update(world.model, filter: "", marks: [:])
+            if let art = controller.existingItem(world.layers[1]) { controller.outline.expandItem(art) }
+            let row = controller.existingItem(world.rect).map(controller.outline.row(forItem:)) ?? -1
+            menu = controller.outline.contextMenu?(row)
+            flag = (controller.outline.view(atColumn: 0, row: 0, makeIfNecessary: true) as? LayerRowCell)?.lock
+            view = controller.outline
+            controller.detach()
+            gone = controller
+        }
+        #expect(gone == nil)
+        let outline = try #require(view)
+        let right = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil,
+                                     characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: LayersOutlineController.Key.right)!
+        #expect(outline.keyHandler?(right) == false)
+        #expect(outline.contextMenu?(0) == nil)
+        (try #require(menu?.items.first).representedObject as? LayerMenuAction)?.run(nil)
+        #expect(world.state.renamingObject == nil)
+        let lock = try #require(flag)
+        lock.end?(.zero)
+        await world.document.settle()
+        #expect(LayerOrder(world.document.state).layer(world.layers[2])?.locked == false)
     }
 
     /// The outline over the 50,000-rectangle design-point document (D-092, "Performance"): opening

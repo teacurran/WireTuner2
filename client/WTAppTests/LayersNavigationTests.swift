@@ -272,6 +272,131 @@ import WTRender
         #expect(thumbnails.count == 0 && !thumbnails.isBusy)
     }
 
+    /// Arrow keys with nowhere to go leave the rows as they are: kbd:[Right] on an object that
+    /// holds nothing, or on an open layer whose objects were all deleted; kbd:[Left] on a closed
+    /// layer, which sits at the top of the tree.  An unnamed layer is found by typing "Layer".
+    @Test func arrowKeysWithNowhereToGoKeepTheSelection() async throws {
+        let world = await World()
+        defer { world.close() }
+        let art = world.layers[1]
+        world.expand(art)
+        world.view.selectRowIndexes([world.row(world.rect)], byExtendingSelection: false)
+        Self.press(world, Self.right)
+        #expect(Self.selectedNode(world) == world.rect)
+        world.view.selectRowIndexes([world.row(world.layers[2])], byExtendingSelection: false)
+        Self.press(world, Self.left)
+        #expect(Self.selectedNode(world) == world.layers[2])
+        // Art open with every object deleted.
+        _ = await world.document.perform(DeleteNodes([world.text, world.group, world.rect])).value
+        world.view.selectRowIndexes([world.row(art)], byExtendingSelection: false)
+        Self.press(world, Self.right)
+        #expect(Self.selectedNode(world) == art && world.labels == ["Top", "Art", "—", "Background"])
+        let unnamed = try #require(await world.document.perform(CreateLayer(name: "", above: world.layers[2])).value?.createdNodes.first)
+        #expect(world.outline.outlineView(world.view, typeSelectStringFor: nil, item: try #require(world.outline.existingItem(unnamed))) == "Layer")
+    }
+
+    /// The picture cache on its own: with nothing to draw from it draws nothing; it keeps at most
+    /// `capacity` pictures, dropping the oldest first.
+    @Test func thePictureCacheKeepsTheNewestPicturesUpToItsCapacity() async throws {
+        let world = await World()
+        defer { world.close() }
+        let thumbnails = LayersThumbnails()
+        let node = OpID(counter: 1, replica: 77)
+        #expect(thumbnails.image(for: node) == nil && !thumbnails.isBusy && thumbnails.count == 0)
+        let object = try #require(world.document.object(for: SelectionID(world.rect)))
+        let bounds = try #require(object.bounds)
+        thumbnails.source = { _ in (object.item, bounds) }
+        let nodes = (0...LayersThumbnails.capacity).map { OpID(counter: UInt64(1_000 + $0), replica: 77) }
+        for node in nodes { _ = thumbnails.image(for: node) }
+        await Self.settle(thumbnails)
+        #expect(thumbnails.drawn == nodes.count && thumbnails.count == LayersThumbnails.capacity)
+        #expect(!thumbnails.isCurrent(nodes[0]) && thumbnails.isCurrent(nodes[1]) && thumbnails.isCurrent(nodes[nodes.count - 1]))
+        // Asked again, the dropped one is drawn again; the kept ones are not.
+        #expect(thumbnails.image(for: nodes[1]) != nil && thumbnails.image(for: nodes[0]) == nil)
+        await Self.settle(thumbnails)
+        #expect(thumbnails.draws[nodes[0]] == 2 && thumbnails.draws[nodes[1]] == 1 && thumbnails.isCurrent(nodes[0]))
+    }
+
+    /// A picture drawn before its row is laid out (a closed group's member) waits in the cache:
+    /// when the group opens, the row shows it without drawing it again.
+    @Test func aPictureDrawnBeforeItsRowExistsShowsWhenTheRowAppears() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        let thumbnails = world.outline.thumbnails
+        await Self.settle(thumbnails)
+        let member = world.members[0]
+        #expect(world.outline.existingItem(member) == nil)
+        _ = thumbnails.image(for: member)
+        // A picture for a layer (not an object row) goes nowhere either.
+        world.outline.refreshThumbnail(world.layers[1])
+        await Self.settle(thumbnails)
+        #expect(thumbnails.isCurrent(member) && thumbnails.draws[member] == 1)
+        world.expand(world.group)
+        await Self.settle(thumbnails)
+        #expect(world.objectCell(member)?.thumbnail.image != nil && thumbnails.draws[member] == 1)
+    }
+
+    /// *Locate Object* on an object on another page selects that page as it scrolls the canvas
+    /// there; the command run with nothing selected (a stale menu) does nothing.
+    @Test func locatingAnObjectOnAnotherPageSelectsThatPage() async throws {
+        let world = await World()
+        defer { world.close() }
+        _ = await world.document.perform(AddPages(count: 1)).value
+        await world.document.settle()
+        let pages = world.document.pageList.pages
+        try #require(pages.count == 2)
+        let bounds = try #require(world.document.object(for: SelectionID(world.rect))?.bounds)
+        let target = pages[1].bleedRect
+        _ = await world.document.perform(MoveObjects([world.rect], by: Vector(dx: target.midX - bounds.midX, dy: target.midY - bounds.midY))).value
+        await world.document.settle()
+        world.document.selectPage(id: pages[0].id)
+        world.controller.selection.model.set(Selection([SelectionID(world.rect)]))
+        world.controller.canvas.setViewport(Viewport(scrollOrigin: Point(x: pages[0].rect.minX, y: pages[0].rect.minY), zoom: 8, size: Size(width: 400, height: 300)))
+        #expect(LayersLocate.revealOnCanvas(world.controller))
+        #expect(world.document.activePage.id == pages[1].id)
+        // Run with nothing selected: no panel shown, no request.
+        world.controller.selection.model.clear()
+        var shown: [PanelID] = []
+        let command = LayersLocate.command(window: { world.controller }, state: world.state) { shown.append($0) }
+        if case .perform(let run) = command.action { run() }
+        #expect(shown.isEmpty && world.state.locateRequest == 0)
+    }
+
+    /// A launched app wires *Locate Object* to the front window and the Layers panel, the canvas
+    /// half of locating to the front window, and a plain colour dropped on a row to the default
+    /// colour space preference.
+    @Test func aLaunchedAppWiresLocateObjectAndTheDropColourSpace() async throws {
+        let suite = TestDefaults()
+        let delegate = AppDelegate(layoutStore: nil, defaults: suite.defaults)
+        delegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        defer {
+            delegate.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))
+            for id in delegate.documents.documents.map(\.id) { delegate.documents.close(id) }
+            suite.remove()
+        }
+        let window = try #require(delegate.activeDocumentWindow)
+        let state = delegate.layersPanel
+        #expect(state.defaultColorSpace() == .displayP3)
+        #expect(delegate.preferences.set("srgb", for: PreferenceCatalog.Colors.defaultColorSpace))
+        #expect(state.defaultColorSpace() == .sRGB)
+        #expect(delegate.commands.validate(LayersLocate.id)?.isEnabled == false)
+        let created = await window.documentHandle.perform(CreateShape(.rectangle(CornerRadii()), size: Size(width: 20, height: 20),
+                                                                      transform: .translation(x: 10, y: 10))).value
+        let shape = try #require(created?.createdObjects.first)
+        window.selection.model.set(Selection([SelectionID(shape)]))
+        if delegate.layout.isVisible("layers") { delegate.layout.togglePanel("layers") }
+        #expect(!delegate.layout.isVisible("layers"))
+        #expect(delegate.menuTarget?.perform(LayersLocate.id) == true)
+        #expect(state.locateRequest == 1 && delegate.layout.isVisible("layers"))
+        // The canvas half: the object far out of view is scrolled to.
+        window.canvas.setViewport(Viewport(scrollOrigin: Point(x: 50_000, y: 50_000), zoom: 8, size: Size(width: 400, height: 300)))
+        let bounds = try #require(window.documentHandle.object(for: SelectionID(shape))?.bounds)
+        #expect(!window.canvas.viewport.visiblePasteboardBounds.intersects(bounds))
+        state.revealOnCanvas()
+        #expect(window.canvas.viewport.visiblePasteboardBounds.intersects(bounds))
+    }
+
     /// The objects whose pictures were drawn since `draws`.
     static func redrawn(since draws: [OpID: Int], _ thumbnails: LayersThumbnails) -> Set<OpID> {
         Set(thumbnails.draws.filter { draws[$0.key] != $0.value }.keys)

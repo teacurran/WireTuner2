@@ -212,7 +212,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         }
         if filter != self.filter {
             self.filter = filter
-            applyFilter()
+            applyFilter(model)
             return
         }
         refreshLayerRows(marksChanged: marksChanged)
@@ -228,7 +228,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         keyed = nil
         thumbnails.reset()
         filter = model.state.filter
-        reloadAll()
+        reloadAll(model)
     }
 
     /// Stops observing (the panel went away).
@@ -247,8 +247,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         return tree
     }
 
-    func item(_ kind: LayersTreeItem.Kind) -> LayersTreeItem {
-        guard let node = LayersTreeItem(kind).node else { return separator }
+    /// The one item for `node`'s row, as a layer row or an object row.
+    private func item(_ node: OpID, layer: Bool) -> LayersTreeItem {
+        let kind: LayersTreeItem.Kind = layer ? .layer(node) : .object(node)
         if let existing = items[node], existing.kind == kind { return existing }
         let item = LayersTreeItem(kind)
         items[node] = item
@@ -262,10 +263,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     /// The root rows: the layers frontmost first, the separator between the printing and the
     /// background ones.
-    private func rootItems() -> [LayersTreeItem] {
-        guard let model else { return [] }
-        return model.rows.map { row in
-            if let layer = row.layer { return item(.layer(layer.id)) }
+    private func rootItems(_ model: LayersPanelModel) -> [LayersTreeItem] {
+        model.rows.map { row in
+            if let layer = row.layer { return item(layer.id, layer: true) }
             return separator
         }
     }
@@ -285,7 +285,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     }
 
     private func objectItem(_ node: OpID) -> LayersTreeItem {
-        tree.order.layer(node) != nil ? item(.layer(node)) : item(.object(node))
+        item(node, layer: tree.order.layer(node) != nil)
     }
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
@@ -310,11 +310,11 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     // MARK: Updating
 
-    private func reloadAll() {
+    private func reloadAll(_ model: LayersPanelModel) {
         cachedTree = nil
         loaded = [:]
         shown = filter.trimmingCharacters(in: .whitespaces).isEmpty ? nil : tree.matching(filter)
-        root = rootItems()
+        root = rootItems(model)
         fullReloads += 1
         outline.reloadData()
         if shown != nil { outline.expandItem(nil, expandChildren: true) }
@@ -324,9 +324,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     /// The containers that were open when the search began, restored when it is cleared.
     private var expandedBeforeSearch: Set<OpID>?
 
-    private func applyFilter() {
+    private func applyFilter(_ model: LayersPanelModel) {
         if shown == nil { expandedBeforeSearch = expandedNodes() }
-        reloadAll()
+        reloadAll(model)
         if shown == nil, let expanded = expandedBeforeSearch {
             // The outline keeps the search's open rows across a reload (the items are the same
             // objects): close them, then reopen what was open before.
@@ -387,14 +387,15 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         let (nodes, placed) = Self.touched(change)
         if change.change == nil, change.summary.isStructural, nodes.isEmpty || nodes.count > Self.reloadThreshold {
             let expanded = expandedNodes()
-            reloadAll()
+            reloadAll(model)
             restore(expanded)
             return
         }
         guard !nodes.isEmpty else { return }
-        let previousParents = Dictionary(placed.compactMap { node in
+        // (`placed` is a set: each node once.)
+        let previousParents = Dictionary(uniqueKeysWithValues: placed.compactMap { node in
             items[node].map { (node, (outline.parent(forItem: $0) as? LayersTreeItem)?.node) }
-        }, uniquingKeysWith: { first, _ in first })
+        })
         cachedTree = nil
         let state = model.document.state
         let layerChanged = nodes.contains { state.nodeKind($0) == .layer }
@@ -416,8 +417,8 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         outline.beginUpdates()
         // The root first, then containers top down, so a container is in the outline when its
         // members are listed.
-        if dirty.contains(nil) { relist(nil) }
-        for container in dirty.compactMap({ $0 }).sorted(by: { depth($0) < depth($1) }) { relist(container) }
+        if dirty.contains(nil) { relist(nil, model) }
+        for container in dirty.compactMap({ $0 }).sorted(by: { depth($0) < depth($1) }) { relist(container, model) }
         outline.endUpdates()
         for node in nodes {
             guard let item = items[node], outline.row(forItem: item) >= 0, model.state.renamingObject != node, model.state.renaming != node else { continue }
@@ -470,7 +471,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     /// Brings one container's rows (nil: the root) up to date by inserting and removing the rows
     /// that changed.  A container not open in the outline forgets its rows and redraws its
     /// triangle.
-    private func relist(_ container: OpID?) {
+    private func relist(_ container: OpID?, _ model: LayersPanelModel) {
         let parentItem: LayersTreeItem?
         if let container {
             guard let item = items[container], outline.row(forItem: item) >= 0 else {
@@ -496,27 +497,22 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             after = ids.map(objectItem)
         } else {
             before = root
-            root = rootItems()
+            root = rootItems(model)
             after = root
         }
         guard before != after else { return }
         containerUpdates += 1
-        let difference = after.difference(from: before)
         var reopen: [LayersTreeItem] = []
-        let removals = difference.removals.compactMap { change -> (Int, LayersTreeItem)? in
-            if case .remove(let offset, let element, _) = change { return (offset, element) }
-            return nil
-        }
-        let insertions = difference.insertions.compactMap { change -> Int? in
-            if case .insert(let offset, _, _) = change { return offset }
-            return nil
-        }
-        for (offset, element) in removals.sorted(by: { $0.0 > $1.0 }) {
-            if outline.isItemExpanded(element) { reopen.append(element) }
-            outline.removeItems(at: IndexSet(integer: offset), inParent: parentItem, withAnimation: [])
-        }
-        for offset in insertions.sorted() {
-            outline.insertItems(at: IndexSet(integer: offset), inParent: parentItem, withAnimation: [])
+        // A difference lists its removals from the last offset down, then its insertions from the
+        // first up: the order the outline takes them in.
+        for change in after.difference(from: before) {
+            switch change {
+            case .remove(let offset, let element, _):
+                if outline.isItemExpanded(element) { reopen.append(element) }
+                outline.removeItems(at: IndexSet(integer: offset), inParent: parentItem, withAnimation: [])
+            case .insert(let offset, _, _):
+                outline.insertItems(at: IndexSet(integer: offset), inParent: parentItem, withAnimation: [])
+            }
         }
         for item in reopen where outline.row(forItem: item) >= 0 { outline.expandItem(item) }
     }
@@ -584,7 +580,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     func reveal(_ node: OpID) {
         guard let ancestors = tree.ancestors(of: node) else { return }
         for ancestor in ancestors {
-            if shown != nil, !(shown?.contains(ancestor) ?? false), tree.order.layer(ancestor) == nil { return }
+            if let shown, !shown.contains(ancestor), tree.order.layer(ancestor) == nil { return }
             let item = objectItem(ancestor)
             guard outline.row(forItem: item) >= 0 else { return }
             if !outline.isItemExpanded(item) { outline.expandItem(item) }
@@ -593,16 +589,20 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     // MARK: Clicks
 
-    var currentModifiers: () -> KeyModifiers = { KeyEquivalentResolver.modifiers(NSApp.currentEvent?.modifierFlags ?? []) }
-
+    /// The outline's action.
     @objc func clicked(_ sender: Any?) {
-        let row = outline.clickedRow
+        click(row: outline.clickedRow, event: NSApp.currentEvent)
+    }
+
+    /// The click `event` on the row `row` (-1: none): one on the row's disclosure triangle only
+    /// opens or closes it; the rest select, with the event's modifier keys.
+    func click(row: Int, event: NSEvent?) {
         guard row >= 0 else { return }
-        if let event = NSApp.currentEvent, event.type == .leftMouseUp || event.type == .leftMouseDown,
+        if let event, event.type == .leftMouseUp || event.type == .leftMouseDown,
            outline.frameOfOutlineCell(atRow: row).contains(outline.convert(event.locationInWindow, from: nil)) {
             return
         }
-        click(row: row, modifiers: currentModifiers())
+        click(row: row, modifiers: KeyEquivalentResolver.modifiers(event?.modifierFlags ?? []))
     }
 
     /// A click on the row `row`: a layer row as the panel always did; an object row selects the
@@ -629,13 +629,12 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         }
     }
 
+    /// The outline's double action.
     @objc func doubleClicked(_ sender: Any?) {
-        let row = outline.clickedRow
-        guard row >= 0 else { return }
-        beginRename(row: row)
+        beginRename(row: outline.clickedRow)
     }
 
-    /// Double-click: rename the layer or object in its row.
+    /// Double-click: rename the layer or object in its row (-1: none).
     func beginRename(row: Int) {
         guard let model, let item = outline.item(atRow: row) as? LayersTreeItem else { return }
         switch item.kind {
@@ -772,7 +771,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         if let shown, !shown.contains(node) {
             model.state.filter = ""
             filter = ""
-            applyFilter()
+            applyFilter(model)
         }
         reveal(node)
         guard let item = items[node] else { return false }
@@ -948,10 +947,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             if tree.accepts(node) {
                 at = 0
             } else {
-                guard let parentItem = outline.parent(forItem: item) as? LayersTreeItem, let parent = parentItem.node else { return nil }
+                guard let parentItem = outline.parent(forItem: item) as? LayersTreeItem else { return nil }
                 container = parentItem
                 at = max(outline.childIndex(forItem: item), 0)
-                _ = parent
             }
         }
         guard let target = container.node, tree.accepts(target) else { return nil }
@@ -1241,7 +1239,6 @@ final class ObjectRowCell: NSTableCellView {
         showThumbnail(controller.thumbnails.image(for: node))
         let row = LayersPanelModel.ObjectRow(node, tree: tree, hidden: model.document.locallyHidden)
         icon.image = NSImage(systemSymbolName: row.symbol, accessibilityDescription: row.kindTitle)
-            ?? NSImage(systemSymbolName: "square", accessibilityDescription: row.kindTitle)
         if model.state.renamingObject != node {
             name.stringValue = row.label
             name.isEditable = false
