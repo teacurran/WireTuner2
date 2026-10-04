@@ -138,6 +138,18 @@ struct FreeHandImportTests {
         #expect(Self.path(children[1])?.fill == .solid(Color(red: 0, green: 0, blue: 1)))
     }
 
+    @Test("Composite paths nested past the depth limit stop there, keeping the contours above it")
+    func compositePathsNestedTooDeep() throws {
+        var f = Fixture()
+        let style = f.propList(fill: f.basicFill(f.rgb(0, 0, 1)))
+        var nested = f.composite([f.rect(6, 6, 1, 1)])
+        for _ in 0..<(FreeHandConverter.maximumDepth + 4) { nested = f.composite([nested]) }
+        f.layer([f.composite([f.rect(1, 1, 4, 4, style: style), nested])])
+        let children = Self.children(try f.convert())
+        #expect(children.count == 1)
+        #expect(Self.path(children[0])?.contours.count == 1, "the contour beyond the limit is left out")
+    }
+
     // MARK: Groups and clipping
 
     @Test("Groups carry their transform to their children; empty groups vanish")

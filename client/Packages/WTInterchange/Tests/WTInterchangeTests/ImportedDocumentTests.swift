@@ -20,6 +20,19 @@ import WTRender
         return fixture.document([first, second])
     }
 
+    /// The swatches opening a file writes: every named colour its pages use, on loose artwork and
+    /// on named layers alike, once each, in first-use order.
+    @Test func swatchesComeFromLooseArtworkAndLayersOnce() {
+        let box = [ImportedContour(start: .zero, segments: [.line(to: Point(x: 10, y: 0)), .line(to: Point(x: 10, y: 10))], closed: true)]
+        let ink = ImportedSwatch(name: "Ink", color: Color(red: 0.1, green: 0.1, blue: 0.4))
+        let leaf = ImportedSwatch(name: "Leaf", color: Color(red: 0.2, green: 0.6, blue: 0.2))
+        func painted(_ swatch: ImportedSwatch) -> ImportedNode { .path(ImportedPath(contours: box, fill: .swatch(swatch))) }
+        let first = ImportedPage(size: Size(width: 100, height: 100), nodes: [painted(ink)],
+                                 layers: [ImportedLayer(name: "Back", nodes: [painted(leaf)]), ImportedLayer(name: "Front", nodes: [painted(ink)])])
+        let second = ImportedPage(size: Size(width: 100, height: 100), nodes: [], layers: [ImportedLayer(name: "Only", nodes: [painted(leaf)])])
+        #expect(ImportedDocument(format: .freehand, name: "Swatches", pages: [first, second]).swatches == [ink, leaf])
+    }
+
     @Test func theVectorFormatsOpenAsDocumentsAndBitmapsDoNot() {
         let registry = ImportRegistry.standard
         #expect(registry.documentFormats == [.pdf, .illustrator, .svg, .dxf, .eps, .freehand])

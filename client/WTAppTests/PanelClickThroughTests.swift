@@ -110,6 +110,40 @@ import WTRender
             while let event = NSApp.nextEvent(matching: Self.mouseMask, until: .distantPast, inMode: .default, dequeue: true) { target.sendEvent(event) }
         }
 
+        /// The trackpad gestures, by the IOHID event type a Quartz gesture event carries.
+        enum Gesture: Int64, CaseIterable {
+            case rotate = 5, magnify = 8, swipe = 16, smartMagnify = 22, pressure = 32
+        }
+
+        /// A trackpad gesture at window point `point`, as the trackpad sends it: a Quartz gesture
+        /// event (type 29) with its IOHID type (field 110), its magnification, rotation or swipe
+        /// (fields 113 and 114; a swipe's in 115, which AppKit needs to deliver one and which zeroes a
+        /// magnification) and its phase (field 132, a `CGScrollPhase`: 1 began, 2 changed,
+        /// 4 ended).  Like a scroll it has no window: its location is the point in the window it
+        /// is sent to.
+        func gesture(_ kind: Gesture, _ point: NSPoint, value: Double = 0, phase: Int64 = 0) -> NSEvent {
+            let event = CGEvent(source: nil)!
+            event.type = CGEventType(rawValue: 29)!
+            event.location = CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.height ?? 0) - point.y)
+            event.setIntegerValueField(CGEventField(rawValue: 110)!, value: kind.rawValue)
+            event.setDoubleValueField(CGEventField(rawValue: 113)!, value: value)
+            event.setDoubleValueField(CGEventField(rawValue: 114)!, value: value)
+            if kind == .swipe { event.setDoubleValueField(CGEventField(rawValue: 115)!, value: value) }
+            event.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
+            return NSEvent(cgEvent: event)!
+        }
+
+        /// A window point where `view` itself, not one of its controls, is hit.
+        func bare(_ view: NSView) -> NSPoint? {
+            for y in stride(from: view.bounds.minY + 2, to: view.bounds.maxY - 1, by: 3) {
+                for x in stride(from: view.bounds.maxX - 2, to: view.bounds.minX + 1, by: -3) {
+                    let point = view.convert(NSPoint(x: x, y: y), to: nil)
+                    if hit(point) === view { return point }
+                }
+            }
+            return nil
+        }
+
         func click(_ point: NSPoint, in target: NSWindow? = nil) {
             deliver([mouse(.leftMouseDown, point, in: target), mouse(.leftMouseUp, point, in: target)], to: target)
         }
@@ -286,6 +320,97 @@ import WTRender
             #expect(!world.canvasHeard, "an event on the floating Tools panel's \(name) reached the canvas: \(world.heard)")
             world.reset()
         }
+    }
+
+    /// Right and middle drags and every trackpad gesture, sent through the window over the status
+    /// bar and a dock handle where nothing inside them takes the event: the barrier ends each one,
+    /// and the canvas beneath hears none.  (A left press in this window, which is never key in
+    /// the test host, is a first click AppKit keeps for itself, and AppKit dispatches pressure
+    /// only during a real Force Touch press: those two are checked on the responder chain below.)
+    @Test func dragsAndTrackpadGesturesOnThePanelsEndAtTheirBarrier() throws {
+        let world = World()
+        defer { world.close() }
+        let canvas = world.controller.canvas
+        let barriers: [(String, PanelEventBarrierView)] = [("status bar", world.controller.statusBar), ("dock handle", world.controller.rightHandle)]
+        for (name, barrier) in barriers {
+            let point = try #require(world.bare(barrier), "a point on the \(name) where none of its controls is")
+            let viewport = canvas.viewport
+            /// Sends `events` as AppKit delivers them and expects the barrier to stop every one.
+            func expectStopped(_ what: String, _ events: [NSEvent]) {
+                let before = barrier.stoppedEvents
+                world.deliver(events.filter(Self.isMouse))
+                for event in events where !Self.isMouse(event) { world.window.sendEvent(event) }
+                #expect(barrier.stoppedEvents - before == events.count, "the \(name) stopped \(barrier.stoppedEvents - before) of the \(events.count) events of a \(what)")
+            }
+            let away = NSPoint(x: point.x - 300, y: point.y)
+            expectStopped("right drag", [world.mouse(.rightMouseDown, point), world.mouse(.rightMouseDragged, away), world.mouse(.rightMouseUp, away)])
+            expectStopped("middle drag", [world.mouse(.otherMouseDown, point), world.mouse(.otherMouseDragged, away), world.mouse(.otherMouseUp, away)])
+            expectStopped("pinch", [world.gesture(.magnify, point, value: 0.5, phase: 1), world.gesture(.magnify, point, value: 0.5, phase: 2),
+                                    world.gesture(.magnify, point, phase: 4)])
+            expectStopped("two-finger rotation", [world.gesture(.rotate, point, value: 30, phase: 1), world.gesture(.rotate, point, value: 30, phase: 2),
+                                                  world.gesture(.rotate, point, phase: 4)])
+            expectStopped("smart zoom", [world.gesture(.smartMagnify, point)])
+            expectStopped("swipe", [world.gesture(.swipe, point, value: 1)])
+            #expect(!world.canvasHeard && canvas.viewport == viewport, "the canvas under the \(name) heard: \(world.heard)")
+            world.reset()
+        }
+    }
+
+    /// What NSView does with an event it does not handle -- pass it to its next responder, on up
+    /// to the window -- a barrier does not: every mouse, scroll and gesture event ends at it.
+    @Test func aBarrierPassesNoEventOnUpTheResponderChain() {
+        let world = World()
+        defer { world.close() }
+        @MainActor final class Spy: NSResponder {
+            var heard: [NSEvent.EventType] = []
+            override func mouseDown(with event: NSEvent) { heard.append(event.type) }
+            override func mouseDragged(with event: NSEvent) { heard.append(event.type) }
+            override func mouseUp(with event: NSEvent) { heard.append(event.type) }
+            override func rightMouseDown(with event: NSEvent) { heard.append(event.type) }
+            override func rightMouseDragged(with event: NSEvent) { heard.append(event.type) }
+            override func rightMouseUp(with event: NSEvent) { heard.append(event.type) }
+            override func otherMouseDown(with event: NSEvent) { heard.append(event.type) }
+            override func otherMouseDragged(with event: NSEvent) { heard.append(event.type) }
+            override func otherMouseUp(with event: NSEvent) { heard.append(event.type) }
+            override func scrollWheel(with event: NSEvent) { heard.append(event.type) }
+            override func magnify(with event: NSEvent) { heard.append(event.type) }
+            override func rotate(with event: NSEvent) { heard.append(event.type) }
+            override func smartMagnify(with event: NSEvent) { heard.append(event.type) }
+            override func swipe(with event: NSEvent) { heard.append(event.type) }
+            override func pressureChange(with event: NSEvent) { heard.append(event.type) }
+        }
+        let point = NSPoint(x: 20, y: 20)
+        let sends: [(NSResponder) -> Void] = [
+            { $0.mouseDown(with: world.mouse(.leftMouseDown, point)) }, { $0.mouseDragged(with: world.mouse(.leftMouseDragged, point)) },
+            { $0.mouseUp(with: world.mouse(.leftMouseUp, point)) }, { $0.rightMouseDown(with: world.mouse(.rightMouseDown, point)) },
+            { $0.rightMouseDragged(with: world.mouse(.rightMouseDragged, point)) }, { $0.rightMouseUp(with: world.mouse(.rightMouseUp, point)) },
+            { $0.otherMouseDown(with: world.mouse(.otherMouseDown, point)) }, { $0.otherMouseDragged(with: world.mouse(.otherMouseDragged, point)) },
+            { $0.otherMouseUp(with: world.mouse(.otherMouseUp, point)) }, { $0.scrollWheel(with: world.scroll(point)) },
+            { $0.magnify(with: world.gesture(.magnify, point, value: 0.5, phase: 1)) }, { $0.rotate(with: world.gesture(.rotate, point, value: 30, phase: 1)) },
+            { $0.smartMagnify(with: world.gesture(.smartMagnify, point)) }, { $0.swipe(with: world.gesture(.swipe, point, value: 1)) },
+            { $0.pressureChange(with: world.gesture(.pressure, point)) },
+        ]
+        // A plain view passes every one on.
+        let plain = NSView()
+        let passed = Spy()
+        plain.nextResponder = passed
+        for send in sends { send(plain) }
+        #expect(passed.heard.count == sends.count, "NSView passed on \(passed.heard)")
+        // A barrier -- a bare one and the status bar in its window -- keeps every one.
+        for barrier in [PanelEventBarrierView(), world.controller.statusBar] {
+            let next = barrier.nextResponder
+            let spy = Spy()
+            barrier.nextResponder = spy
+            let before = barrier.stoppedEvents
+            for send in sends { send(barrier) }
+            barrier.nextResponder = next
+            #expect(spy.heard.isEmpty && barrier.stoppedEvents - before == sends.count, "passed on \(spy.heard)")
+        }
+        #expect(!world.canvasHeard, "\(world.heard)")
+    }
+
+    static func isMouse(_ event: NSEvent) -> Bool {
+        World.mouseMask.contains(NSEvent.EventTypeMask(rawValue: 1 << event.type.rawValue))
     }
 
     @Test func overTheCanvasTheSameEventsDoReachIt() throws {

@@ -69,13 +69,35 @@ import WTRender
         }
 
         func objectCell(_ node: OpID) -> ObjectRowCell? {
-            view.view(atColumn: 0, row: row(node), makeIfNecessary: true) as? ObjectRowCell
+            let row = row(node)
+            return row >= 0 ? view.view(atColumn: 0, row: row, makeIfNecessary: true) as? ObjectRowCell : nil
         }
 
         func close() {
             window.close()
             outline.detach()
             controller.close()
+        }
+
+        /// The window point at the middle of row `row`.
+        func point(row: Int) -> NSPoint {
+            let rect = view.rect(ofRow: row)
+            return view.convert(NSPoint(x: rect.midX, y: rect.midY), to: nil)
+        }
+
+        /// A window point in the outline's empty space below its rows.
+        var belowTheRows: NSPoint {
+            view.convert(NSPoint(x: 40, y: view.rect(ofRow: view.numberOfRows - 1).maxY + 40), to: nil)
+        }
+
+        func event(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
+            NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                               windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+        }
+
+        func layerCell(_ layer: OpID) -> LayerRowCell? {
+            let row = row(layer)
+            return row >= 0 ? view.view(atColumn: 0, row: row, makeIfNecessary: true) as? LayerRowCell : nil
         }
     }
 
@@ -342,6 +364,277 @@ import WTRender
         defer { other.close() }
         world.outline.update(other.model, filter: "", marks: [:])
         #expect(world.outline.model?.document === other.document && world.labels == ["Top", "Art", "—", "Background"])
+    }
+
+    /// A right-click, as AppKit asks the outline for its menu: a row's menu over a row, none in
+    /// the empty space below the rows.  A Shift-click from an object on one layer to one on
+    /// another adds the object rows between, never the layer row between them.
+    @Test func rightClicksAskForTheRowsMenuAndShiftClicksSpanLayers() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        #expect(world.view.menu(for: world.event(.rightMouseDown, world.point(row: world.row(world.rect))))?.items.first?.title == "Rename…")
+        #expect(world.view.menu(for: world.event(.rightMouseDown, world.belowTheRows)) == nil)
+        let selection = world.controller.selection.model
+        let ellipse = try #require(await world.document.perform(CreateShape(.ellipse, size: Size(width: 5, height: 5), layer: world.layers[2])).value?.createdObjects.first)
+        world.expand(world.layers[2])
+        world.outline.click(row: world.row(ellipse), modifiers: [])
+        world.outline.click(row: world.row(world.text), modifiers: .shift)
+        #expect(Set(selection.ids) == [SelectionID(ellipse), SelectionID(world.text)])
+        // The double-click of the separator renames nothing.
+        world.outline.beginRename(row: world.labels.firstIndex(of: "—")!)
+        #expect(world.state.renamingObject == nil && world.state.renaming == nil)
+    }
+
+    /// A drag through a flag column, sent as real mouse events: the first row's new value goes to
+    /// every layer row crossed -- ending on an object row counts its layer, ending above the list
+    /// the top layer, ending in the space below it the bottom layer.
+    @Test func dragsThroughAFlagColumnSetEveryLayerCrossed() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.window.orderFront(nil)
+        world.expand(world.layers[1])
+        func drag(_ flag: FlagControl, to end: NSPoint) async {
+            let start = flag.convert(NSPoint(x: flag.bounds.midX, y: flag.bounds.midY), to: nil)
+            world.window.postEvent(world.event(.leftMouseDragged, NSPoint(x: start.x, y: (start.y + end.y) / 2)), atStart: false)
+            world.window.postEvent(world.event(.leftMouseUp, end), atStart: false)
+            flag.mouseDown(with: world.event(.leftMouseDown, start))
+            await world.document.settle()
+        }
+        let order = { LayerOrder(world.document.state) }
+        let (background, art, top) = (world.layers[0], world.layers[1], world.layers[2])
+        // Art's Preview circle into the space below the rows: Art and Background turn Keyline.
+        await drag(try #require(world.layerCell(art)).keyline, to: world.belowTheRows)
+        #expect(order().layer(art)?.keyline == true && order().layer(background)?.keyline == true && order().layer(top)?.keyline == false)
+        #expect(world.layerCell(art)?.keyline.image?.accessibilityDescription == "Keyline")
+        // Background's check mark up past the top of the list: every layer hides.
+        await drag(try #require(world.layerCell(background)).visible, to: world.view.convert(NSPoint(x: 20, y: -30), to: nil))
+        #expect(order().layers.allSatisfy { !$0.visible })
+        // Top's padlock down onto an object row of Art: Top and Art lock.
+        await drag(try #require(world.layerCell(top)).lock, to: world.point(row: world.row(world.rect)))
+        #expect(order().layer(top)?.locked == true && order().layer(art)?.locked == true && order().layer(background)?.locked == false)
+    }
+
+    /// A search opens what it shows; a selected object the search leaves out stays shut away; and
+    /// clearing the search reopens the rows that were open before it.
+    @Test func clearingASearchReopensWhatWasOpen() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        world.expand(world.group)
+        _ = await world.document.perform(SetNameOrNote([world.rect], .name, "Logo")).value
+        world.outline.update(world.model, filter: "Logo", marks: [:])
+        #expect(world.labels == ["Top", "Art", "  Logo", "—", "Background"])
+        world.controller.selection.model.set(Selection([SelectionID(world.members[0])]))
+        #expect(world.row(world.members[0]) < 0 && world.view.selectedRowIndexes.isEmpty, "a group the search hides is not opened")
+        world.controller.selection.model.clear()
+        world.outline.update(world.model, filter: "", marks: [:])
+        let group = try #require(world.outline.existingItem(world.group))
+        #expect(world.view.isItemExpanded(world.outline.existingItem(world.layers[1])) && world.view.isItemExpanded(group))
+        #expect(!world.view.isItemExpanded(world.outline.existingItem(world.layers[2])))
+    }
+
+    /// The outline's drop target as AppKit asks it: a drop proposed on an object lands beside it
+    /// (the outline is retargeted), one inside an object that holds nothing or a locked group is
+    /// refused, and an accepted drop makes its one change and ends the drag.  Layer and separator
+    /// rows write their keys.
+    @Test func dropsAreValidatedAndAcceptedThroughTheDataSource() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        world.expand(world.group)
+        let info = DraggingInfoStub(pasteboardName: "layers", panel: nil, location: .zero)
+        let rectItem = try #require(world.outline.existingItem(world.rect))
+        let groupItem = try #require(world.outline.existingItem(world.group))
+        let textItem = try #require(world.outline.existingItem(world.text))
+        let artItem = try #require(world.outline.existingItem(world.layers[1]))
+        let separator = try #require(world.view.item(atRow: world.labels.firstIndex(of: "—")!))
+        func key(_ item: Any) -> String? {
+            (world.outline.outlineView(world.view, pasteboardWriterForItem: item) as? NSPasteboardItem)?.string(forType: LayersOutlineController.rowType)
+        }
+        #expect(key(artItem) == "layer:\(world.layers[1])" && key(separator) == LayersPanelModel.Row.separatorID && key(rectItem) == "object:\(world.rect)")
+        world.outline.beginDrag([rectItem])
+        #expect(world.outline.outlineView(world.view, validateDrop: info, proposedItem: textItem, proposedChildIndex: -1) == .move)
+        #expect(world.outline.dropTarget(item: textItem, index: -1)?.container === artItem)
+        #expect(world.outline.outlineView(world.view, validateDrop: info, proposedItem: groupItem, proposedChildIndex: 1) == .move)
+        #expect(world.outline.outlineView(world.view, validateDrop: info, proposedItem: textItem, proposedChildIndex: 0) == [], "a text block holds no rows")
+        _ = await world.document.perform(SetLocked([world.group], locked: true)).value
+        #expect(world.outline.dropTarget(item: groupItem, index: 0) == nil && !world.outline.drop(item: groupItem, index: 0), "a locked group takes nothing")
+        _ = await world.document.perform(SetLocked([world.group], locked: false)).value
+        #expect(world.outline.outlineView(world.view, acceptDrop: info, item: groupItem, childIndex: 0))
+        await world.document.settle()
+        #expect(world.model.tree.children(of: world.group).first == world.rect)
+        #expect(world.outline.dropTarget(item: groupItem, index: 0) == nil, "the drag is over")
+        // A layer dragged and removed by a collaborator before the drop: nothing moves.
+        let top = try #require(world.outline.existingItem(world.layers[2]))
+        world.outline.beginDrag([top])
+        _ = await world.document.perform(RemoveLayers([world.layers[2]])).value
+        #expect(!world.outline.drop(item: nil, index: 0))
+    }
+
+    /// The data source answers for a container AppKit asks about before counting it, the
+    /// same rows it would count.
+    @Test func childrenAreListedEvenBeforeTheyAreCounted() async throws {
+        let world = await World()
+        defer { world.close() }
+        let fresh = LayersOutlineController()
+        defer { fresh.detach() }
+        fresh.update(world.model, filter: "", marks: [:])
+        let art = LayersTreeItem(.layer(world.layers[1]))
+        let first = try #require(fresh.outlineView(fresh.outline, child: 0, ofItem: art) as? LayersTreeItem)
+        #expect(first.node == world.text && fresh.outlineView(fresh.outline, numberOfChildrenOfItem: art) == 3)
+    }
+
+    /// Renames at the edges: the Guides layer is not renamed; kbd:[Esc] on an unnamed layer shows
+    /// "Layer" again; a row menu that outlived its object renames nothing.  With a Guides layer, a
+    /// drop between ordinary layers restacks.
+    @Test func renamesAndDropsAtTheEdges() async throws {
+        let world = await World()
+        defer { world.close() }
+        let guides = try #require(await world.document.perform(OpsCommand("Guides", ops: [{
+            var props = Wiretuner_Doc_V1_NodeProps()
+            props.layer.common.name = "Guides"
+            props.layer.role = .guides
+            props.layer.visible = true
+            props.layer.printing = true
+            return Ops.create(parent: WellKnown.layers, position: [0xF0], props: props)
+        }()])).value?.createdNodes.first)
+        world.outline.beginRename(row: world.row(guides))
+        #expect(world.state.renaming == nil)
+        let unnamed = try #require(await world.document.perform(CreateLayer(name: "", above: world.layers[2])).value?.createdNodes.first)
+        world.outline.beginRename(row: world.row(unnamed))
+        let cell = try #require(world.layerCell(unnamed))
+        #expect(world.state.renaming == unnamed && cell.name.stringValue == "")
+        #expect(world.outline.control(cell.name, textView: NSTextView(), doCommandBy: #selector(NSResponder.cancelOperation(_:))))
+        #expect(cell.name.stringValue == "Layer" && world.state.renaming == nil)
+        world.expand(world.layers[1])
+        let menu = try #require(world.view.contextMenu?(world.row(world.text)))
+        _ = await world.document.perform(DeleteNodes([world.text])).value
+        (menu.items[0].representedObject as? LayerMenuAction)?.run(nil)
+        #expect(world.state.renamingObject == nil)
+        _ = await world.model.dropObjects([world.rect], into: world.layers[2], at: 0)?.value
+        #expect(world.model.tree.children(of: world.layers[2]) == [world.rect])
+    }
+
+    /// Each kind of object has its own icon in its row (a hose set, which the panel does not know,
+    /// is an "Object" with a square), and the row menus offer the opposite of each row's state.
+    @Test func everyKindHasItsIconAndMenusOfferTheOppositeState() async throws {
+        let world = await World()
+        defer { world.close() }
+        let art = world.layers[1]
+        func make(_ fill: (inout Wiretuner_Doc_V1_NodeProps) -> Void) async throws -> OpID {
+            var props = Wiretuner_Doc_V1_NodeProps()
+            fill(&props)
+            return try #require(await world.document.perform(OpsCommand("Kind", ops: [Ops.create(parent: art, position: [0x90], props: props)])).value?.createdNodes.first)
+        }
+        let expected: [(String, (inout Wiretuner_Doc_V1_NodeProps) -> Void)] = [
+            ("pentagon", { $0.polygon = .init() }), ("chart.bar", { $0.chart = .init() }),
+            ("point.3.connected.trianglepath.dotted", { $0.connector = .init() }), ("circle.lefthalf.filled", { $0.blend = .init() }),
+            ("cube", { $0.extrude = .init() }), ("square.grid.3x3", { $0.envelope = .init() }), ("perspective", { $0.perspective = .init() }),
+            ("seal", { $0.instance = .init() }), ("photo", { $0.image = .init() }), ("doc.richtext", { $0.placedFile = .init() }),
+            ("play.rectangle", { $0.svgAnimation = .init() }), ("barcode", { $0.barcode = .init() }), ("square", { $0.hoseSet = .init() }),
+        ]
+        var nodes: [(String, OpID)] = []
+        for (symbol, fill) in expected { nodes.append((symbol, try await make(fill))) }
+        let compound = try #require(await world.document.perform(CreatePath(contours: [
+            NewContour(closed: true, points: [VectorPoint(anchor: Point(x: 0, y: 0)), VectorPoint(anchor: Point(x: 10, y: 0)), VectorPoint(anchor: Point(x: 10, y: 10))]),
+            NewContour(closed: true, points: [VectorPoint(anchor: Point(x: 2, y: 2)), VectorPoint(anchor: Point(x: 8, y: 2)), VectorPoint(anchor: Point(x: 8, y: 8))]),
+        ], layer: art)).value?.createdObjects.first)
+        nodes.append(("square.on.square.dashed", compound))
+        let open = try #require(await world.document.perform(CreatePath(contours: [
+            NewContour(points: [VectorPoint(anchor: Point(x: 0, y: 0)), VectorPoint(anchor: Point(x: 10, y: 5))]),
+        ], layer: art)).value?.createdObjects.first)
+        nodes.append(("scribble", open))
+        // A clip group: the rectangle is its clip path.
+        let clip = try await make {
+            $0.group.kind = .clip
+            $0.group.clipPath.id = world.rect.proto
+        }
+        _ = await world.document.perform(OpsCommand("Clip", ops: [Ops.move(world.rect, parent: clip, position: [0x80]), Ops.move(world.text, parent: clip, position: [0x40])])).value
+        nodes += [("rectangle.dashed", clip), ("scissors", world.rect)]
+        await world.document.settle()
+        let tree = world.model.tree
+        for (symbol, node) in nodes {
+            #expect(LayersPanelModel.ObjectRow(node, tree: tree, hidden: []).symbol == symbol, "\(tree.state.nodeKind(node).map { "\($0)" } ?? "unknown")")
+        }
+        #expect(LayersPanelModel.ObjectRow(nodes.first { $0.0 == "square" }!.1, tree: tree, hidden: []).kindTitle == "Object")
+        // The rows draw them (the outline asks for every row's cell).
+        world.expand(art)
+        world.expand(clip)
+        // (A hose set is not an object: it has no row.)
+        for (symbol, node) in nodes where symbol != "square" { #expect(world.objectCell(node)?.icon.image != nil, "\(symbol): row \(world.row(node)) of \(world.labels)") }
+        #expect(world.row(nodes.first { $0.0 == "square" }!.1) < 0)
+
+        // A named object hidden on this Mac draws dimmed; showing what is not hidden changes nothing.
+        let polygon = nodes[0].1
+        _ = await world.document.perform(SetNameOrNote([polygon], .name, "Star")).value
+        world.document.hiding.hide([polygon])
+        #expect(world.objectCell(polygon)?.name.textColor == .secondaryLabelColor)
+        let hidden = world.document.locallyHidden
+        world.document.hiding.show([world.members[0]])
+        #expect(world.document.locallyHidden == hidden)
+        // Menus: an unlocked, hidden object offers Lock and Show; a locked, non-printing layer
+        // Unlock and Printing.
+        let objectMenu = try #require(world.view.contextMenu?(world.row(polygon)))
+        #expect(objectMenu.items.map(\.title) == ["Rename…", "Select", "Lock", "Show"])
+        _ = await world.document.perform(SetLayerFlag([world.layers[0]], .locked, true)).value
+        let layerMenu = try #require(world.view.contextMenu?(world.row(world.layers[0])))
+        #expect(layerMenu.items.map(\.title).contains("Unlock") && layerMenu.items.map(\.title).contains("Printing"))
+    }
+
+    /// Edits the outline must follow and edits it must ignore: deleting two rows of an open layer
+    /// at once removes both; editing an unnamed text block's text relabels its row; a change that
+    /// touches no object (a preview ending) reloads nothing.
+    @Test func multiRowDeletesTextEditsAndEmptyChanges() async throws {
+        let world = await World()
+        defer { world.close() }
+        world.expand(world.layers[1])
+        _ = await world.document.perform(DeleteNodes([world.rect, world.group])).value
+        #expect(world.labels == ["Top", "Art", "  Headline", "—", "Background"])
+        let text = try #require(world.document.state.textNode(world.text))
+        _ = await world.document.perform(DeleteText(node: world.text, from: text.anchor(at: 0), to: text.anchor(at: 4))).value
+        await world.document.settle()
+        #expect(world.labels.contains("  line"), "\(world.labels)")
+        _ = await world.document.perform(InsertText(node: world.text, text: "Bylines", at: .start)).value
+        await world.document.settle()
+        #expect(world.labels.contains("  Bylinesline"), "\(world.labels)")
+        let counts = (world.outline.fullReloads, world.outline.containerUpdates, world.outline.rowReloads)
+        world.document.preview(nil)
+        #expect(world.outline.fullReloads == counts.0 && world.outline.containerUpdates == counts.1 && world.outline.rowReloads == counts.2)
+    }
+
+    /// The outline before the panel binds it to a document: nothing is listed, and clicks,
+    /// renames, menus, edits and the selection do nothing.  Cells not yet given a row ignore
+    /// their controls.
+    @Test func anUnboundOutlineAndUnboundCellsDoNothing() {
+        let outline = LayersOutlineController()
+        let node = OpID(counter: 1, replica: 1)
+        #expect(outline.childIDs(of: node).isEmpty)
+        #expect(outline.outlineView(outline.outline, numberOfChildrenOfItem: nil) == 0)
+        outline.click(row: 0, modifiers: [])
+        outline.beginRename(row: 0)
+        outline.syncSelection(reveal: true)
+        #expect(outline.outline.contextMenu?(0) == nil)
+        #expect(outline.layerIndex(at: .zero) == nil)
+        #expect(outline.outlineView(outline.outline, viewFor: nil, item: LayersTreeItem(.object(node))) == nil)
+        outline.controlTextDidEndEditing(Notification(name: NSControl.textDidEndEditingNotification, object: NSTextField()))
+        outline.documentDidChange(ContentChange(summary: ChangeSummary(origin: .local, isStructural: true), before: DisplayList(canvas: "c", items: []),
+                                                after: DisplayList(canvas: "c", items: []), change: nil))
+        #expect(outline.fullReloads == 0)
+        // What AppKit may hand the data source and delegate that is not one of the outline's rows.
+        let foreign = "not a row" as NSString
+        #expect(outline.outlineView(outline.outline, pasteboardWriterForItem: foreign) == nil)
+        #expect(!outline.outlineView(outline.outline, shouldSelectItem: foreign))
+        #expect(outline.outlineView(outline.outline, numberOfChildrenOfItem: LayersTreeItem(.separator)) == 0)
+        let layerCell = LayerRowCell()
+        layerCell.colorChanged(layerCell.swatch)
+        layerCell.beginEditing(outline)
+        #expect(layerCell.name.stringValue == "" && layerCell.name.isEditable)
+        let objectCell = ObjectRowCell()
+        objectCell.eye.performClick(nil)
+        objectCell.lock.performClick(nil)
+        objectCell.beginEditing(outline)
+        #expect(!objectCell.name.isEditable)
     }
 
     /// The outline over the 50,000-rectangle design-point document (D-092, "Performance"): opening

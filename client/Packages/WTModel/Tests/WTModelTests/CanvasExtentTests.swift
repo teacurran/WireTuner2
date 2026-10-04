@@ -88,4 +88,14 @@ import WTRender
         #expect(CanvasExtent.minimumZoom(for: .null, in: Size(width: 800, height: 600), range: range) == 0.06)
         #expect(CanvasExtent.minimumZoom(for: extent, in: Size(width: 0, height: 600), range: range) == 0.06)
     }
+
+    /// A ratio that is not a number (an unbounded area, or an extent too thin to divide by) never
+    /// becomes the zoom floor: the range's bottom is.
+    @Test func anUnmeasurableFitFallsBackToTheRangeBottom() {
+        let range = 0.06...256.0
+        let unbounded = Size(width: .infinity, height: .infinity)
+        #expect(CanvasExtent.minimumZoom(for: Rect(x: 0, y: 0, width: 2000, height: 1000), in: unbounded, range: range) == 0.06)
+        let sliver = Rect(x: 0, y: 0, width: 1e-320, height: 1e-320)
+        #expect(CanvasExtent.minimumZoom(for: sliver, in: Size(width: 800, height: 600), range: range) == 0.06)
+    }
 }

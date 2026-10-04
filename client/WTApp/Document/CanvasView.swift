@@ -588,10 +588,11 @@ final class CanvasView: NSView, CanvasHost {
     func owns(_ event: NSEvent) -> Bool {
         guard let window else { return true }
         if let other = event.window, other !== window { return false }
-        guard let frame = window.contentView?.superview ?? window.contentView else { return true }
-        // `hitTest` takes a point in the superview's space; the frame view's is the window's.
-        let point = frame.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
-        var view = frame.hitTest(point)
+        // The root of the canvas's view tree is the window's frame view, which has no superview,
+        // so its `hitTest` takes the event's window point as it is.
+        var frame: NSView = self
+        while let parent = frame.superview { frame = parent }
+        var view = frame.hitTest(event.locationInWindow)
         while let current = view {
             if current is PanelEventBarrierView { return false }
             view = current.superview
@@ -937,7 +938,9 @@ final class CanvasView: NSView, CanvasHost {
     /// While a press is in progress, every mouse-up the app dispatches is heard: one that does
     /// not reach the canvas releases the press (`mouseUpWasDispatched`).
     private func watchForRelease() {
-        guard releaseMonitor == nil else { return }
+        // One monitor at a time: a press that ended without the canvas (its tool finished the
+        // drag) may have left one.
+        stopWatchingForRelease()
         releaseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseUp]) { [weak self] event in
             self?.heardMouseUp()
             return event
