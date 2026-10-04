@@ -74,7 +74,7 @@ struct LayersList: View {
                 .accessibilityIdentifier("layers.search")
             // `revision` and the panel's selection are read so the layer rows' pen icon and
             // highlight follow; the outline itself follows the document and the canvas selection.
-            let _ = (model.state.revision, model.state.selected, model.state.renaming)
+            let _ = (model.state.revision, model.state.selected, model.state.renaming, model.state.locateRequest)
             LayersOutline(model: model, filter: model.state.filter, marks: Self.marks(model))
         }
         .sheet(isPresented: Binding(get: { !model.state.pendingRemoval.isEmpty }, set: { if !$0 { model.cancelRemoval() } })) {

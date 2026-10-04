@@ -409,6 +409,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installReachability()
         installPointTypeCommands()
         PanelCatalog.register(into: panels, selection: activeSelection, help: helpModel, layers: layersPanel)
+        installLayersPanelCommands()
         panels.registerIfAbsent(ToolsPanel.descriptor(model: toolPalette))
         installToolbars()
         installExtras()

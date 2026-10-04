@@ -72,7 +72,7 @@ Common items, on every object:
 
 Cut, Copy, Paste, Clear, Duplicate, Clone; Group, Ungroup; Lock / Unlock; Arrange ▸ (Bring to
 Front, Bring Forward, Send Backward, Send to Back); Align ▸; Transform ▸ (Rotate…, Scale…,
-Skew…, Reflect…, Move…); Hide Selection; Add to Library…; Name…; Note…; Link…; Select ▸ (All,
+Skew…, Reflect…, Move…); Hide Selection; Add to Library…; Name…; Note…; Link…; Locate Object; Select ▸ (All,
 None, Invert Selection, Superselect, Subselect All); Object Panel.
 
 === A multiple selection

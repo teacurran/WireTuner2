@@ -1304,8 +1304,10 @@ nested as they are grouped, and lets you name, select, hide, lock and restack th
 Rejected: keeping the SwiftUI `List` and nesting `DisclosureGroup`s (it builds every row's view,
 and it has no drop-into-row); a per-object shared visibility flag (above); auto-naming objects on
 import or drawing (a name the user did not type would hide the default label's information).
-Left for LIB-031: keyboard navigation of the rows, *Locate Object*, row thumbnails and colour
-drops on object rows.
+LIB-031 added keyboard navigation of the rows, *Locate Object* (it shows the selected object's row,
+and scrolls the canvas to the object when it is out of view), row thumbnails drawn off the main thread
+for the rows on screen and redrawn only when an object's drawing changes, and colour drops on object
+rows (xref:layers.adoc#objects[Layers]).
 
 [[D-093]]
 === D-093 The canvas scrolls over its pages with half their size around them, not a fixed 222-inch pasteboard

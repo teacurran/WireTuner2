@@ -103,6 +103,7 @@ enum ContextMenuCatalog {
         static let name: CommandID = "object.name"
         static let note: CommandID = "object.note"
         static let link: CommandID = "object.link"
+        static let locateObject: CommandID = "object.locateObject"
         static let addPage: CommandID = "page.add"
         static let duplicatePage: CommandID = "page.duplicate"
         static let removePage: CommandID = "page.remove"
@@ -245,6 +246,7 @@ enum ContextMenuCatalog {
             stub(ID.name, "Name…", MenuPath(object, section: 1)),
             stub(ID.note, "Note…", MenuPath(object, section: 1)),
             stub(ID.link, "Link…", MenuPath(object, section: 1)),
+            stub(ID.locateObject, "Locate Object", MenuPath(object, section: 1)),
             stub(ID.addPage, "Add Page", MenuPath(object, "Page", section: 2)),
             stub(ID.duplicatePage, "Duplicate Page", MenuPath(object, "Page", section: 2)),
             stub(ID.removePage, "Remove Page", MenuPath(object, "Page", section: 2)),
@@ -336,7 +338,7 @@ enum ContextMenuCatalog {
             + commands(ID.group, ID.ungroup) + [.separator]
             + commands(ID.lock, ID.unlock) + [.separator]
             + [arrangeSubmenu] + (multiple ? [combineSubmenu] : []) + [alignSubmenu, transformSubmenu] + [.separator]
-            + commands(ids.hideSelection, ID.addToLibrary, ID.name, ID.note, ID.link) + [.command(ID.copyLinkToObject, title: "Copy Link"), .separator]
+            + commands(ids.hideSelection, ID.addToLibrary, ID.name, ID.note, ID.link) + [.command(ID.copyLinkToObject, title: "Copy Link"), .command(ID.locateObject), .separator]
             + [selectSubmenu, .command(PanelCommands.ID.show("object"), title: "Object Panel")]
     }
 

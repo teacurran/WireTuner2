@@ -33,8 +33,25 @@ final class LayersPanelState {
     @ObservationIgnored var objectAnchor: OpID?
     /// The object whose name is being edited in its row.
     var renamingObject: OpID?
+    /// Bumped by *Locate Object* (LIB-031): the outline shows the selected object's row.
+    private(set) var locateRequest = 0
+    /// The request the outline last answered (kept here so a panel opened by the command answers
+    /// it once).
+    @ObservationIgnored var locateAnswered = 0
+    /// *Default color space for new colors*, for a plain colour dropped on an object row.
+    @ObservationIgnored var defaultColorSpace: @MainActor () -> RenderColor.Space = { .displayP3 }
+
+    /// Scrolls the front window's canvas to the selected object when it is out of view.
+    @ObservationIgnored var revealOnCanvas: @MainActor () -> Void = {}
 
     init() {}
+
+    /// *Locate Object*: asks the outline to show the selected object's row, and the canvas the
+    /// object.
+    func requestLocate() {
+        locateRequest += 1
+        revealOnCanvas()
+    }
 
     func touch() { revision += 1 }
 }
@@ -535,6 +552,7 @@ extension LayersPanelModel {
             ("Merge Selected Layers", { mergeSelected() }), ("Merge Foreground Layers", { mergeForeground() }),
             ("Move Objects to Current Layer", { moveObjectsToCurrent() }), ("", {}),
             ("All On", { setAll(visible: true) }), ("All Off", { setAll(visible: false) }), ("", {}),
+            ("Locate Object", { state.requestLocate() }), ("", {}),
             (LayerFrames.toggleTitle(state), { state.showsFrameNumbers.toggle() }),
         ]
         return entries.enumerated().map { LayerMenuItem(id: $0.offset, title: $0.element.0, run: $0.element.1) }

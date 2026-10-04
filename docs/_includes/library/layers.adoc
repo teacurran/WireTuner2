@@ -79,6 +79,9 @@ not empty.
 
 |*All On* / *All Off*
 |Shows or hides every layer at once.
+
+|*Locate Object*
+|Shows the row of the selected object (<<finding-rows,Finding an object's row>>).
 |===
 
 The same commands are on the context menu of a layer row (kbd:[Control]-click or right-click),
@@ -95,8 +98,10 @@ close everything under it at once.
 
 // TODO screenshot: the Layers panel with a layer open, a named group open inside it and a clip group
 
-Each object row shows, from left to right: an icon for the kind of object, its name, an eye and a
-padlock.  An object you have named shows its name.  One you have not shows what it is -- *Path*,
+Each object row shows, from left to right: an icon for the kind of object, a small picture of the
+object, its name, an eye and a padlock.  The picture is the object as it draws, on white, shrunk to
+fit the row; it appears a moment after the row scrolls into view and changes when the object does.
+An object you have named shows its name.  One you have not shows what it is -- *Path*,
 *Compound Path*, *Rectangle*, *Group*, *Clip Group*, *Clip Path*, the symbol's name for a symbol
 instance, the start of the text for a text block -- in dimmed italics, so you can see at a glance
 which objects still need names.
@@ -106,6 +111,21 @@ To find an object by name:
 * Type in the *Find objects by name* field at the top of the panel.  Only the objects whose names
   (or, for unnamed ones, what the row says) contain what you typed are listed, with the layers and
   groups they are in opened around them.  Clear the field to see everything again.
+
+=== Finding an object's row [[finding-rows]]
+
+Selecting an object on the canvas opens the rows above it, but in a long list its row can still be
+far from where you are looking.  To bring the row of the selected object into view, do one of the
+following:
+
+* Choose menu:Object[Locate Object].
+* kbd:[Control]-click the object on the canvas and choose *Locate Object*.
+* Choose *Locate Object* from the Layers panel's options menu.
+
+The Layers panel opens if it was closed, the layer and the groups above the object open, and its
+row is selected in the middle of the list.  A search that hides the row is cleared.  When several
+objects are selected, the row of the first one is shown.  If the object is out of view in the
+window, the window scrolls to it as well.
 
 === Selecting objects from the panel
 
@@ -123,6 +143,26 @@ To select an object from the panel, do one of the following:
 Objects on hidden or locked layers, and objects hidden with menu:View[Hide Selection], are not
 selected from the panel, as they are not on the canvas.  A locked object can be selected but not
 changed.
+
+=== Moving through the rows with the keyboard
+
+Click a row (or the list) and the keys move through it, selecting as they go:
+
+* kbd:[Down] and kbd:[Up] select the next or the previous row and its object on the canvas.  On a
+  layer row they select the layer in the panel and nothing on the canvas.  Hold kbd:[Shift] to
+  add the rows you move over to the selection.  The separator line is skipped.
+* kbd:[Right] opens a closed layer or group; pressed again, it moves into it, to its first row.
+* kbd:[Left] closes an open layer or group; on any other row it moves to the layer or group the
+  row is in.
+* Hold kbd:[Option] with kbd:[Right] or kbd:[Left] to open or close everything inside the row too.
+* kbd:[Return] (or kbd:[Enter]) starts renaming the selected row.  Type the name and press
+  kbd:[Return] again: the name is kept and the keys go back to the list, ready for the next row.
+* Type the first letters of a name to jump to the row that starts with them.
+
+Moving onto the row of an object that cannot be selected -- on a hidden or locked layer, or hidden
+with menu:View[Hide Selection] -- highlights the row and selects nothing on the canvas; the next
+key goes on from there.  The keys never make a layer active or move objects, as clicking a layer
+name can.
 
 === Naming objects
 
@@ -153,6 +193,22 @@ The eye and the padlock on an object row act on that object alone.
   is shared, like a layer's.
 
 The row's context menu has the same commands, as *Hide*/*Show* and *Lock*/*Unlock*, and *Select*.
+
+=== Coloring objects from the panel
+
+You can color an object by dropping a color on its row, which is handy when the object is small,
+covered by others or out of view.
+
+To color an object from the Layers panel:
+
+. Drag a swatch from the Swatches panel, or a color from the Color Mixer, the Tints panel or a
+  color well, over the object's row.
+. Release the mouse.  The object's fill takes the color.  Hold kbd:[Cmd] as you release to color
+  its stroke instead, as when dropping a color on the canvas (kbd:[Shift] keeps it the fill).
+
+Dropping on a group's row colors every object in the group.  Layer rows, locked objects and
+objects on hidden or locked layers do not take colors.  The color is one change that undoes in one
+step; a swatch dragged from another document is added to this document's swatches first.
 
 === Reordering and regrouping objects
 
@@ -884,8 +940,57 @@ names: export writes `data-name` beside an id that changed the name, import read
 (xref:export-vector.adoc[Exporting vector artwork]).  Measured (debug, this Mac, under load): opening a
 layer of 50,000 objects and a rename or restack with all 50,000 rows open, in
 `LayersOutlineTests.fiftyThousandObjectsOpenAndUpdateWithinAFrame`; the budgets (250 ms, 16 ms,
-100 ms) are held in the perf run.  Left: LIB-030 (object names from Illustrator and FreeHand files),
-LIB-031 (keyboard navigation, *Locate Object*, row thumbnails, colour drops on object rows).
+100 ms) are held in the perf run.  Left: LIB-030 (object names from Illustrator and FreeHand files).
+LIB-031 (keyboard navigation, *Locate Object*, row thumbnails, colour drops on object rows) is built
+(next note).
+
+NOTE: As built by LIB-031 (xref:decisions.adoc#D-092[D-092]; `WTApp/Panels/LayersOutline.swift`,
+`LayersPanel.swift`, `LayersPanelView.swift`; `LayersThumbnails.swift` and `LayersLocate.swift`, new files;
+the `object.locateObject` entry in `ContextMenuCatalog`; one install line in `AppDelegate`).  No package
+or proto change.  *Keys*: `LayersOutlineView.keyDown` offers each key to the controller first and reports
+a row selection the key changed; kbd:[Return]/kbd:[Enter] on one selected row is `beginRename(row:)`,
+kbd:[Right]/kbd:[Left] open and close the selected rows (kbd:[Option]: `expandChildren`/`collapseChildren`)
+or move to the first child / the parent row; kbd:[Up]/kbd:[Down] (kbd:[Shift] extends) and type-select
+(`typeSelectStringFor`: the row's label, the layer's name) are `NSOutlineView`'s own, which skips the
+separator (`shouldSelectItem`).  A key-made selection is `selectFromRows`: the selected object rows that
+`canSelect` allows become the canvas selection, the layer rows the panel's layer selection -- no layer is
+made active and nothing moves, unlike a click -- and the rows are remembered with that canvas selection,
+so a row the canvas cannot select (a hidden or locked layer, a locally hidden object) stays highlighted
+through the panel's refreshes until the canvas selection changes.  A rename ended with kbd:[Return]
+(`NSTextMovement.return`) gives the keys back to the outline.  *Locate Object*: menu:Object[Locate
+Object] (section 1, after *Link…*), in every object's context menu after *Copy Link*, and in the
+panel's options menu; the command shows the `layers` panel and bumps `LayersPanelState.locateRequest`,
+which the outline answers once (`locateAnswered` lives on the state, so a panel the command opened
+answers it too): the search is cleared when it hides the row, the containers above the first selected
+object open, its row is selected and scrolled to the middle; `revealOnCanvas` centres the canvas on the
+object (on its page) only when none of its bounds is in view.  Deviation from the task text: the
+command's job is the panel row, with the canvas scroll as its second half, rather than the canvas
+alone -- a row's object is already on the canvas when the row is clicked.  *Thumbnails*:
+`LayersThumbnails` keeps, per object, the picture and the `DisplayItem` it was drawn from
+(`DocumentHandle.object(for:)`); a row's cell asks for its picture when it is configured and gets the
+stored one, plus a request when the object's item differs (value comparison: the display list shares
+unchanged items' storage, so the check is cheap), so a picture is invalidated by any change that
+alters the drawing -- local, remote, undo, a member inside a group -- and by nothing else (a rename
+draws nothing).  Requests queue in the order rows asked; one background job at a time renders up to 16
+(`Task.detached`, `CoreGraphicsRenderer` on white at 2 px/pt into an 18 pt square, the item's own
+transform, the smallest zoom for huge objects) and hands them back on the main actor; a row removed from
+the outline before its turn (`didRemove rowView`) or reused for another object gives the turn up, so
+scrolling past rows draws nothing for them.  After each document change the rows on screen re-check
+their items; the cache keeps at most 1,000 pictures, oldest out; another document drops them all.
+Images draw as their placeholders (no `ImageStore` here).  *Colour drops*: the outline also accepts
+`ColorDrag.type` and `.color`; a colour (not a row drag) is accepted only *on* an object row
+(`NSOutlineViewDropOnItemIndex`) whose object is not effectively locked, on a visible unlocked layer;
+the drop is `ColorDrop.reference` then `ApplyColor([node])`, one change: the fill, kbd:[Cmd] the
+stroke, kbd:[Shift] the fill (`CanvasColorDrop.paint`'s modifier rules; the part under the pointer has
+no meaning on a row, so no drop picks the stroke by position and kbd:[Option]'s member pick is the row
+itself).  A plain colour is read in *Default color space for new colors* (`LayersPanelState.defaultColorSpace`).
+Tests: `LayersNavigationTests` (real key events through `keyDown`: walking every row of the nested
+fixture with the canvas following, Shift-extension, Option open/close, a non-selectable row keeping its
+place, Return/Enter rename and refocus, type-select, *Locate Object* with the search and the canvas,
+colour drops through `validateDrop`/`acceptDrop`, pictures drawn once and redrawn per changed row and
+group, and `fiftyThousandObjectsDrawOnlyTheRowsOnScreen` over the 50,000-object fixture: the pictures
+drawn are those of the rows on screen, one change draws one row, scrolling to the end draws only the rows
+that came into view).
 
 NOTE: The Layers panel's Guides glue is built: moving objects onto the Guides layer (a click with *Clicking a
 layer moves the selection*, or *Move Selection to This Layer*) is `ConvertToGuides`, and moving guide

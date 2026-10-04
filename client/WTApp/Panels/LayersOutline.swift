@@ -70,14 +70,26 @@ final class LayersTreeItem: NSObject {
     }
 }
 
-/// The outline view: its drag image and keyboard stay the system's; it adds the context menu
-/// per clicked row.
+/// The outline view: its drag image stays the system's; it adds the context menu per clicked row
+/// and hands keys to the controller first (LIB-031): what the controller does not take --
+/// kbd:[Up], kbd:[Down] and typing a name -- the outline does, and a selection the keys changed
+/// is reported so the canvas selection follows.
 final class LayersOutlineView: NSOutlineView {
     var contextMenu: ((Int) -> NSMenu?)?
+    /// A key, before the outline's own handling; true when it was taken.
+    var keyHandler: ((NSEvent) -> Bool)?
+    /// The rows' selection changed by a key.
+    var selectedByKeys: (() -> Void)?
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let row = row(at: convert(event.locationInWindow, from: nil))
         return row >= 0 ? contextMenu?(row) : super.menu(for: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let before = selectedRowIndexes
+        if keyHandler?(event) != true { super.keyDown(with: event) }
+        if selectedRowIndexes != before { selectedByKeys?() }
     }
 }
 
@@ -129,6 +141,15 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     private var dragged: [LayersTreeItem] = []
     /// Set while the outline's selection is being made to match the model's.
     private var syncing = false
+    /// Set while the keys' row selection is being written to the canvas.
+    private var driving = false
+    /// The rows the keys selected and the canvas selection that made: kept selected -- an object
+    /// the canvas cannot select among them -- for as long as the canvas selection is that one.
+    private var keyed: (rows: [OpID], canvas: [OpID])?
+    /// The object rows' pictures (LIB-031).
+    let thumbnails = LayersThumbnails()
+    /// The modifier keys held while a colour is dragged over the rows.
+    var dropModifiers: () -> KeyModifiers = { KeyEquivalentResolver.modifiers(NSEvent.modifierFlags) }
 
     /// How many times rows were reloaded or containers re-listed after a model change (tests:
     /// an edit touches only what it changed).
@@ -156,10 +177,17 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         outline.target = self
         outline.action = #selector(clicked(_:))
         outline.doubleAction = #selector(doubleClicked(_:))
-        outline.registerForDraggedTypes([Self.rowType])
+        outline.registerForDraggedTypes([Self.rowType, ColorDrag.type, .color])
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
         outline.draggingDestinationFeedbackStyle = .regular
         outline.contextMenu = { [weak self] row in self?.menu(forRow: row) }
+        outline.keyHandler = { [weak self] event in self?.key(event) ?? false }
+        outline.selectedByKeys = { [weak self] in self?.selectFromRows() }
+        thumbnails.source = { [weak self] node in
+            guard let object = self?.model?.document.object(for: SelectionID(node)), let bounds = object.bounds else { return nil }
+            return (object.item, bounds)
+        }
+        thumbnails.ready = { [weak self] node in self?.refreshThumbnail(node) }
         outline.setAccessibilityIdentifier("layers.list")
         scrollView.documentView = outline
         scrollView.hasVerticalScroller = true
@@ -177,6 +205,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         self.model = model
         let marksChanged = marks != self.marks
         self.marks = marks
+        defer { answerLocate(model.state) }
         if document !== model.document || selection !== model.editing.selection.model {
             attach(model)
             return
@@ -196,6 +225,8 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         documentToken = model.document.observe { [weak self] change in self?.documentDidChange(change) }
         selectionToken = model.editing.selection.model.observe { [weak self] _ in self?.selectionDidChange() }
         items = [:]
+        keyed = nil
+        thumbnails.reset()
         filter = model.state.filter
         reloadAll()
     }
@@ -395,6 +426,41 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         }
         if layerChanged { refreshLayerRows(marksChanged: true) }
         syncSelection(reveal: false)
+        refreshVisibleThumbnails()
+    }
+
+    // MARK: Thumbnails
+
+    /// The object rows laid out now.
+    var visibleObjectRows: [(row: Int, node: OpID)] {
+        let range = outline.rows(in: outline.visibleRect)
+        guard range.length > 0 else { return [] }
+        return (range.location..<range.location + range.length).compactMap { row in
+            guard let item = outline.item(atRow: row) as? LayersTreeItem, case .object(let node) = item.kind else { return nil }
+            return (row, node)
+        }
+    }
+
+    /// After a change, each row on screen checks its picture against its object's drawing: only
+    /// the rows whose objects now draw differently -- a group whose member changed included --
+    /// are drawn again.
+    func refreshVisibleThumbnails() {
+        for (row, node) in visibleObjectRows {
+            (outline.view(atColumn: 0, row: row, makeIfNecessary: false) as? ObjectRowCell)?.showThumbnail(thumbnails.image(for: node))
+        }
+    }
+
+    /// A picture arrived for `node`: its row shows it, if the row is on screen.
+    func refreshThumbnail(_ node: OpID) {
+        guard let item = items[node], case .object = item.kind else { return }
+        let row = outline.row(forItem: item)
+        guard row >= 0, let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: false) as? ObjectRowCell, cell.node == node else { return }
+        cell.showThumbnail(thumbnails.image(for: node))
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, didRemove rowView: NSTableRowView, forRow row: Int) {
+        // A row scrolled away before its picture's turn gives the turn up.
+        if let cell = rowView.view(atColumn: 0) as? ObjectRowCell, let node = cell.node { thumbnails.forget(node) }
     }
 
     private func depth(_ node: OpID) -> Int {
@@ -475,6 +541,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     /// The canvas selection changed: its rows are revealed and selected.
     func selectionDidChange() {
+        guard !driving else { return }
         syncSelection(reveal: true)
     }
 
@@ -492,7 +559,10 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
             for node in selected { self.reveal(node) }
         }
         var rows = IndexSet()
-        let wanted = selected + model.state.selected
+        var wanted = selected + model.state.selected
+        if let keyed {
+            if keyed.canvas == selected { wanted = keyed.rows + model.state.selected } else { self.keyed = nil }
+        }
         if wanted.count > Self.rowLookupLimit {
             // Many rows: one pass over the rows instead of a lookup per selected object.
             let set = Set(wanted)
@@ -538,6 +608,7 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     /// A click on the row `row`: a layer row as the panel always did; an object row selects the
     /// object (kbd:[Cmd] adds or removes it, kbd:[Shift] adds the rows from the last one clicked).
     func click(row: Int, modifiers: KeyModifiers) {
+        keyed = nil
         guard let model, let item = outline.item(atRow: row) as? LayersTreeItem else { return }
         switch item.kind {
         case .layer(let layer):
@@ -581,6 +652,170 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         }
     }
 
+    // MARK: Keys (LIB-031)
+
+    enum Key {
+        static let returnKey: UInt16 = 36
+        static let enter: UInt16 = 76
+        static let left: UInt16 = 123
+        static let right: UInt16 = 124
+    }
+
+    /// The keys the panel gives meaning to; the rest are the outline's.  kbd:[Return] (or
+    /// kbd:[Enter]) renames the one selected row; kbd:[Right] opens the selected containers --
+    /// an open one moves to its first row -- and kbd:[Left] closes them -- a closed row or a
+    /// leaf moves to the row above it in the tree; with kbd:[Option] they open or close
+    /// everything under the rows.  kbd:[Up] and kbd:[Down] (with kbd:[Shift] to extend) and
+    /// typing the start of a name are the outline's own.
+    func key(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .control, .shift, .option])
+        switch event.keyCode {
+        case Key.returnKey, Key.enter:
+            guard modifiers.isEmpty, outline.selectedRowIndexes.count == 1, let row = outline.selectedRowIndexes.first else { return false }
+            beginRename(row: row)
+            return true
+        case Key.right:
+            guard modifiers.subtracting(.option).isEmpty else { return false }
+            openSelected(all: modifiers.contains(.option))
+            return true
+        case Key.left:
+            guard modifiers.subtracting(.option).isEmpty else { return false }
+            closeSelected(all: modifiers.contains(.option))
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var selectedItems: [LayersTreeItem] {
+        outline.selectedRowIndexes.compactMap { outline.item(atRow: $0) as? LayersTreeItem }
+    }
+
+    /// kbd:[Right].
+    private func openSelected(all: Bool) {
+        let selected = selectedItems
+        let closed = selected.filter { outline.isExpandable($0) && (!outline.isItemExpanded($0) || all) }
+        if !closed.isEmpty {
+            for item in closed { outline.expandItem(item, expandChildren: all) }
+            return
+        }
+        guard selected.count == 1, let item = selected.first, outline.isItemExpanded(item) else { return }
+        let row = outline.row(forItem: item) + 1
+        guard row < outline.numberOfRows, outline.parent(forItem: outline.item(atRow: row)) as? LayersTreeItem === item else { return }
+        outline.selectRowIndexes([row], byExtendingSelection: false)
+        outline.scrollRowToVisible(row)
+    }
+
+    /// kbd:[Left].
+    private func closeSelected(all: Bool) {
+        let selected = selectedItems
+        let open = selected.filter { outline.isItemExpanded($0) }
+        if !open.isEmpty {
+            for item in open { outline.collapseItem(item, collapseChildren: all) }
+            return
+        }
+        guard selected.count == 1, let item = selected.first, let parent = outline.parent(forItem: item) else { return }
+        let row = outline.row(forItem: parent)
+        guard row >= 0 else { return }
+        outline.selectRowIndexes([row], byExtendingSelection: false)
+        outline.scrollRowToVisible(row)
+    }
+
+    /// The keys moved the row selection: the selected object rows become the canvas selection
+    /// (those the panel may select, `canSelect`), the selected layer rows the panel's layer
+    /// selection.  Nothing moves and no layer becomes active, as a click would do.
+    func selectFromRows() {
+        guard let model, !syncing else { return }
+        var objects: [OpID] = []
+        var layers: [OpID] = []
+        for item in selectedItems {
+            switch item.kind {
+            case .object(let node): objects.append(node)
+            case .layer(let layer): layers.append(layer)
+            case .separator: break
+            }
+        }
+        if model.state.selected != layers { model.state.selected = layers }
+        if let layer = layers.last { model.state.anchor = layer }
+        if let node = objects.last { model.state.objectAnchor = node }
+        let canvas = objects.filter(model.canSelect)
+        keyed = (objects, canvas)
+        driving = true
+        model.editing.selection.model.set(Selection(canvas.map(SelectionID.init)))
+        driving = false
+    }
+
+    func outlineView(_ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?, item: Any) -> String? {
+        guard let item = item as? LayersTreeItem, let model else { return nil }
+        switch item.kind {
+        case .layer(let id): return model.order.layer(id).map { $0.name.isEmpty ? "Layer" : $0.name }
+        case .object(let node): return tree.label(of: node)
+        case .separator: return nil
+        }
+    }
+
+    // MARK: Locate Object (LIB-031)
+
+    /// Answers a *Locate Object* request once.
+    private func answerLocate(_ state: LayersPanelState) {
+        guard state.locateRequest != state.locateAnswered else { return }
+        state.locateAnswered = state.locateRequest
+        locate()
+    }
+
+    /// Shows the first selected object's row: the search is cleared when it hides the row, the
+    /// layer and groups above it are opened, and the row is selected and scrolled to the middle.
+    /// Whether a row was found.
+    @discardableResult
+    func locate() -> Bool {
+        guard let model, let node = model.editing.selectedNodes.first, tree.ancestors(of: node) != nil else { return false }
+        if let shown, !shown.contains(node) {
+            model.state.filter = ""
+            filter = ""
+            applyFilter()
+        }
+        reveal(node)
+        guard let item = items[node] else { return false }
+        let row = outline.row(forItem: item)
+        guard row >= 0 else { return false }
+        syncSelection(reveal: false)
+        let rect = outline.rect(ofRow: row)
+        let visible = outline.visibleRect
+        outline.scroll(NSPoint(x: visible.minX, y: max(rect.midY - visible.height / 2, 0)))
+        return true
+    }
+
+    // MARK: Colour drops (LIB-031)
+
+    /// The object a colour dropped on `item` paints, and which paint: an object row that is not
+    /// locked, on a layer that is visible and unlocked; kbd:[Cmd] paints the stroke, as on the
+    /// canvas, anything else the fill.  Nil: refused (a layer row, the separator, between rows).
+    func colorTarget(item: LayersTreeItem?, index: Int, modifiers: KeyModifiers) -> (node: OpID, target: ColorTarget)? {
+        guard index == NSOutlineViewDropOnItemIndex, let item, case .object(let node) = item.kind, let model else { return nil }
+        let state = model.document.state
+        guard let layer = model.order.layer(of: node, in: state), let info = model.order.layer(layer), info.visible, !info.locked,
+              !Objects.isEffectivelyLocked(node, in: state, layers: model.order) else { return nil }
+        return (node, modifiers.contains(.command) && !modifiers.contains(.shift) ? .stroke : .fill)
+    }
+
+    static func carriesColor(_ pasteboard: NSPasteboard) -> Bool {
+        !(pasteboard.types ?? []).contains(rowType) && ColorDrag.read(from: pasteboard, defaultSpace: .sRGB) != nil
+    }
+
+    /// The colour on `pasteboard` dropped on `item`: one change (`ApplyColor`), a swatch from
+    /// another document created first (`ColorDrop`).
+    @discardableResult
+    func dropColor(_ pasteboard: NSPasteboard, on item: LayersTreeItem?, index: Int, modifiers: KeyModifiers) -> Task<Wiretuner_Doc_V1_Change?, Never>? {
+        guard let model, let target = colorTarget(item: item, index: index, modifiers: modifiers),
+              let payload = ColorDrag.read(from: pasteboard, defaultSpace: model.state.defaultColorSpace()) else { return nil }
+        let document = model.document
+        let editing = model.editing
+        return Task { @MainActor in
+            let ref = await ColorDrop.reference(for: payload, in: document)
+            return await editing.perform(ApplyColor([target.node], target: target.target, color: ref, name: payload.name)).value
+        }
+    }
+
     // MARK: Name editing
 
     /// The row cell `view` is in.
@@ -614,6 +849,12 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
         } else if let cell: ObjectRowCell = Self.cell(of: field), let node = cell.node, model.state.renamingObject == node {
             model.commitObjectRename(node, to: field.stringValue)
             cell.endEditing(name: nil)
+        } else {
+            return
+        }
+        // A name ended with Return leaves the keys with the rows, to go on to the next one.
+        if (notification.userInfo?["NSTextMovement"] as? Int) == NSTextMovement.return.rawValue {
+            outline.window?.makeFirstResponder(outline)
         }
     }
 
@@ -721,6 +962,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
     }
 
     func outlineView(_ outlineView: NSOutlineView, validateDrop info: any NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> NSDragOperation {
+        if Self.carriesColor(info.draggingPasteboard) {
+            return colorTarget(item: item as? LayersTreeItem, index: index, modifiers: dropModifiers()) == nil ? [] : .copy
+        }
         guard let target = dropTarget(item: item as? LayersTreeItem, index: index) else { return [] }
         if target.container !== (item as? LayersTreeItem) || target.index != index {
             outlineView.setDropItem(target.container, dropChildIndex: target.index)
@@ -730,6 +974,9 @@ final class LayersOutlineController: NSObject, NSOutlineViewDataSource, NSOutlin
 
     func outlineView(_ outlineView: NSOutlineView, acceptDrop info: any NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
         defer { dragged = [] }
+        if Self.carriesColor(info.draggingPasteboard) {
+            return dropColor(info.draggingPasteboard, on: item as? LayersTreeItem, index: index, modifiers: dropModifiers()) != nil
+        }
         return drop(item: item as? LayersTreeItem, index: index)
     }
 
@@ -937,10 +1184,11 @@ final class LayerRowCell: NSTableCellView {
     }
 }
 
-/// An object row: its kind's icon, its name (or its default label, dimmed), and its eye and
-/// padlock.
+/// An object row: its kind's icon, a small picture of the object (LIB-031), its name (or its
+/// default label, dimmed), and its eye and padlock.
 final class ObjectRowCell: NSTableCellView {
     let icon = NSImageView()
+    let thumbnail = NSImageView()
     let name = NSTextField(labelWithString: "")
     let eye = NSButton()
     let lock = NSButton()
@@ -964,9 +1212,16 @@ final class ObjectRowCell: NSTableCellView {
         eye.setAccessibilityIdentifier("layers.object.visible")
         lock.setAccessibilityIdentifier("layers.object.locked")
         icon.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        thumbnail.imageScaling = .scaleProportionallyDown
+        thumbnail.wantsLayer = true
+        thumbnail.layer?.borderWidth = 0.5
+        thumbnail.layer?.borderColor = NSColor.separatorColor.cgColor
+        thumbnail.widthAnchor.constraint(equalToConstant: LayersThumbnails.side).isActive = true
+        thumbnail.heightAnchor.constraint(equalToConstant: LayersThumbnails.side).isActive = true
+        thumbnail.setAccessibilityElement(false)
         name.setContentHuggingPriority(.defaultLow, for: .horizontal)
         name.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let stack = NSStackView(views: [icon, name, eye, lock])
+        let stack = NSStackView(views: [icon, thumbnail, name, eye, lock])
         stack.spacing = 4
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
@@ -981,7 +1236,9 @@ final class ObjectRowCell: NSTableCellView {
 
     func configure(model: LayersPanelModel, tree: ObjectTree, node: OpID, controller: LayersOutlineController) {
         self.model = model
+        if let previous = self.node, previous != node { controller.thumbnails.forget(previous) }
         self.node = node
+        showThumbnail(controller.thumbnails.image(for: node))
         let row = LayersPanelModel.ObjectRow(node, tree: tree, hidden: model.document.locallyHidden)
         icon.image = NSImage(systemSymbolName: row.symbol, accessibilityDescription: row.kindTitle)
             ?? NSImage(systemSymbolName: "square", accessibilityDescription: row.kindTitle)
@@ -999,6 +1256,11 @@ final class ObjectRowCell: NSTableCellView {
         lock.alphaValue = row.locked ? 1 : 0.35
         toolTip = row.tooltip
         setAccessibilityIdentifier("layers.object.\(node)")
+    }
+
+    /// The object's picture; blank while it is first drawn.
+    func showThumbnail(_ image: CGImage?) {
+        thumbnail.image = LayersThumbnails.picture(image)
     }
 
     @objc func toggleHidden(_ sender: Any?) {

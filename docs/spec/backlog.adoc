@@ -873,10 +873,11 @@ Done when::
 Track:: client-ui
 Depends on:: LIB-029
 Size:: M
-Delivers:: xref:decisions.adoc#D-092[D-092]: arrow keys move the row selection (and the canvas selection) through the object tree, kbd:[Right] and kbd:[Left] open and close, kbd:[Return] renames; *Locate Object* in the panel menu scrolls the canvas to the selected row's object; a small thumbnail of each object in its row, drawn from the display list at the row's size and cached per node revision; colour drops on an object row applying the fill as on the canvas (xref:layers.adoc#objects[Layers]).
+Delivers:: xref:decisions.adoc#D-092[D-092]: arrow keys move the row selection (and the canvas selection) through the object tree, kbd:[Shift] extends, kbd:[Right] and kbd:[Left] open and close (kbd:[Option]: everything inside) or move into a container and up to it, kbd:[Return] renames and returns the keys to the list, typing a name selects its row; menu:Object[Locate Object] (also in every object's context menu and the panel's options menu) shows the Layers panel, opens the containers above the selected object and scrolls its row into the middle, and scrolls the canvas to the object when it is out of view; a small thumbnail of each object in its row, drawn off the main thread from the object's display item for the rows on screen only and redrawn only when that item changes; colour drops on an object row applying the fill, kbd:[Cmd] the stroke, as on the canvas (xref:layers.adoc#objects[Layers]).
 Done when::
 * Keyboard navigation reaches every row of a nested fixture and selects on the canvas as it goes.
 * Thumbnails of 50,000 objects cost only the rows on screen; a change redraws only its row's thumbnail.
+* A colour dropped on an object row is one change to its fill, with kbd:[Cmd] to its stroke; locked objects and layer rows refuse.
 
 Agents work in waves; a wave's tasks depend only on earlier waves.
 
