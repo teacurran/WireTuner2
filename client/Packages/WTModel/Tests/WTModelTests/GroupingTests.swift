@@ -142,6 +142,20 @@ import WTRender
         #expect(Objects.stackingOrder([top, m, base, group], in: a.state) == [base, group, m, top])
         #expect(Objects.stackingOrder([top, OpID(counter: 999, replica: 3)], in: a.state) == [top, OpID(counter: 999, replica: 3)])
     }
+
+    /// A deleted object is not among its layer's objects: it sorts above the live ones there, as
+    /// before the per-call index; the caller's `LayerOrder` gives the same order.
+    @Test func stackingOrderPutsADeletedObjectAboveItsLayersLiveOnes() throws {
+        var a = Replica(0xA)
+        let layers = try LayerFixture.layers(["Base", "Top"], on: &a)
+        let gone = try LayerFixture.object(LayerFixture.rect(on: layers[0]), on: &a)
+        let low = try LayerFixture.object(LayerFixture.rect(on: layers[0]), on: &a)
+        let high = try LayerFixture.object(LayerFixture.rect(on: layers[0]), on: &a)
+        let top = try LayerFixture.object(LayerFixture.rect(on: layers[1]), on: &a)
+        try a.perform(OpsCommand("Delete", ops: [Ops.setDeleted(gone)]))
+        #expect(Objects.stackingOrder([top, gone, high, low], in: a.state) == [low, high, gone, top])
+        #expect(Objects.stackingOrder([top, gone, high, low], in: a.state, order: LayerOrder(a.state)) == [low, high, gone, top])
+    }
 }
 
 /// The merge tests of OBJ-016, OBJ-018 and DRAW-009/DRAW-012's conversion.

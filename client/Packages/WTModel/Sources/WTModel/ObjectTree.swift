@@ -207,12 +207,18 @@ public struct RestackObjects: Command {
         guard tree.accepts(parent) else { throw ObjectEditError.invalidValue("parent") }
         let isLayer = tree.order.layer(parent) != nil
         if isLayer ? tree.order.layer(parent)?.locked == true : Objects.isEffectivelyLocked(parent, in: state, layers: tree.order) { return }
-        let candidates = Objects.editable(nodes, in: state).filter { tree.isMovable($0) && !tree.isWithin(parent, $0) }
+        let candidates = Objects.editable(nodes, in: state, order: tree.order).filter { tree.isMovable($0) && !tree.isWithin(parent, $0) }
         // An object whose container moves too goes with it.
         let chosen = Set(candidates)
         let movers = Objects.stackingOrder(candidates.filter { node in
-            !chosen.contains { $0 != node && tree.isWithin(node, $0) }
-        }, in: state)
+            // Read up the tree, not across the selection: thousands may be chosen.
+            var above = state.store.placement(node)?.parent
+            while let id = above {
+                if chosen.contains(id) { return false }
+                above = state.store.placement(id)?.parent
+            }
+            return true
+        }, in: state, order: tree.order)
         guard !movers.isEmpty else { return }
         let moving = Set(movers)
 
@@ -225,10 +231,10 @@ public struct RestackObjects: Command {
         let above = shown[..<cut].filter { !moving.contains($0) }
         let below = shown[cut...].filter { !moving.contains($0) }
         // Positions are siblings' only: an object routed here from a deleted layer is not one.
-        let own = Set(state.store.children(parent))
+        func own(_ node: OpID) -> Bool { state.store.placement(node)?.parent == parent }
         func position(_ node: OpID) -> [UInt8]? { state.store.placement(node)?.position }
-        let lo = below.first(where: own.contains).flatMap(position)
-        var hi = above.last(where: own.contains).flatMap(position)
+        let lo = below.first(where: own).flatMap(position)
+        var hi = above.last(where: own).flatMap(position)
         if let low = lo, let high = hi, !FractionalIndex.less(low, high) { hi = nil }
         let keys = try PathEditing.keys(between: lo, and: hi, count: movers.count)
 

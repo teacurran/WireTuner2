@@ -41,12 +41,15 @@ public struct MoveLogEntry: Hashable, Sendable {
 ///
 /// The well-known nodes (replica 0, counters 0..15) always exist; 1..15 sit under the document
 /// (0:0) with an empty position, so they sort by id.  wt-crdt's `Tree` is this type in Java.
+///
+/// Each parent's children are kept in sibling order as placements change (`SiblingList`), so
+/// reading them costs no sort (crdt-model.adoc, "Tree moves", As built).
 struct Tree: Sendable {
     /// The unstable move log, ascending by op: every tree op not yet pruned as stable (CRDT-010).
     private(set) var log: [MoveLogEntry] = []
     private var live: Set<OpID> = []
     private var placements: [OpID: Placement] = [:]
-    private var children: [OpID: Set<OpID>] = [:]
+    private var children: [OpID: SiblingList] = [:]
 
     init() {}
 
@@ -56,9 +59,11 @@ struct Tree: Sendable {
         self.log = log
         self.live = live
         self.placements = placements
+        var unsorted: [OpID: [(position: [UInt8], id: OpID)]] = [:]
         for (node, placement) in placements {
-            children[placement.parent, default: []].insert(node)
+            unsorted[placement.parent, default: []].append((placement.position, node))
         }
+        children = unsorted.mapValues(SiblingList.init(sorting:))
     }
 
     static func isWellKnown(_ node: OpID) -> Bool {
@@ -80,18 +85,17 @@ struct Tree: Sendable {
 
     /// The children of `parent`, deleted ones included, by position then id.
     func children(_ parent: OpID) -> [OpID] {
-        var ids = Array(children[parent] ?? [])
-        if parent == .zero {
-            ids += (1..<NodeStore.wellKnownLimit).map(OpID.wellKnown)
+        guard parent == .zero else { return children[parent]?.ids ?? [] }
+        var list = children[.zero] ?? SiblingList()
+        for counter in 1..<NodeStore.wellKnownLimit {
+            list.insert(.wellKnown(counter), at: [])
         }
-        return ids.map { (position: placement($0)!.position, id: $0) }
-            .sorted(by: FractionalIndex.childOrder)
-            .map(\.id)
+        return list.ids
     }
 
     /// Applies one tree op in OpId order (undo, do, redo); a replay of a logged op is ignored.
     /// While ops are undone and redone only `placements` changes; the children index is updated
-    /// once at the end for the nodes whose parent actually changed.
+    /// once at the end for the nodes whose parent or position actually changed.
     mutating func apply(op: OpID, node: OpID, parent: OpID, position: [UInt8], creates: Bool) {
         var low = 0
         var high = log.count
@@ -112,12 +116,14 @@ struct Tree: Sendable {
         for redo in low..<log.count {
             log[redo] = perform(log[redo], &touched)
         }
-        for (node, before) in touched where before?.parent != placements[node]?.parent {
+        for (node, before) in touched {
+            let after = placements[node]
+            guard before?.parent != after?.parent || before?.position != after?.position else { continue }
             if let before {
-                children[before.parent]?.remove(node)
+                children[before.parent]?.remove(node, at: before.position)
             }
-            if let after = placements[node] {
-                children[after.parent, default: []].insert(node)
+            if let after {
+                children[after.parent, default: SiblingList()].insert(node, at: after.position)
             }
         }
     }
@@ -162,7 +168,7 @@ struct Tree: Sendable {
         var out = [node]
         var index = 0
         while index < out.count {
-            out += children[out[index]] ?? []
+            out += children[out[index]]?.ids ?? []
             index += 1
         }
         return out
@@ -178,7 +184,7 @@ struct Tree: Sendable {
     mutating func remove(_ nodes: [OpID]) {
         for node in nodes {
             if let placement = placements.removeValue(forKey: node) {
-                children[placement.parent]?.remove(node)
+                children[placement.parent]?.remove(node, at: placement.position)
             }
             children[node] = nil
             live.remove(node)
@@ -201,5 +207,49 @@ struct Tree: Sendable {
             touched[node] = .some(placements[node])
         }
         placements[node] = placement
+    }
+}
+
+/// One parent's children in sibling order -- by position, then id (`FractionalIndex.childOrder`)
+/// -- each with the position it is listed under.  The two arrays run in parallel, so the ids are
+/// handed out without copying, and a node is found by binary search on the position it was
+/// inserted with: an apply changes `placements` before it updates the lists, so a list must not
+/// look positions up there.
+struct SiblingList: Sendable {
+    private(set) var ids: [OpID] = []
+    private var positions: [[UInt8]] = []
+
+    init() {}
+
+    /// The entries in sibling order (one sort, when a snapshot is loaded).
+    init(sorting entries: [(position: [UInt8], id: OpID)]) {
+        let sorted = entries.sorted(by: FractionalIndex.childOrder)
+        ids = sorted.map(\.id)
+        positions = sorted.map(\.position)
+    }
+
+    /// The first index whose entry does not sort before (`position`, `id`).
+    private func lowerBound(_ position: [UInt8], _ id: OpID) -> Int {
+        var low = 0
+        var high = ids.count
+        while low < high {
+            let mid = (low + high) / 2
+            if FractionalIndex.childOrder((positions[mid], ids[mid]), (position, id)) { low = mid + 1 } else { high = mid }
+        }
+        return low
+    }
+
+    mutating func insert(_ id: OpID, at position: [UInt8]) {
+        let index = lowerBound(position, id)
+        ids.insert(id, at: index)
+        positions.insert(position, at: index)
+    }
+
+    /// Removes `id`, listed under `position`; a node not listed there is left alone.
+    mutating func remove(_ id: OpID, at position: [UInt8]) {
+        let index = lowerBound(position, id)
+        guard index < ids.count, ids[index] == id else { return }
+        ids.remove(at: index)
+        positions.remove(at: index)
     }
 }

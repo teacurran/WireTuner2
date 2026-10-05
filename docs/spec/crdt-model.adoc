@@ -499,6 +499,31 @@ differ by two or more, else `lo`'s digit followed by the "after" body of the res
 body is never a prefix of `hi`.  Two suffix bytes follow, from one 64-bit random value `r`:
 `r & FF` and `1 + (r >> 8) mod 255`.  Appends grow by one byte per ~128 keys (1,000 sequential
 appends stay at 11 bytes), and so do prepends.
++
+NOTE: As built (crd, 2026-10-04): the Swift engine keeps each parent's children in sibling
+order as placements change, instead of sorting them on every read.  `Tree` holds one
+`SiblingList` per parent -- the child ids and the positions they are listed under, in parallel
+arrays in `childOrder` -- and updates it once at the end of each apply (after the undo-do-redo)
+for every node whose parent _or_ position changed: a binary-search removal under the old
+placement and an insertion under the new one.  A snapshot load sorts each parent's children
+once; garbage collection removes a compacted node under its last placement.  Reading the
+children (`NodeStore.children`) hands out the stored ids without a sort or a copy; the document
+root merges in the 15 well-known nodes.  Nothing observable changes: the order is the same rule
+(position bytewise, then id), deleted children are still listed (callers filter with
+`liveChildren`), and a property test (`SiblingOrderTests`: late ops undone and redone, skipped
+cycles, ties, moves within one parent, unknown and well-known nodes, snapshot reloads, garbage
+collection) checks that every parent's list always equals a fresh sort.  For a layer of 50,000
+objects a read went from 22.6 ms (release) / 419 ms (debug) to under a microsecond, and a move
+followed by a read from 104 ms / 407 ms to 32 µs / 44 µs; one change creating 50,000 children at
+random positions costs more (0.78 s against 0.27 s, release, the array insertions), while
+appends at the top -- how commands add objects -- stay constant-time.  In WTModel,
+`Objects.stackingOrder` indexes each layer's objects and each container's children once per
+call (it was a linear search per node, re-reading the layer each time) and takes the caller's
+`LayerOrder`; `RestackObjects` passes its own and finds containers by walking up from each node
+rather than across the selection.  Restacking one object in a layer of 50,000 went from 0.52 s
+to 9.4 ms (release) and from 57-123 s to 0.13 s (debug); 1,000 objects at once from 274 s to
+15.5 ms (release).  wt-crdt's `Tree` still sorts on read; its results are
+identical, and the conformance vectors pass against both.
 
 Deletion:: `deleted` is a register on the node.  A deleted node keeps its properties, children
 and history; it is simply not rendered or selectable.  Edits to a deleted node still apply, so

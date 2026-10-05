@@ -101,8 +101,8 @@ public enum Objects {
     }
 
     /// The live objects of `nodes` that may be edited, in the given order, duplicates removed.
-    static func editable(_ nodes: [OpID], in state: EngineState) -> [OpID] {
-        let order = LayerOrder(state)
+    static func editable(_ nodes: [OpID], in state: EngineState, order: LayerOrder? = nil) -> [OpID] {
+        let order = order ?? LayerOrder(state)
         var seen: Set<OpID> = []
         return nodes.filter { node in
             isObject(node, in: state) && !isEffectivelyLocked(node, in: state, layers: order) && seen.insert(node).inserted

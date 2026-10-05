@@ -224,6 +224,10 @@ enum Trees {
         for op in ops where op.creates {
             #expect(engine.store.placement(op.node)?.parent == expected[op.node], "node \(op.node)")
         }
+        let nodes = [Self.layer] + ops.filter(\.creates).map(\.node)
+        for parent in [.zero, Self.layers] + nodes {
+            #expect(engine.store.children(parent) == freshSort(parent, nodes, in: engine.store), "children of \(parent)")
+        }
     }
 
     @Test func tenThousandRandomMovesMatchTheSequentialOracle() {
@@ -285,5 +289,63 @@ enum Trees {
         print("late move on a 50,000-node tree behind 1,000 later tree ops: median \(median)")
         #expect(engine.store.children(Self.layer).count == 50)
         PerfBudget.expect(median, within: .milliseconds(1), "median of 21")
+    }
+
+    /// The children of `parent` as a fresh sort of every placement under it: what the maintained
+    /// order must always equal (crdt-model.adoc, "Tree moves", As built).
+    static func freshSort(_ parent: OpID, _ nodes: [OpID], in store: NodeStore) -> [OpID] {
+        var entries = nodes.compactMap { node in
+            store.placement(node).flatMap { $0.parent == parent ? (position: $0.position, id: node) : nil }
+        }
+        if parent == .zero {
+            entries += (1..<NodeStore.wellKnownLimit).map { (position: [UInt8](), id: OpID.wellKnown($0)) }
+        }
+        return entries.sorted(by: FractionalIndex.childOrder).map(\.id)
+    }
+
+    /// A layer of 50,000 objects (the design point): reading its children costs no sort, and moves
+    /// among them -- to the front, to the back, into a group and out -- keep the order right.
+    @Test func theChildrenOfAFiftyThousandObjectLayerAreReadWithoutSorting() {
+        var engine = Self.withLayer()
+        var random = SplitMix64(seed: 23)
+        let count = 50_000
+        // Three random bytes: unique mostly, with some ties broken by id.
+        let creates = (0..<count).map { _ in
+            Trees.create(Self.layer, [UInt8(1 + random.next() % 254), UInt8(random.next() % 256), UInt8(1 + random.next() % 255)])
+        }
+        let clock = ContinuousClock()
+        let build = clock.measure { engine.apply(Changes.change(7, 2, creates)) }
+        let objects = (2..<UInt64(2 + count)).map { Trees.id($0, 7) }
+        var children: [OpID] = []
+        var reads: [Duration] = []
+        for _ in 0..<5 {
+            reads.append(clock.measure { children = engine.store.children(Self.layer) })
+        }
+        #expect(children.count == count)
+        #expect(children == Self.freshSort(Self.layer, objects, in: engine.store))
+        let group = objects[0]
+        var counter = UInt64(2 + count)
+        let moves = 200
+        let edits = clock.measure {
+            for index in 0..<moves {
+                let node = objects[1 + Int(random.next() % UInt64(count - 1))]
+                let ops: [Wiretuner_Doc_V1_Op] = switch index % 4 {
+                case 0: [Trees.move(node, Self.layer, [0xFF, 0xFF])]
+                case 1: [Trees.move(node, Self.layer, [0x01])]
+                case 2: [Trees.move(node, group, [0x80])]
+                default: [Trees.move(node, Self.layer, [0x80, UInt8(index % 256)])]
+                }
+                engine.apply(Changes.change(7, counter, ops))
+                counter += 1
+                children = engine.store.children(Self.layer)
+            }
+        }
+        #expect(children == Self.freshSort(Self.layer, objects, in: engine.store))
+        #expect(engine.store.children(group) == Self.freshSort(group, objects, in: engine.store))
+        let read = reads.sorted()[reads.count / 2]
+        let perEdit = edits / moves
+        print("children of a 50,000-object layer: build \(build), read median \(read), move + read \(perEdit) each")
+        PerfBudget.expect(read, within: .microseconds(50), "children read, median of 5")
+        PerfBudget.expect(perEdit, within: .milliseconds(1), "move then children read")
     }
 }

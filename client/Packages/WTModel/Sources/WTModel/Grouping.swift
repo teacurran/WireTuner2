@@ -4,24 +4,32 @@ import WTProto
 
 extension Objects {
     /// `nodes` in stacking order, bottom first: by layer (`LayerOrder`), then by sibling order down
-    /// the tree.
-    public static func stackingOrder(_ nodes: [OpID], in state: EngineState) -> [OpID] {
-        let order = LayerOrder(state)
+    /// the tree.  Each layer's objects and each container's children are read once per call, however
+    /// many of `nodes` sit there (a layer may hold 50,000 objects); `order` is the caller's
+    /// `LayerOrder` when it has one.
+    public static func stackingOrder(_ nodes: [OpID], in state: EngineState, order: LayerOrder? = nil) -> [OpID] {
+        let order = order ?? LayerOrder(state)
+        var layerIndices: [OpID: [OpID: Int]] = [:]
+        var siblingIndices: [OpID: [OpID: Int]] = [:]
+        func indices(_ list: [OpID]) -> [OpID: Int] {
+            Dictionary(uniqueKeysWithValues: zip(list, list.indices))
+        }
         func key(_ node: OpID) -> [Int] {
-            var indices: [Int] = []
+            var path: [Int] = []
             var current = node
             while let parent = state.store.placement(current)?.parent {
                 if order.layer(parent) != nil {
                     let layer = order.displayLayer(for: parent) ?? parent
-                    let objects = order.objects(on: layer, in: state)
-                    indices.insert(objects.firstIndex(of: current) ?? Int.max, at: 0)
-                    indices.insert(order.index(of: layer) ?? Int.max, at: 0)
-                    return indices
+                    if layerIndices[layer] == nil { layerIndices[layer] = indices(order.objects(on: layer, in: state)) }
+                    path.append(layerIndices[layer]![current] ?? Int.max)
+                    path.append(order.index(of: layer) ?? Int.max)
+                    return path.reversed()
                 }
-                indices.insert(state.store.children(parent).firstIndex(of: current) ?? Int.max, at: 0)
+                if siblingIndices[parent] == nil { siblingIndices[parent] = indices(state.store.children(parent)) }
+                path.append(siblingIndices[parent]![current] ?? Int.max)
                 current = parent
             }
-            return [Int.max] + indices
+            return [Int.max] + path.reversed()
         }
         let keys = Dictionary(nodes.map { ($0, key($0)) }, uniquingKeysWith: { first, _ in first })
         return Array(Set(nodes)).sorted { keys[$0]!.lexicographicallyPrecedes(keys[$1]!) }

@@ -274,4 +274,49 @@ import WTProto
         PerfBudget.expect(open, within: .milliseconds(16), "open a layer of \(count / 10) groups")
         PerfBudget.expect(search, within: .milliseconds(250), "search \(count) objects")
     }
+
+    /// A layer of 50,000 objects (the design point; the Layers panel's 50,000-object drag): moving
+    /// one object to the front, one to the back and 1,000 scattered ones to the front each read
+    /// the layer's order once (WTCRDT keeps it; `stackingOrder` indexes it per call).  The command
+    /// alone is timed (`execute`), then the whole perform.
+    @Test func restackingInALayerOfFiftyThousandObjectsReadsTheOrderOnce() throws {
+        let count = 50_000
+        var replica = Replica(0xD)
+        let layer = try LayerFixture.layers(["Art"], on: &replica)[0]
+        let keys = try PathEditing.keys(between: nil, and: nil, count: count)
+        let ops = keys.map { key -> Wiretuner_Doc_V1_Op in
+            var rect = Wiretuner_Doc_V1_NodeProps()
+            rect.rect.size.width = 10
+            rect.rect.size.height = 10
+            return Ops.create(parent: layer, position: key, props: rect)
+        }
+        let created = try replica.perform(OpsCommand("Objects", ops: ops))
+        let objects = try #require(created).createdNodes
+        #expect(ObjectTree(replica.state).children(of: layer) == objects.reversed())
+        let clock = ContinuousClock()
+        var figures: [String] = []
+        func restack(_ name: String, _ nodes: [OpID], at index: Int, budget: Duration) throws {
+            let command = RestackObjects(nodes, into: layer, at: index)
+            var builder = ChangeBuilder(replica: 0xD, startCounter: 1)
+            let state = replica.state
+            let execute = try clock.measure { try command.execute(&builder, state: state) }
+            #expect(builder.ops.count == nodes.count)
+            let perform = try clock.measure { try replica.perform(command) }
+            figures.append("\(name): execute \(execute), perform \(perform)")
+            PerfBudget.expect(execute, within: budget, "restack 50,000: \(name)")
+        }
+        try restack("bottom to front", [objects[0]], at: 0, budget: .milliseconds(16))
+        var rows = ObjectTree(replica.state).children(of: layer)
+        #expect(rows.first == objects[0] && rows.count == count)
+        try restack("top to back", [objects[count - 1]], at: count, budget: .milliseconds(16))
+        rows = ObjectTree(replica.state).children(of: layer)
+        #expect(rows.last == objects[count - 1])
+        let scattered = stride(from: 7, to: count, by: 50).map { objects[$0] }
+        try restack("1,000 to front", scattered.reversed(), at: 0, budget: .milliseconds(50))
+        rows = ObjectTree(replica.state).children(of: layer)
+        // Frontmost first, keeping their stacking order among themselves: the topmost of them on top.
+        #expect(Array(rows.prefix(scattered.count)) == scattered.reversed())
+        #expect(Set(rows) == Set(objects))
+        print("Restack in a layer of 50,000 objects -- " + figures.joined(separator: "; "))
+    }
 }
