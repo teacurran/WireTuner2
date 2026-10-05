@@ -8,6 +8,7 @@
 // Geometry (`Point`, `Rect`, `AffineTransform`, `FillRule`) comes from WTGeometry.
 
 /// Identifies the canvas a display list and its tiles belong to: a pasteboard or a master page.
+import Synchronization
 import WTGeometry
 
 public struct CanvasID: Hashable, Sendable, ExpressibleByStringLiteral, CustomStringConvertible {
@@ -446,23 +447,27 @@ public indirect enum DisplayItem: Hashable, Sendable {
 public struct DisplayList: Hashable, Sendable {
     public let canvas: CanvasID
     /// Items back to front.
-    public let items: [DisplayItem]
+    public private(set) var items: [DisplayItem]
     /// `items[i]`'s pasteboard bounds, computed once at construction.
-    public let itemBounds: [Rect?]
+    public private(set) var itemBounds: [Rect?]
     /// The union of every item's bounds; nil for a list that paints nothing.
-    public let bounds: Rect?
+    public private(set) var bounds: Rect?
     /// The document node each top-level item was built from (REND-004), parallel to `items`;
     /// empty when the builder supplied none, nil for an item that has no node of its own.
-    public let nodeIDs: [NodeID?]
-    /// Top-level item index by node id.
-    private let nodeIndex: [NodeID: Int]
+    public private(set) var nodeIDs: [NodeID?]
+    /// Top-level item index by node id: a table built on first use (shared by the lists that
+    /// copy it), with the in-place edits since it was made over it (`replaceItems`).
+    private var nodeIndex: NodeIndexTable
+    private var nodeIndexEdits: [NodeID: Int?] = [:]
+    /// How many entries of `nodeIDs` name a node.
+    private var taggedCount: Int
     /// The top-level items that carry a lens fill (at any depth): they repaint whenever
     /// anything beneath them does (ATTR-019).
-    public let lensIndices: [Int]
+    public private(set) var lensIndices: [Int]
     /// The layers the items are on (LIB-005): runs of top-level items, in item order, each
     /// drawn and hit tested by its layer's rules.  Empty when the builder supplied none; items
     /// outside every span draw as they are.
-    public let layers: [LayerSpan]
+    public private(set) var layers: [LayerSpan]
 
     public init(canvas: CanvasID, items: [DisplayItem], nodeIDs: [NodeID?] = [], layers: [LayerSpan] = []) {
         self.init(canvas: canvas, items: items, itemBounds: items.map(\.bounds), nodeIDs: nodeIDs, layers: layers)
@@ -481,14 +486,8 @@ public struct DisplayList: Hashable, Sendable {
         // Normalized to the item count so a short or long id list cannot misaddress items.
         let ids = nodeIDs.isEmpty ? [] : Array((nodeIDs + Array(repeating: nil, count: max(items.count - nodeIDs.count, 0))).prefix(items.count))
         self.nodeIDs = ids
-        var index: [NodeID: Int] = [:]
-        index.reserveCapacity(ids.count)
-        for (position, id) in ids.enumerated() {
-            if let id {
-                index[id] = position
-            }
-        }
-        nodeIndex = index
+        taggedCount = ids.reduce(0) { $0 + ($1 == nil ? 0 : 1) }
+        nodeIndex = NodeIndexTable(ids)
         lensIndices = items.indices.filter { items[$0].containsLens }
     }
 
@@ -497,10 +496,81 @@ public struct DisplayList: Hashable, Sendable {
 
     /// The index of the top-level item built from `node`, if the list has one.
     public func index(of node: NodeID) -> Int? {
-        nodeIndex[node]
+        if let edited = nodeIndexEdits[node] {
+            return edited
+        }
+        return nodeIndex.index(of: node)
     }
 
-    /// The pasteboard bounds of the item built from `node`, if it paints anything.
+    /// Replaces the top-level items in `range` with `newItems` in place (D-094: a document edit
+    /// patches the run of items it changed instead of building the list again).  `newBounds` and
+    /// `newIDs` are parallel to `newItems` (`newBounds[i]` must be `newItems[i].bounds`), and
+    /// `layers`, when given, are the spans of the whole list afterwards (a caller replacing
+    /// several ranges sets them once, `setLayers`).  The result equals the list built
+    /// from scratch over the same items, ids and spans.  The work is proportional to the items
+    /// replaced, plus a shift of the arrays when the count changes; the node index is kept as
+    /// edits over the shared table while the count stays the same, and built again on first use
+    /// otherwise.  The bounds are joined, and summed again only when a replaced item reached
+    /// the list's edge.
+    public mutating func replaceItems(_ range: Range<Int>, with newItems: [DisplayItem], bounds newBounds: [Rect?], nodeIDs newIDs: [NodeID?],
+                                      layers: [LayerSpan]? = nil) {
+        precondition(range.lowerBound >= 0 && range.upperBound <= items.count, "range outside the list")
+        precondition(newBounds.count == newItems.count && newIDs.count == newItems.count, "parallel arrays")
+        let delta = newItems.count - range.count
+        let removedBounds = itemBounds[range].compactMap { $0 }
+        let removedIDs: [NodeID?] = nodeIDs.isEmpty ? Array(repeating: nil, count: range.count) : Array(nodeIDs[range])
+        items.replaceSubrange(range, with: newItems)
+        itemBounds.replaceSubrange(range, with: newBounds)
+        // Node ids: empty while no item names a node, as the initializer leaves them.
+        let addedTagged = newIDs.reduce(0) { $0 + ($1 == nil ? 0 : 1) }
+        taggedCount += addedTagged - removedIDs.reduce(0) { $0 + ($1 == nil ? 0 : 1) }
+        if taggedCount == 0 {
+            nodeIDs = []
+        } else {
+            if nodeIDs.isEmpty {
+                nodeIDs = Array(repeating: nil, count: items.count - newItems.count + range.count)
+            }
+            nodeIDs.replaceSubrange(range, with: newIDs)
+        }
+        if delta == 0 && nodeIndexEdits.count + range.count <= max(1024, items.count / 8) {
+            // An id an earlier edit already placed elsewhere keeps that place.
+            for (offset, id) in removedIDs.enumerated() {
+                guard let id else { continue }
+                if case .some(.some(let elsewhere)) = nodeIndexEdits[id], elsewhere != range.lowerBound + offset { continue }
+                nodeIndexEdits[id] = .some(nil)
+            }
+            for (offset, id) in newIDs.enumerated() {
+                if let id {
+                    nodeIndexEdits[id] = .some(range.lowerBound + offset)
+                }
+            }
+        } else {
+            nodeIndex = NodeIndexTable(nodeIDs)
+            nodeIndexEdits = [:]
+        }
+        // Bounds: an item removed from inside the union leaves it; one at its edge sums again.
+        let added = newBounds.compactMap { $0 }
+        if let current = bounds, removedBounds.allSatisfy({ $0.minX > current.minX && $0.minY > current.minY && $0.maxX < current.maxX && $0.maxY < current.maxY }) {
+            bounds = DisplayList.union(of: [current] + added)
+        } else if bounds == nil, removedBounds.isEmpty {
+            bounds = DisplayList.union(of: added)
+        } else {
+            bounds = DisplayList.union(of: itemBounds.compactMap { $0 })
+        }
+        var lenses = lensIndices.filter { $0 < range.lowerBound }
+        lenses += newItems.indices.filter { newItems[$0].containsLens }.map { $0 + range.lowerBound }
+        lenses += lensIndices.filter { $0 >= range.upperBound }.map { $0 + delta }
+        lensIndices = lenses
+        if let layers {
+            self.layers = LayerSpan.normalized(layers, count: items.count)
+        }
+    }
+
+    /// Replaces the layer spans (a list whose items stay where they are).
+    public mutating func setLayers(_ layers: [LayerSpan]) {
+        self.layers = LayerSpan.normalized(layers, count: items.count)
+    }
+
     /// The pasteboard frames of every placed image of blob `assetID`, at any depth: what to
     /// repaint when its pixels arrive or finish decoding (IMG-004).
     public func bounds(ofImageAsset assetID: String) -> [Rect] {
@@ -521,6 +591,7 @@ public struct DisplayList: Hashable, Sendable {
         return result
     }
 
+    /// The pasteboard bounds of the item built from `node`, if it paints anything.
     public func bounds(of node: NodeID) -> Rect? {
         index(of: node).flatMap { itemBounds[$0] }
     }
@@ -697,6 +768,39 @@ extension DisplayItem {
         case .path(let item) where item.hasEffects: return bounds
         case .group(let group) where group.isDerived: return bounds
         default: return nil
+        }
+    }
+}
+
+/// A list's top-level item index by node id, built from its node ids on first use (D-094: a list
+/// patched in place does not pay for an index nobody reads).  Immutable once built; shared by
+/// copies of the list.
+final class NodeIndexTable: Sendable {
+    private let nodeIDs: Mutex<[NodeID?]>
+    private let table = Mutex<[NodeID: Int]?>(nil)
+
+    init(_ nodeIDs: [NodeID?]) {
+        self.nodeIDs = Mutex(nodeIDs)
+    }
+
+    func index(of node: NodeID) -> Int? {
+        table.withLock { table in
+            if table == nil {
+                // The ids are dropped once read, so a later edit of the list's ids is not a copy.
+                let ids = nodeIDs.withLock { ids in
+                    defer { ids = [] }
+                    return ids
+                }
+                var index: [NodeID: Int] = [:]
+                index.reserveCapacity(ids.count)
+                for (position, id) in ids.enumerated() {
+                    if let id {
+                        index[id] = position
+                    }
+                }
+                table = index
+            }
+            return table?[node]
         }
     }
 }

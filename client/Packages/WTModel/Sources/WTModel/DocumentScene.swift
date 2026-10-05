@@ -64,6 +64,8 @@ public struct SceneObject: Hashable, Sendable {
 }
 
 /// The document as drawn on one canvas: the display list (tagged with node ids) and its objects.
+/// Two scenes are equal when their lists, objects, top-level order and layers are; the lookup
+/// tables below are derived from those.
 public struct DocumentScene: Hashable, Sendable {
     public var displayList: DisplayList
     /// Every drawn object, groups and group members included.
@@ -72,22 +74,80 @@ public struct DocumentScene: Hashable, Sendable {
     public var topLevel: [NodeID]
     /// The layer list the scene was built from.
     public var layers: LayerOrder?
-    private var byItemPath: [[Int]: NodeID]
+    /// Per drawn group or wrapper: each member's item path below the group's own (and a clip
+    /// path's alias) → the member.  Kept by container rather than by absolute path, so an item
+    /// moving to another top-level index re-keys nothing (D-094).
+    var slots: [NodeID: [[Int]: NodeID]]
+    /// Top-level item index → object, for a scene whose list names no nodes (one assembled by
+    /// hand); empty for a builder's scene, which reads `displayList.nodeIDs`.
+    private var tops: [Int: NodeID]
 
     public init(displayList: DisplayList, objects: [NodeID: SceneObject] = [:], topLevel: [NodeID] = [], layers: LayerOrder? = nil) {
         self.displayList = displayList
         self.objects = objects
         self.topLevel = topLevel
         self.layers = layers
-        byItemPath = Dictionary(uniqueKeysWithValues: objects.map { ($0.value.itemPath, $0.key) })
+        var slots: [NodeID: [[Int]: NodeID]] = [:]
+        var tops: [Int: NodeID] = [:]
         for (id, object) in objects {
-            for alias in object.aliasItemPaths { byItemPath[alias] = id }
+            guard let parent = object.parent.map(NodeID.init), let container = objects[parent] else {
+                if object.itemPath.count == 1 { tops[object.itemPath[0]] = id }
+                continue
+            }
+            for path in [object.itemPath] + object.aliasItemPaths where path.starts(with: container.itemPath) {
+                slots[parent, default: [:]][Array(path.dropFirst(container.itemPath.count))] = id
+            }
         }
+        self.slots = slots
+        self.tops = tops
+    }
+
+    /// A builder's scene: `slots` kept as it placed the objects.
+    init(displayList: DisplayList, objects: [NodeID: SceneObject], topLevel: [NodeID], layers: LayerOrder?, slots: [NodeID: [[Int]: NodeID]]) {
+        self.displayList = displayList
+        self.objects = objects
+        self.topLevel = topLevel
+        self.layers = layers
+        self.slots = slots
+        tops = [:]
+    }
+
+    public static func == (lhs: DocumentScene, rhs: DocumentScene) -> Bool {
+        lhs.displayList == rhs.displayList && lhs.topLevel == rhs.topLevel && lhs.layers == rhs.layers && lhs.objects == rhs.objects
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(displayList)
+        hasher.combine(objects)
+        hasher.combine(topLevel)
+        hasher.combine(layers)
     }
 
     /// The object whose item sits at `itemPath` (a top-level index, then group children).
     public func object(atItemPath itemPath: [Int]) -> SceneObject? {
-        byItemPath[itemPath].flatMap { objects[$0] }
+        guard let first = itemPath.first else { return nil }
+        var node: NodeID
+        if tops.isEmpty {
+            guard displayList.nodeIDs.indices.contains(first), let id = displayList.nodeIDs[first] else { return nil }
+            node = id
+        } else {
+            guard let id = tops[first] else { return nil }
+            node = id
+        }
+        var rest = itemPath.dropFirst()
+        while !rest.isEmpty {
+            guard let table = slots[node] else { return nil }
+            if let next = table[Array(rest.prefix(1))] {
+                node = next
+                rest = rest.dropFirst()
+            } else if rest.count >= 2, let next = table[Array(rest.prefix(2))] {
+                node = next
+                rest = rest.dropFirst(2)
+            } else {
+                return nil
+            }
+        }
+        return objects[node]
     }
 
     public func object(_ id: OpID) -> SceneObject? { objects[NodeID(id)] }
@@ -115,14 +175,16 @@ public struct DocumentScene: Hashable, Sendable {
 /// pictograph's nodes their chart) and a touched swatch through the `SwatchIndex` (every object
 /// using it or a tint of it, COLOR-006), and every change yields a `ChangeSummary` for the
 /// invalidation pipeline.  Background items (the page furniture the window
-/// draws until pages are nodes) come first and carry no node id.
+/// draws until pages are nodes) come first and carry no node id.  A change is patched into the
+/// scene rather than built again (D-094, `IncrementalScene`): only the nodes it reached and the
+/// groups above them are placed again, and the display list is patched in place.
 ///
 /// Named `DocumentDisplayListBuilder` rather than `DisplayListBuilder`, which is WTRender's
 /// low-level builder and would be ambiguous in every file importing both modules.
 public struct DocumentDisplayListBuilder: Sendable {
     public let canvas: CanvasID
     public private(set) var background: [DisplayItem]
-    public private(set) var scene: DocumentScene
+    public internal(set) var scene: DocumentScene
     /// The master page or glyph whose canvas this builder draws; nil draws the main pasteboard
     /// (`CanvasMembership`: the top-level objects placed on that canvas, FONT-003).  A symbol
     /// draws its artwork as the top-level objects (the symbol editing window, LIB-012).  Set
@@ -142,23 +204,44 @@ public struct DocumentDisplayListBuilder: Sendable {
     public var substitution: RecordSubstitution?
     /// Node → the nodes drawn from it, as of the last build: a symbol from its master nodes and
     /// nested symbols, an instance from its symbol, a chart from its pictograph nodes.
-    public private(set) var dependencies = DependencyIndex()
+    public var dependencies: DependencyIndex {
+        var index = objectDependencies
+        index.formUnion(libraryDependencies)
+        return index
+    }
+    /// The drawn objects' dependencies on their sources (`Built.sources`), with each object's
+    /// sources, kept object by object (D-094).
+    var objectDependencies = DependencyIndex()
+    var objectSources: [OpID: [OpID]] = [:]
+    /// The symbols' and brushes' dependencies, read with the library.
+    var libraryDependencies = DependencyIndex()
+    /// Whether a change patches the scene (D-094, `IncrementalScene`); false builds the whole
+    /// scene for every change, the reference the equivalence tests compare against.
+    var incremental = true
+    /// How many changes were patched rather than built in full (for tests and figures).
+    var patches = 0
+    /// What the last build placed where, for patching (`SceneRecord`).
+    var record = SceneRecord()
+    /// While building: each drawn group's member slots (moved into the scene at the end), and
+    /// while patching, what the patch changed.
+    var slotTable: [NodeID: [[Int]: NodeID]] = [:]
+    var pass: UpdatePass?
     /// The document's symbols as of the last build.
-    public private(set) var library = SymbolLibrary([])
+    public internal(set) var library = SymbolLibrary([])
     /// Swatch → the objects using it, kept from the changes `apply` sees (read in full by
     /// `rebuild` and `reload`, or on the first `apply`).
     public private(set) var swatchIndex: SwatchIndex?
-    private var cache: [OpID: Built] = [:]
+    var cache: [OpID: Built] = [:]
     private let symbolRenderer = SymbolRenderer()
     /// Each instance's resolved artwork (LIB-025), for laying out its text overrides: dropped for
     /// an instance by a change to it or under its symbol (`ResolvedArtworkCache.invalidate`), and
     /// wholesale by `rebuild` and `reload`.
-    private var resolvedArtwork = ResolvedArtworkCache()
+    var resolvedArtwork = ResolvedArtworkCache()
     private let labels = CoreTextLabels()
     /// While building: the layer list, each connector end's attachment bounds so far, and the
     /// connectors being routed (a connector inside a group it is attached to is left out of that
     /// group's bounds while it is routed).
-    private var building: LayerOrder?
+    var building: LayerOrder?
     private var attachments: [OpID: Rect?] = [:]
     private var routing: Set<OpID> = []
     /// While building: each layer's transform, read once.
@@ -168,19 +251,19 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// Each connector as stored (`Connectors.storedSpec`) with its own `locked`, kept until the
     /// connector itself is touched: a connector rerouted because an object it joins changed
     /// re-checks its ends against the document and is routed again without reading its registers.
-    private var connectors: [OpID: StoredConnector] = [:]
+    var connectors: [OpID: StoredConnector] = [:]
     /// Master content on child pages (DOC-011, `MasterRendering`), and the nodes the change being
     /// applied touched, for the masters' own builders (nil: rebuild them).
-    private var masters = MasterRendering()
-    private var masterTouched: Set<OpID>?
+    var masters = MasterRendering()
+    var masterTouched: Set<OpID>?
 
-    private struct StoredConnector: Sendable {
+    struct StoredConnector: Sendable {
         var spec: ConnectorSpec
         var locked: Bool
     }
 
     /// A node's item before enclosing transforms, and what the scene records about it.
-    private struct Built: Sendable {
+    struct Built: Sendable {
         var item: DisplayItem?
         var kind: NodeKind
         var path: VectorPath?
@@ -210,7 +293,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         var drawsChildren: Bool { kind == .group || wrapper != nil }
     }
 
-    private struct Placed: Sendable {
+    struct Placed: Sendable {
         var parentTransform: AffineTransform
         var item: DisplayItem
         var bounds: Rect?
@@ -278,7 +361,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         }
         let recoloured = recoloured(by: change, state: state)
         resolvedArtwork.invalidate(by: change, state: state)
-        return update(touched: touched, also: recoloured, state: state, origin: origin)
+        return update(touched: touched, also: recoloured, state: state, origin: origin, treeInOrder: Self.treeOpsInOrder(change, state: state))
     }
 
     /// Rebuilds `nodes` and everything drawn from them without a change to the document: text
@@ -289,46 +372,107 @@ public struct DocumentDisplayListBuilder: Sendable {
     }
 
     private mutating func update(touched: [OpID: [FieldPath]], also recoloured: Set<OpID>, state: EngineState,
-                                 origin: ChangeOrigin) -> (DocumentScene, ChangeSummary) {
-        let before = scene
+                                 origin: ChangeOrigin, treeInOrder: Bool = true) -> (DocumentScene, ChangeSummary) {
         // The document's raster effect resolution reaches every object (FX-007).
-        if touched[WellKnown.settings]?.contains(where: { FieldPath(fields: 2, 90).contains($0) }) == true {
+        let rasterChanged = touched[WellKnown.settings]?.contains(where: { FieldPath(fields: 2, 90).contains($0) }) == true
+        if rasterChanged {
             cache = [:]
+            // The masters' own builders draw with it too: they are built again.
+            masters.reset()
         }
         let seeds = Set(touched.keys).union(recoloured)
-        let dependents = dependencies.dependents(of: seeds.map(NodeID.init))
+        let dependents = dependents(of: seeds.map(NodeID.init))
         for node in seeds {
             cache[node] = nil
             connectors[node] = nil
         }
         for node in dependents { cache[OpID(node)] = nil }
         masterTouched = seeds
+        defer { masterTouched = nil }
+        let order = LayerOrder(state)
+        // A connector is routed through the layer list (an end on a deleted layer attaches where
+        // that layer's objects show): a new list routes every connector again.
+        if let before = scene.layers, !before.drawsLike(order) {
+            for node in connectors.keys { cache[node] = nil }
+        }
+        let dirty = seeds.union(dependents.map(OpID.init))
+        // D-094: patched in place unless the change reaches every object or cannot be patched.
+        if incremental, !rasterChanged, treeInOrder, canPatch(touched: touched, dirty: dirty, order: order, state: state),
+           let plan = patchPlan(dirty: dirty, order: order, state: state) {
+            return patch(plan, touched: touched, seeds: seeds, dependents: dependents, order: order, state: state, origin: origin)
+        }
+        let before = scene
         scene = build(state)
-        masterTouched = nil
-        var summary = ChangeSummary(origin: origin, isStructural: before.displayList.nodeIDs != scene.displayList.nodeIDs
-            || before.objects.mapValues(\.itemPath) != scene.objects.mapValues(\.itemPath))
-        var affected = Set(seeds.map(NodeID.init)).union(dependents).union(dependencies.dependents(of: seeds.map(NodeID.init)))
-        let all = before.objects.merging(scene.objects, uniquingKeysWith: { $1 })
-        // A touched group moves its members; a touched layer everything on it.
-        for (id, object) in all {
-            if let parent = object.parent, affected.contains(NodeID(parent)) { affected.insert(id) }
+        let isStructural = before.displayList.nodeIDs != scene.displayList.nodeIDs
+            || before.objects.mapValues(\.itemPath) != scene.objects.mapValues(\.itemPath)
+        var oldChildren: [NodeID: [NodeID]] = [:]
+        for (id, object) in before.objects {
+            if let parent = object.parent { oldChildren[NodeID(parent), default: []].append(id) }
+        }
+        var newChildren: [NodeID: [NodeID]] = [:]
+        for (id, object) in scene.objects {
+            if let parent = object.parent { newChildren[NodeID(parent), default: []].append(id) }
+        }
+        let summary = summarize(
+            touched: touched, seeds: seeds, dependents: dependents, state: state, origin: origin, isStructural: isStructural,
+            oldObject: { before.objects[$0] }, newObject: { [scene] in scene.objects[$0] },
+            children: { (oldChildren[$0] ?? []) + (newChildren[$0] ?? []) },
+            layerNamesChildren: { Self.layerChanged($0, fields: touched[$0] ?? [], before: before.layers, after: order) }
+        )
+        return (scene, summary)
+    }
+
+    /// Every node drawn from any of `sources`, through the objects' and the library's
+    /// dependencies.
+    func dependents(of sources: [NodeID]) -> Set<NodeID> {
+        var result: Set<NodeID> = []
+        var pending = sources
+        while let next = pending.popLast() {
+            for dependent in objectDependencies.directDependents(of: next).union(libraryDependencies.directDependents(of: next))
+                where result.insert(dependent).inserted {
+                pending.append(dependent)
+            }
+        }
+        return result
+    }
+
+    /// The change summary of an update (both the patch and the full build): the touched nodes,
+    /// every node drawn from them (with the dependencies before and after the change), every
+    /// member of a touched group at any depth, every wrapper around one of those, and the
+    /// objects of a touched layer whose own drawing changed (`layerNamesChildren`: its flags,
+    /// transform, place in the stack or deletion -- not a layer touched only as the parent of a
+    /// created or moved object), with their painted bounds before and after; structural when
+    /// items were added, removed or reordered.
+    func summarize(touched: [OpID: [FieldPath]], seeds: Set<OpID>, dependents: Set<NodeID>, state: EngineState, origin: ChangeOrigin,
+                   isStructural: Bool, oldObject: (NodeID) -> SceneObject?, newObject: (NodeID) -> SceneObject?,
+                   children: (NodeID) -> [NodeID], layerNamesChildren: (OpID) -> Bool) -> ChangeSummary {
+        var summary = ChangeSummary(origin: origin, isStructural: isStructural)
+        let seedIDs = seeds.map(NodeID.init)
+        var affected = Set(seedIDs).union(dependents).union(self.dependents(of: seedIDs))
+        // A touched group moves its members, at every depth.
+        var pending = Array(affected)
+        while let next = pending.popLast() {
+            for child in children(next) where affected.insert(child).inserted {
+                pending.append(child)
+            }
         }
         // A wrapper's drawing is derived from its members (blend steps, an extrusion's faces, an
         // envelope's warp, a projection): a touched member repaints every wrapper around it.
         for id in Array(affected) {
-            var current = all[id]?.parent
-            while let parent = current, let object = all[NodeID(parent)] {
+            var current = (newObject(id) ?? oldObject(id))?.parent
+            while let parent = current, let object = newObject(NodeID(parent)) ?? oldObject(NodeID(parent)) {
                 if WrapperKind(rawValue: object.kind.rawValue) != nil { affected.insert(NodeID(parent)) }
                 current = object.parent
             }
         }
-        for node in touched.keys where state.nodeKind(node) == .layer {
+        // A layer whose own drawing changed: everything on it.
+        for node in touched.keys where state.nodeKind(node) == .layer && layerNamesChildren(node) {
             for child in state.store.children(node) { affected.insert(NodeID(child)) }
         }
         for id in affected {
             let fields = touched[OpID(id)] ?? []
-            let old = before.objects[id]?.bounds.map { NodeBounds(canvas: canvas, rect: $0) }
-            let new = scene.objects[id]?.bounds.map { NodeBounds(canvas: canvas, rect: $0) }
+            let old = oldObject(id)?.bounds.map { NodeBounds(canvas: canvas, rect: $0) }
+            let new = newObject(id)?.bounds.map { NodeBounds(canvas: canvas, rect: $0) }
             if old != nil || new != nil {
                 summary.record(id, old: old, new: new, fields: fields)
             } else {
@@ -338,7 +482,17 @@ public struct DocumentDisplayListBuilder: Sendable {
         for (page, change) in masters.dirty {
             summary.record(NodeID(page), old: change.old.map { NodeBounds(canvas: canvas, rect: $0) }, new: change.new.map { NodeBounds(canvas: canvas, rect: $0) })
         }
-        return (scene, summary)
+        return summary
+    }
+
+    /// Whether touched layer `layer`'s own drawing changed between `before` and `after`: its
+    /// flags, its place in the stack, its deletion or merge, or a field other than its name
+    /// (its transform).
+    static func layerChanged(_ layer: OpID, fields: [FieldPath], before: LayerOrder?, after: LayerOrder) -> Bool {
+        if fields.contains(where: { !FieldPath(LayerFields.name).contains($0) }) { return true }
+        guard let before else { return true }
+        return LayerOrder.renderingKey(before.all[layer]) != LayerOrder.renderingKey(after.all[layer])
+            || before.index(of: layer) != after.index(of: layer)
     }
 
     /// The nodes whose colours `change` altered by touching a swatch: every node using a touched
@@ -411,34 +565,34 @@ public struct DocumentDisplayListBuilder: Sendable {
 
     // MARK: Building
 
-    private mutating func build(_ state: EngineState) -> DocumentScene {
-        prepareMasters(state, touched: masterTouched)
+    mutating func build(_ state: EngineState, prepare: Bool = true) -> DocumentScene {
+        if prepare { prepareMasters(state, touched: masterTouched) }
         begin(state)
         defer { end() }
         return TextWrapping.withPass { ColorResolver.$current.withValue(ColorResolver(state)) { buildScene(state) } }
     }
 
-    private mutating func prepareMasters(_ state: EngineState, touched: Set<OpID>? = nil) {
+    mutating func prepareMasters(_ state: EngineState, touched: Set<OpID>? = nil) {
         var prepared = masters
         prepared.prepare(state, touched: touched, host: self)
         masters = prepared
     }
 
-    private mutating func begin(_ state: EngineState) {
+    mutating func begin(_ state: EngineState) {
         building = LayerOrder(state)
         graphicStyles.update(state)
         attachments = [:]
         layerTransforms = [:]
     }
 
-    private mutating func end() {
+    mutating func end() {
         building = nil
         attachments = [:]
         layerTransforms = [:]
     }
 
     /// `layer`'s own transform, read once per build.
-    private mutating func layerTransform(_ layer: OpID, state: EngineState) -> AffineTransform {
+    mutating func layerTransform(_ layer: OpID, state: EngineState) -> AffineTransform {
         if let known = layerTransforms[layer] { return known }
         let transform = PathEditing.transform(state.props(layer).layer.common.transform)
         layerTransforms[layer] = transform
@@ -448,40 +602,56 @@ public struct DocumentDisplayListBuilder: Sendable {
     private mutating func buildScene(_ state: EngineState) -> DocumentScene {
         var index = DependencyIndex()
         library = buildLibrary(state, dependencies: &index)
+        addBrushDependencies(state, to: &index)
+        libraryDependencies = index
         var objects: [NodeID: SceneObject] = [:]
         let order = LayerOrder(state)
         let context = sceneContext(state)
+        record = SceneRecord()
+        slotTable = [:]
         let (contents, topLevel) = SceneContext.$current.withValue(context) {
-            layerContents(state, order: order, includeHidden: false, objects: &objects)
+            layerContents(state, order: order, includeHidden: false, record: true, objects: &objects)
         }
-        for (node, built) in cache where objects[NodeID(node)] != nil {
-            for source in built.sources { index.add(NodeID(node), dependsOn: NodeID(source)) }
+        record.valid = symbolCanvas(state) == nil
+        record.guideColor = guideColor
+        record.kind = DocumentKind(state)
+        objectDependencies = DependencyIndex()
+        objectSources = [:]
+        for (node, built) in cache where objects[NodeID(node)] != nil && !built.sources.isEmpty {
+            objectSources[node] = built.sources
+            for source in built.sources { objectDependencies.add(NodeID(node), dependsOn: NodeID(source)) }
         }
-        // A brush redraws its strokes when one of its symbols changes (ATTR-008).
+        let list = LayerScene.build(canvas: canvas, layers: contents, purpose: .screen(guideColor: guideColor), background: background)
+        let slots = slotTable
+        slotTable = [:]
+        return DocumentScene(displayList: list, objects: objects, topLevel: topLevel, layers: order, slots: slots)
+    }
+
+    /// A brush redraws its strokes when one of its symbols changes (ATTR-008).
+    func addBrushDependencies(_ state: EngineState, to index: inout DependencyIndex) {
         for entry in Brushes.list(state) {
             for symbol in entry.symbols { library.addDependencies(of: NodeID(entry.id), on: NodeID(symbol), to: &index) }
         }
-        dependencies = index
-        let list = LayerScene.build(canvas: canvas, layers: contents, purpose: .screen(guideColor: guideColor), background: background)
-        return DocumentScene(displayList: list, objects: objects, topLevel: topLevel, layers: order)
     }
 
     /// What the build resolves once for every object: the document's raster settings and its
     /// brushes with their symbols' artwork (`library` must be current).
-    private func sceneContext(_ state: EngineState) -> SceneContext {
+    func sceneContext(_ state: EngineState) -> SceneContext {
         SceneContext(raster: SceneContext.raster(state), brushes: Brushes.resolve(state, library: library, renderer: symbolRenderer))
     }
 
     /// Every layer's content in `order`, placing the objects of the visible ones (and of hidden
     /// ones with `includeHidden`) and recording them in `objects`.
-    private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool, output: Bool = false,
+    private mutating func layerContents(_ state: EngineState, order: LayerOrder, includeHidden: Bool, output: Bool = false, record recording: Bool = false,
                                         objects: inout [NodeID: SceneObject]) -> (contents: [LayerContent], topLevel: [NodeID]) {
         if let symbol = symbolCanvas(state) {
-            return symbolContents(symbol, state: state, objects: &objects)
+            return symbolContents(symbol, state: state, record: recording, objects: &objects)
         }
         var contents: [LayerContent] = []
         var topLevel: [NodeID] = []
         var next = background.count
+        let ranks = recording ? Self.ranks(order, state: state) : [:]
+        if recording { record.ranks = ranks }
         for layer in order.layers {
             let rendering = LayerRendering(
                 id: NodeID(layer.id), locked: layer.locked, printing: layer.printing, keyline: layer.keyline,
@@ -489,21 +659,32 @@ public struct DocumentDisplayListBuilder: Sendable {
             )
             var items: [(item: DisplayItem, node: NodeID?)] = []
             var bounds: [Rect?] = []
+            if recording { record.layerTransforms[layer.id] = layerTransform(layer.id, state: state) }
             if layer.visible || includeHidden {
                 let layerTransform = layerTransform(layer.id, state: state)
                 let context = Placing(layer: layer.id, locked: layer.locked)
-                for item in masters.items(on: layer.id, output: output) {
+                let masterItems = masters.items(on: layer.id, output: output)
+                for item in masterItems {
                     items.append((item, nil))
                     bounds.append(item.bounds)
                     next += 1
                 }
+                var placed: [OpID] = []
                 for child in order.objects(on: layer.id, in: state) where belongs(child, state: state) {
                     guard let item = place(child, state: state, parentTransform: layerTransform, itemPath: [next], parent: nil, context: context,
-                                           objects: &objects) else { continue }
+                                           objects: &objects, record: recording) else { continue }
                     items.append((item, NodeID(child)))
                     bounds.append(objects[NodeID(child)]?.bounds)
                     topLevel.append(NodeID(child))
                     next += 1
+                    if recording {
+                        placed.append(child)
+                        record.keys[child] = Self.key(child, rank: state.store.placement(child).flatMap { ranks[$0.parent] } ?? 0, state: state)
+                    }
+                }
+                if recording && layer.visible {
+                    record.runs.append(SceneRecord.Run(layer: layer.id, rendering: LayerScene.screenRendering(rendering, guideColor: guideColor),
+                                                       masters: masterItems, objects: placed))
                 }
             }
             // The bounds `place` measured are the list's: nothing is measured twice.
@@ -514,7 +695,7 @@ public struct DocumentDisplayListBuilder: Sendable {
 
     /// The symbol this builder's canvas draws (`canvasNode` naming a node of kind `symbol`: the
     /// symbol editing window, LIB-012), nil otherwise.
-    private func symbolCanvas(_ state: EngineState) -> OpID? {
+    func symbolCanvas(_ state: EngineState) -> OpID? {
         guard let canvasNode, state.nodeKind(canvasNode) == .symbol else { return nil }
         return canvasNode
     }
@@ -523,7 +704,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// the top-level objects of one unlocked, printing run in symbol space -- which is pasteboard
     /// space, since the artwork keeps the coordinates it was converted at.  The objects' layer is
     /// the symbol.  A deleted symbol draws nothing.
-    private mutating func symbolContents(_ symbol: OpID, state: EngineState, objects: inout [NodeID: SceneObject])
+    private mutating func symbolContents(_ symbol: OpID, state: EngineState, record recording: Bool, objects: inout [NodeID: SceneObject])
         -> (contents: [LayerContent], topLevel: [NodeID]) {
         var items: [(item: DisplayItem, node: NodeID?)] = []
         var bounds: [Rect?] = []
@@ -532,7 +713,7 @@ public struct DocumentDisplayListBuilder: Sendable {
         let context = Placing(layer: symbol, locked: false)
         for child in state.isLive(symbol) ? state.liveChildren(symbol) : [] {
             guard let item = place(child, state: state, parentTransform: .identity, itemPath: [next], parent: nil, context: context,
-                                   objects: &objects) else { continue }
+                                   objects: &objects, record: recording) else { continue }
             items.append((item, NodeID(child)))
             bounds.append(objects[NodeID(child)]?.bounds)
             topLevel.append(NodeID(child))
@@ -544,7 +725,7 @@ public struct DocumentDisplayListBuilder: Sendable {
     /// The symbols' artwork in symbol space (library.adoc, "Rendering"), recording each symbol's
     /// dependency on its master nodes and nested symbols, and each nested instance's on its
     /// symbol.  The version is the artwork's hash, so any edit under a symbol changes it.
-    private mutating func buildLibrary(_ state: EngineState, dependencies: inout DependencyIndex) -> SymbolLibrary {
+    mutating func buildLibrary(_ state: EngineState, dependencies: inout DependencyIndex) -> SymbolLibrary {
         var artworks: [SymbolArtwork] = []
         var nested: [(instance: OpID, symbol: OpID)] = []
         for symbol in Symbols.symbols(in: state) {
@@ -583,21 +764,23 @@ public struct DocumentDisplayListBuilder: Sendable {
     }
 
     /// What enclosing nodes pass down while placing.
-    private struct Placing {
+    struct Placing {
         var layer: OpID
         var locked: Bool
     }
 
     /// Whether top-level `node` is drawn on this builder's canvas.  A cached node that names no
     /// canvas is on the pasteboard without reading its registers again.
-    private func belongs(_ node: OpID, state: EngineState) -> Bool {
+    func belongs(_ node: OpID, state: EngineState) -> Bool {
         if let cached = cache[node], !cached.namesCanvas { return canvasNode == nil }
         return CanvasMembership.belongs(node, to: canvasNode, in: state)
     }
 
     /// The item of `node` under `parentTransform`, recording it (and its members) in `objects`.
-    private mutating func place(_ node: OpID, state: EngineState, parentTransform: AffineTransform, itemPath: [Int], parent: OpID?,
-                                context: Placing, objects: inout [NodeID: SceneObject]) -> DisplayItem? {
+    /// With `record` (the scene's own objects, not a measurement) it also notes where it placed
+    /// them for patching (`SceneRecord`): each group's members and slots, each member's key.
+    mutating func place(_ node: OpID, state: EngineState, parentTransform: AffineTransform, itemPath: [Int], parent: OpID?,
+                        context: Placing, objects: inout [NodeID: SceneObject], record recording: Bool = false) -> DisplayItem? {
         guard !locallyHidden.contains(node), var built = built(node, state: state) else { return nil }
         let transform = built.transform.concatenating(parentTransform)
         let locked = context.locked || built.locked
@@ -605,29 +788,34 @@ public struct DocumentDisplayListBuilder: Sendable {
         let bounds: Rect?
         if built.drawsChildren {
             var children: [DisplayItem] = []
+            var childBounds: [Rect?] = []
             var placedIDs: [OpID] = []
+            var slots: [[Int]: NodeID] = [:]
             let inner = Placing(layer: context.layer, locked: locked)
             let clip = built.kind == .group && built.wrapper == nil ? ClipRendering.clipPath(of: node, in: state) : nil
             var clipItem: DisplayItem?
             for child in built.wrapper.map({ Wrappers.drawOrder(node, $0, in: state) }) ?? state.liveChildren(node) {
                 let path = clip.map { ClipRendering.itemPath(itemPath, child: child, clip: $0, contentIndex: children.count) } ?? itemPath + [children.count]
                 if let placed = place(child, state: state, parentTransform: transform, itemPath: path, parent: node,
-                                      context: inner, objects: &objects) {
-                    if child == clip { clipItem = placed } else { children.append(placed) }
+                                      context: inner, objects: &objects, record: recording) {
+                    if child == clip {
+                        clipItem = placed
+                    } else {
+                        children.append(placed)
+                        childBounds.append(objects[NodeID(child)]?.bounds)
+                    }
                     placedIDs.append(child)
+                    if recording { slots[Array(path.dropFirst(itemPath.count))] = NodeID(child) }
                 }
             }
-            if let clip {
-                let object = objects[NodeID(clip)]
-                objects[NodeID(clip)]?.aliasItemPaths = [itemPath + [ClipRendering.below]]
-                children = ClipRendering.children(clipItem: clipItem, contents: children, clipShape: object?.path ?? Objects.localPath(clip, in: state),
-                                                  clipTransform: object?.transform ?? Objects.transform(of: clip, in: state).concatenating(transform))
+            guard let finished = finishGroup(node, built: built, transform: transform, itemPath: itemPath, clip: clip, clipItem: clipItem,
+                                             children: children, childBounds: childBounds, placedIDs: placedIDs, slots: &slots, state: state,
+                                             objects: &objects) else { return nil }
+            (item, bounds) = finished
+            if recording {
+                setMembers(node, placedIDs)
+                slotTable[NodeID(node)] = slots
             }
-            guard !children.isEmpty else { return nil }
-            let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, transform: transform, in: state) { self.cache[$0]?.path } }
-            children = GroupStrokes.children(children, groupTransform: built.transform, mode: built.groupStrokes)
-            item = .group(GroupItem(children: children, appearance: built.groupAppearance, live: live))
-            bounds = item.bounds
         } else if let placed = built.placed, placed.parentTransform == parentTransform {
             item = placed.item
             bounds = placed.bounds
@@ -646,12 +834,47 @@ public struct DocumentDisplayListBuilder: Sendable {
                 cache[node] = built
             }
         }
+        if recording { notePrevious(node, in: objects) }
         objects[NodeID(node)] = SceneObject(
             id: node, kind: built.kind, path: built.path, transform: built.kind == .connector ? .identity : transform, itemPath: itemPath, parent: parent,
             bounds: bounds, elementPoints: built.elementPoints, leafContours: built.leafContours, item: item,
             layer: context.layer, isLocked: built.locked, isEffectivelyLocked: locked
         )
+        if recording {
+            pass?.writes.insert(node)
+            if parent != nil { record.keys[node] = Self.key(node, rank: 0, state: state) }
+        }
         return item
+    }
+
+    /// A group's item from its placed members (`place` and the patch share it): the clip path
+    /// split around the clipped contents, the live drawing of a wrapper, the strokes the group's
+    /// mode asks for.  Nil when no member drew.  The bounds are joined from the members' when
+    /// the group draws them as they are (`childBounds`), which is what `item.bounds` sums.
+    mutating func finishGroup(_ node: OpID, built: Built, transform: AffineTransform, itemPath: [Int], clip: OpID?, clipItem: DisplayItem?,
+                              children placedChildren: [DisplayItem], childBounds: [Rect?], placedIDs: [OpID], slots: inout [[Int]: NodeID],
+                              state: EngineState, objects: inout [NodeID: SceneObject]) -> (DisplayItem, Rect?)? {
+        var children = placedChildren
+        if let clip {
+            let object = objects[NodeID(clip)]
+            objects[NodeID(clip)]?.aliasItemPaths = [itemPath + [ClipRendering.below]]
+            if object != nil, placedIDs.contains(clip) { slots[[ClipRendering.below]] = NodeID(clip) }
+            children = ClipRendering.children(clipItem: clipItem, contents: children, clipShape: object?.path ?? Objects.localPath(clip, in: state),
+                                              clipTransform: object?.transform ?? Objects.transform(of: clip, in: state).concatenating(transform))
+        }
+        guard !children.isEmpty else { return nil }
+        let live = built.wrapper.map { Wrappers.live($0, node: node, children: placedIDs, transform: transform, in: state) { self.cache[$0]?.path } }
+        let stroked = GroupStrokes.children(children, groupTransform: built.transform, mode: built.groupStrokes)
+        let group = GroupItem(children: stroked, appearance: built.groupAppearance, live: live)
+        let item = DisplayItem.group(group)
+        let scale = built.transform.scaleFactor
+        let rescaled = built.groupStrokes == .nominal && scale.isFinite && scale > 1e-12 && abs(scale - 1) > 1e-12
+        if clip == nil, !group.isDerived, !rescaled {
+            var union: Rect?
+            for rect in childBounds.compactMap({ $0 }) { union = union.map { $0.union(rect) } ?? rect }
+            return (item, union)
+        }
+        return (item, item.bounds)
     }
 
     /// `node`'s subtree drawn in its parent's space without recording scene objects (a chart's
@@ -662,7 +885,7 @@ public struct DocumentDisplayListBuilder: Sendable {
                      objects: &scratch)
     }
 
-    private mutating func built(_ node: OpID, state: EngineState) -> Built? {
+    mutating func built(_ node: OpID, state: EngineState) -> Built? {
         if let cached = cache[node] { return cached }
         // A connector reached again while it is being routed (it is inside a group it is
         // attached to) draws nothing in that group's bounds.

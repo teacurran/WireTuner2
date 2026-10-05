@@ -1363,6 +1363,80 @@ pulled back); growing the extent live under a drag (with auto-scroll it is the r
 per-page margins (holes, above); storing the extent (it would need a merge rule for a value that is
 a function of the document).
 
+[[D-094]]
+=== D-094 A document edit patches the canvas's scene; only global changes build it again
+Found 2026-10-01: every edit rebuilt the canvas's display list over all objects
+(`DocumentDisplayListBuilder.update` → `build(state)`, then a diff of every object's item path).
+Each object's item was cached, but every object was still placed, recorded, indexed and summed,
+and the summary walked every object: in a Debug build a rename on 50,000 objects took about a
+minute (61 s measured on the model alone; 22 s through the app) and a restack also named all
+50,000 objects, which repainted every tile.  The owner's imported files have thousands of objects.
+Now (xref:client.adoc#the-display-list[Client, "The display list"]):
+
+* *What a change reaches.*  The *dirty* nodes are the ones it touched and every node drawn from
+  them (`DependencyIndex`, swatch uses -- unchanged); the *path* nodes are every group above a
+  dirty node, before and after the change.  Only those are placed again.  Each top-level one is
+  taken out of its layer's run (found by binary search on its siblings' keys: layer rank,
+  position, id) and put back where it sorts now.  Inside a group whose own placement did not
+  change (same flattened transform, effective lock and layer) the members off the path keep their
+  objects and items -- renumbered only when their slot moved -- and the path members are placed
+  again the same way down to the dirty nodes; a group whose placement changed (moved, locked,
+  a wrapper) is placed afresh with its subtree, as before.  Group bounds are joined from the
+  members' known bounds when the group draws them as they are.
+* *The list is patched, not rebuilt* (`DisplayList.replaceItems`, WTRender): an object placed
+  again at its index replaces its item; otherwise the objects taken out are removed and the ones
+  placed inserted, so the items between only shift.  The node index is kept as edits over a
+  shared table while the count stays the same and built again on first use otherwise; the union
+  of bounds is joined, and summed again only when a removed item reached its edge.
+* *Item paths stay absolute* (`SceneObject.itemPath` is public and hit testing addresses items by
+  index), so the objects whose top-level index shifted are renumbered: a change near the top of
+  the stack shifts few, a restack from the bottom to the top or a delete near the bottom shifts
+  every object above (two dictionary writes each, no item rebuilt).  `DocumentScene` looks paths
+  up through per-group slot tables and the list's node ids instead of a table keyed by absolute
+  path, so a shift re-keys nothing.
+* *Dependencies* are kept object by object (each object's sources), the symbols' and brushes'
+  separately; the library is read again only when a dirty node is a symbol or brush or lies under
+  one.
+* *A full build stays* for the first build, `rebuild`, `reload` and `setBackground`; the raster
+  effect resolution (FX-007); a layer added, removed, reordered or merged, or one whose flags or
+  transform changed (a rename is patched); a touched glyph or master page (canvas membership);
+  a change of document kind or guide colour; a symbol's own canvas; and a remote tree op merged
+  out of order (`treeOpsInOrder`: the move log's undo-redo can re-parent nodes the change does
+  not name).  Master content on child pages is patched as the run's leading items.
+* *The summary is the full build's*, computed the same way by both paths (`summarize`), with two
+  corrections.  A touched group names its members at every depth (the old pass named children,
+  and grandchildren only when the dictionary happened to visit the parent first).  A touched
+  layer names everything on it only when its own drawing changed -- flags, transform, place in
+  the stack, deletion or merge -- not when it is touched only as the parent of a created or moved
+  object, nor by a rename: those named every object on the layer, so creating, restacking or
+  deleting one object repainted the whole layer and reloaded every row of the Layers panel.
+* *Proof.*  `IncrementalSceneTests` applies random edit sequences (create, delete, arrange,
+  restack, group, ungroup, paste inside, rename, recolour, move, move to layer, master edits,
+  layer flags and renames, undo) to a patching builder and to one that builds every change in
+  full (`incremental = false`): after every step both equal a fresh `rebuild` -- list items, ids,
+  spans, bounds, node index and lens indices, objects with their item paths, top-level order,
+  layers, dependencies -- and both summaries are equal; targeted cases cover out-of-order remote
+  moves, hiding on this Mac, symbols, text and objects routed from a deleted layer.
+  `ScenePerformanceTests` times single edits on 50,000 objects with release budgets (4 ms for a
+  rename, recolour or move; 16 ms for a restack or delete).
+* *Measured* (2026-10-04, `builder.apply` on 50,000 rectangles, the machine shared with other
+  builds).  Debug, before: rename 61 s, recolour 80 s, move 74 s, restack to the front 55 s, to the
+  back 46 s, delete 23 s.  Debug, after: rename 33 ms for the first edit and 2.5 ms after it,
+  recolour 2.7 ms, move 2.2 ms, restack to the front 139 ms, to the back 48 ms, delete 49 ms.
+  Release, after (`WT_PERF=1`, every budget held): rename 3.0 ms first and 1.7 ms after, recolour
+  1.5 ms, move 1.0 ms, restack to the front 12.1 ms, to the back 1.8 ms, delete 11.8 ms; the same
+  rename through a full build 335 ms.  In the app (`LayersOutlineTests`, Debug) a rename on 50,000 rows went from about 22 s to
+  70 ms; the panel's restack is still dominated by `RestackObjects` reading the layer's children
+  (each `state.store.children` sorts all 50,000, about 22 s per call in Debug), which is the
+  command's cost, not the scene's.
+
+Rejected: relative item paths or a balanced tree of items (O(log n) restacks, but
+`SceneObject.itemPath`, `DisplayList.items` and every hit-test consumer would change shape);
+patching the display list while still placing every object (the placing is the cost); keeping the
+summary's layer-wide naming (correct but it repainted and re-listed everything for one object).
+Left as linear per change: the canvas extent's scan of item bounds (D-093) and the hit tester's
+index rebuild after a structural change (REND-003), both passes over rectangles.
+
 [[D-095]]
 === D-095 Imported objects take the names Illustrator gave them only where the drawing matches its native art
 LIB-030 (follow-up of xref:#D-092[D-092]): imported objects showed default labels in the Layers panel

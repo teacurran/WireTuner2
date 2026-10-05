@@ -445,6 +445,11 @@ NOTE: As built by D-093: the rectangle clamped to is the canvas's extent
 bounding box also sets the zoom floor (`CanvasScrollerModel.minimumZoom(of:)`), so at the lowest zoom
 the whole extent fits at any angle.  The extent is recomputed after each document change, never per
 frame, and is never stored or synced: it is derived from the document by each window.
++
+NOTE: As built by D-094: a document change no longer rebuilds the canvas's display list over every
+object; the scene builder patches the items, objects and item paths the change reached
+(xref:client.adoc#the-display-list[Client, "The display list"]).  The extent is still found by one
+pass over the list's item bounds per change.
 * Rotation gestures (BASIC-034).  `rotate(with:)` on the canvas view accumulates the
   gesture's rotation about its centroid while *Rotate canvas with trackpad* is on; kbd:[Shift]
   rounds the accumulated angle to 15°; `magnify(with:)` drives pinch; `smartMagnify(with:)`

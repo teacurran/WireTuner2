@@ -114,9 +114,7 @@ public enum LayerScene {
             switch purpose {
             case .screen(let guideColor):
                 guard content.visible else { continue }
-                if rendering.isGuides {
-                    rendering.highlight = rendering.keyline ? .black : guideColor
-                }
+                rendering = screenRendering(rendering, guideColor: guideColor)
             case .output(let includeHidden):
                 guard content.visible || includeHidden, rendering.printing, !rendering.isGuides else { continue }
                 rendering.keyline = false
@@ -131,6 +129,19 @@ public enum LayerScene {
             spans.append(LayerSpan(layer: rendering, range: start..<items.count))
         }
         return DisplayList(canvas: canvas, items: items, itemBounds: itemBounds, nodeIDs: nodes.contains { $0 != nil } ? nodes : [], layers: spans)
+    }
+}
+
+extension LayerScene {
+    /// How a visible layer's run draws on the canvas: the Guides layer's highlight is the guide
+    /// colour (black when it is a keyline layer).  `build` and a builder patching a run in place
+    /// (D-094) share it.
+    public static func screenRendering(_ layer: LayerRendering, guideColor: Color) -> LayerRendering {
+        var rendering = layer
+        if rendering.isGuides {
+            rendering.highlight = rendering.keyline ? .black : guideColor
+        }
+        return rendering
     }
 }
 

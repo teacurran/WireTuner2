@@ -30,6 +30,24 @@ public struct DependencyIndex: Hashable, Sendable {
         }
     }
 
+    /// Forgets that `dependent` is drawn from each of `sources` (D-094: the builder keeps each
+    /// node's sources, so dropping them costs their number, not the index's size).
+    public mutating func remove(_ dependent: NodeID, from sources: some Sequence<NodeID>) {
+        for source in sources {
+            dependents[source]?.remove(dependent)
+            if dependents[source]?.isEmpty == true {
+                dependents[source] = nil
+            }
+        }
+    }
+
+    /// Adds every dependency `other` records.
+    public mutating func formUnion(_ other: DependencyIndex) {
+        for (source, nodes) in other.dependents {
+            dependents[source, default: []].formUnion(nodes)
+        }
+    }
+
     /// The nodes drawn from `source`, directly.
     public func directDependents(of source: NodeID) -> Set<NodeID> {
         dependents[source] ?? []

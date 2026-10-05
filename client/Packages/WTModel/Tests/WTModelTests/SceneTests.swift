@@ -154,7 +154,12 @@ private func groupProps(tx: Double = 0) -> Wiretuner_Doc_V1_NodeProps {
         let (_, renamed) = builder.apply(rename, state: replica.state, origin: .local)
         #expect(renamed.touchedNodes.contains(NodeID(layer)))
         #expect(renamed.bounds[NodeID(layer)] == nil)
-        #expect(renamed.bounds[NodeID(node)] != nil)   // everything on a touched layer
+        // A rename draws nothing differently: the layer's objects are not named (D-094) ...
+        #expect(renamed.bounds[NodeID(node)] == nil && !renamed.touchedNodes.contains(NodeID(node)))
+        // ... a change to how the layer draws names everything on it.
+        let hide = try replica.perform(SetLayerFlag([layer], .keyline, true))!
+        let (_, keyline) = builder.apply(hide, state: replica.state, origin: .local)
+        #expect(keyline.bounds[NodeID(node)] != nil)
         // Delete.
         let delete = try replica.perform(DeleteNodes([node]))!
         let (after, deleted) = builder.apply(delete, state: replica.state, origin: .local)

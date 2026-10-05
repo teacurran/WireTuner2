@@ -256,6 +256,27 @@ screen and Core Graphics for everything that must be exactly right (xref:decisio
 * What differs is only how a dirty tile becomes pixels, and the two answers are held to
   agreement by REND-007's per-tile comparison (xref:testing.adoc[Testing]).
 
+NOTE: As built by D-094 (2026-10-04): a document edit patches the scene instead of building it
+again.  `DocumentDisplayListBuilder` (`WTModel/DocumentScene.swift`) keeps a `SceneRecord` of what
+it placed -- each visible layer's run of master content and top-level objects, each placed
+object's key among its siblings (layer rank, position, id), each drawn group's members -- and
+`IncrementalScene.swift` patches from it: the change's touched nodes and their dependents are
+*dirty*, the groups above them before and after are on the *path*; each top-level one is taken out
+of its run by binary search and placed again where it sorts now; a group whose own placement did
+not change keeps its other members' objects and items and renumbers them only when their slot
+moved; the display list is patched in place (`DisplayList.replaceItems`: one item replaced, or the
+moved ones removed and inserted) and shifted objects' item paths renumbered.  `DocumentScene`
+resolves an item path through the list's node ids and per-group slot tables, and its equality
+compares the list, the objects, the top-level order and the layers.  A full build remains for the
+first build, `rebuild`, `reload`, `setBackground`, the raster effect resolution, a layer added,
+removed, reordered, merged or with changed flags or transform, a touched glyph or master page, the
+document kind, the guide colour, a symbol's canvas and a remote tree op merged out of order.  The
+summary is the same for both paths (`summarize`): a touched group names its members at every
+depth, and a touched layer names its objects only when its own drawing changed.  Proved by
+`IncrementalSceneTests` (random edit sequences against a full build after every step) and timed
+by `ScenePerformanceTests` (single edits on 50,000 objects; the figures are in D-094 and the
+handoff).
+
 === Metal tile renderer (primary on screen)
 
 * `WTCanvasView` is an `MTKView` with `isPaused = true` and `enableSetNeedsDisplay = true`: a
