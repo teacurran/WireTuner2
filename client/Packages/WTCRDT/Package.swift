@@ -14,6 +14,10 @@ let package = Package(
         // The conformance runner's vector messages (Tests/WTCRDTTests/Conformance/Generated) are
         // swift-protobuf code; same version line as WTProto.
         .package(url: "https://github.com/apple/swift-protobuf", from: "1.38.0"),
+        // zstd 1.5.7, vendored from source as ../../Vendor/zstd (BSD; decisions.adoc D-098):
+        // snapshots are zstd-compressed (docs/spec/crdt-model.adoc, "Snapshots") and
+        // Compression.framework has no zstd.
+        .package(path: "../../Vendor/zstd"),
     ],
     targets: [
         .target(
@@ -27,24 +31,12 @@ let package = Package(
             exclude: ["Generated/SkippedRules.md"],
             resources: [.copy("Generated/MergeTable.json")]
         ),
-        // zstd 1.5.7 (BSD, Meta), vendored as the upstream single-file library
-        // (build/single_file_libs/combine.py over lib/, without dictBuilder and multithreading):
-        // snapshots are zstd-compressed (docs/spec/crdt-model.adoc, "Snapshots") and
-        // Compression.framework has no zstd.  Third-party code: built without coverage
-        // instrumentation so it stays out of the region gate.
-        .target(
-            name: "CZstd",
-            exclude: ["LICENSE"],
-            cSettings: [
-                .unsafeFlags(["-w", "-fno-profile-instr-generate", "-fno-coverage-mapping"]),
-            ]
-        ),
         .target(
             name: "WTCRDT",
             dependencies: [
                 .product(name: "WTProto", package: "WTProto"),
                 "WTCRDTSchema",
-                "CZstd",
+                .product(name: "CZstd", package: "zstd"),
             ]
         ),
         .testTarget(

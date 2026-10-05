@@ -297,6 +297,9 @@ struct PDFImportLexer {
 /// Builds operands from tokens and hands each operator its operands.
 struct PDFImportParser {
     var lexer: PDFImportLexer
+    /// Whether an array, dictionary or procedure nested deeper than `ImportNesting.limit` was
+    /// read as null (its contents skipped): the caller notes it where it matters, and may reset it.
+    var nestingTruncated = false
 
     init(_ data: Data, keepComments: Bool = false) {
         lexer = PDFImportLexer(data, keepComments: keepComments)
@@ -333,25 +336,29 @@ struct PDFImportParser {
         }
     }
 
-    /// The operand starting with `token` (arrays, dictionaries and procedures read whole).
-    private mutating func operand(_ token: PDFImportToken) -> PDFImportOperand {
+    /// An array, dictionary or procedure being read: the token that closes it and its items.
+    private struct Open {
+        let close: PDFImportToken
+        var items: [PDFImportOperand] = []
+    }
+
+    /// The token that closes a container `token` opens, nil for any other token.
+    private static func closer(_ token: PDFImportToken) -> PDFImportToken? {
+        switch token {
+        case .arrayOpen: return .arrayClose
+        case .procOpen: return .procClose
+        case .dictOpen: return .dictClose
+        default: return nil
+        }
+    }
+
+    /// A token that neither opens nor closes the container being read, as an operand (a
+    /// mismatched closing token reads as null).
+    private static func scalar(_ token: PDFImportToken) -> PDFImportOperand {
         switch token {
         case .number(let value): return .number(value)
         case .name(let value): return .name(value)
         case .string(let value): return .string(value)
-        case .arrayOpen: return .array(sequence(until: .arrayClose))
-        case .procOpen: return .proc(sequence(until: .procClose))
-        case .dictOpen:
-            let items = sequence(until: .dictClose)
-            var dictionary: [String: PDFImportOperand] = [:]
-            var index = 0
-            while index + 1 < items.count {
-                if let key = items[index].name {
-                    dictionary[key] = items[index + 1]
-                }
-                index += 2
-            }
-            return .dict(dictionary)
         case .keyword(let word):
             switch word {
             case "true": return .bool(true)
@@ -359,23 +366,86 @@ struct PDFImportParser {
             case "null": return .null
             default: return .keyword(word)
             }
-        case .arrayClose, .dictClose, .procClose, .comment:
+        case .arrayOpen, .arrayClose, .dictOpen, .dictClose, .procOpen, .procClose, .comment:
             return .null
         }
     }
 
-    private mutating func sequence(until close: PDFImportToken) -> [PDFImportOperand] {
-        var items: [PDFImportOperand] = []
+    /// A finished container as an operand.
+    private static func value(_ open: Open) -> PDFImportOperand {
+        switch open.close {
+        case .arrayClose:
+            return .array(open.items)
+        case .procClose:
+            return .proc(open.items)
+        default:
+            var dictionary: [String: PDFImportOperand] = [:]
+            var index = 0
+            while index + 1 < open.items.count {
+                if let key = open.items[index].name {
+                    dictionary[key] = open.items[index + 1]
+                }
+                index += 2
+            }
+            return .dict(dictionary)
+        }
+    }
+
+    /// The operand starting with `token`: arrays, dictionaries and procedures are read whole --
+    /// with an explicit stack, not recursion, so input nesting cannot exhaust the thread's stack
+    /// (import-formats.adoc, "Client", *Nesting*).  A container nested deeper than
+    /// `ImportNesting.limit` is read to its closing token and becomes null; an unterminated one
+    /// ends at the end of the data.
+    private mutating func operand(_ token: PDFImportToken) -> PDFImportOperand {
+        guard let close = PDFImportParser.closer(token) else {
+            return PDFImportParser.scalar(token)
+        }
+        var open = [Open(close: close)]
+        // The closing tokens of the containers past the limit, innermost last.
+        var skipped: [PDFImportToken] = []
         while let token = lexer.next() {
-            if token == close {
-                break
+            if let last = skipped.last {
+                if token == last {
+                    skipped.removeLast()
+                    if skipped.isEmpty {
+                        open[open.count - 1].items.append(.null)
+                    }
+                } else if let inner = PDFImportParser.closer(token) {
+                    skipped.append(inner)
+                }
+                continue
+            }
+            if token == open[open.count - 1].close {
+                let done = open.removeLast()
+                guard !open.isEmpty else {
+                    return PDFImportParser.value(done)
+                }
+                open[open.count - 1].items.append(PDFImportParser.value(done))
+                continue
             }
             if case .comment = token {
                 continue
             }
-            items.append(operand(token))
+            if let inner = PDFImportParser.closer(token) {
+                if open.count < ImportNesting.limit {
+                    open.append(Open(close: inner))
+                } else {
+                    nestingTruncated = true
+                    skipped.append(inner)
+                }
+                continue
+            }
+            open[open.count - 1].items.append(PDFImportParser.scalar(token))
         }
-        return items
+        // The data ended inside: what is open closes there.
+        if !skipped.isEmpty {
+            open[open.count - 1].items.append(.null)
+        }
+        while open.count > 1 {
+            let done = open.removeLast()
+            open[open.count - 1].items.append(PDFImportParser.value(done))
+        }
+        return PDFImportParser.value(open[0])
     }
 
     /// Every operator with its operands, in order; `ID` hands the inline image's data as a

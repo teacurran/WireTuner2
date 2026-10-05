@@ -26,7 +26,7 @@ other so that the screen, the PDF and the printer agree.
 |===
 
 Dependency direction is strictly downward in the table: `WTApp` may import everything;
-`WTCRDT` imports only `WTProto`.
+`WTCRDT` imports only `WTProto` (and the vendored zstd, below).
 
 NOTE: Deviation recorded by DRAW-002.  `WTModel` builds WTRender's display list and change
 summaries (`DocumentDisplayListBuilder`, below), so it imports `WTRender` and `WTGeometry`, which
@@ -45,6 +45,11 @@ gate and SonarQube (which read `client/Packages/*/Sources`) do not measure it.  
 C++ with a C interface, written by `tools/freehand/vendor.sh` from pinned release tarballs plus the
 patches in `tools/freehand/patches`, and depended on by `WTInterchange` alone.  It is
 platform-neutral and builds for iOS with the packages (D-073).
+
+NOTE: Added by xref:decisions.adoc#D-098[D-098].  `client/Vendor/zstd` (product `CZstd`) is zstd
+1.5.7's single-file library (BSD), written by `tools/zstd/vendor.sh` from the pinned release tarball
+(`--check` reproduces it).  It was `WTCRDT`'s `CZstd` target; it moved, unchanged, so that `WTCRDT`
+(snapshots) and `WTInterchange` (Illustrator 2020 and later's private data) share one copy.
 
 == Concurrency
 

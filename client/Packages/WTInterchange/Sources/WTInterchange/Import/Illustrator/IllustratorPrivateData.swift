@@ -3,7 +3,8 @@
 // dictionary as the streams `/AIPrivateData1` … `/AIPrivateDataN` (`/AIPDFPrivateData1` … in a
 // `.pdf` saved with *Preserve Illustrator Editing Capabilities*), which join into Illustrator's
 // PostScript-like native format -- from Illustrator CS (version 11) on mostly behind a
-// `%AI12_CompressedData` marker as one zlib stream.  The importer reads only its layer table --
+// `%AI12_CompressedData` marker as one zlib stream, from Illustrator 2020 (version 24) on behind a
+// `%AI24_ZStandard_Data` marker as one Zstandard frame (D-098).  The importer reads only its layer table --
 // every `%AI5_BeginLayer` record's `Lb` flags (visible, preview, enabled, printing …) and `Ln`
 // name, nested as the records nest -- and the artboards' names from the document data's
 // `ArtboardArray` (Illustrator CS4 and later).  The artwork itself always comes from the PDF.
@@ -31,8 +32,8 @@ enum IllustratorPrivateData {
         }
     }
 
-    /// The joined, decompressed private data of `page`, or nil when it has none or it is
-    /// compressed in a way the importer does not read (Illustrator 2020's Zstandard data).
+    /// The joined, decompressed private data of `page`, or nil when it has none or its
+    /// compressed part does not decompress.
     static func data(page: PDFImportDict) -> Data? {
         guard let privateData = page.dict("PieceInfo")?.dict("Illustrator")?.dict("Private") else {
             return nil
@@ -50,11 +51,17 @@ enum IllustratorPrivateData {
         return native(joined)
     }
 
-    /// `joined` with its compressed part inflated: a `%AI12_CompressedData` marker is followed by
-    /// one zlib stream; nil for a `%AI24_ZStandard_Data` marker or a stream that does not inflate.
+    /// `joined` with its compressed part decompressed: a `%AI12_CompressedData` marker is
+    /// followed by one zlib stream, a `%AI24_ZStandard_Data` marker (Illustrator 2020 and later)
+    /// by Zstandard frames; nil for a stream that does not decompress or passes `limit`.
     static func native(_ joined: Data) -> Data? {
-        if joined.range(of: Data("%AI24_ZStandard_Data".utf8)) != nil {
-            return nil
+        if let range = joined.range(of: Data("%AI24_ZStandard_Data".utf8)) {
+            // Unlike zlib's, a damaged or cut-off Zstandard frame keeps nothing: the library
+            // checks the frame as a whole, and a partial native document would misread.
+            guard let content = try? Zstandard.decompress(joined[range.upperBound...], limit: limit) else {
+                return nil
+            }
+            return joined[..<range.lowerBound] + content
         }
         let marker = Data("%AI12_CompressedData".utf8)
         guard let range = joined.range(of: marker) else {
@@ -203,13 +210,14 @@ extension IllustratorPrivateData {
 
     /// The artboard dictionaries of the first `ArtboardArray` anywhere in `value`.
     static func artboards(_ value: IllustratorDataValue) -> [IllustratorDataValue] {
-        guard case .container(let entries) = value else { return [] }
-        if let array = entries.first(where: { $0.key == "ArtboardArray" }) {
-            return array.value.values
-        }
-        for entry in entries {
-            let found = artboards(entry.value)
-            if !found.isEmpty { return found }
+        // Depth first in file order, with a stack rather than recursion.
+        var pending = [value]
+        while let next = pending.popLast() {
+            guard case .container(let entries) = next else { continue }
+            if let array = entries.first(where: { $0.key == "ArtboardArray" }), !array.value.values.isEmpty {
+                return array.value.values
+            }
+            pending += entries.map(\.value).reversed()
         }
         return []
     }
@@ -238,6 +246,8 @@ extension IllustratorPrivateData {
     /// `/NotRecorded` ignored, and the outermost `/Document : … ;` closed without a comma.
     static func dictionary(_ body: Data) -> IllustratorDataValue {
         var stack: [[(key: String?, value: IllustratorDataValue)]] = [[]]
+        // Containers opened past `ImportNesting.limit`, skipped whole.
+        var skipped = 0
         var closed: IllustratorDataValue?
         var operands: [PDFImportOperand] = []
         var parser = PDFImportParser(body)
@@ -245,9 +255,18 @@ extension IllustratorPrivateData {
             operands.last(where: { $0.string != nil })?.string.map(PDFImportOperand.text)
         }
         while let item = parser.next() {
+            if skipped > 0 {
+                if item == .op(":") { skipped += 1 } else if item == .op(";") { skipped -= 1 }
+                operands = []
+                continue
+            }
             switch item {
             case .operand(let operand):
                 operands.append(operand)
+            case .op(":") where stack.count >= ImportNesting.limit:
+                skipped = 1
+                closed = nil
+                operands = []
             case .op(":"):
                 stack.append([])
                 closed = nil

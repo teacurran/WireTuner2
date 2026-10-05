@@ -706,7 +706,8 @@ snapshot's `state_hash`) and the zstd-compressed snapshot in chunks of at most 1
 `assemble` checks the frames against the header and decompresses; `state` also checks that the
 header names the snapshot's hash and decodes.  zstd is zstd 1.5.7 on both sides: zstd-jni in
 wt-crdt, and in WTCRDT the upstream single-file library vendored as the `CZstd` C target
-(`client/Packages/WTCRDT/Sources/CZstd`, BSD licence; Compression.framework has no zstd), built
+(`client/Vendor/zstd`, written by `tools/zstd/vendor.sh`, shared with WTInterchange since
+xref:decisions.adoc#D-098[D-098]; BSD licence; Compression.framework has no zstd), built
 without coverage instrumentation.  Both compress the design point to the same 3,843,456 bytes (3,661,516 before CRDT-010 added the change records' end counters).
 
 The design point -- 50,000 nodes with 20 registers each (1,000,000) and five sequence elements,

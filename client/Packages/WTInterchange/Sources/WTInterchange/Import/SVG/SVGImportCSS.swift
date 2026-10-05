@@ -156,7 +156,10 @@ struct SVGImportSelector {
             pendingChild = false
             compounds.append(compound)
         }
-        guard !compounds.isEmpty else {
+        // Each compound matches a distinct ancestor and elements nest at most
+        // `ImportNesting.limit` deep, so a longer selector matches nothing (and is not matched
+        // by recursion as deep as it is long).
+        guard !compounds.isEmpty, compounds.count <= ImportNesting.limit else {
             return nil
         }
         self.compounds = compounds

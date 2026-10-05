@@ -17,8 +17,17 @@ indirect enum PDFImportFunction {
 
     /// The function a `/Function` (or tint transform) entry describes.
     static func parse(_ value: PDFImportValue) -> PDFImportFunction? {
+        parse(value, depth: 0)
+    }
+
+    /// The function `value` describes `depth` levels of arrays and stitching functions down;
+    /// nil past 16 levels (a file can make them refer to themselves).
+    static func parse(_ value: PDFImportValue, depth: Int) -> PDFImportFunction? {
+        guard depth < 16 else {
+            return nil
+        }
         if let array = value.array {
-            let functions = array.values.compactMap(parse)
+            let functions = array.values.compactMap { parse($0, depth: depth + 1) }
             return functions.isEmpty ? nil : .array(functions)
         }
         guard let dict = value.dict else {
@@ -39,7 +48,7 @@ indirect enum PDFImportFunction {
         case 2:
             return .exponential(domain: domain, c0: dict.numbers("C0") ?? [0], c1: dict.numbers("C1") ?? [1], exponent: dict.number("N") ?? 1)
         case 3:
-            let functions = dict.array("Functions")?.values.compactMap(parse) ?? []
+            let functions = dict.array("Functions")?.values.compactMap { parse($0, depth: depth + 1) } ?? []
             guard !functions.isEmpty else {
                 return nil
             }
@@ -353,20 +362,24 @@ indirect enum PDFImportColorSpace {
     }
 
     /// The space a name selects: a device space, or an entry of the resources' `/ColorSpace`.
-    static func named(_ name: String, resources: PDFImportDict?) -> PDFImportColorSpace? {
+    static func named(_ name: String, resources: PDFImportDict?, depth: Int = 0) -> PDFImportColorSpace? {
         if let space = device(name) {
             return space
         }
         guard let value = resources?.dict("ColorSpace")?[name] else {
             return nil
         }
-        return parse(value, resources: resources)
+        return parse(value, resources: resources, depth: depth + 1)
     }
 
-    /// The space an object describes.
-    static func parse(_ value: PDFImportValue, resources: PDFImportDict?) -> PDFImportColorSpace? {
+    /// The space an object describes; nil past 16 levels of names and base or alternate spaces
+    /// (a file can make them refer to themselves).
+    static func parse(_ value: PDFImportValue, resources: PDFImportDict?, depth: Int = 0) -> PDFImportColorSpace? {
+        guard depth < 16 else {
+            return nil
+        }
         if let name = value.name {
-            return named(name, resources: resources)
+            return named(name, resources: resources, depth: depth + 1)
         }
         guard let array = value.array, let family = array[0]?.name else {
             return nil
@@ -386,7 +399,7 @@ indirect enum PDFImportColorSpace {
         case "Lab":
             return .lab(range: array[1]?.dict?.numbers("Range").flatMap { $0.count == 4 ? $0 : nil } ?? [-100, 100, -100, 100])
         case "Indexed", "I":
-            guard let baseValue = array[1], let base = parse(baseValue, resources: resources) else { return nil }
+            guard let baseValue = array[1], let base = parse(baseValue, resources: resources, depth: depth + 1) else { return nil }
             let high = Int(array[2]?.number ?? 0)
             let lookup: Data
             switch array[3] {
@@ -396,10 +409,10 @@ indirect enum PDFImportColorSpace {
             }
             return .indexed(base: base, high: high, lookup: [UInt8](lookup))
         case "Separation":
-            guard let alternateValue = array[2], let alternate = parse(alternateValue, resources: resources) else { return nil }
+            guard let alternateValue = array[2], let alternate = parse(alternateValue, resources: resources, depth: depth + 1) else { return nil }
             return .separation(name: array[1]?.name ?? "", alternate: alternate, tint: array[3].flatMap(PDFImportFunction.parse))
         case "DeviceN":
-            guard let alternateValue = array[2], let alternate = parse(alternateValue, resources: resources) else { return nil }
+            guard let alternateValue = array[2], let alternate = parse(alternateValue, resources: resources, depth: depth + 1) else { return nil }
             return .deviceN(names: array[1]?.array?.values.compactMap(\.name) ?? [], alternate: alternate, tint: array[3].flatMap(PDFImportFunction.parse))
         default:
             return nil

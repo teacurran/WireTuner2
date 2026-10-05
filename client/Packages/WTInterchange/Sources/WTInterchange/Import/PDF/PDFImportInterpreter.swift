@@ -59,7 +59,10 @@ final class PDFImportInterpreter {
 
     var state: State
     private var stack: [State] = []
-    private var marked: [PDFImportScope?] = []
+    /// Whether each open marked-content sequence opened a layer scope, innermost last.
+    private var marked: [Bool] = []
+    /// The layer scopes the open sequences opened (at most `ImportNesting.limit`).
+    private var markedScopes: [PDFImportScope] = []
     private var path = ImportPathBuilder()
     private var pendingClip: FillRule?
     private var textMatrix = AffineTransform.identity
@@ -83,6 +86,9 @@ final class PDFImportInterpreter {
         parser.forEachOperator { op, operands in
             execute(op, operands)
         }
+        if parser.nestingTruncated || tree.nestingTruncated {
+            session.note(ImportNesting.note)
+        }
         tree.flushText()
     }
 
@@ -90,7 +96,7 @@ final class PDFImportInterpreter {
     /// (which draws the same, a layer being a plain group), so a clip Illustrator sets in one
     /// layer and restores after the next layer began does not wrap that layer in a clipping group.
     var scopes: [PDFImportScope] {
-        outerScopes + marked.compactMap { $0 } + state.clips
+        outerScopes + markedScopes + state.clips
     }
 
     // MARK: Operators
@@ -180,11 +186,20 @@ final class PDFImportInterpreter {
             if op == "BDC", session.illustratorLayers, operands.first?.name == "AltAI8" {
                 hiddenLayer(operands)
             }
-            marked.append(op == "BDC" ? layerScope(operands) : nil)
+            let scope = op == "BDC" ? layerScope(operands) : nil
+            if let scope, markedScopes.count < ImportNesting.limit {
+                markedScopes.append(scope)
+                marked.append(true)
+            } else {
+                if scope != nil {
+                    session.note(ImportNesting.note)
+                }
+                marked.append(false)
+            }
         case "EMC":
-            if let closing = marked.popLast() ?? nil, !collectGlyphs {
+            if marked.popLast() == true, let closing = markedScopes.popLast(), !collectGlyphs {
                 // A layer with nothing drawn in it still becomes a layer.
-                tree.touch(outerScopes + marked.compactMap { $0 } + [closing])
+                tree.touch(outerScopes + markedScopes + [closing])
             }
         case "BT":
             textMatrix = .identity
@@ -338,7 +353,13 @@ final class PDFImportInterpreter {
             }
         }
         if let clip, !contours.isEmpty, !collectGlyphs {
-            state.clips.append(session.scope(.clip(ImportedPath(contours: contours, fillRule: clip))))
+            // Past the limit a clip is dropped (each saved state copies the clips, so they are
+            // kept few as well as shallow).
+            if state.clips.count < ImportNesting.limit {
+                state.clips.append(session.scope(.clip(ImportedPath(contours: contours, fillRule: clip))))
+            } else {
+                session.note(ImportNesting.note)
+            }
         }
     }
 
@@ -542,7 +563,8 @@ final class PDFImportInterpreter {
         var contours: [ImportedContour] = []
         for glyph in glyphs {
             if font.isType3 {
-                guard let procedure = font.glyphName(glyph.code).flatMap({ font.charProcs?.stream($0) }) else {
+                // A glyph procedure showing Type 3 text runs one level deeper each time.
+                guard depth < 16, let procedure = font.glyphName(glyph.code).flatMap({ font.charProcs?.stream($0) }) else {
                     continue
                 }
                 let child = PDFImportInterpreter(session: session, tree: tree, resources: font.type3Resources ?? resources, ctm: font.fontMatrix.concatenating(glyph.matrix), pageBox: pageBox, depth: depth + 1, collectGlyphs: true)

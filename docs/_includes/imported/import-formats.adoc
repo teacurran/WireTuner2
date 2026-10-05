@@ -708,8 +708,9 @@ visibility from the default configuration's `/OFF` or `/BaseState`, lock, print 
 the private data's layer table when a name matches one top-level record); for a file with neither,
 the private data's layer table when it has exactly one top-level layer (all the artwork goes on it).
 The private data is page 1's `/PieceInfo /Illustrator /Private` `/AIPrivateData1…N` streams in
-numeric order, the part after `%AI12_CompressedData` inflated as one zlib stream (at most 1 GiB);
-`%AI24_ZStandard_Data` is not read.  Each `%AI5_BeginLayer` record gives `Lb`'s first four flags
+numeric order, the part after `%AI12_CompressedData` inflated as one zlib stream (at most 1 GiB),
+the part after `%AI24_ZStandard_Data` (Illustrator 2020 and later) decompressed as Zstandard frames
+(at most 1 GiB; xref:decisions.adoc#D-098[D-098]).  Each `%AI5_BeginLayer` record gives `Lb`'s first four flags
 (visible, preview, enabled, printing) and the `Ln` name, nested by `%AI5_EndLayer`.  A layer inside
 a layer (a sublayer) is a group named after it.  Opening falls back to the plain PDF reading
 (optional content still becomes layers) with a note when a page has artwork outside every layer,
@@ -729,8 +730,9 @@ with Illustrator's dictionary serialisation (`value /Type (key) ,`, containers `
 `Name` (`/UnicodeString`: UTF-16 with a byte-order mark, else UTF-8, else Latin-1).  When there is
 one name per PDF page, page _n_ is named after artboard _n_ (`ImportedPage.name`, so the document
 page's name); otherwise, or for an empty name, the page keeps none.  Files before CS4 have no
-`ArtboardArray`; Illustrator 2020 and later write `%AI24_ZStandard_Data`, which is not read (the
-system Compression library has no Zstandard), so their pages stay unnamed.  *PDFs Illustrator
+`ArtboardArray`; Illustrator 2020 and later's `%AI24_ZStandard_Data` is decompressed by the
+vendored reference zstd library (xref:decisions.adoc#D-098[D-098]), so their artboards name their
+pages too.  *PDFs Illustrator
 wrote*: `PDFImporter` reads the `/Layer` and `/AltAI8` marks in every PDF (`illustratorLayers` is on
 by default; only the Illustrator importer's fallback turns it off), and a `.pdf` with
 `/PieceInfo /Illustrator` on a page or with `/Layer` marks goes through
@@ -873,6 +875,43 @@ marks even/odd).  Patch 0004 copies it; the bridge already wrote `evenOdd` and `
 already used it, a composite path taking its first path's rule (in the corpus a composite's paths
 always share it).  *Names*: FreeHand files hold none for objects (D-095).  Tests:
 `FreeHandEvenOddTests` (FreeHand 8 and 10 files written byte by byte; they fail without the patch).
+
+[[nesting]]
+NOTE: As built (*Nesting*, found on the owner's Illustrator EPS `h2h-apron-specs-2.eps`, which
+crashed the legacy reader with a stack overflow).  Every open and import converts on a Swift
+concurrency `Task.detached` (`ForeignFileOpener.open`, `ImportController.convert`, `paste`,
+`ShareInbox`, Convert to Editable), a cooperative-pool thread with a 512 KB stack; *Paste* of rich
+formats (`ClipboardReader.readRichest`) and the SVG poster fallback convert on the main thread
+(8 MB); the result becomes nodes (`DocumentImport`, `PlaceImportedScene`, `ImportWriter`) on the main
+thread.  *Cause*: `PDFImportParser` -- the PostScript-syntax parser of content streams, CMaps, Type 4
+functions, Illustrator document data and the legacy Illustrator reader -- read arrays, procedures and
+dictionaries by recursion, one level per bracket, and the file's ASCII85 image data has about 1,200
+unmatched `[` and `{`.  *Fixes*, with the shared bound `ImportNesting.limit` (128,
+`WTInterchange/Import/ImportNesting.swift`) and the note "Parts of the file nested too deeply were
+flattened or left out." where content is lost: the parser reads containers with an explicit stack
+and reads one nested past the limit as null (the stream goes on as before; the legacy reader notes
+it only for operands of the artwork, not the skipped prolog or setup); the legacy Illustrator reader
+(`AILegacyInterpreter.open`) puts the contents of `u`, `q` and `Lb` groups opened past the limit into
+the deepest open group, without their clips; the PDF interpreter drops clips and marked-content
+layers past the limit and `PDFImportTree` opens at most that many scopes; Type 3 glyph procedures
+showing Type 3 text stop 16 deep (as forms do), and colour spaces and functions that name
+themselves stop 16 levels down (they recursed forever); Illustrator document data skips containers
+past the limit and `artboards` searches it with a stack; SVG keeps at most 128 element levels when
+it parses (`SVGImportTree`), converts at most `SVGImportConverter.maximumDepth` (48, counting `use`
+expansion) since its conversion recurses and a level costs several KB of stack in a debug build,
+drops selectors of more than 128 compounds and walks `descendants` with a stack.  The walks over an
+imported tree -- `ImportedNode.descendants`, `swatches`, `controlBounds`, `ImportedScene.blobs`,
+`scenePaths`, `exportScene` -- use a stack, not recursion.  Already bounded: FreeHand (48 levels,
+`FreeHandConverter.maximumDepth`; libfreehand's own recursive output is not called), DXF blocks (32
+levels with a cycle check), PDF forms and hidden-layer streams (16).  *Remaining recursion*, bounded by
+the limits above: `ImportWriter.create` and `ImportMapping.tree` (`WTModel`), and WTRender's
+`DisplayItem.bounds` -- in a debug build a 512 KB stack holds 32 to 64 levels of the latter, a release
+build several hundred, the main thread's 8 MB well over 128.  Not a stack risk but noted: DXF blocks
+that insert each other several times can expand exponentially within the 32 levels.  Tests:
+`ImportNestingTests` (inputs built byte by byte nesting arrays, procedures, dictionaries, groups,
+clips, layers, elements, `use` chains, colour spaces, functions, Type 3 glyphs and document data
+100,000 levels deep, read on a 512 KB thread, the result walked and drawn on an 8 MB one) and
+`ImportNestingDepthTests` (`WTModel`: a 128-level tree opened, placed and drawn on an 8 MB stack).
 
 === Build tasks
 

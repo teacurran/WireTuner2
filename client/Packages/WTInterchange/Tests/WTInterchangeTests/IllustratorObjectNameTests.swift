@@ -312,4 +312,15 @@ import WTGeometry
         #expect(!IllustratorObjectNames.nameGroup(Art.Group(range: 1..<3, name: "Split"), in: &nodes, start: 0))
         #expect(!IllustratorObjectNames.nameGroup(Art.Group(range: 9..<10, name: "Beyond"), in: &nodes, start: 0))
     }
+
+    @Test func zstandardPrivateDataNamesObjects() throws {
+        let body = "u\r" + Self.square(0, 0) + Self.named("Left") + Self.square(20, 20, 5) + Self.named("Right") + "U\r" + Self.named("Both")
+        var f = F()
+        let info = IllustratorZstandardTests.pieceInfo(L.native(L.record("Artwork", body: Self.named("Artwork") + body)), blocks: 2, into: &f)
+        let data = f.document([F.Page("0 0 10 10 re f 20 20 5 5 re f", extra: "/MediaBox [0 0 200 150] \(info)")])
+        let document = try L.open(data)
+        let layer = try #require(Self.layerGroups(document.pages[0].nodes).first)
+        #expect(Self.leafNames(layer.children) == ["Left", "Right"])
+        #expect(F.paths(try #require(Self.group("Both", in: layer.children)).children).count == 2)
+    }
 }

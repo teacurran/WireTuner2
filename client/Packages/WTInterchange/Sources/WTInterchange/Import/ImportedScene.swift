@@ -547,21 +547,42 @@ public indirect enum ImportedNode: Hashable, Sendable {
         }
     }
 
-    /// Every node of the subtree, depth first, parents before children.
+    /// Every node of the subtree, depth first, parents before children.  The walks over a
+    /// subtree use a stack of their own, not recursion, so a deep tree cannot exhaust the
+    /// thread's (import-formats.adoc, "Client", *Nesting*).
     public var descendants: [ImportedNode] {
-        if case .group(let group) = self {
-            return [self] + group.children.flatMap(\.descendants)
+        var result: [ImportedNode] = []
+        var pending = [self]
+        while let node = pending.popLast() {
+            result.append(node)
+            if case .group(let group) = node {
+                pending += group.children.reversed()
+            }
         }
-        return [self]
+        return result
     }
 
     /// The named colours the subtree paints with (fills, strokes, text, tiles, and clip paths
     /// that keep their appearance), in first-use order with repeats.
     public var swatches: [ImportedSwatch] {
+        var result: [ImportedSwatch] = []
+        for node in descendants {
+            if case .group(let group) = node {
+                if group.clipAppearance, let clip = group.clip {
+                    result += ImportedNode.path(clip).ownSwatches
+                }
+            } else {
+                result += node.ownSwatches
+            }
+        }
+        return result
+    }
+
+    /// The named colours a node other than a group paints with.
+    private var ownSwatches: [ImportedSwatch] {
         switch self {
-        case .group(let group):
-            let clip = group.clipAppearance ? group.clip.map { ImportedNode.path($0).swatches } ?? [] : []
-            return clip + group.children.flatMap(\.swatches)
+        case .group:
+            return []
         case .path(let path):
             return path.fill.swatches + (path.stroke?.paint.swatches ?? [])
         case .text(let text):
@@ -668,21 +689,17 @@ public struct ImportedScene: Hashable, Sendable {
     public var blobs: [ImportedBlob] {
         var seen = Set<Data>()
         var result: [ImportedBlob] = []
-        func visit(_ node: ImportedNode) {
+        for node in (nodes + layers.flatMap(\.nodes) + symbols.flatMap(\.nodes)).flatMap(\.descendants) {
             var found: [ImportedBlob] = []
             switch node {
             case .image(let image): found = [image.pixels.blob] + (image.embeddedProfile?.blob.map { [$0] } ?? [])
             case .placed(let placed): found = [placed.blob] + (placed.preview.map { [$0.blob] } ?? [])
-            case .group(let group): group.children.forEach(visit)
-            case .path, .text: break
+            case .group, .path, .text: break
             }
             for blob in found where seen.insert(blob.sha256).inserted {
                 result.append(blob)
             }
         }
-        nodes.forEach(visit)
-        layers.flatMap(\.nodes).forEach(visit)
-        symbols.flatMap(\.nodes).forEach(visit)
         return result
     }
 

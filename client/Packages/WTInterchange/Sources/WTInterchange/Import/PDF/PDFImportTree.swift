@@ -97,6 +97,9 @@ final class PDFImportTree {
     private(set) var layerRuns: [PDFImportLayer] = []
     /// How many top-level nodes are outside every layer.
     private(set) var looseCount = 0
+    /// Whether scopes nested past `ImportNesting.limit` were left out (their objects drawn in the
+    /// deepest group allowed).
+    private(set) var nestingTruncated = false
 
     func emit(_ node: ImportedNode, scopes: [PDFImportScope]) {
         flushText()
@@ -149,6 +152,11 @@ final class PDFImportTree {
 
     /// Closes the groups `scopes` is not inside and opens the ones it is.
     private func sync(_ scopes: [PDFImportScope]) {
+        var scopes = scopes[...]
+        if scopes.count > ImportNesting.limit {
+            nestingTruncated = true
+            scopes = scopes.prefix(ImportNesting.limit)
+        }
         var common = 0
         while common < open.count, common < scopes.count, open[common].scope.id == scopes[common].id {
             common += 1

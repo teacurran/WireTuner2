@@ -1104,8 +1104,8 @@ content, and none draws anything outside them.  So (xref:import-formats.adoc[Imp
   private data's layer record of the same name, because Acrobat layers carry none); for a file with
   neither, the private data's layer table when it has exactly one top-level layer (Illustrator 9 and
   10 files), all the artwork on it.  The private data is read only for its `%AI5_BeginLayer`
-  records (`Lb` flags and `Ln` name); Zstandard data (Illustrator 2020 and later) is not read, which
-  loses nothing while those files keep their marks.
+  records (`Lb` flags and `Ln` name); Zstandard data (Illustrator 2020 and later) is read since
+  xref:decisions.adoc#D-098[D-098].
 * *Settings.*  Hidden opens hidden with its artwork, locked opens locked, not printing becomes a
   background layer (so it stacks below the printing layers, as WireTuner orders them), outline view
   becomes the keyline.  Sublayers become groups named after them on their top-level layer; two
@@ -1144,8 +1144,8 @@ private data for multi-layer files without marks (no way to tell which drawing i
   and later compress the private data with Zstandard, which the system Compression library does not
   decode, so those files' pages stay unnamed -- checked against the document data of the
   Zstandard-compressed presets that ship with Illustrator 2026 (decompressed outside the app),
-  whose `ArtboardArray` reads correctly.  Reading them needs a vendored Zstandard decoder: a
-  follow-up if the owner wants it.
+  whose `ArtboardArray` reads correctly.  Reading them needs a vendored Zstandard decoder: done by
+  xref:decisions.adoc#D-098[D-098].
 * *PDFs from Illustrator.*  A `.pdf` saved from Illustrator carries the same `/Layer` marks and
   `/AltAI8` hidden-layer copies, and with *Preserve Illustrator Editing Capabilities* the private data
   as `/AIPDFPrivateData1…N`.  So the `/Layer` marks are now read in every PDF (no other producer
@@ -1485,6 +1485,68 @@ art holds (8), and two placed PSD images -- one whose PDF drawing does not match
 PostScript reads with no objects.  Rejected: rebuilding the artwork from the
 native art (the PDF is the faithful drawing, D-085); naming by order within a layer (wrong in every
 named corpus file); reading `%AI3_Note:` notes as names; guessing a FreeHand name record.
+
+[[D-098]]
+=== D-098 Illustrator 2020 and later's private data is decompressed by the reference zstd library, one copy shared with the snapshots
+Illustrator 2020 (version 24) and later write their private data -- the native document behind the
+PDF, `/AIPrivateData1…N` -- as `%AI24_ZStandard_Data` and one Zstandard frame, where earlier versions
+wrote `%AI12_CompressedData` and zlib.  Compression.framework has no Zstandard, so until now those
+files opened with unnamed pages, without the private data's layer table (the one-layer files and the
+Acrobat layers' lock, print and outline settings) and without object names (D-085, its addendum,
+D-095).  Asked by the owner (2026-10-04): add a Zstandard decoder.
+
+* *The reference library, not a Swift decoder.*  zstd (Meta, BSD) is the format's reference
+  implementation, fuzzed continuously upstream and already in the client: WTCRDT has compressed and
+  decompressed snapshots with zstd 1.5.7, vendored as the `CZstd` C target (crdt-model.adoc,
+  "Snapshots").  A pure-Swift decoder (FSE and Huffman tables, sequences, the window, XXH64) would
+  be about 1,500 lines of new parsing code facing hostile input, to be proved against the reference
+  anyway; linking the library costs nothing new.  A second, decoder-only copy was rejected too:
+  WTCRDT and WTInterchange link into one framework (D-084), where two copies of the same C symbols
+  collide, and the snapshot code needs the compressor.
+* *One copy, moved to `client/Vendor/zstd`.*  `CZstd` leaves `client/Packages/WTCRDT/Sources` for its
+  own package `client/Vendor/zstd` (product `CZstd`), beside libfreehand (D-083): third-party code
+  outside `client/Packages`, so the coverage gate and SonarQube do not measure it, built without
+  coverage instrumentation as before.  WTCRDT and WTInterchange both depend on it (WTInterchange
+  still does not import WTCRDT).  The sources are unchanged byte for byte -- the snapshots compress
+  to the same bytes -- and now reproducible: `tools/zstd/vendor.sh` fetches the zstd 1.5.7 release
+  tarball by URL and SHA-256 and runs upstream's own single-file build
+  (`build/single_file_libs/combine.py`) over upstream's template with two settings changed, no
+  multithreading and no dictionary builder; `--check` rebuilds the tree in a scratch folder and diffs
+  it.  The library is C99 with no platform code (its x86-64 assembly is disabled in the single-file
+  build), so it builds for macOS and iOS (D-073; `make client-ios`).
+* *Licence.*  zstd is BSD or GPLv2 at the user's choice; WireTuner takes it under BSD, which asks for
+  the copyright notice and licence in the binary's documentation: the About panel's credits
+  (`WTApp/Credits.html`) carry them, and `client/Vendor/zstd/Sources/CZstd/LICENSE` is upstream's.
+* *The decoder* (`WTInterchange/Support/Zstandard.swift`) streams: Illustrator's frames declare no
+  content size (written from a pipe), so the output grows a block at a time.  It decodes the frames
+  the data starts with one after another (skippable frames passed over), ignores what follows the
+  last frame that is not another, and accepts a dictionary (for completeness; Illustrator uses
+  none).  It fails -- never crashes or hangs -- on data that is not Zstandard, damage the library
+  detects (including the XXH64 checksum when the frame has one), a frame cut off, content past the
+  cap (1 GiB for private data, as for zlib; a declared size is checked before decoding) and a frame
+  asking for a window over 128 MiB (the library's default, refused before allocating).  Every call
+  into the streaming decoder must consume input or produce output, else the frame was cut off.
+* *Wired in where zlib is.*  `IllustratorPrivateData.native` decompresses the part after
+  `%AI24_ZStandard_Data` like the part after `%AI12_CompressedData`, so artboard names, the layer
+  table and (with D-095) object names come from 2020 and later files as from older ones; the PDF
+  stays the artwork.  Unlike zlib's, a damaged or cut-off Zstandard frame keeps nothing (the file
+  opens as its PDF reads, as it did before this decision).
+* *Tested* with frames the reference tool wrote (checked in as bytes: no declared size, checksums,
+  four blocks, a trained dictionary) and frames the tests compress at run time with the reference
+  library (levels, checksums, declared or not, several frames, skippable frames, raw dictionaries),
+  every prefix of them cut off, 3,000 damaged copies, the cap and the window limit; Illustrator files
+  are written byte by byte with Zstandard private data.  The owner's corpus has no 2020 or later
+  file, so the 140 `.ai` files that ship with Illustrator 2026 were read in place
+  (`IllustratorPresetTests`, `WT_ILLUSTRATOR_PRESETS`; never copied): all 131 with Zstandard private
+  data decompress -- byte for byte the same as Python's `compression.zstd` -- 130 have artboard
+  names and 126 open with named pages (the other 4 list more artboards than their PDF has pages, so
+  their one page stays unnamed, as the addendum to D-085 says),
+  the 28 with layer records give the layer table (20 open with their one private-data layer, 7 with
+  Acrobat layers), and 31 carry `/XMLUID` object names for D-095's reader.
+
+Rejected: a pure-Swift decoder (above); a second, decoder-only copy of zstd (duplicate symbols, two
+pins to keep in step); Apple's Compression (no Zstandard); a system or Homebrew libzstd (not on iOS,
+not in the app bundle); reading the PDF only (the status quo: unnamed pages and lost settings).
 
 == Open questions
 

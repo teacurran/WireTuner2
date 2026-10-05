@@ -292,7 +292,8 @@ import WTGeometry
         let data = Self.native(Self.record("Solo"))
         #expect(IllustratorPrivateData.native(Data("head".utf8) + Data("%AI12_CompressedData".utf8) + Zlib.compress(data) + Data("trailing".utf8)) == Data("head".utf8) + data)
         #expect(IllustratorPrivateData.native(data) == data)
-        // Zstandard data, a stream that is not zlib, or one that inflates past the limit: unread.
+        // Zstandard data that is not a frame (IllustratorZstandardTests reads real ones), a stream
+        // that is not zlib, or one that inflates past the limit: unread.
         #expect(IllustratorPrivateData.native(Data("%AI24_ZStandard_Data(\u{28})".utf8)) == nil)
         #expect(IllustratorPrivateData.native(Data("%AI12_CompressedDatanot zlib".utf8)) == nil)
         let zeros = Zlib.compress(Data(count: 300_000))

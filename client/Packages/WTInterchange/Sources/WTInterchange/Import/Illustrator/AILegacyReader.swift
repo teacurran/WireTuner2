@@ -88,6 +88,8 @@ struct AILegacyInterpreter {
     var notes: [String] = []
 
     var groups: [Open] = [Open(closer: "")]
+    /// Groups opened past `ImportNesting.limit`: their contents go into the deepest open group.
+    var flattened = 0
     var path = ImportPathBuilder()
     var compound: ImportedPath?
     var clipNext = false
@@ -159,7 +161,11 @@ struct AILegacyInterpreter {
             case .operand(let operand):
                 if skipping == nil && inBody {
                     operands.append(operand)
+                    if parser.nestingTruncated {
+                        note(ImportNesting.note)
+                    }
                 }
+                parser.nestingTruncated = false
             case .op(let op):
                 guard skipping == nil, inBody else {
                     continue
@@ -184,6 +190,16 @@ struct AILegacyInterpreter {
 
     mutating func append(_ node: ImportedNode) {
         groups[groups.count - 1].children.append(node)
+    }
+
+    /// Opens `group`, or past `ImportNesting.limit` keeps drawing into the deepest open group.
+    mutating func open(_ group: Open) {
+        guard groups.count < ImportNesting.limit else {
+            flattened += 1
+            note(ImportNesting.note)
+            return
+        }
+        groups.append(group)
     }
 
     mutating func close() {
@@ -216,10 +232,12 @@ struct AILegacyInterpreter {
                 append(.path(item))
             }
             compound = nil
-        case "u": groups.append(Open(closer: "U"))
-        case "q": groups.append(Open(closer: "Q"))
+        case "u": open(Open(closer: "U"))
+        case "q": open(Open(closer: "Q"))
         case "U", "Q", "LB":
-            if groups.count > 1 {
+            if flattened > 0 {
+                flattened -= 1
+            } else if groups.count > 1 {
                 close()
             }
         case "g": fill = .solid(Color(white: number(0)).gray)
@@ -251,9 +269,9 @@ struct AILegacyInterpreter {
         case "Lb":
             // A layer inside a layer (a sublayer) is a group named after it.
             let sublayer = groups.contains { $0.role == .layer }
-            groups.append(Open(role: sublayer ? .group : .layer, closer: "LB"))
+            open(Open(role: sublayer ? .group : .layer, closer: "LB"))
         case "Ln":
-            if let text = operands.first?.string {
+            if flattened == 0, let text = operands.first?.string {
                 groups[groups.count - 1].name = PDFImportOperand.text(text)
             }
         case "To":
@@ -306,7 +324,7 @@ struct AILegacyInterpreter {
         if clipNext {
             clipNext = false
             let clip = ImportedPath(contours: contours, fillRule: evenOdd ? .evenOdd : .nonZero)
-            if groups.count > 1, groups[groups.count - 1].clip == nil, groups[groups.count - 1].closer == "Q" {
+            if flattened == 0, groups.count > 1, groups[groups.count - 1].clip == nil, groups[groups.count - 1].closer == "Q" {
                 groups[groups.count - 1].clip = clip
                 if !doFill && !doStroke {
                     return

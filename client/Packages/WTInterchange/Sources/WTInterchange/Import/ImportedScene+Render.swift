@@ -59,16 +59,37 @@ extension ImportedNode {
     /// path and clip geometry, image and placed-file rectangles, text baselines' origins and a
     /// text path.  Null for nothing.
     public func controlBounds(_ transform: AffineTransform = .identity) -> Rect {
+        // Groups are walked with a stack, not recursion (import-formats.adoc, "Client", *Nesting*).
+        var rect = Rect.null
+        var pending = [(self, transform)]
+        while let (node, parent) = pending.popLast() {
+            if case .group(let group) = node {
+                let total = group.transform.concatenating(parent)
+                if let clip = group.clip {
+                    rect = rect.union(ImportedNode.points(clip.contours, clip.transform.concatenating(total)))
+                }
+                pending += group.children.map { ($0, total) }
+            } else {
+                rect = rect.union(node.ownBounds(parent))
+            }
+        }
+        return rect
+    }
+
+    private static func points(_ contours: [ImportedContour], _ t: AffineTransform) -> Rect {
+        Rect(boundingPoints: contours.flatMap(\.allPoints).map(t.apply))
+    }
+
+    /// The control-point bounds of a node other than a group.
+    private func ownBounds(_ transform: AffineTransform) -> Rect {
         func points(_ contours: [ImportedContour], _ t: AffineTransform) -> Rect {
-            Rect(boundingPoints: contours.flatMap(\.allPoints).map(t.apply))
+            ImportedNode.points(contours, t)
         }
         switch self {
         case .path(let path):
             return points(path.contours, path.transform.concatenating(transform))
-        case .group(let group):
-            let total = group.transform.concatenating(transform)
-            let children = group.children.reduce(Rect.null) { $0.union($1.controlBounds(total)) }
-            return group.clip.map { children.union(points($0.contours, $0.transform.concatenating(total))) } ?? children
+        case .group:
+            return .null
         case .text(let text):
             let total = text.transform.concatenating(transform)
             var rect = Rect(boundingPoints: text.runs.map { total.apply($0.origin) })
@@ -102,22 +123,18 @@ extension ImportedScene {
     /// Clips and text are not included.
     public var scenePaths: [ImportedScenePath] {
         var result: [ImportedScenePath] = []
-        func visit(_ node: ImportedNode, _ transform: AffineTransform, _ opacity: Double, _ names: [String]) {
+        var pending: [(node: ImportedNode, transform: AffineTransform, opacity: Double, names: [String])] = nodes.reversed().map { ($0, .identity, 1, []) }
+        while let (node, transform, opacity, names) = pending.popLast() {
             switch node {
             case .path(let path):
                 let total = path.transform.concatenating(transform)
                 result.append(ImportedScenePath(contours: path.contours.map { $0.applying(total) }, fill: path.fill, fillRule: path.fillRule, stroke: path.stroke, opacity: opacity * path.opacity, name: path.name, url: path.url, groupNames: names))
             case .group(let group):
                 let total = group.transform.concatenating(transform)
-                for child in group.children {
-                    visit(child, total, opacity * group.opacity, names + [group.name ?? ""])
-                }
+                pending += group.children.reversed().map { ($0, total, opacity * group.opacity, names + [group.name ?? ""]) }
             case .text, .image, .placed:
                 break
             }
-        }
-        for node in nodes {
-            visit(node, .identity, 1, [])
         }
         return result
     }
@@ -155,7 +172,63 @@ extension ImportedScene {
         return ExportScene(name: name, pages: [page], assets: assets)
     }
 
+    /// The display items of `node` under `parent`.  Groups are walked with a stack, not
+    /// recursion (import-formats.adoc, "Client", *Nesting*).
     static func displayItems(_ node: ImportedNode, _ parent: AffineTransform) -> [DisplayItem] {
+        guard case .group(let root) = node else {
+            return ownItems(node, parent)
+        }
+        struct Open {
+            let group: ImportedGroup
+            let total: AffineTransform
+            var next = 0
+            var items: [DisplayItem] = []
+        }
+        var open = [Open(group: root, total: root.transform.concatenating(parent))]
+        while true {
+            let top = open.count - 1
+            if open[top].next < open[top].group.children.count {
+                let child = open[top].group.children[open[top].next]
+                open[top].next += 1
+                if case .group(let group) = child {
+                    open.append(Open(group: group, total: group.transform.concatenating(open[top].total)))
+                } else {
+                    open[top].items += ownItems(child, open[top].total)
+                }
+                continue
+            }
+            let done = open.removeLast()
+            let items = groupItems(done.group, done.total, children: done.items)
+            guard !open.isEmpty else {
+                return items
+            }
+            open[open.count - 1].items += items
+        }
+    }
+
+    /// A group's items around its children's (`total` is the group's transform to the page).
+    private static func groupItems(_ group: ImportedGroup, _ total: AffineTransform, children: [DisplayItem]) -> [DisplayItem] {
+        var children = children
+        let clip = group.clip.map { clip in DisplayPath(elements: clip.contours.map { $0.applying(clip.transform.concatenating(total)) }.flatMap(\.displayElements)) }
+        if clip == nil && group.opacity >= 1 {
+            return children
+        }
+        if group.clipAppearance, var path = group.clip {
+            // The clip path's fill below the clipped contents and its stroke above them.
+            let stroke = path.stroke
+            path.stroke = nil
+            let below = ownItems(.path(path), total)
+            path.stroke = stroke
+            path.fill = .none
+            let above = stroke == nil ? [] : ownItems(.path(path), total)
+            children = [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero))]
+            return [.group(GroupItem(children: below + children + above, opacity: group.opacity))]
+        }
+        return [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero, opacity: group.opacity))]
+    }
+
+    /// The items of a node other than a group.
+    private static func ownItems(_ node: ImportedNode, _ parent: AffineTransform) -> [DisplayItem] {
         switch node {
         case .path(let path):
             var appearance: [AppearanceItem] = []
@@ -167,25 +240,8 @@ extension ImportedScene {
             }
             let item = DisplayItem.path(PathItem(path: path.displayPath, appearance: Appearance(appearance), transform: path.transform.concatenating(parent)))
             return path.opacity < 1 ? [.group(GroupItem(children: [item], opacity: path.opacity))] : [item]
-        case .group(let group):
-            let total = group.transform.concatenating(parent)
-            var children = group.children.flatMap { displayItems($0, total) }
-            let clip = group.clip.map { clip in DisplayPath(elements: clip.contours.map { $0.applying(clip.transform.concatenating(total)) }.flatMap(\.displayElements)) }
-            if clip == nil && group.opacity >= 1 {
-                return children
-            }
-            if group.clipAppearance, var path = group.clip {
-                // The clip path's fill below the clipped contents and its stroke above them.
-                let stroke = path.stroke
-                path.stroke = nil
-                let below = displayItems(.path(path), total)
-                path.stroke = stroke
-                path.fill = .none
-                let above = stroke == nil ? [] : displayItems(.path(path), total)
-                children = [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero))]
-                return [.group(GroupItem(children: below + children + above, opacity: group.opacity))]
-            }
-            return [.group(GroupItem(children: children, clip: clip, clipRule: group.clip?.fillRule ?? .nonZero, opacity: group.opacity))]
+        case .group:
+            return displayItems(node, parent)
         case .image(let image):
             return [.image(ImageItem(assetID: image.pixels.blob.hex, rect: image.naturalRect, transform: image.transform.concatenating(parent), mode: image.pixels.mode.imageMode, hasAlpha: image.pixels.hasAlpha, name: image.name ?? ""))]
         case .placed(let placed):

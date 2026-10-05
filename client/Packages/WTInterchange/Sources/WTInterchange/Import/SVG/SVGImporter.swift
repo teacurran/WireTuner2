@@ -60,6 +60,9 @@ public struct SVGImporter: Importer {
             nodes = SVGImportFlattener.flatten(nodes)
         }
         var notes = converter.notes
+        if root.nestingTruncated, !notes.contains(ImportNesting.note) {
+            notes.append(ImportNesting.note)
+        }
         if animation.isAnimated {
             notes.append("“\(name)” contains animation; it was converted to objects without it.")
         }
@@ -220,6 +223,12 @@ final class SVGImportConverter {
     var diagonal: Double { ((viewport.width * viewport.width + viewport.height * viewport.height) / 2).squareRoot() }
     /// `use` targets being expanded (the recursion guard).
     var expanding: Set<String> = []
+    /// How many elements are being converted, outermost to innermost: `use` and nested `svg`
+    /// elements add to their own nesting, and conversion stops at `maximumDepth`.
+    var depth = 0
+    /// The deepest element conversion goes: it recurses, and a level costs more stack than the
+    /// other importers' (import-formats.adoc, "Client", *Nesting*).
+    static let maximumDepth = 48
     /// The viewport sizes for percentages, innermost last.
     var viewports: [(width: Double, height: Double)] = []
 
@@ -342,7 +351,11 @@ final class SVGImportConverter {
     // MARK: Elements
 
     func convertChildren(_ element: SVGImportElement, style: SVGImportStyle, link: String?) -> [ImportedNode] {
-        element.children.flatMap { convert($0, parentStyle: style, link: link) }
+        var nodes: [ImportedNode] = []
+        for child in element.children {
+            nodes += convert(child, parentStyle: style, link: link)
+        }
+        return nodes
     }
 
     static let skipped: Set<String> = ["defs", "symbol", "clipPath", "linearGradient", "radialGradient", "style", "title", "desc", "metadata", "script", "stop"]
@@ -350,19 +363,56 @@ final class SVGImportConverter {
         "pattern": "patterns", "mask": "masks", "filter": "filters", "marker": "markers", "foreignObject": "foreign objects",
     ]
 
+    /// `element` converted.  Nesting recurses through here, so the work of each kind of element
+    /// is in a function of its own and this frame stays small (debug frames are large), and
+    /// conversion stops `SVGImportConverter.maximumDepth` elements deep.
     func convert(_ element: SVGImportElement, parentStyle: SVGImportStyle, link: String?) -> [ImportedNode] {
-        if SVGImportConverter.skipped.contains(element.name) || SVGImportAnimation.smilElements.contains(element.name) {
+        guard depth < SVGImportConverter.maximumDepth else {
+            note(ImportNesting.note)
             return []
+        }
+        depth += 1
+        defer { depth -= 1 }
+        guard let prepared = prepare(element, parentStyle: parentStyle) else {
+            return []
+        }
+        switch element.name {
+        case "g", "switch", "a":
+            return container(element, prepared, link: link)
+        case "svg":
+            return nestedSVG(element, style: prepared.style, properties: prepared.properties, link: link)
+        case "use":
+            return use(element, style: prepared.style, properties: prepared.properties, link: link)
+        default:
+            return leaf(element, prepared, link: link)
+        }
+    }
+
+    /// An element's properties and computed style, nil when it is not converted.
+    final class Prepared {
+        let properties: SVGImportProperties
+        let style: SVGImportStyle
+
+        init(properties: SVGImportProperties, style: SVGImportStyle) {
+            self.properties = properties
+            self.style = style
+        }
+    }
+
+    @inline(never)
+    func prepare(_ element: SVGImportElement, parentStyle: SVGImportStyle) -> Prepared? {
+        if SVGImportConverter.skipped.contains(element.name) || SVGImportAnimation.smilElements.contains(element.name) {
+            return nil
         }
         if let kind = SVGImportConverter.unsupported[element.name] {
             if element.name == "foreignObject" {
                 note("SVG \(kind) are not imported.")
             }
-            return []
+            return nil
         }
         let properties = SVGImportProperties(element, sheet: sheet)
         guard properties["display"] != "none" else {
-            return []
+            return nil
         }
         let style = computed(properties, parent: parentStyle, element: element)
         for (property, kind) in [("mask", "masks"), ("filter", "filters"), ("marker-start", "markers"), ("marker-mid", "markers"), ("marker-end", "markers")] {
@@ -370,43 +420,40 @@ final class SVGImportConverter {
                 note("SVG \(kind) are not imported; the objects they apply to are imported without them.")
             }
         }
-        var nodes: [ImportedNode]
-        var link = link
+        return Prepared(properties: properties, style: style)
+    }
+
+    /// A `g`, `switch` or `a` element: its children in a group.
+    @inline(never)
+    func container(_ element: SVGImportElement, _ prepared: Prepared, link: String?) -> [ImportedNode] {
+        let link = element.name == "a" ? element.href ?? link : link
+        var nodes = convertChildren(element, style: prepared.style, link: link)
+        if element.name == "switch" {
+            nodes = Array(nodes.prefix(1))
+        }
+        guard !nodes.isEmpty else {
+            return []
+        }
+        return wrap([.group(ImportedGroup(children: nodes, name: nodeName(element)))], element: element, properties: prepared.properties, ownTransform: nil)
+    }
+
+    /// A shape, `text` or `image` element.
+    @inline(never)
+    func leaf(_ element: SVGImportElement, _ prepared: Prepared, link: String?) -> [ImportedNode] {
+        let style = prepared.style
+        let nodes: [ImportedNode]
         switch element.name {
-        case "g", "switch":
-            nodes = convertChildren(element, style: style, link: link)
-            if element.name == "switch" {
-                nodes = Array(nodes.prefix(1))
-            }
-            guard !nodes.isEmpty else {
-                return []
-            }
-            return wrap([.group(ImportedGroup(children: nodes, name: nodeName(element)))], element: element, properties: properties, ownTransform: nil)
-        case "a":
-            link = element.href ?? link
-            nodes = convertChildren(element, style: style, link: link)
-            guard !nodes.isEmpty else {
-                return []
-            }
-            return wrap([.group(ImportedGroup(children: nodes, name: nodeName(element)))], element: element, properties: properties, ownTransform: nil)
-        case "svg":
-            return nestedSVG(element, style: style, properties: properties, link: link)
-        case "use":
-            return use(element, style: style, properties: properties, link: link)
         case "text":
             nodes = text(element, style: style)
         case "image":
-            nodes = image(element, properties: properties)
+            nodes = image(element, properties: prepared.properties)
         default:
-            guard let contours = shape(element, fontSize: style.fontSize), !contours.isEmpty else {
-                return []
-            }
-            guard style.visible else {
+            guard let contours = shape(element, fontSize: style.fontSize), !contours.isEmpty, style.visible else {
                 return []
             }
             nodes = [.path(path(contours, style: style, name: nodeName(element), url: link))]
         }
-        return wrap(nodes, element: element, properties: properties, ownTransform: nil)
+        return wrap(nodes, element: element, properties: prepared.properties, ownTransform: nil)
     }
 
     /// `nodes` (the element's content in its own user space) under the element's transform,

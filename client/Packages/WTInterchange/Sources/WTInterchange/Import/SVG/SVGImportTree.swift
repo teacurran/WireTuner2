@@ -17,6 +17,8 @@ final class SVGImportElement {
     let attributes: [String: String]
     var content: [Content] = []
     weak var parent: SVGImportElement?
+    /// On the root: elements nested deeper than `ImportNesting.limit` were left out.
+    var nestingTruncated = false
 
     init(name: String, attributes: [String: String]) {
         self.name = name
@@ -33,9 +35,15 @@ final class SVGImportElement {
         content.compactMap { if case .text(let text) = $0 { return text } else { return nil } }.joined()
     }
 
-    /// The element and every descendant, depth first.
+    /// The element and every descendant, depth first (walked with a stack, not recursion).
     var descendants: [SVGImportElement] {
-        [self] + children.flatMap(\.descendants)
+        var result: [SVGImportElement] = []
+        var pending = [self]
+        while let element = pending.popLast() {
+            result.append(element)
+            pending += element.children.reversed()
+        }
+        return result
     }
 
     /// `href` or `xlink:href`.
@@ -60,11 +68,15 @@ enum SVGImportTree {
         parser.shouldProcessNamespaces = false
         parser.shouldResolveExternalEntities = false
         guard parser.parse(), let root = delegate.root else {
+            if delegate.skipped > 0 || delegate.stack.count >= ImportNesting.limit {
+                throw ImportError.unreadable(name: name, reason: "its elements are nested more than \(ImportNesting.limit) levels deep.")
+            }
             throw ImportError.unreadable(name: name, reason: "the XML is malformed (line \(parser.lineNumber)).")
         }
         guard root.name == "svg" else {
             throw ImportError.unreadable(name: name, reason: "it is XML but not SVG.")
         }
+        root.nestingTruncated = delegate.truncated
         return root
     }
 
@@ -112,8 +124,16 @@ enum SVGImportTree {
     final class Delegate: NSObject, XMLParserDelegate {
         var root: SVGImportElement?
         var stack: [SVGImportElement] = []
+        /// How many elements are open below the deepest one kept (`ImportNesting.limit`).
+        var skipped = 0
+        var truncated = false
 
         func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName: String?, attributes: [String: String] = [:]) {
+            guard skipped == 0, stack.count < ImportNesting.limit else {
+                skipped += 1
+                truncated = true
+                return
+            }
             let local = elementName.components(separatedBy: ":").last!
             let element = SVGImportElement(name: local, attributes: attributes)
             if let parent = stack.last {
@@ -126,15 +146,23 @@ enum SVGImportTree {
         }
 
         func parser(_ parser: XMLParser, didEndElement elementName: String, namespaceURI: String?, qualifiedName: String?) {
-            stack.removeLast()
+            if skipped > 0 {
+                skipped -= 1
+            } else {
+                stack.removeLast()
+            }
         }
 
         func parser(_ parser: XMLParser, foundCharacters string: String) {
-            stack.last?.content.append(.text(string))
+            if skipped == 0 {
+                stack.last?.content.append(.text(string))
+            }
         }
 
         func parser(_ parser: XMLParser, foundCDATA CDATABlock: Data) {
-            stack.last?.content.append(.text(String(decoding: CDATABlock, as: UTF8.self)))
+            if skipped == 0 {
+                stack.last?.content.append(.text(String(decoding: CDATABlock, as: UTF8.self)))
+            }
         }
     }
 }
