@@ -25,7 +25,9 @@ import WTRender
         let font = try OpenTypeReader.read(data)
         var b = Replica(0xB)
         let plan = FontImport.plan(font, fileName: "Marlowe-Regular.\(format.fileExtension)", into: b.state, newDocument: true, batchSize: 40)
-        #expect(plan.commands.count == 4 && plan.commands[0].label == "Import Marlowe-Regular.\(format.fileExtension) [1/4]")
+        // Glyph batches, the settings, then the kinds GDEF gives (FONT-025's rest), in batches.
+        let total = plan.commands.count
+        #expect(total > 4 && plan.commands.enumerated().allSatisfy { $1.label == "Import Marlowe-Regular.\(format.fileExtension) [\($0 + 1)/\(total)]" })
         #expect(plan.report.isEmpty)
         try Self.perform(plan, on: &b)
         #expect(DocumentKind(b.state) == .typeface)
@@ -93,5 +95,48 @@ import WTRender
         #expect(info.metrics.upm == 2_048)
         #expect(FontImport.plan(ImportedFont(names: names, metrics: .init(), os2: .init(), glyphs: [], kerning: .init(), report: []),
                                 fileName: "x", into: b.state, newDocument: false).commands.count == 2)
+    }
+
+    /// A font with anchors, ligatures, GDEF kinds and other features opens with all of them: as
+    /// anchors, kinds and the feature file, written with the glyphs' imported names; imported into
+    /// an existing typeface, the feature text is left out and the report says so.
+    @Test func layoutImportsAsAnchorsKindsAndFeatureText() async throws {
+        let box = Contour(polygon: [Point(x: 0, y: 0), Point(x: 100, y: 0), Point(x: 100, y: 100), Point(x: 0, y: 100)])
+        let names = FontSource.Names(family: "Layout", style: "Regular", postscript: "Layout-Regular", full: "Layout Regular")
+        var glyphs: [FontSource.Glyph] = [".notdef", "A", "A.alt", "f", "i", "f_i", "acutecomb"].map {
+            FontSource.Glyph(name: $0, advanceWidth: 500, contours: [box])
+        }
+        glyphs[1].codepoints = [0x41]
+        glyphs[1].anchors = [.init(name: "top", x: 50, y: 700)]
+        glyphs[5].kind = .ligature
+        glyphs[6].kind = .mark
+        glyphs[6].anchors = [.init(name: "_top", x: 0, y: 600)]
+        let source = FontSource(names: names, metrics: .init(unitsPerEm: 1_000, ascender: 800, descender: -200), glyphs: glyphs,
+                                features: "feature ss01 { sub A by A.alt; } ss01;\n")
+        var font = try OpenTypeReader.read(try FontCompiler.compile(source).data)
+        #expect(font.hasLayout && font.features.contains("sub A by A.alt;"))
+        // A name the document cannot use is renamed, in the feature text too.
+        font.glyphs[2].name = "A-alt"
+        font.features = font.features.replacingOccurrences(of: "A.alt", with: "A-alt")
+        var b = Replica(0xB)
+        let plan = FontImport.plan(font, fileName: "Layout.otf", into: b.state, newDocument: true)
+        try Self.perform(plan, on: &b)
+        let index = GlyphIndex(b.state)
+        #expect(index.glyph(named: "A")?.anchors.map(\.name) == ["top"] && index.glyph(named: "acutecomb")?.kind == .mark)
+        #expect(index.glyph(named: "f_i")?.kind == .ligature && index.glyph(named: "f")?.kind == .base)
+        let text = FontGeneration.snapshot(b.state).source.features
+        #expect(text.contains("feature ss01") && text.contains("sub A by glyph2;"), "\(text)")
+        // Generated again, the font has the same layout.
+        let again = try OpenTypeReader.read(try await FontGeneration.generate(b.state, format: .otf).data)
+        #expect(again.anchors.flatMap { $0 }.count == 2 && again.kinds.contains(.mark))
+        // An occurrence written with a backslash keeps it; a keyword name gets one.
+        #expect(UFOImport.renamed("feature ss02 { sub \\a-b by a-b; } ss02;", from: "a-b", to: "sub") == "feature ss02 { sub \\sub by \\sub; } ss02;")
+        // Into an existing typeface: anchors and kinds, no feature text.
+        var c = Replica(0xC)
+        try TypefaceFixture.typeface(&c, set: nil)
+        let into = FontImport.plan(font, fileName: "Layout.otf", into: c.state, newDocument: false)
+        #expect(into.report.contains { $0.hasPrefix("The font's layout features were not added") })
+        try Self.perform(into, on: &c)
+        #expect(GlyphIndex(c.state).glyph(named: "acutecomb")?.kind == .mark && FontGeneration.snapshot(c.state).source.features.isEmpty)
     }
 }

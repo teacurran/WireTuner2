@@ -4,9 +4,10 @@
 // composite glyphs; quadratic curves converted to cubics exactly), `CFF ` (Type 2 charstrings
 // with local and global subroutines; CID-keyed fonts refused), and kerning from the `GPOS` `kern`
 // feature (pair positioning formats 1 and 2, through extension lookups) or an old-format `kern`
-// table.  Hinting is not read; mark attachment, ligatures and other layout features are listed in
-// the report as dropped (the decompiler into feature text is not built; recorded on the page).
-// Fonts whose embedding permission is Restricted are refused.
+// table.  Hinting is not read.  The rest of the layout -- `mark`/`mkmk` as anchors, `liga` as
+// ligature glyphs, GDEF's classes as kinds, every other feature as feature text -- is
+// `FeatureDecompiler`'s (FONT-025's rest).  Fonts whose embedding permission is Restricted are
+// refused.
 
 import Foundation
 import WTGeometry
@@ -48,8 +49,23 @@ public struct ImportedFont: Hashable, Sendable {
     public var os2: FontSource.OS2
     public var glyphs: [Glyph]
     public var kerning: FontSource.Kerning
-    /// What was not read (hinting, layout features other than kern, point-matched components).
+    /// What was not read (hinting, layout the feature file cannot express, point-matched
+    /// components).
     public var report: [String]
+    /// Per glyph, the anchors read from the `mark` and `mkmk` features (font units, y up); empty
+    /// when the font has none.
+    public var anchors: [[FontSource.Anchor]] = []
+    /// Per glyph, the kind GDEF (or the attachment and ligature rules) gives; empty or nil when
+    /// none.
+    public var kinds: [FontSource.GlyphKind?] = []
+    /// The layout features read as feature text (everything but kerning, mark attachment and the
+    /// ligatures named by their parts); empty when nothing is left.
+    public var features = ""
+
+    /// Whether anything beyond glyphs, names, metrics and kerning was read.
+    public var hasLayout: Bool {
+        anchors.contains { !$0.isEmpty } || kinds.contains { $0 != nil } || !features.isEmpty
+    }
 
     public init(names: FontSource.Names, metrics: FontSource.Metrics, os2: FontSource.OS2, glyphs: [Glyph], kerning: FontSource.Kerning, report: [String]) {
         self.names = names
@@ -103,7 +119,10 @@ public enum OpenTypeReader {
             contours = glyphs.contours
             components = glyphs.components
             if glyphs.pointMatched { report.append("Components placed by point matching were placed at their origin.") }
-            if tables["fpgm"] != nil || tables["prep"] != nil { report.append("Hinting instructions were not read.") }
+            // WireTuner's own TrueType fonts carry only the dropout-control program.
+            if tables["fpgm"] != nil || tables["prep"].map({ $0.bytes != FontTables.dropoutControl }) == true {
+                report.append("Hinting instructions were not read.")
+            }
         }
         // Names: post 2.0, else CFF's charset, else from the character map.
         let map = try tables["cmap"].map(readCMap) ?? [:]
@@ -119,18 +138,15 @@ public enum OpenTypeReader {
             ImportedFont.Glyph(name: glyphNames[index], codepoints: codepoints[index].sorted(), advanceWidth: Double(advances[index]),
                                contours: contours[index], components: components[index])
         }
-        // Kerning, and the layout features that are not read.
+        // Kerning, then the rest of the layout.
         var kerning = FontSource.Kerning()
         if let gpos = tables["GPOS"] {
-            let read = try GPOSReader(gpos)
-            kerning = read.kerning
-            report += read.dropped.map { "GPOS feature \($0) was not read." }
+            kerning = try GPOSReader(gpos).kerning
         } else if let kern = tables["kern"] {
             kerning = try readKernTable(kern)
         }
-        if let gsub = tables["GSUB"] {
-            report += try GPOSReader.featureTags(gsub).map { "GSUB feature \($0) was not read." }
-        }
+        let layout = FeatureDecompiler(gsub: tables["GSUB"], gpos: tables["GPOS"], gdef: tables["GDEF"], names: glyphNames, unitsPerEm: unitsPerEm)
+        report += layout.report
         let names = try tables["name"].map(readNames) ?? [:]
         func name(_ id: Int) -> String { names[id] ?? "" }
         let family = names[16] ?? name(1)
@@ -171,7 +187,11 @@ public enum OpenTypeReader {
                 metrics.capHeight = Double(try os2.i16(88))
             }
         }
-        return ImportedFont(names: fontNames, metrics: metrics, os2: style2, glyphs: glyphs, kerning: kerning, report: report)
+        var font = ImportedFont(names: fontNames, metrics: metrics, os2: style2, glyphs: glyphs, kerning: kerning, report: report)
+        font.anchors = layout.anchors
+        font.kinds = layout.kinds
+        font.features = layout.features
+        return font
     }
 
     /// "Version 1.002; ..." → "1.002" (the stored version pattern), else "1.000".

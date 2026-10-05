@@ -259,10 +259,13 @@ final class ToolManager {
     /// An arrow key without Command, Option or Control nudges the selection by *Arrow key
     /// distance* (with Shift, *Shift-arrow key distance*) (OBJ-009).  Returns whether it did.
     func nudge(keyCode: UInt16, modifiers: KeyModifiers) -> Bool {
-        guard let editing = context.objectEditing, modifiers.isDisjoint(with: [.command, .option, .control]) else { return false }
+        guard modifiers.isDisjoint(with: [.command, .option, .control]) else { return false }
         let settings = context.drawing()
         let distance = modifiers.contains(.shift) ? settings.shiftArrowDistance : settings.arrowDistance
         guard let delta = ObjectEditing.nudgeDelta(keyCode: keyCode, distance: distance) else { return false }
+        // A picked handle (a glyph's anchor or component) moves when no object is selected.
+        if nudgeHandle(by: delta) { return true }
+        guard let editing = context.objectEditing else { return false }
         return editing.nudge(by: delta)
     }
 

@@ -465,6 +465,7 @@ final class TypefaceFeatures {
             if let self, let controller { openGlyph(glyph, from: controller) }
         }
         model.didInstall = { [weak self] urls in self?.installed[document.id, default: []] += urls }
+        model.attachSync(controller.syncStatus)
         model.removeInstalled = { [weak self] in
             guard let self else { return }
             installer.remove(installed[document.id] ?? [])
@@ -478,7 +479,7 @@ final class TypefaceFeatures {
     func presentGenerate() -> NSWindow? {
         guard let controller = window() else { return nil }
         let model = generateModel(for: controller)
-        return present("sheet.generateFonts", on: controller.window) { close in GenerateFontsSheet(model: model, close: close) }
+        return present("sheet.generateFonts", on: controller.window) { close in GenerateFontsSheet(model: model, close: model.closing(close)) }
     }
 
     /// menu:File[Export UFO…].
@@ -526,6 +527,9 @@ final class TypefaceFeatures {
     func presentAddGlyph() -> NSWindow? {
         guard let controller = window() else { return nil }
         let model = AddGlyphModel(document: gridDocument(of: controller), after: targetGlyphs(in: controller).last, perform: controller.typefacePerform)
+        model.openGlyph = { [weak self, weak controller] glyph in
+            if let self, let controller { openGlyph(glyph, from: controller) }
+        }
         return present("sheet.addGlyph", on: controller.window) { close in AddGlyphSheet(model: model, close: close) }
     }
 

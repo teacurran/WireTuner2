@@ -13,7 +13,10 @@ import WTRender
 // group -- glyph batches, then the settings and kerning -- labelled "Import <file>" (with `[i/n]`
 // when it takes more than one change), performed in one undo group.  Importing into an existing
 // document follows the grid's collision rules: a taken name gets a numeric suffix, a taken codepoint
-// is left off; both are listed in the report.
+// is left off; both are listed in the report.  Since FONT-025's rest a font whose layout gave
+// anchors, kinds or feature text (`ImportedFont.hasLayout`) is planned as `UFOImport` plans a UFO:
+// the same glyph and settings changes, then the anchors and kinds per glyph and, for a new
+// document, the feature text with the glyphs' imported names.
 
 /// Planning and writing an import.
 public enum FontImport {
@@ -33,6 +36,17 @@ public enum FontImport {
     /// The plan for importing `font` (from `fileName`) into `state`: `newDocument` also writes the
     /// kind, Font Info and units per em.
     public static func plan(_ font: ImportedFont, fileName: String, into state: EngineState, newDocument: Bool, batchSize: Int = batchSize) -> Plan {
+        guard font.hasLayout else { return glyphPlan(font, fileName: fileName, into: state, newDocument: newDocument, batchSize: batchSize) }
+        let count = font.glyphs.count
+        func padded<T>(_ values: [T], _ empty: T) -> [T] { Array((values + Array(repeating: empty, count: max(count - values.count, 0))).prefix(count)) }
+        let layout = UFOFont(font: font, formatVersion: 0, anchors: padded(font.anchors, []), markColors: Array(repeating: 0, count: count),
+                             features: font.features, lib: nil, kinds: padded(font.kinds, nil))
+        return UFOImport.plan(layout, fileName: fileName, into: state, newDocument: newDocument, batchSize: batchSize,
+                              featuresNotAdded: "The font's layout features were not added to this document's feature file; open the font as a new typeface to see them as text.")
+    }
+
+    /// The glyphs, settings and kerning of an import.
+    static func glyphPlan(_ font: ImportedFont, fileName: String, into state: EngineState, newDocument: Bool, batchSize: Int) -> Plan {
         let index = GlyphIndex(state)
         var taken = index.names.union(index.glyphs.map(\.storedName))
         var claimed = Set(index.glyphs.flatMap(\.storedCodepoints))

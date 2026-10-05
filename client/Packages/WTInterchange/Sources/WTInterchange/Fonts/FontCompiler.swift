@@ -81,11 +81,13 @@ public struct FontCompiler: Sendable {
 
     public init() {}
 
-    /// Compiles `source` off the caller's actor.
+    /// Compiles `source` off the caller's actor; cancelling the calling task stops the compile
+    /// (`Failure.cancelled`).
     public func compile(_ source: FontSource, options: Options = Options()) async throws -> Result {
-        try await Task.detached(priority: .userInitiated) {
+        let compile = Task.detached(priority: .userInitiated) {
             try Self.compile(source, options: options, isCancelled: { Task.isCancelled })
-        }.value
+        }
+        return try await withTaskCancellationHandler { try await compile.value } onCancel: { compile.cancel() }
     }
 
     /// The quick compile the Metrics window and the Features pop-up preview through: the same
@@ -180,6 +182,9 @@ public struct FontCompiler: Sendable {
             records = glyphs.records
             longLoca = glyphs.longLoca
             tables["maxp"] = FontTables.maxpTrueType(glyphs: source.glyphs.count, maxPoints: glyphs.maxPoints, maxContours: glyphs.maxContours)
+            // Unhinted, but with smart dropout control on, so small sizes keep thin stems.
+            tables["prep"] = FontTables.dropoutControl
+            tables["gasp"] = FontTables.gasp
         }
         guard !isCancelled() else { throw Failure.cancelled }
         var map: [UInt32: Int] = [:]

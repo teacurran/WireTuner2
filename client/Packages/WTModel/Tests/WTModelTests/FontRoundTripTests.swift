@@ -11,8 +11,8 @@ import WTRender
 /// -- built as documents here, so the corpus needs no binary files or licenses -- each with
 /// kerning classes, marks and a ligature, goes OTF → document → OTF, TTF → document → TTF and
 /// UFO → document → UFO, comparing every glyph's outline (within a per-format tolerance), advance
-/// widths, the character map, every kerning value, anchors, kinds and the feature text, plus the
-/// WOFF2 wrap decoding to the same font.  A failure names the family, the glyph and the value
+/// widths, the character map, every kerning value, anchors, kinds and the feature text (OpenType:
+/// the layout tables compiled again byte for byte), plus the WOFF2 wrap decoding to the same font.  A failure names the family, the glyph and the value
 /// that differs; what a format cannot carry is asserted as an expected loss.
 @Suite struct FontRoundTripTests {
     struct Family: CustomStringConvertible, Sendable {
@@ -198,17 +198,37 @@ import WTRender
         let tolerance = format == .ttf ? 1.5 : 0.5
         let differences = Self.differences(first, second, tolerance: tolerance)
         #expect(differences.isEmpty, "\(family) \(format): \(differences.joined(separator: "; "))")
-        // Expected losses: the layout features other than kern are not read back from a font, so
-        // anchors -- and with them mark and mkmk -- and the feature text do not survive; the
-        // ligature glyph is recognised by its name and liga is generated again.
+        // The layout comes back (FONT-025's rest): anchors under their names, kinds from GDEF,
+        // the ligature glyphs, and the feature text compiling to the same tables.
         let before = FontGeneration.snapshot(a.state).source, after = FontGeneration.snapshot(b.state).source
-        #expect(after.glyphs.allSatisfy(\.anchors.isEmpty) && after.features.isEmpty)
         #expect(before.glyphs.contains { !$0.anchors.isEmpty })
+        let anchors = { (source: FontSource) in Dictionary(source.glyphs.map { ($0.name, Set($0.anchors)) }) { x, _ in x } }
+        #expect(anchors(after) == anchors(before), "\(family): anchors")
+        let kinds = { (source: FontSource) in Set(source.glyphs.map { "\($0.name):\($0.kind)" }) }
+        #expect(kinds(after) == kinds(before), "\(family): kinds \(kinds(before).symmetricDifference(kinds(after)))")
         let ligatures = { (source: FontSource) in Set(source.glyphs.filter { $0.kind == .ligature }.map(\.name)) }
         #expect(ligatures(after) == ligatures(before), "\(family): ligatures \(ligatures(before)) vs \(ligatures(after))")
-        #expect(FeatureGenerator.generatedTags(after).contains("liga") == FeatureGenerator.generatedTags(before).contains("liga"))
+        #expect(FeatureGenerator.generatedTags(after) == FeatureGenerator.generatedTags(before))
+        #expect(before.features.isEmpty == after.features.isEmpty, "\(family): feature text \(after.features)")
+        let tables = (try Self.tables(bytes), try Self.tables(again))
+        for tag in ["GSUB", "GPOS", "GDEF"] {
+            #expect(tables.0[tag] == tables.1[tag], "\(family) \(format): \(tag) differs")
+        }
+        #expect(second.features == first.features && second.anchors == first.anchors && second.kinds == first.kinds)
         // The report says what was not read.
         #expect(first.report.allSatisfy { !$0.isEmpty })
+    }
+
+    /// The raw tables of an sfnt.
+    static func tables(_ data: Data) throws -> [String: Data] {
+        func u16(_ at: Int) -> Int { Int(data[at]) << 8 | Int(data[at + 1]) }
+        func u32(_ at: Int) -> Int { u16(at) << 16 | u16(at + 2) }
+        var result: [String: Data] = [:]
+        for index in 0..<u16(4) {
+            let entry = 12 + index * 16
+            result[String(decoding: data[entry..<(entry + 4)], as: UTF8.self)] = Data(data[u32(entry + 8)..<(u32(entry + 8) + u32(entry + 12))])
+        }
+        return result
     }
 
     @Test(arguments: corpus)

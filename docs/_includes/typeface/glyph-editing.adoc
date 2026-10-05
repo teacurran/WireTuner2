@@ -154,7 +154,8 @@ To add an anchor:
 
 Anchors are selected and dragged with the Pointer tool like points, snap to the grid and metric
 lines, and show their position in the Object panel's *Anchor* section (X, Y, Name, Role) where
-you can also type values.  kbd:[Delete] removes a selected anchor.
+you can also type values.  kbd:[Delete] removes a selected anchor; the arrow keys move it by whole
+units.
 
 To see how marks will attach, choose menu:View[Show Mark Attachment].  On a base glyph, every
 mark glyph in the font whose mark anchor matches one of this glyph's base anchors is drawn faintly
@@ -445,7 +446,16 @@ and kbd:[Cmd+Shift+A] are *Export…* and *Select > All in Document* in the defa
 for *Add Component…* and *Add Anchor…* before the menu bar (a key view in the tab's window, `TypefaceFeatures.glyphTabKey`)
 and the two menu items show no shortcut; elsewhere the keys keep their commands.  Still not built: kbd:[Delete] and
 arrow-key nudges for a picked anchor, component selection as an object (its scale and flip with the transform tools),
-labels drawn in screen space at the visible edge, and the 100 ms debounce.
+labels drawn in screen space at the visible edge, and the 100 ms debounce (the keys came with the next note).
+
+NOTE: As built by FONT-012's and FONT-013's keys (`WTApp/Tools/CanvasHandleKeys.swift`, a new file;
+`GlyphCanvasHandles.swift`, `ToolManager.nudge`, `DocumentWindowController.delete(_:)`).  Pressing an anchor or a component
+on a glyph tab takes it as the object: the selection is cleared and it is picked.  With no object selected, the arrow keys
+move the picked anchor or component by *Arrow key distance* (kbd:[Shift]: *Shift-arrow key distance*) in whole units, one
+change each (`EditAnchor .move`, `SetComponentTransform`), and kbd:[Delete] (menu:Edit[Clear], enabled for it) removes it
+(`EditAnchor .remove`, `RemoveComponents`).  A handle layer takes the keys through the new `CanvasHandleKeys` protocol,
+asked before the selection's nudge and before Clear's guide removal.  Still not built: a component's scale and flip with
+the transform tools, labels drawn in screen space at the visible edge, and the 100 ms debounce.
 
 === Build tasks
 

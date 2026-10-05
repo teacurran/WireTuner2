@@ -15,6 +15,8 @@ import WTRender
 /// * anchors, drawn as diamonds with their names, dragged like points (snapped, whole units);
 /// * components, taken inside their outline when no object is hit, dragged as one object;
 ///   double-click opens the source glyph;
+/// * the anchor or component last pressed is taken as the object (the selection is cleared): the
+///   arrow keys move it (whole units) and kbd:[Delete] removes it (`CanvasHandleKeys`);
 /// * with menu:View[Show Mark Attachment], the marks that attach to this glyph (or a base under a
 ///   mark) drawn faintly in place, following an anchor drag.
 ///
@@ -212,8 +214,12 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
             target = .component(component.id)
         }
         switch target {
-        case .anchor?, .component?: picked = target
-        default: picked = nil
+        case .anchor?, .component?:
+            // The anchor or component is taken as the object: the arrow keys and Delete act on it.
+            picked = target
+            context.selection.selectNone()
+        default:
+            picked = nil
         }
         guard let target else { return false }
         drag = Drag(target: target, start: e.pasteboardPoint, now: e.pasteboardPoint, modifiers: e.modifiers, glyph: snapshot.glyph, metrics: snapshot.metrics)
@@ -370,5 +376,35 @@ final class GlyphCanvasHandles: CanvasHandleLayer {
         }
         ctx.fillPath()
         ctx.restoreGState()
+    }
+}
+
+extension GlyphCanvasHandles: CanvasHandleKeys {
+    func nudge(by delta: Vector, context: ToolContext) -> Bool {
+        guard drag == nil, let picked, let snapshot = snapshot(context.document) else { return false }
+        switch picked {
+        case .anchor(let id):
+            guard let anchor = snapshot.glyph.anchors.first(where: { $0.id == id }) else { return false }
+            let moved = anchor.position + delta
+            context.document.perform(EditAnchor(id, of: glyph, .move(Point(x: moved.x.rounded(), y: moved.y.rounded()))))
+        case .component(let id):
+            guard let component = snapshot.glyph.components.first(where: { $0.id == id }) else { return false }
+            context.document.perform(SetComponentTransform(id, of: glyph, to: component.transform.concatenating(.translation(x: delta.dx.rounded(), y: delta.dy.rounded()))))
+        case .advance, .left:
+            return false
+        }
+        return true
+    }
+
+    func deletionCommand(context: ToolContext) -> (any WTModel.Command)? {
+        guard let picked, let snapshot = snapshot(context.document) else { return nil }
+        switch picked {
+        case .anchor(let id) where snapshot.glyph.anchors.contains(where: { $0.id == id }):
+            return EditAnchor(id, of: glyph, .remove)
+        case .component(let id) where snapshot.glyph.components.contains(where: { $0.id == id }):
+            return RemoveComponents([id], of: glyph)
+        default:
+            return nil
+        }
     }
 }

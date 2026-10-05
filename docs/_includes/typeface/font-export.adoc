@@ -29,11 +29,12 @@ To generate a font:
 * *Autohint* -- not available; the generated font is unhinted, which renders well on every
   current platform.
 * *Add `.notdef`, `space`, `NULL` and `CR`* -- the glyphs every font should have, generated if
-  missing (`.notdef` as a rectangle, the others empty).  On by default.
+  missing (`.notdef` as a rectangle, also when yours is empty; the others empty).  On by default.
 * *Install for testing* -- after generating, register the font with your Mac (below).
 . Click btn:[Generate] and choose a folder.  One file per format is written.
 
 Generation runs in the background with progress in the sheet; a large font takes a few seconds.
+btn:[Stop] cancels it, and nothing is written.
 
 === Validation
 
@@ -330,8 +331,8 @@ table.  *WOFF2*: as specified (null transforms, Brotli from `Compression`), plus
 files with null transforms.  *OTF/TTF import*: `OpenTypeReader` reads the tables listed above
 except that GSUB (`liga` and every other substitution) and GPOS features other than `kern` are
 listed in the import report as not read -- the decompiler into feature text is not built -- and
-`GDEF` is not read; composite glyphs placed by point matching are placed at their origin and
-reported.  `WTModel.FontImport` writes the import as a change group ("Import <file> [i/n]": glyph
+`GDEF` is not read (all three came later with FONT-025's rest, below); composite glyphs placed by
+point matching are placed at their origin and reported.  `WTModel.FontImport` writes the import as a change group ("Import <file> [i/n]": glyph
 batches, then the settings and kerning), one undo step, with the grid's collision rules on an
 import into an existing document.  UFO import came later with FONT-024
 (`WTInterchange/Fonts/UFOReader.swift`) and UFO export with FONT-023 (`UFOWriter.swift`), below.
@@ -345,7 +346,7 @@ folder.  btn:[Install for Testing] (also menu:File[Install for Testing]) registe
 installs.  menu:File[Open Font…] reads an OTF, TTF or WOFF2 (`WOFF2Reader`) with `OpenTypeReader`
 and writes `FontImport.plan`'s commands in one undo group, into the front typeface or a new
 typeface document, and shows the plan's report.  Not built: Fix All Warnings, background progress,
-the sync-state reminder, and the fontbakery checks.
+the sync-state reminder, and the fontbakery checks (all four came with FONT-026's rest, below).
 
 NOTE: As built by FONT-027's rest.  The Generate Fonts sheet's WOFF2 wraps the OTF or the TTF, chosen beside the
 toggle (`GenerateFontsModel.woff2Outlines`; OTF by default); the wrapped format is compiled whether or not its own
@@ -435,6 +436,75 @@ there is no report sheet (the alert, as for Open Font…); menu:File[Open…] is
 Font…; the Finder hands `.ufo` packages to the app only once `client/project.yml` declares the type (a proposed
 `CFBundleDocumentTypes` / `UTImportedTypeDeclarations` entry for `org.unifiedfontobject.ufo`, conforming to
 `com.apple.package`; not in this change).
+
+NOTE: As built by FONT-025's rest (`WTInterchange/Fonts/LayoutTableReader.swift`, `FeatureDecompiler.swift`, new files;
+`OpenTypeReader.swift`, `WTModel/FontImport.swift`, `UFOImport.swift`).  `LayoutTable` reads a `GSUB` or `GPOS` table --
+its language systems (tags without their padding), features per language system (a required feature included, a feature no
+language system uses dropped) and lookups (Extension lookups unwrapped, the mark filtering set kept) -- and decodes single
+(formats 1 and 2), multiple, alternate and ligature substitution, contextual and chaining contextual rules of formats 1, 2
+and 3 in both tables (class 0 of a context class definition is every glyph not in another class), single and pair
+positioning (glyph pairs, class pairs; values on the second glyph and device tables are not kept) and mark-to-base and
+mark-to-mark attachment; reverse chaining, cursive and mark-to-ligature attachment, deletions, other formats and a subtable
+that cannot be read are listed in the report ("GPOS curs: cursive attachment was not read.").  `LayoutGDEF` reads the glyph
+classes, the mark attachment classes and the mark glyph sets (GDEF 1.2); attachment points, ligature carets and variation
+data are reported.  `FeatureDecompiler` turns them into typeface data.  The mark-to-base lookups of `mark` and the
+mark-to-mark lookups of `mkmk` become anchors: one name per mark class (classes with the same marks at the same anchors share
+it, so a class both features use is one name) -- `top` when the glyphs it attaches to have their anchor (median) above a
+quarter of the em, `bottom` below a tenth, else `anchor<n>` by class order, which is also what a second class wanting a
+taken name gets -- with `_name` on each mark at its mark anchor and `name` on each base or mark it attaches to (the first of a
+name on a glyph wins).  A `liga` ligature rule whose glyph is named by its parts (`f_i` for `f i`, no `.`) makes that glyph
+Ligature-kind and is left to the generator.  GDEF's glyph classes give every glyph's kind (without a GDEF, the marks of the
+attachment classes are Mark-kind).  Every other feature is decompiled into feature text: the lookups it uses -- and every
+lookup a written contextual rule applies -- become named top-level `lookup` blocks (`calt_3`; `gsub_7` for one only a
+context uses) in the font's order, a lookup a context applies moved before it (the feature file defines a lookup before it
+is referenced), then one `feature` block per tag of `lookup` references, plain when every language system has the same list,
+else per `script` and `language … exclude_dflt`.  The `kern` pair lookups, the `mark`/`mkmk` attachment lookups and the
+absorbed `liga` rules are not written (the generator writes them from the kerning, anchors and ligature glyphs);
+`languagesystem` lines lead; the GDEF mark attachment classes and mark glyph sets are written as named classes
+(`@MarkAttachmentClass1`, `@MarkGlyphSet0`), and a lookup that used one keeps a comment line where its `lookupflag
+MarkAttachmentType` / `UseMarkFilteringSet` was, since this feature file has neither (the report says the flag was dropped).
+The text is checked with `FeatureChecker`; a lookup (or feature) it rejects is left out and reported with the message, and
+the check runs again, so the text always compiles; a lookup over 256 KB of text is left out.  `ImportedFont` gained
+`anchors`, `kinds` and `features` (`hasLayout`); a font with any of them is planned by `FontImport.plan` as `UFOImport`
+plans a UFO: the same glyph and settings changes, then the anchors and kinds per glyph, and for a new document the feature
+text, any glyph the import renamed written by its new name (`UFOImport.renamed`, which UFO imports now use too); into an
+existing typeface the text is left out and reported.  Checks: `FeatureDecompilerTests` compiles a font with WireTuner
+(single, multiple, alternate and ligature substitution, contextual substitution with named and inline lookups, `ignore`, a
+per-language feature, single, pair and class positioning, mark attachment in other features, contextual positioning, lookup
+flags), reads it, compiles what was read again and gets the same `GSUB`, `GPOS` and `GDEF` bytes for OTF and TTF, and the
+same text when that font is read; hand-built tables cover the formats the compiler never writes.  `FontRoundTripTests` now
+asserts, where it asserted their loss, that anchors, kinds, ligatures, the generated tags and the feature text survive OTF →
+document → OTF and TTF → document → TTF for the three families, with the layout tables byte-identical.  Read over the 240
+OTF and TTF files of `/System/Library/Fonts` (by hand, not in the suite), every decompiled text checks clean.  Deviations:
+anchor names are guessed from where a class attaches (a font keeps no names); the order of lookups changes only where a
+contextual lookup applies a later one; a mark attachment or mark filtering flag is dropped from the lookups that had it.  Not
+built: point-matched composites (still placed at their origin and reported).
+
+NOTE: As built by FONT-026's rest (`WTModel/FontWarningFixes.swift`, a new file; `WTApp/Typeface/GenerateFontsSheet.swift`,
+`TypefaceFeatures.swift`; `WTInterchange/Fonts/FontCompiler.swift`, `FontTables.swift`; `WTModel/FontGeneration.swift`).
+btn:[Fix All Warnings] (enabled when the list has such a warning) is `FixGlyphWarnings` over the glyphs warned *off the
+grid* or *missing extrema* -- what generation corrects anyway --: each glyph's filled artwork is merged (Remove Overlaps,
+strokes expanded), its outer contours turned counter-clockwise and its counters the other way, extrema added and every point
+rounded to whole units, written as one path in place of what it replaces, every glyph in one change ("Fix All Warnings", one
+undo step); open unstroked paths and components are left alone.  btn:[Generate…] compiles every chosen format in the
+background first, with a progress bar ("Compiling OTF…", "Writing…") and btn:[Stop], which cancels the compile
+(`FontCompiler.compile` now passes the task's cancellation to its detached compile) and writes nothing ("Generating
+stopped; nothing was written"); the files are written once every format has compiled.  Under the list the sheet shows the
+window's sync state (the cloud symbol and its label) and how many others have the document open (`SyncDetails.collaborators`),
+followed while the sheet is open, with a reminder in orange when changes wait to sync ("the font has them, your
+collaborators do not yet") or others have it open ("the font is a snapshot of it now").  Generated and installed fonts carry
+the current date in `head` (they carried zero; tests and the simulator still pass a fixed date for identical bytes); a
+document's empty `.notdef` is drawn as the synthesized box when *Add .notdef and space when missing* is on; a TrueType font
+has a `prep` turning on smart dropout control (`PUSHW 511 SCANCTRL PUSHB 4 SCANTYPE`, as `gftools fix-nonhinting` writes it)
+and a `gasp` for every size, with `maxp`'s stack depth 1 -- it is still unhinted, and the OpenType reader reports hinting
+only for other programs.  `FontBakeryTests` (WTModel) generates Marlowe -- every letter drawn, a no-break space, a
+descender -- as OTF and TTF and runs fontbakery's universal profile on each when `WT_FONTBAKERY` names the executable
+(skipped otherwise: there is no Python tool chain in CI): no FAIL and no ERROR (OTF 71 PASS, TTF 78 PASS with fontbakery
+1.1.0 in a virtual environment).  Three checks are left out as being about the test font's design rather than its tables:
+`case_mapping`, `contour_count` and `opentype/monospace` (which also stops with an error on any CFF font in that version).
+The first run found the zero dates, the blank `.notdef` and the missing dropout control, fixed above.  Deviations: the count
+is of who has the document open, not of who was active in the last minute (the presence model keeps no such time); the
+reminder is text in the sheet, not an alert.
 
 === Build tasks
 

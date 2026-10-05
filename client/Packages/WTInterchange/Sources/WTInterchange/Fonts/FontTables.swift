@@ -132,7 +132,8 @@ enum FontTables {
         return w.bytes
     }
 
-    /// `maxp` 1.0 for TrueType outlines (no instructions, no composites).
+    /// `maxp` 1.0 for TrueType outlines (no glyph instructions, no composites; the stack the
+    /// `prep` program uses).
     static func maxpTrueType(glyphs: Int, maxPoints: Int, maxContours: Int) -> [UInt8] {
         var w = FontWriter()
         w.u32(0x0001_0000)
@@ -140,9 +141,18 @@ enum FontTables {
         w.u16(maxPoints); w.u16(maxContours)
         w.u16(0); w.u16(0)          // maxCompositePoints, maxCompositeContours
         w.u16(2)                    // maxZones
-        for _ in 0..<8 { w.u16(0) } // twilight points, storage, function defs, instruction defs, stack, instruction size, component elements, depth
+        for _ in 0..<4 { w.u16(0) } // twilight points, storage, function defs, instruction defs
+        w.u16(1)                    // maxStackElements (the prep program pushes one value at a time)
+        for _ in 0..<3 { w.u16(0) } // instruction size, component elements, depth
         return w.bytes
     }
+
+    /// The TrueType `prep` program of an unhinted font: smart dropout control at every size
+    /// (`PUSHW[] 511 SCANCTRL[] PUSHB[] 4 SCANTYPE[]`, as `gftools fix-nonhinting` writes it).
+    static let dropoutControl: [UInt8] = [0xB8, 0x01, 0xFF, 0x85, 0xB0, 0x04, 0x8D]
+
+    /// `gasp` version 1: one range to the largest size, grid-fitting and smoothing on.
+    static let gasp: [UInt8] = [0x00, 0x01, 0x00, 0x01, 0xFF, 0xFF, 0x00, 0x0F]
 
     // MARK: OS/2
 

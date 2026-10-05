@@ -874,6 +874,11 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             text.delete(.backspace)
             return
         }
+        if let handle = toolManager?.handleDeletion() {
+            // A picked anchor or component on a glyph tab goes when nothing is selected.
+            objectEditing.perform(handle)
+            return
+        }
         if selection.model.isEmpty, let guide = guideHandles.deletionCommand() {
             // A clicked guide goes when nothing else is selected (grid-guides.adoc).
             guideHandles.deselect()
@@ -989,7 +994,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         case #selector(selectNone(_:)):
             return !isEditingText && !selection.model.isEmpty
         case #selector(delete(_:)):
-            return !isEditingText && (!selection.model.isEmpty || guideHandles.deletionCommand() != nil)
+            return !isEditingText && (!selection.model.isEmpty || guideHandles.deletionCommand() != nil || toolManager?.handleDeletion() != nil)
         case #selector(cut(_:)), #selector(copy(_:)):
             return !isEditingText && !selection.model.isEmpty
         case #selector(paste(_:)):

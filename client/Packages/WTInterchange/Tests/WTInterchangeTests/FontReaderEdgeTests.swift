@@ -166,7 +166,7 @@ import WTGeometry
         for _ in 0..<4 { os2.u32(0) }
         os2.tag("TEST"); os2.u16(0x21); os2.u16(0x41); os2.u16(0x42); os2.i16(750); os2.i16(-250); os2.i16(10); os2.u16(900); os2.u16(300)
         os2.u32(0); os2.u32(0)
-        // GSUB features are listed as not read.
+        // A GSUB feature no language system uses reads as nothing.
         var gsub = FontWriter()
         gsub.u16(1); gsub.u16(0); gsub.u16(10); gsub.u16(12); gsub.u16(0)
         gsub.u16(0)
@@ -180,7 +180,7 @@ import WTGeometry
         #expect(font.metrics.italicAngle == -10 && font.metrics.underlinePosition == -80 && font.metrics.underlineThickness == 40)
         #expect(font.os2.weightClass == 700 && font.os2.widthClass == 3 && font.os2.vendorID == "TEST" && font.os2.italic && font.os2.bold)
         #expect(font.metrics.xHeight == 500 && font.metrics.winAscent == 900 && font.metrics.typoLineGap == 10)
-        #expect(font.report == ["GSUB feature liga was not read."])
+        #expect(font.report.isEmpty && font.features.isEmpty)
         #expect(try OpenTypeReader.readNames(FontReader(name.bytes, context: "name"))[2] == "Bold")
         // A format 12 group that runs backwards is refused; a cmap with no Unicode subtable is empty.
         var bad = FontWriter()

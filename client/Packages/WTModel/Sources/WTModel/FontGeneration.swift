@@ -77,9 +77,17 @@ public enum FontGeneration {
             glyphs.append(glyph)
             origins.append(origin)
         }
-        // .notdef is glyph 0: the document's, or a synthesized box.
+        // .notdef is glyph 0: the document's, or a synthesized box -- also in place of the
+        // document's when that is empty and the standard glyphs are added (a blank .notdef shows
+        // nothing for a missing character).
         if let notdef = exported.first(where: { $0.name == ".notdef" }) {
-            add(sourceGlyph(notdef, outline: outlines[notdef.id]), from: notdef.id)
+            var glyph = sourceGlyph(notdef, outline: outlines[notdef.id])
+            if flatten, options.addStandardGlyphs, glyph.contours.isEmpty {
+                let box = notdefGlyph(font)
+                glyph.contours = box.contours
+                glyph.advanceWidth = box.advanceWidth
+            }
+            add(glyph, from: notdef.id)
         } else if options.addStandardGlyphs {
             add(notdefGlyph(font), from: nil)
         } else {

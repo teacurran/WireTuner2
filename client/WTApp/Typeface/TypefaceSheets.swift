@@ -136,16 +136,25 @@ struct NewTypefaceSheet: View {
 
 /// The Add Glyph sheet (glyph-grid.adoc, "Adding glyphs"; FONT-010): characters (`é`, `ÀÁÂ`), a
 /// codepoint or range (`U+00E9`, `U+00C0-U+00FF`) or a glyph name (`eacute`, `f_i`, `a.alt`),
-/// added after the selected glyph in one change; glyphs that exist are skipped.  The Basic Latin
-/// and Latin-1 buttons add a starting set's missing glyphs.
+/// added after the selected glyph in one change; glyphs that exist are skipped.  *Kind* follows
+/// what the text names (Mark for a combining character, Ligature for `f_i`, else Base) until it is
+/// chosen; a Component is unencoded.  btn:[Add and Open] opens the (first) glyph added as well.
+/// The Basic Latin and Latin-1 buttons add a starting set's missing glyphs.
 @MainActor
 @Observable
 final class AddGlyphModel {
     @ObservationIgnored let document: DocumentHandle
     @ObservationIgnored let after: OpID?
     @ObservationIgnored let perform: TypefacePerform
-    var text = ""
+    var text = "" {
+        didSet { if !kindChosen { kind = Self.glyphs(for: text)?.first?.kind ?? .base } }
+    }
+    /// The kind the glyphs get.
+    private(set) var kind: GlyphKind = .base
+    @ObservationIgnored private var kindChosen = false
     private(set) var problem: String?
+    /// Opens a glyph in a tab (btn:[Add and Open]).
+    @ObservationIgnored var openGlyph: @MainActor (OpID) -> Void = { _ in }
 
     init(document: DocumentHandle, after: OpID?, perform: @escaping TypefacePerform) {
         self.document = document
@@ -155,6 +164,12 @@ final class AddGlyphModel {
 
     static let nothing = "Type characters, a codepoint such as U+00E9, or a glyph name"
     static let exists = "Every glyph named is already in the font"
+
+    /// The *Kind* pop-up chose `kind`.
+    func choose(_ kind: GlyphKind) {
+        kindChosen = true
+        self.kind = kind
+    }
 
     /// The glyphs `text` asks for, nil when it names none.
     static func glyphs(for text: String) -> [NewGlyph]? {
@@ -178,12 +193,11 @@ final class AddGlyphModel {
         return trimmed.unicodeScalars.filter { !$0.properties.isWhitespace }.map { NewGlyph(scalar: $0.value) }
     }
 
-    /// btn:[Add].
-    @discardableResult
-    func commit() -> Bool {
+    /// The glyphs btn:[Add] adds: those missing, with the kind (a Component without codepoints).
+    func missing() -> [NewGlyph]? {
         guard let glyphs = Self.glyphs(for: text), !glyphs.isEmpty else {
             problem = Self.nothing
-            return false
+            return nil
         }
         let index = GlyphIndex(document.state)
         let missing = glyphs.filter { glyph in
@@ -191,11 +205,42 @@ final class AddGlyphModel {
         }
         guard !missing.isEmpty else {
             problem = Self.exists
-            return false
+            return nil
         }
-        _ = perform(AddGlyphs(missing, after: after, skipExisting: true))
+        // Each glyph keeps the kind its text implies until one is chosen.
+        guard kindChosen else { return missing }
+        let kind = kind
+        return missing.map { glyph in
+            var copy = glyph
+            copy.kind = kind
+            if kind == .component { copy.codepoints = [] }
+            return copy
+        }
+    }
+
+    /// btn:[Add].
+    @discardableResult
+    func commit() -> Bool {
+        guard let glyphs = missing() else { return false }
+        _ = perform(AddGlyphs(glyphs, after: after, skipExisting: true))
         return true
     }
+
+    /// btn:[Add and Open]: adds, then opens the first glyph added once the change is in.
+    @discardableResult
+    func addAndOpen() -> Task<OpID?, Never>? {
+        guard let glyphs = missing(), let name = glyphs.first?.name else { return nil }
+        let change = perform(AddGlyphs(glyphs, after: after, skipExisting: true))
+        let document = document
+        return Task { [weak self] in
+            _ = await change?.value
+            guard let glyph = GlyphIndex(document.state).glyph(named: name)?.id else { return nil }
+            self?.openGlyph(glyph)
+            return glyph
+        }
+    }
+
+    func addAndOpenButton() -> Bool { addAndOpen() != nil }
 
     /// btn:[Add Basic Latin] / btn:[Add Latin-1].
     @discardableResult
@@ -215,17 +260,23 @@ struct AddGlyphSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Add Glyph").font(.headline)
             TextField("Characters, U+0041 or a glyph name", text: $model.text).accessibilityIdentifier("addGlyph.text")
+            Picker("Kind", selection: Binding(get: { model.kind }, set: { kind in model.choose(kind) })) {
+                ForEach(GlyphKind.allCases, id: \.self) { kind in Text(TypefaceFeatures.title(of: kind)).tag(kind) }
+            }
+            .fixedSize()
+            .accessibilityIdentifier("addGlyph.kind")
             if let problem = model.problem { Text(problem).font(.caption).foregroundStyle(.red) }
             HStack {
                 Button("Add Basic Latin", action: SheetButtons.closing(model.addBasicLatin, close))
                 Button("Add Latin-1", action: SheetButtons.closing(model.addLatin1, close))
                 Spacer()
                 Button("Cancel", action: close).keyboardShortcut(.cancelAction)
+                Button("Add and Open", action: SheetButtons.closing(model.addAndOpenButton, close)).accessibilityIdentifier("addGlyph.addAndOpen")
                 Button("Add", action: SheetButtons.closing(model.commit, close)).keyboardShortcut(.defaultAction).accessibilityIdentifier("addGlyph.add")
             }
         }
         .padding()
-        .frame(width: 420)
+        .frame(width: 520)
     }
 }
 

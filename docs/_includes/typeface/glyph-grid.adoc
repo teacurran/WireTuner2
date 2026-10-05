@@ -356,7 +356,7 @@ Data model says, would fill the counter of an `o`), paths that contribute nothin
 and components are left alone; *Decompose* likewise writes one path per component (it wrote one per contour, which filled
 counters -- fixed).  Not built: presence dots, the collision notices, menu:View[Glyph Labels] and *Show Metrics in Cells*,
 and the Add Glyph sheet's *Kind* and btn:[Add and Open] (copy and paste, Paste as Component, encoding placeholders, drag
-reordering and the Glyph section came with the note below).
+reordering and the Glyph section came with the note below; *Kind* and btn:[Add and Open] with the last note).
 
 NOTE: As built by the rest of FONT-008's and FONT-010's clipboard, placeholders and panel (`WTModel/GlyphClipboard.swift`,
 `WTModel/GlyphEncodings.swift`, new files; `WTApp/Typeface/GlyphClipboardCommands.swift`, `GlyphInspector.swift`, new files;
@@ -390,6 +390,13 @@ a character, `U+00E9` / `00E9` or a Unicode character name, refused with the hol
 LSB, RSB (disabled without an outline), Mark color, Export and Note for all of them, a value they do not share shown
 mixed; each control one change (`AdjustGlyphMetrics` for the metrics).  Not built besides the list above: the Glyph
 section beside the object sections when objects are selected on a glyph tab.
+
+NOTE: As built by FONT-008's and FONT-010's Add Glyph rest (`WTApp/Typeface/TypefaceSheets.swift`, `TypefaceFeatures.swift`).
+The Add Glyph sheet has a *Kind* pop-up (Base, Mark, Ligature, Component) that follows what the text names -- Mark for a
+combining character, Ligature for a name such as `f_i`, else Base -- until one is chosen; unchosen, each glyph of a typed
+string keeps its own kind (`é̀` adds a base and a mark).  A chosen kind applies to every glyph added, and a Component is
+added without codepoints (an unencoded piece).  btn:[Add and Open] adds as btn:[Add] does, then opens the first glyph added
+in a tab once the change is in.
 
 === Build tasks
 

@@ -21,21 +21,34 @@ public enum UFOImport {
     /// The plan for importing `ufo` (from `fileName`) into `state`.
     public static func plan(_ ufo: UFOFont, fileName: String, into state: EngineState, newDocument: Bool,
                             batchSize: Int = batchSize) -> FontImport.Plan {
+        plan(ufo, fileName: fileName, into: state, newDocument: newDocument, batchSize: batchSize,
+             featuresNotAdded: "The UFO's feature file was not added to this document's; copy what you need from features.fea.")
+    }
+
+    /// The plan; `featuresNotAdded` is the report's line when an import into an existing document
+    /// leaves the feature text out.
+    static func plan(_ ufo: UFOFont, fileName: String, into state: EngineState, newDocument: Bool, batchSize: Int,
+                     featuresNotAdded: String) -> FontImport.Plan {
         // A glyph with artwork gets it pasted instead of its contours.
         var font = ufo.font
         for (offset, artwork) in ufo.artwork.enumerated() where artwork.flatMap({ ClipboardPayload(decoding: [UInt8]($0)) }) != nil {
             font.glyphs[offset].contours = []
         }
-        let base = FontImport.plan(font, fileName: fileName, into: state, newDocument: newDocument, batchSize: batchSize)
+        let base = FontImport.glyphPlan(font, fileName: fileName, into: state, newDocument: newDocument, batchSize: batchSize)
         var report = base.report
         let detailed = ufo.font.glyphs.indices.filter {
             !ufo.anchors[$0].isEmpty || ufo.markColors[$0] != 0 || !ufo.notes[$0].isEmpty || ufo.kinds[$0] != nil || ufo.artwork[$0] != nil
         }
         let batches = stride(from: 0, to: detailed.count, by: max(batchSize, 1)).map { Array(detailed[$0..<min($0 + max(batchSize, 1), detailed.count)]) }
         let userFeatures = userText(ufo.features)
-        let features = newDocument && !userFeatures.isEmpty ? userFeatures : ""
+        // A glyph imported under another name is written with it.
+        var renamed = userFeatures
+        for (glyph, name) in zip(ufo.font.glyphs, base.names) where name != nil && name != glyph.name {
+            renamed = Self.renamed(renamed, from: glyph.name, to: name!)
+        }
+        let features = newDocument && !renamed.isEmpty ? renamed : ""
         if !newDocument, !userFeatures.isEmpty {
-            report.append("The UFO's feature file was not added to this document's; copy what you need from features.fea.")
+            report.append(featuresNotAdded)
         }
         // The unread lib keys are kept on a new document's settings for a UFO export to write back;
         // an existing typeface keeps its own.
@@ -71,6 +84,18 @@ public enum UFOImport {
             commands.append(ImportUFOLib(lib: lib, label: label(commands.count + 1)))
         }
         return FontImport.Plan(commands: commands, report: report, names: base.names)
+    }
+
+    /// `text` with the glyph `from` written `to` wherever the feature file uses it as a glyph.
+    static func renamed(_ text: String, from: String, to: String) -> String {
+        var scalars = Array(text.unicodeScalars)
+        for range in FeatureChecker.occurrences(of: from, in: text).reversed() where range.upperBound <= scalars.count {
+            let escaped = range.lowerBound > 0 && scalars[range.lowerBound - 1] == "\\"
+            scalars.replaceSubrange(range, with: (escaped ? to : FeatureGenerator.glyph(to)).unicodeScalars)
+        }
+        var result = String.UnicodeScalarView()
+        result.append(contentsOf: scalars)
+        return String(result)
     }
 
     /// `features.fea` without the part a WireTuner export generated (from the marker line on).

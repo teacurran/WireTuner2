@@ -326,6 +326,7 @@
 		57859F874ADBF60A1FFB5B4B /* StylesPanelModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D1A8E202F43956FBEED185 /* StylesPanelModel.swift */; };
 		5787C58A1B205089A6610ED6 /* CollaborationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D4EA44B145C752106B7E549 /* CollaborationTests.swift */; };
 		57B412FEC78DAD6E2CF8FDFF /* EraserTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FA37DD796777F182BE5E38A /* EraserTool.swift */; };
+		5803222C061C8E4F412715EC /* GlyphHandleKeysTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D702645DC57C9CE83B39AB /* GlyphHandleKeysTests.swift */; };
 		581884A92934F09A06D01BAA /* GraphicReplace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B18CE129FB91EC10811112 /* GraphicReplace.swift */; };
 		582ED36651A50BAF24CDC253 /* FreeformToolTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB7A39E9A016E1AE3D7655D1 /* FreeformToolTests.swift */; };
 		584EE7B120708B7977B4EEB4 /* SnapSounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1510AC225EDA69B63240D0F6 /* SnapSounds.swift */; };
@@ -449,6 +450,7 @@
 		79636D660F137FFB9EB08AA9 /* ModelGlueFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89A3694B95DD6E28FECEAF77 /* ModelGlueFeatures.swift */; };
 		79EC80B15868002510D1B57A /* ExternalEditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02A9F075A86358221861B7D1 /* ExternalEditTests.swift */; };
 		7A42682B3A826A004012D2D0 /* LocalUpgradeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADFBF973725277AD8B345DC /* LocalUpgradeTests.swift */; };
+		7AA9101B66D25B0302CAAD07 /* GenerateFontsSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D415769AEBF6FBA89A4A4EC /* GenerateFontsSheetTests.swift */; };
 		7B60E019451BB9B94DA8F1EE /* WireTunerKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 65A2B935FC6CF0749D95EB5D /* WireTunerKit.framework */; };
 		7BB65D12B8AF3B10D0FEA6CE /* PanelLayoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 656E8AB3DBD70AC4B517E423 /* PanelLayoutStore.swift */; };
 		7C0224F789D15D81355A5844 /* ImageFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B83B14A8CBDE46F950492A /* ImageFeatures.swift */; };
@@ -681,6 +683,7 @@
 		C1D64BF0C2CE8F43D10F4238 /* ColorEdgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AE52443CA5A045C652885C8 /* ColorEdgeTests.swift */; };
 		C245645807CF8EE195B49769 /* FloatingPanelsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ED615F34D1522D1BC4B6AEC /* FloatingPanelsController.swift */; };
 		C265B0012BAACEB9E609B850 /* TextSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EFA3BE5DEC98EEA83486EF /* TextSection.swift */; };
+		C2BB30FA44CC8E39E47F47DE /* CanvasHandleKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243E5E9E54A52387241A5BAE /* CanvasHandleKeys.swift */; };
 		C2D3B1FAEAE0B9212822B894 /* ShortcutSetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98EF394B63F85812A1FA732 /* ShortcutSetTests.swift */; };
 		C2D7803B5FC637765A177B7D /* ShareHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 055C5C0317092C1A299D9275 /* ShareHandoff.swift */; };
 		C32C2A5A3217ACB69CD45BDA /* ObjectEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7306458B57616E3B61092CD /* ObjectEditing.swift */; };
@@ -1119,6 +1122,7 @@
 		238C2C683DF9FC319654C536 /* PackagePeek.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PackagePeek.swift; sourceTree = "<group>"; };
 		23A4E2A2D465378A3E1D799E /* ShareLinkOpener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareLinkOpener.swift; sourceTree = "<group>"; };
 		23FCFC2D917937233A8E5918 /* ConnectorCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectorCommandTests.swift; sourceTree = "<group>"; };
+		243E5E9E54A52387241A5BAE /* CanvasHandleKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasHandleKeys.swift; sourceTree = "<group>"; };
 		2457FBFBF637BF1EC2FC10E0 /* CanvasGestures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasGestures.swift; sourceTree = "<group>"; };
 		2469AD6FEE8F449C441FEEB6 /* ChartElements.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartElements.swift; sourceTree = "<group>"; };
 		2475A5945F7F6B41126016E3 /* LocalHiding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalHiding.swift; sourceTree = "<group>"; };
@@ -1349,6 +1353,7 @@
 		6241ACAB10E4CD857A9FF0E4 /* ProfileBlobGlue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileBlobGlue.swift; sourceTree = "<group>"; };
 		62B0A381427578CFE852DB51 /* ExtrudeTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtrudeTool.swift; sourceTree = "<group>"; };
 		62CF68B1E83C6F70D5F95C9B /* LensCenterHandles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LensCenterHandles.swift; sourceTree = "<group>"; };
+		62D702645DC57C9CE83B39AB /* GlyphHandleKeysTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlyphHandleKeysTests.swift; sourceTree = "<group>"; };
 		633EB97BF123731B1E14D82C /* WindowChromeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChromeTests.swift; sourceTree = "<group>"; };
 		634B25361D1E864FB3FD659D /* ShortcutSetStoreSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSetStoreSyncTests.swift; sourceTree = "<group>"; };
 		6360B872B3D8DC389472E5FD /* ModelGlueWorld.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelGlueWorld.swift; sourceTree = "<group>"; };
@@ -1540,6 +1545,7 @@
 		9CB682FFB3FD3469B5AB22F5 /* ClipboardFormats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardFormats.swift; sourceTree = "<group>"; };
 		9CF4C2456A24C19C59DA16B2 /* WebAuthenticationSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationSession.swift; sourceTree = "<group>"; };
 		9D37FBA263633B41BC1CB363 /* DocumentInfoExtrasTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentInfoExtrasTests.swift; sourceTree = "<group>"; };
+		9D415769AEBF6FBA89A4A4EC /* GenerateFontsSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenerateFontsSheetTests.swift; sourceTree = "<group>"; };
 		9DE4558C99E3E4F45DE69B93 /* PreferenceValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferenceValue.swift; sourceTree = "<group>"; };
 		9E08901C474E8C51D06DF639 /* ToolOptionSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolOptionSheets.swift; sourceTree = "<group>"; };
 		9E3B21B3E049517A45B34211 /* PerspectiveTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerspectiveTool.swift; sourceTree = "<group>"; };
@@ -2246,6 +2252,7 @@
 				C1CC69566FDE59C3143D23EF /* BuiltInTools.swift */,
 				CA711544FFF96192D24BA26D /* CalligraphicPen.swift */,
 				C3F49D2493A6ADF0FD89AA6C /* CanvasEventTranslator.swift */,
+				243E5E9E54A52387241A5BAE /* CanvasHandleKeys.swift */,
 				F2F24F80B5E57091ADDDB29C /* CanvasHandleLayer.swift */,
 				2D376CA0D7EF3DE9F0ACA19A /* ConnectorHandles.swift */,
 				DEE72D7C64248C4088BC471D /* ConnectorTool.swift */,
@@ -3218,8 +3225,10 @@
 				E99EA0F80B6618BCF1626CD2 /* FontFamilyPickerTests.swift */,
 				406C7299139F4349CEF4F355 /* ForeignFileOpeningTests.swift */,
 				FB7A39E9A016E1AE3D7655D1 /* FreeformToolTests.swift */,
+				9D415769AEBF6FBA89A4A4EC /* GenerateFontsSheetTests.swift */,
 				C981BAC74EAC53B9F161B7BF /* GlyphCanvasHandlesTests.swift */,
 				C11E5C7FBAC9A24E62807344 /* GlyphClipboardFeatureTests.swift */,
+				62D702645DC57C9CE83B39AB /* GlyphHandleKeysTests.swift */,
 				B311AFCDB83E7801450137D3 /* GlyphMenuTests.swift */,
 				F71063A0B2E67E916CB0F74B /* GradientEditorTests.swift */,
 				536FA4DDD6D3FBD420437705 /* GradientSwatchPanelTests.swift */,
@@ -3877,6 +3886,7 @@
 				089929CF96B075FD07178CF8 /* CanvasEventTranslator.swift in Sources */,
 				621767DB3503F9DA42A41267 /* CanvasFurniture.swift in Sources */,
 				C67AB7A49A46B096EE2A93D2 /* CanvasGestures.swift in Sources */,
+				C2BB30FA44CC8E39E47F47DE /* CanvasHandleKeys.swift in Sources */,
 				36EE46E87DA806BF68731F9F /* CanvasHandleLayer.swift in Sources */,
 				80F17677DD46F90804D49A71 /* CanvasNavigation.swift in Sources */,
 				E917637578C01BE0479A7ECD /* CanvasScrollerModel.swift in Sources */,
@@ -4533,8 +4543,10 @@
 				557E5DEEA22276E10CBDE9BE /* FontFixture.swift in Sources */,
 				4852F36278FCFCF3BF9C691E /* ForeignFileOpeningTests.swift in Sources */,
 				582ED36651A50BAF24CDC253 /* FreeformToolTests.swift in Sources */,
+				7AA9101B66D25B0302CAAD07 /* GenerateFontsSheetTests.swift in Sources */,
 				84FDC687487B007534FC3B70 /* GlyphCanvasHandlesTests.swift in Sources */,
 				AF896F18CAAE1B2FDFC569F1 /* GlyphClipboardFeatureTests.swift in Sources */,
+				5803222C061C8E4F412715EC /* GlyphHandleKeysTests.swift in Sources */,
 				D7D5F27617A0FAF186524E17 /* GlyphMenuTests.swift in Sources */,
 				EC7D3662790EDEBD7A40A61C /* GradientEditorTests.swift in Sources */,
 				38F3A733599B793E1B0F860C /* GradientSwatchPanelTests.swift in Sources */,
@@ -4753,11 +4765,11 @@
 		};
 		0239E4B10FA387E9B3EEAA35 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_D92560D4-8458-43F0-AB2A-8054FB2CAB71" /* WTInterchange */;
+			productRef = "TEMP_7A7BE966-EA1F-4676-AB7F-103BADECD1B9" /* WTInterchange */;
 		};
 		1389D84F7311322BA59FB06B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_C03B685E-FF9B-4C4C-8912-F5BD4516A283" /* WTRender */;
+			productRef = "TEMP_59FD2CC2-4FEF-452B-80F6-EAC7EB5EE018" /* WTRender */;
 		};
 		23AA14013E4A515EC9987F5A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4771,11 +4783,11 @@
 		};
 		48C5DE2B997A4ABAC1CDE088 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_428C5BB7-0A6D-4A5C-AB2E-62FF67AB3553" /* WTModel */;
+			productRef = "TEMP_C4962E53-48D7-44C3-B5BA-C7AB5C4000BE" /* WTModel */;
 		};
 		5345AFFAC55816C31DADAB2D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_7A3165E2-1BBA-440E-AC74-75AA54E534B1" /* WTGeometry */;
+			productRef = "TEMP_EDA1C1EF-AA25-41C4-AD92-D26874229AF6" /* WTGeometry */;
 		};
 		6AE89E433F4058DDDAFCF344 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4784,15 +4796,15 @@
 		};
 		81AAFB8B4A51BB203C520BC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_72EFA55C-A2C3-46D3-A3C7-84462BCACB8C" /* WTCRDT */;
+			productRef = "TEMP_90BE3B56-A501-47A2-A313-92A33BE993F9" /* WTCRDT */;
 		};
 		85FAF81B78395FB1A20B1AF5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_FBC0EACD-CE35-4CD7-8071-7A5529C879A1" /* WTSync */;
+			productRef = "TEMP_0250008E-69E0-4618-AC3A-BAC3248CDA8A" /* WTSync */;
 		};
 		8617AD2876EE4ED5DA8E9BBE /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_C46D162F-06C9-4248-98FE-5D321A86A68D" /* WTModel */;
+			productRef = "TEMP_40110FC5-95A2-4373-A417-1E8562A5BEDC" /* WTModel */;
 		};
 		920E4750ADBCB78008950CBB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4801,7 +4813,7 @@
 		};
 		B81CA2100C47093C70BAEEFB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_1000C4AF-D3F9-4688-8DEE-9CE193BF574E" /* WTText */;
+			productRef = "TEMP_D4F71761-448D-4B5D-AEC3-98469BEBD592" /* WTText */;
 		};
 		C6BC93B2D577B00A1D7CBEFA /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -4810,7 +4822,7 @@
 		};
 		D83546DB4F210659857E1489 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = "TEMP_C039AFCF-3F03-4C51-8040-C69AE9D412D9" /* WTProto */;
+			productRef = "TEMP_C2F8F080-907C-47DC-B296-7CE262710AD9" /* WTProto */;
 		};
 		DDA1225ED9423A83ED60A11B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5448,41 +5460,41 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_1000C4AF-D3F9-4688-8DEE-9CE193BF574E" /* WTText */ = {
+		"TEMP_0250008E-69E0-4618-AC3A-BAC3248CDA8A" /* WTSync */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = WTText;
+			productName = WTSync;
 		};
-		"TEMP_428C5BB7-0A6D-4A5C-AB2E-62FF67AB3553" /* WTModel */ = {
+		"TEMP_40110FC5-95A2-4373-A417-1E8562A5BEDC" /* WTModel */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTModel;
 		};
-		"TEMP_72EFA55C-A2C3-46D3-A3C7-84462BCACB8C" /* WTCRDT */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTCRDT;
-		};
-		"TEMP_7A3165E2-1BBA-440E-AC74-75AA54E534B1" /* WTGeometry */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTGeometry;
-		};
-		"TEMP_C039AFCF-3F03-4C51-8040-C69AE9D412D9" /* WTProto */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTProto;
-		};
-		"TEMP_C03B685E-FF9B-4C4C-8912-F5BD4516A283" /* WTRender */ = {
+		"TEMP_59FD2CC2-4FEF-452B-80F6-EAC7EB5EE018" /* WTRender */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTRender;
 		};
-		"TEMP_C46D162F-06C9-4248-98FE-5D321A86A68D" /* WTModel */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WTModel;
-		};
-		"TEMP_D92560D4-8458-43F0-AB2A-8054FB2CAB71" /* WTInterchange */ = {
+		"TEMP_7A7BE966-EA1F-4676-AB7F-103BADECD1B9" /* WTInterchange */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WTInterchange;
 		};
-		"TEMP_FBC0EACD-CE35-4CD7-8071-7A5529C879A1" /* WTSync */ = {
+		"TEMP_90BE3B56-A501-47A2-A313-92A33BE993F9" /* WTCRDT */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = WTSync;
+			productName = WTCRDT;
+		};
+		"TEMP_C2F8F080-907C-47DC-B296-7CE262710AD9" /* WTProto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTProto;
+		};
+		"TEMP_C4962E53-48D7-44C3-B5BA-C7AB5C4000BE" /* WTModel */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTModel;
+		};
+		"TEMP_D4F71761-448D-4B5D-AEC3-98469BEBD592" /* WTText */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTText;
+		};
+		"TEMP_EDA1C1EF-AA25-41C4-AD92-D26874229AF6" /* WTGeometry */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WTGeometry;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
