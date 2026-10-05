@@ -867,6 +867,17 @@ Done when::
 * A fixture of each format with named paths, groups and text imports with those names; unnamed objects keep their default labels.
 * The external corpus run reports how many objects arrived named.
 
+NOTE: As built (xref:decisions.adoc#D-095[D-095]; `WTInterchange/Import/Illustrator/IllustratorObjectNames.swift`,
+xref:import-formats.adoc[Import formats]).  Illustrator: the native art's XML IDs (private data of
+PDF-compatible files, the `%AI9_PrivateDataBegin` art of Illustrator EPS files, native-format
+PostScript files) matched to the imported drawing by size and place; named groups become groups;
+sublayers of PostScript files become named groups.  Illustrator 2020's Zstandard private data is
+still not read.  FreeHand: no object names exist in its files (every string record of the corpus
+accounted for), so none are imported; FreeHand's even/odd fill now survives libfreehand (patch 0004).
+Fixtures: `IllustratorObjectNameTests`, `FreeHandEvenOddTests`.  Corpus (`ObjectNamesCorpusTests`):
+7 of 149 Illustrator files (76 `.ai`, 73 EPS) name 34 objects, of which 24 arrive named; the 13
+FreeHand files name none, and their 409 even/odd paths now import even/odd.
+
 [[LIB-031]]
 ==== LIB-031 Layers panel: keyboard, locate and thumbnails
 [horizontal]

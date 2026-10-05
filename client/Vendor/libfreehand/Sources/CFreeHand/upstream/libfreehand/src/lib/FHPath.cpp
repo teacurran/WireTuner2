@@ -662,6 +662,8 @@ libfreehand::FHPath &libfreehand::FHPath::operator=(const libfreehand::FHPath &p
   m_isClosed = path.m_isClosed;
   m_xFormId = path.m_xFormId;
   m_graphicStyleId = path.m_graphicStyleId;
+  // WireTuner: the fill rule is copied too (FHCollector::collectPath assigns every path).
+  m_evenOdd = path.m_evenOdd;
   return *this;
 }
 

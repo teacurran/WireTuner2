@@ -104,6 +104,13 @@ you open or import it: its Illustrator layers, hidden layers and artboard names 
 Artboard names are read from files saved by Illustrator CS4 to 2019; files saved by Illustrator
 2020 or later open with their artboards as unnamed pages.
 
+Objects and groups you named in Illustrator's Layers panel keep their names in {product}'s Layers
+panel, whether you open the file or import it.  Illustrator keeps those names apart from the
+drawing {product} reads, so a name comes along only when its object can be found in the drawing
+with certainty -- same size, same place -- and a named group comes in as a group of its objects.
+Anything else shows its usual label, such as Path or Group.  A sublayer becomes a group named after
+it.  Names are read from files saved by Illustrator 9 to 2019 and from Illustrator EPS files.
+
 Older Illustrator files (versions 1.1 through 8) and Illustrator EPS files are PostScript-based.
 {product} reads their drawing operators directly -- paths, fills, strokes, text and placed
 images -- without a PostScript interpreter, which covers everything the format was designed to
@@ -121,8 +128,10 @@ artwork, and most of what FreeHand could do comes in as the same live feature he
   import says so).  The Guides layer is never artwork.
 * *Pages*: every page of a multi-page document comes in; opening the file gives you its pages,
   importing places the whole pasteboard spread at its natural size.
-* *Paths, rectangles, ellipses, compound paths and groups* keep their shapes and fill rules.
-  Rectangles and ellipses arrive as paths.
+* *Paths, rectangles, ellipses, compound paths and groups* keep their shapes and fill rules
+  (even/odd or nonzero winding).  Rectangles and ellipses arrive as paths.  FreeHand names layers
+  but not objects, so objects show their usual labels in the Layers panel; symbol instances are
+  named after their symbols.
 * *Paste Inside* becomes a clipping group whose clipping path keeps its own fill and stroke, drawn
   as FreeHand drew them.
 * *Colours*: named colours become swatches of the same name -- CMYK colours stay CMYK -- and
@@ -730,6 +739,25 @@ by default; only the Illustrator importer's fallback turns it off), and a `.pdf`
 mesh black.  The private data of such a `.pdf` is in `/AIPDFPrivateData1…N` rather than
 `/AIPrivateData1…N`; both are read.  A PDF without either opens and imports as before.
 
+NOTE: Object names (LIB-030, xref:decisions.adoc#D-095[D-095]; `Import/Illustrator/IllustratorObjectNames.swift`).
+`IllustratorNativeArt(scanning:)` reads native art from `%%EndSetup` to the trailer, without its
+`%%BeginData:` … `%%EndData` bytes (a raster's `XI` kept), palettes and non-printing art: per
+top-level layer (`Lb` … `LB`, sublayers folded in) the drawn objects in order -- a path painted with
+`f F s S b B` (its control-point box), a compound path at `*U`, text from `To` to `TO` that shows
+something, a raster at `XI` -- and the groups `u` … `U` and `q` … `Q`; the art dictionary after an
+object (`%_/ArtDictionary :` to its closing `%_;`) names it by its own level's `/XMLUID`, decoded by
+`IllustratorNativeArt.name(fromXMLID:)` (`_` a space, `_xH…_` a character, a final `_N_` dropped).
+`IllustratorObjectNames.apply` pairs each layer group of a page (or an import's scene) with the
+native layer of its name (a " 2" suffix by its base), votes the page's offset and matches as D-095
+says; leaves are named in drawing order and groups innermost first.  It runs from
+`IllustratorImporter.scene` and `.document` (private data) and `AILegacyReader.read` (an EPS's
+`%AI9_DataStream` -- ASCII85 in `%` lines, then zlib, `IllustratorPrivateData.eps` -- else the file
+itself) when the native art has more `/XMLUID`s than `%AI5_BeginLayer`s.  The legacy reader's `Lb`
+inside a layer opens a `.group` named by its `Ln`.  Tests: `IllustratorObjectNameTests` (a
+native-format file, an EPS with private data, PDF-compatible files, written in the tests);
+`ObjectNamesCorpusTests` reports, under `WT_EXTERNAL_CORPUS`, each file's native names and the
+objects that arrived named to `WT_CORPUS_OUTPUT/object-names.md`.
+
 NOTE: As built by IMG-013 (`WTInterchange/Import/DXF/`).  Natural size is the drawing's exact
 extents with their top-left moved to the origin; `$EXTMIN`/`$EXTMAX` are not read.
 `$INSUNITS` 1–16 and 21 are honoured; 0, absent (all of R12) or another code uses the *Units*
@@ -835,6 +863,16 @@ import does, against the state with the template so the file's White, Black and 
 the document's own.  The logo's letter cut out of a stroked panel drew filled because GEO-003 could
 not resolve its stroke outline (D-091).  Tests: `FreeHandNoneAndClosingTests` (FreeHand 10 files
 written byte by byte), `DocumentImportTests.namedColoursOpenAsSwatchesWithTheirCMYK`.
+
+NOTE: *Even/odd fill* (patch 0004).  libfreehand reads a path's even/odd bit (bit 1 of the flag
+byte before the point count) into `FHPath`, but `FHPath`'s copy assignment, which
+`FHCollector::collectPath` uses for every path, copied the segments, closed flag, transform and
+style and not the fill rule, so every path came in nonzero -- shapes with overlapping contours
+filled solid (138 paths of one corpus file, rectangles and ellipses included, which libfreehand
+marks even/odd).  Patch 0004 copies it; the bridge already wrote `evenOdd` and `FreeHandConverter`
+already used it, a composite path taking its first path's rule (in the corpus a composite's paths
+always share it).  *Names*: FreeHand files hold none for objects (D-095).  Tests:
+`FreeHandEvenOddTests` (FreeHand 8 and 10 files written byte by byte; they fail without the patch).
 
 === Build tasks
 

@@ -1363,6 +1363,55 @@ pulled back); growing the extent live under a drag (with auto-scroll it is the r
 per-page margins (holes, above); storing the extent (it would need a merge rule for a value that is
 a function of the document).
 
+[[D-095]]
+=== D-095 Imported objects take the names Illustrator gave them only where the drawing matches its native art
+LIB-030 (follow-up of xref:#D-092[D-092]): imported objects showed default labels in the Layers panel
+even when the file named them.  What the files hold, read against the owner's corpus (162 Illustrator,
+EPS and FreeHand files, `WT_EXTERNAL_CORPUS`, nothing copied into the repository):
+
+* *Illustrator writes an object's name only into its native art.*  The art dictionary after the
+  object (`%_/ArtDictionary :` … `%_;`) holds it as the object's XML ID,
+  `/XMLUID : (crop_x5F_top_1_) ; (AI10_ArtUID) ,`: `_` for a space, `_xH…_` for a character an XML
+  name cannot hold, a final `_N_` added to repeat a name.  Layers carry one too (their `Ln` name is
+  the one shown).  Neither the PDF of a PDF-compatible file (only layers, as `/Layer` marks or
+  optional content) nor the PostScript of an Illustrator EPS (whose `XT` tags carry only
+  `BBAccumRotation`) names objects; the native art is the private data of a PDF-compatible file, the
+  ASCII85 and zlib stream after `%AI9_PrivateDataBegin` in an EPS from Illustrator 9 on, or a
+  native-format PostScript file itself.  PostScript files from before Illustrator 9 have no art
+  dictionaries (their `%AI3_Note:` comments are the Attributes panel's notes, empty in every corpus
+  file, and are not names).  In the corpus, 6 of 76 `.ai` files and 1 of 73 EPS files name 34 objects, mostly
+  groups (crop marks, "heroes", a placed PSD).
+* *FreeHand files hold no object names.*  Every string record of the 13 FreeHand 9 and 10 files is
+  a layer, colour, font, style, brush, pattern, printer or page-setup name; FreeHand's own Layers
+  panel lists layers only.  FreeHand objects keep their default labels; symbol instances are named
+  after their symbols and blends "Blend", as before.
+* *The drawing stays the source of the artwork, so names are matched to it, not read with it.*  The
+  PDF and the PostScript draw some objects in pieces, leave hidden ones out and never keep
+  Illustrator's groups, so neither "the n-th object" nor counting per layer works (in the corpus
+  every named layer differed in count).  A native path names the imported path with the same box
+  -- size and place, within half a point -- under one offset for the page, which the pairs of
+  same-sized paths vote for (native y up or down; a size shared by more than eight paths does not
+  vote, and fewer than two agreeing pairs means no names); the longest run in drawing order wins
+  (patience sorting over the candidate pairs), a later piece of a matched object staying unnamed.
+  Native twins -- paths with the same box -- that differ in name or group are matched only when the
+  import drew as many paths there (which copy a PDF kept cannot be told).  Text and images, which
+  have no box in the native art, pair up between two matched paths when both sides hold the same
+  kinds there.  A named group names the imported objects of its paths when all matched and nothing
+  else matched lies among them: an unnamed group of exactly those objects takes the name, else the
+  run of nodes holding them becomes a new group with it, else nothing.
+* *Silence over guesses.*  Whatever does not match keeps its default label, with no notice: a wrong
+  name is worse than none (D-092's reason for not auto-naming).  The native art is only scanned when
+  it names an object (more XML IDs than layers), so files without names cost one byte search.
+* *Sublayers* of PostScript Illustrator files become groups named after them, as the PDF reader
+  already did (D-085), rather than layers inside layers.
+
+Corpus result: 24 of the 34 names arrive (all in `.ai` files); the other 10 are crop marks copied
+into several named groups at the same place, of which the PDF draws fewer copies than the native
+art holds (8), and two placed PSD images -- one whose PDF drawing does not match, one in an EPS whose
+PostScript reads with no objects.  Rejected: rebuilding the artwork from the
+native art (the PDF is the faithful drawing, D-085); naming by order within a layer (wrong in every
+named corpus file); reading `%AI3_Note:` notes as names; guessing a FreeHand name record.
+
 == Open questions
 
 [[Q-001]]

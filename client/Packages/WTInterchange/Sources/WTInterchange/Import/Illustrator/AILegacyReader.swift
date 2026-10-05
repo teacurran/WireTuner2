@@ -1,8 +1,9 @@
 // The legacy Illustrator reader (import-formats.adoc, "Adobe Illustrator" and "Client"; IMG-010):
 // Illustrator 1.1 through 8 and Illustrator EPS files are PostScript, but their page description
 // is a fixed operator set (the Adobe Illustrator file format's AI5 operators), so the reader runs
-// those operators directly -- paths, painting, compound paths, groups, clip groups, layers,
-// colours, stroke attributes, point text and rasters -- without a PostScript interpreter.  The
+// those operators directly -- paths, painting, compound paths, groups, clip groups, layers (a
+// sublayer as a group named after it), colours, stroke attributes, point text and rasters --
+// without a PostScript interpreter; object names come from the file's native art (D-095).  The
 // prolog, setup and resources are skipped; an operator outside the set makes the file fall back
 // to placement as EPS.
 
@@ -55,7 +56,12 @@ struct AILegacyReader {
         let bounds = Rect(x: 0, y: 0, width: box.width, height: box.height)
         do {
             var interpreter = AILegacyInterpreter(box: box, text: text)
-            let nodes = try interpreter.run(data)
+            var nodes = try interpreter.run(data)
+            // Object names (D-095): from the native art an Illustrator EPS carries after its
+            // PostScript, else from a native-format file's own art dictionaries.
+            if nodes.contains(where: \.isLayer), case let native = IllustratorPrivateData.eps(data) ?? data, IllustratorNativeArt.namesObjects(native) {
+                IllustratorObjectNames.apply(IllustratorNativeArt(scanning: native), to: &nodes)
+            }
             return ImportedScene(kind: .vector, name: name, bounds: bounds, nodes: nodes, notes: interpreter.notes)
         } catch {
             // Placed as the EPS importer places a file: bounding box, preview, notes.
@@ -243,7 +249,9 @@ struct AILegacyInterpreter {
             style.dashPhase = number(0)
         case "XR": evenOdd = number(0) == 1
         case "Lb":
-            groups.append(Open(role: .layer, closer: "LB"))
+            // A layer inside a layer (a sublayer) is a group named after it.
+            let sublayer = groups.contains { $0.role == .layer }
+            groups.append(Open(role: sublayer ? .group : .layer, closer: "LB"))
         case "Ln":
             if let text = operands.first?.string {
                 groups[groups.count - 1].name = PDFImportOperand.text(text)

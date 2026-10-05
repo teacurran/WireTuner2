@@ -312,15 +312,15 @@ struct FreeHandFileFixture {
     }
 
     /// A path through `points` (inches) with straight segments, closed (flag bit 0) unless
-    /// `closed` is false.
+    /// `closed` is false, filled even/odd (flag bit 1) when `evenOdd`.
     @discardableResult
-    mutating func path(_ points: [(Double, Double)], style: Int, closed: Bool = true) -> Int {
+    mutating func path(_ points: [(Double, Double)], style: Int, closed: Bool = true, evenOdd: Bool = false) -> Int {
         let id = record("Path")
         u16(points.count)
         ref(style)
         ref(0)
         skip(4 + 9)
-        u8(closed ? 1 : 0)
+        u8((closed ? 1 : 0) | (evenOdd ? 2 : 0))
         u16(points.count)
         for (x, y) in points {
             skip(1); u8(0); skip(1)
@@ -329,6 +329,17 @@ struct FreeHandFileFixture {
                 coordinate(y * 72)
             }
         }
+        return id
+    }
+
+    /// A composite path of the paths in list `elements`, with style `style`.
+    @discardableResult
+    mutating func compositePath(elements: Int, style: Int = 0) -> Int {
+        let id = record("CompositePath")
+        ref(style)
+        ref(0)
+        skip(4 + 4)
+        ref(elements)
         return id
     }
 

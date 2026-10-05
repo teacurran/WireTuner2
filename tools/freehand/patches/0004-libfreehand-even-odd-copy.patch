@@ -1,0 +1,19 @@
+WireTuner: keep each path's even/odd fill flag (the FreeHand importer, D-083).
+- FHPath's copy assignment copied the segments, closed flag, transform and style but not
+  m_evenOdd (the copy constructor does copy it).  FHCollector::collectPath stores every path by
+  assignment (m_paths[recordId] = path), so every collected path came out non-zero even when
+  readPath read FreeHand's even/odd bit (the path flag's bit 1), and composite paths, which take
+  their first path's rule, lost it with them.
+
+diff -ruN a/libfreehand/src/lib/FHPath.cpp b/libfreehand/src/lib/FHPath.cpp
+--- a/libfreehand/src/lib/FHPath.cpp	2026-10-04 11:23:30
++++ b/libfreehand/src/lib/FHPath.cpp	2026-10-04 11:23:30
+@@ -662,6 +662,8 @@
+   m_isClosed = path.m_isClosed;
+   m_xFormId = path.m_xFormId;
+   m_graphicStyleId = path.m_graphicStyleId;
++  // WireTuner: the fill rule is copied too (FHCollector::collectPath assigns every path).
++  m_evenOdd = path.m_evenOdd;
+   return *this;
+ }
+ 

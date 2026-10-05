@@ -3,7 +3,8 @@
 // layers from the `/Layer` marks Illustrator writes around each layer's drawing (or, with *Create
 // Acrobat Layers*, its optional content), hidden layers from the copies Illustrator keeps beside
 // them, and for a file with neither its private data's layer table when that has one layer
-// (D-085), its artboards as pages named after them; live blends as the groups of blended shapes Illustrator writes, gradient meshes as 50%
+// (D-085), its artboards as pages named after them, its objects' names from the private data
+// (D-095, IllustratorObjectNames); live blends as the groups of blended shapes Illustrator writes, gradient meshes as 50%
 // black -- and PostScript-based files (versions 1.1 through 8, Illustrator EPS) through the
 // legacy operator reader, which places a file it cannot read as EPS rather than refusing it.
 
@@ -48,8 +49,12 @@ public struct IllustratorImporter: Importer {
     /// private data's only layer when that is shown.
     static func scene(_ pdf: CGPDFDocument, name: String, options: PDFImportOptions, context: ImportContext, importer: PDFImporter) throws -> ImportedScene {
         var scene = try importer.convert(pdf, name: name, options: options, context: context)
-        if !scene.nodes.contains(where: \.isLayer), pdf.numberOfPages == 1, !scene.nodes.isEmpty, let layer = onlyLayer(nativeData(pdf)), layer.state.visible {
+        let native = nativeData(pdf)
+        if !scene.nodes.contains(where: \.isLayer), pdf.numberOfPages == 1, !scene.nodes.isEmpty, let layer = onlyLayer(native), layer.state.visible {
             scene.nodes = [.group(ImportedGroup(children: scene.nodes, name: layer.name, role: .layer, layerState: layer.state))]
+        }
+        if let art = objectNames(native) {
+            IllustratorObjectNames.apply(art, to: &scene.nodes)
         }
         return scene
     }
@@ -80,6 +85,11 @@ public struct IllustratorImporter: Importer {
         if names.count == pdf.numberOfPages {
             for (index, page) in pages.enumerated() where !names[page.number - 1].isEmpty {
                 result.pages[index].name = names[page.number - 1]
+            }
+        }
+        if let art = objectNames(native) {
+            for index in result.pages.indices {
+                IllustratorObjectNames.apply(art, to: &result.pages[index].nodes)
             }
         }
         return result
@@ -219,6 +229,12 @@ public struct IllustratorImporter: Importer {
     /// The file's private data (page 1's, which holds the whole document), or nil.
     static func nativeData(_ pdf: CGPDFDocument) -> Data? {
         pdf.page(at: 1)?.dictionary.flatMap { IllustratorPrivateData.data(page: PDFImportDict(ref: $0)) }
+    }
+
+    /// The native art of private data that names objects (D-095), or nil.
+    static func objectNames(_ native: Data?) -> IllustratorNativeArt? {
+        guard let native, IllustratorNativeArt.namesObjects(native) else { return nil }
+        return IllustratorNativeArt(scanning: native)
     }
 
     /// The layer records of the file's private data, or none.
